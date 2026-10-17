@@ -10,10 +10,13 @@ uses
   System.Win.Registry,
   Winapi.Messages,
   Winapi.Windows,
+  Winapi.ActiveX,
   Vcl.Controls,
   Vcl.ExtCtrls,
   Vcl.Forms,
   Vcl.Edge,
+  Vcl.StdCtrls,
+  XmlDoc.Plugin.Browser,
   WebView2,
   DockForm,
   ToolsAPI,
@@ -29,7 +32,8 @@ type
   /// <summary>WebView2 기반 XML 문서 편집기를 호스팅하는 Dockable 패널</summary>
   TDocInspectorForm = class(TDockableForm)
   private
-    FBrowser: TEdgeBrowser;
+    FBrowser: TXmlDocBrowser;
+    FBrowserError: TLabel;
     FBrowserReady: Boolean;
     FCursorPollTimer: TTimer;
     FCurrentElement: TCodeElementInfo;
@@ -202,7 +206,13 @@ begin
     TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'), 'XmlDocPlugin'), 'WebView2');
   ForceDirectories(LDataDir);
 
-  FBrowser := TEdgeBrowser.Create(Self);
+  FBrowserError := TLabel.Create(Self);
+  FBrowserError.Parent := Self;
+  FBrowserError.Align := alTop;
+  FBrowserError.WordWrap := True;
+  FBrowserError.Visible := False;
+
+  FBrowser := TXmlDocBrowser.Create(Self);
   FBrowser.UserDataFolder := LDataDir;
   FBrowser.OnCreateWebViewCompleted := BrowserCreateWebViewCompleted;
   FBrowser.OnNavigationCompleted := BrowserNavigationCompleted;
@@ -212,35 +222,28 @@ begin
 
   // TDockableForm에서 Parent 설정만으로 자동 초기화되지 않는 경우 명시적 호출
   if not FBrowser.WebViewCreated then
-    FBrowser.ReinitializeWebView;
+    FBrowser.CreateWebView;
 end;
 
 procedure TDocInspectorForm.BrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HRESULT);
-var
-  LStream: TResourceStream;
-  LBytes: TBytes;
-  LHtml: string;
 begin
-  if AResult <> S_OK then
+  FBrowserReady := False;
+  FBrowserError.Visible := Winapi.Windows.Failed(AResult);
+  if Winapi.Windows.Failed(AResult) then
+  begin
+    FBrowserError.Caption := 'WebView2 could not start (0x' + IntToHex(AResult, 8) +
+      '). Install the WebView2 Runtime and place the matching WebView2Loader.dll beside XmlDocPlugin.bpl.';
     Exit;
-
-  // 리소스에서 HTML 로드
+  end;
   try
-    LStream := TResourceStream.Create(
-      FindClassHInstance(TDocInspectorForm), CEditorResourceName, RT_RCDATA);
-    try
-      SetLength(LBytes, LStream.Size);
-      LStream.ReadBuffer(LBytes, Length(LBytes));
-    finally
-      LStream.Free;
-    end;
+    FBrowser.LoadEditorResource(FindClassHInstance(TDocInspectorForm), CEditorResourceName);
   except
     on E: Exception do
-      Exit;
+    begin
+      FBrowserError.Caption := 'Cannot load the documentation editor: ' + E.Message;
+      FBrowserError.Visible := True;
+    end;
   end;
-
-  LHtml := TEncoding.UTF8.GetString(LBytes);
-  FBrowser.NavigateToString(LHtml);
 end;
 
 procedure TDocInspectorForm.BrowserNavigationCompleted(Sender: TCustomEdgeBrowser; IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);
@@ -249,13 +252,8 @@ begin
     Exit;
 
   FBrowserReady := True;
-
-  // 보류 중인 로드가 있으면 실행
-  if FPendingLoad then
-  begin
-    FPendingLoad := False;
-    UpdateFromCursor;
-  end;
+  FPendingLoad := False;
+  RefreshFromCurrentEditor;
 end;
 
 procedure TDocInspectorForm.BrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
@@ -265,11 +263,16 @@ var
   LMsgType: string;
   LDocObj: TJSONObject;
 begin
+  LJson := nil;
   Args.ArgsInterface.TryGetWebMessageAsString(LJson);
   if LJson = nil then
     Exit;
 
-  LMsg := TJSONObject.ParseJSONValue(string(LJson)) as TJSONObject;
+  try
+    LMsg := TJSONObject.ParseJSONValue(string(LJson)) as TJSONObject;
+  finally
+    CoTaskMemFree(LJson);
+  end;
   if LMsg = nil then
     Exit;
 
