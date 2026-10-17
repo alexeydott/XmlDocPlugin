@@ -58,6 +58,7 @@ type
     procedure EnsureParamDictLoaded;
     function GetParamDictPath: string;
     procedure HandleDocUpdated(const AJsonStr: string);
+    procedure HandleJumpToLine(ALine: Integer);
     procedure InitTimerFired(Sender: TObject);
     function IsSameElement(const AElement: TCodeElementInfo): Boolean;
     procedure SendToEditor(const AMessageType, APayload: string);
@@ -287,6 +288,8 @@ begin
       if Assigned(LDocObj) then
         FBrowser.SaveSections(LDocObj.ToJSON);
     end
+    else if LMsgType = 'jumpToLine' then
+      HandleJumpToLine(LMsg.GetValue<Integer>('line', 0))
     else if LMsgType = 'docUpdated' then
     begin
       LDocObj := LMsg.GetValue<TJSONObject>('doc');
@@ -296,6 +299,27 @@ begin
   finally
     LMsg.Free;
   end;
+end;
+
+procedure TDocInspectorForm.HandleJumpToLine(ALine: Integer);
+var
+  Actions: IOTAActionServices;
+  Editors: IOTAEditorServices;
+  View: IOTAEditView;
+  Position: TOTAEditPos;
+begin
+  if (FCurrentElement.Kind <> dekMethod) or (ALine <= 0) or
+     (ALine <> FCurrentElement.LineNumber) or (FLastFileName = '') then Exit;
+  if not Supports(BorlandIDEServices, IOTAActionServices, Actions) or
+     not Actions.OpenFile(FLastFileName) then Exit;
+  if not Supports(BorlandIDEServices, IOTAEditorServices, Editors) then Exit;
+  View := Editors.TopView;
+  if not Assigned(View) then Exit;
+  Position.Line := ALine;
+  Position.Col := 1;
+  View.SetCursorPos(Position);
+  View.MoveViewToCursor;
+  View.Paint;
 end;
 
 procedure TDocInspectorForm.HandleDocUpdated(const AJsonStr: string);

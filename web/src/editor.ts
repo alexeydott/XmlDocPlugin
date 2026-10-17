@@ -267,6 +267,16 @@ function renderParams(params: ParamDoc[], elementParams: ElementInfo['params']):
       <td class="td-name" title="${escapeHtml(sp.type ?? '')}">${escapeHtml(sp.name)}</td>
       <td class="td-desc" contenteditable="true">${escapeHtml(docParam?.description ?? '')}</td>
     `;
+    const owner = currentElement;
+    if (owner?.kind === 'method' && (owner.lineNumber ?? 0) > 0) {
+      const nameCell = tr.querySelector<HTMLElement>('.td-name')!;
+      nameCell.title = `${sp.type ?? ''}${sp.type ? '\n' : ''}Double-click to go to method`;
+      nameCell.style.cursor = 'pointer';
+      nameCell.addEventListener('dblclick', event => {
+        event.preventDefault();
+        bridge.sendToHost({ type: 'jumpToLine', line: owner.lineNumber! });
+      });
+    }
     tr.querySelector('.td-desc')!.addEventListener('input', notifyChanged);
     tbody.appendChild(tr);
   });

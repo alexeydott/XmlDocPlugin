@@ -9,6 +9,7 @@ type
   public
     Browser: TXmlDocBrowser;
     Done, Passed: Boolean;
+    JumpCount: Integer;
     ElementJSON, DocJSON, UnitName, Summary: string;
     procedure Created(Sender:TCustomEdgeBrowser; Status:HRESULT);
     procedure Navigated(Sender:TCustomEdgeBrowser; Success:Boolean; Status:COREWEBVIEW2_WEB_ERROR_STATUS);
@@ -30,8 +31,12 @@ begin
     'const row=document.querySelector(".tree-row");if(!row)throw Error("Missing unit root");row.click();'+
     'const exceptions=document.querySelector("#exceptions-section");'+
     'if(!exceptions.classList.contains("hidden"))throw Error("Unit exceptions should be hidden");'+
-    'window.bridge.receive({type:"loadDoc",data:{element:{kind:"method",name:"Run",params:[]},doc:{summary:"Method"}}});'+
-    'if(exceptions.classList.contains("hidden"))throw Error("Method exceptions should be visible");row.click();'+
+    'window.bridge.receive({type:"loadDoc",data:{element:{kind:"method",name:"Run",lineNumber:42,params:[{name:"Value",type:"Integer"}]},doc:{summary:"Method"}}});'+
+    'if(exceptions.classList.contains("hidden"))throw Error("Method exceptions should be visible");'+
+    'document.querySelector("#params-body .td-desc").dispatchEvent(new MouseEvent("dblclick",{bubbles:true}));'+
+    'document.querySelector("#params-body .td-name").dispatchEvent(new MouseEvent("dblclick",{bubbles:true}));'+
+    'window.bridge.receive({type:"loadDoc",data:{element:{kind:"method",name:"Unknown",params:[{name:"Other",type:"Integer"}]},doc:{summary:"Unknown"}}});'+
+    'document.querySelector("#params-body .td-name").dispatchEvent(new MouseEvent("dblclick",{bubbles:true}));row.click();'+
     'if(!exceptions.classList.contains("hidden"))throw Error("Unit exceptions reappeared");'+
     'const editor=document.querySelector("#summary-editor .tiptap");'+
     'if(!editor || !editor.textContent.includes('+QuotedSummary.ToJSON+'))throw Error("Unit summary not loaded");'+
@@ -50,8 +55,12 @@ begin
   if S.StartsWith('FAIL:') then begin Writeln(S);Done:=True;Exit;end;
   J:=TJSONObject.ParseJSONValue(S) as TJSONObject;
   try
+    if (J<>nil) and (J.GetValue<string>('type','')='jumpToLine') then begin
+      if J.GetValue<Integer>('line',0)<>42 then begin Done:=True;Exit;end;
+      Inc(JumpCount);
+    end;
     if (J<>nil) and (J.GetValue<string>('type','')='docUpdated') then begin
-      Passed:=(J.GetValue<string>('elementFullName','')=UnitName) and
+      Passed:=(JumpCount=1) and (J.GetValue<string>('elementFullName','')=UnitName) and
         J.GetValue<TJSONObject>('doc').GetValue<string>('summary','').Contains('Edited unit documentation smoke');
       Done:=True;
     end;
