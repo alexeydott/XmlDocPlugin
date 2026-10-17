@@ -618,6 +618,7 @@ begin
 
         // 렌더링 옵션
         LRenderOpts.OutputDir := FEdtOutputDir.Text;
+        LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(LProjectPath), '');
         LRenderOpts.Title := FEdtTitle.Text;
         LRenderOpts.IncludePrivate := FChkIncludePrivate.Checked;
         LRenderOpts.IncludeSearchIndex := FChkSearchIndex.Checked;

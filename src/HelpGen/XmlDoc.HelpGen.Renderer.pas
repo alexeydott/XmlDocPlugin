@@ -20,6 +20,7 @@ type
     IncludeSource: Boolean;
     LogoPath: string;
     OutputDir: string;
+    ProjectName: string;
     Title: string;
   end;
 

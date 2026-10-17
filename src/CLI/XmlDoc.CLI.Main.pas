@@ -297,6 +297,7 @@ begin
 
       // 렌더링 옵션
       LRenderOpts.OutputDir := FOptions.OutputDir;
+      LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(FOptions.ProjectPath), '');
       LRenderOpts.Title := FOptions.Title;
       LRenderOpts.IncludePrivate := FOptions.IncludePrivate;
       LRenderOpts.IncludeSearchIndex := True;

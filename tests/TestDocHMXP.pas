@@ -1,4 +1,4 @@
-﻿unit TestDocHMXP;
+unit TestDocHMXP;
 
 interface
 uses DUnitX.TestFramework;
@@ -8,13 +8,16 @@ type
   public
     [Test] procedure TestCompleteProjectAndStableIDs;
     [Test] procedure TestEmptyProject;
+    [Test] procedure TestSourceProjectName;
+    [Test] procedure TestModuleTypeAndMemberHierarchy;
+    [Test] procedure TestParsedNestedTypes;
   end;
 
 implementation
 uses
   System.SysUtils, System.StrUtils, System.Classes, System.IOUtils, System.Generics.Collections,
   Xml.XMLDoc, Xml.XMLIntf, XmlDoc.Consts, XmlDoc.HelpGen.Types,
-  XmlDoc.HelpGen.Renderer, XmlDoc.HelpGen.Renderer.HMXP;
+  XmlDoc.HelpGen.Renderer, XmlDoc.HelpGen.Renderer.HMXP, XmlDoc.HelpGen.BatchParser;
 
 procedure TTestHMXP.TestCompleteProjectAndStableIDs;
 var
@@ -141,6 +144,101 @@ begin
     Renderer.Render(Units, nil, Opts);
     Assert.IsTrue(TFile.Exists(TPath.Combine(Opts.OutputDir, 'hmxp\Documentation.hmxp')));
   finally Units.Free; end;
+end;
+
+procedure TTestHMXP.TestSourceProjectName;
+var Units: TObjectList<TUnitDocInfo>; Opts: TRenderOptions; Renderer: IDocRenderer; Path: string;
+begin
+  Units := TObjectList<TUnitDocInfo>.Create(True);
+  try
+    Opts := Default(TRenderOptions);
+    Opts.OutputDir := TPath.Combine(ExtractFilePath(ParamStr(0)), 'HMXPNamed');
+    Opts.ProjectName := 'skia_vcl_canvas';
+    Renderer := THMXPDocRenderer.Create;
+    Renderer.Render(Units, nil, Opts);
+    Path := TPath.Combine(Opts.OutputDir, 'hmxp');
+    Assert.IsTrue(TFile.Exists(TPath.Combine(Path, 'skia_vcl_canvas.hmxp')));
+    Assert.IsTrue(TFile.ReadAllText(TPath.Combine(Path, 'helpproject.xsl')).Contains('skia_vcl_canvas.hmxp'));
+    Assert.IsFalse(TFile.Exists(TPath.Combine(Path, 'Documentation.hmxp')));
+    Renderer.Render(Units, nil, Opts);
+  finally Units.Free; end;
+end;
+
+procedure TTestHMXP.TestModuleTypeAndMemberHierarchy;
+var
+  Units: TObjectList<TUnitDocInfo>;
+  U: TUnitDocInfo;
+  T, N: TTypeDocInfo;
+  M: TElementDocInfo;
+  Opts: TRenderOptions;
+  Renderer: IDocRenderer;
+  Map: IXMLDocument;
+  Root, ModuleNode, TypeNode, Group: IXMLNode;
+  function Child(const Parent: IXMLNode; const Caption: string): IXMLNode;
+  var I: Integer; Node: IXMLNode;
+  begin
+    Result := nil;
+    for I := 0 to Parent.ChildNodes.Count - 1 do
+    begin
+      Node := Parent.ChildNodes[I];
+      if (Node.NodeName = 'topicref') and (Node.ChildNodes['caption'].Text = Caption) then
+        Exit(Node);
+    end;
+    Assert.Fail('Missing hierarchy node: ' + Caption);
+  end;
+begin
+  Units := TObjectList<TUnitDocInfo>.Create(True);
+  try
+    U := TUnitDocInfo.Create;
+    U.UnitName := 'Sample.Module';
+    Units.Add(U);
+    T := TTypeDocInfo.Create;
+    T.Name := 'TWidget'; T.FullName := U.UnitName + '.TWidget'; T.Kind := dekClass;
+    U.Types.Add(T);
+    M := TElementDocInfo.Create;
+    M.Name := 'Run'; M.FullName := T.FullName + '.Run'; M.Kind := dekMethod;
+    T.Members.Add(M);
+    M := TElementDocInfo.Create;
+    M.Name := 'Value'; M.FullName := T.FullName + '.Value'; M.Kind := dekProperty;
+    T.Members.Add(M);
+    N := TTypeDocInfo.Create;
+    N.Name := 'TState'; N.FullName := T.FullName + '.TState'; N.Kind := dekRecord;
+    T.NestedTypes.Add(N);
+    Opts := Default(TRenderOptions);
+    Opts.Title := 'Hierarchy';
+    Opts.OutputDir := TPath.Combine(ExtractFilePath(ParamStr(0)), 'HMXPHierarchy');
+    Renderer := THMXPDocRenderer.Create;
+    Renderer.Render(Units, nil, Opts);
+    Map := LoadXMLDocument(TPath.Combine(Opts.OutputDir, 'hmxp\Maps\table_of_contents.xml'));
+    Root := Child(Map.DocumentElement, 'Hierarchy');
+    ModuleNode := Child(Root, 'Sample.Module');
+    Group := Child(ModuleNode, 'Classes');
+    Assert.IsFalse(Group.HasAttribute('href'), 'Category is a chapter, not a broken topic link');
+    TypeNode := Child(Group, 'TWidget');
+    Assert.IsTrue(Child(Child(TypeNode, 'Methods'), 'Run').HasAttribute('href'));
+    Assert.IsTrue(Child(Child(TypeNode, 'Properties'), 'Value').HasAttribute('href'));
+    Assert.IsTrue(Child(Child(TypeNode, 'Records'), 'TState').HasAttribute('href'));
+  finally Units.Free; end;
+end;
+
+procedure TTestHMXP.TestParsedNestedTypes;
+var Parser: TBatchParser; Path: string;
+begin
+  Path := TPath.Combine(ExtractFilePath(ParamStr(0)), 'HMXPNestedSource.pas');
+  TFile.WriteAllText(Path,
+    'unit HMXPNestedSource;' + sLineBreak + 'interface' + sLineBreak +
+    'type TOuter = class' + sLineBreak + 'public type TInner = class' + sLineBreak +
+    'public procedure Run;' + sLineBreak + 'end;' + sLineBreak + 'end;' + sLineBreak +
+    'implementation' + sLineBreak + 'end.', TEncoding.UTF8);
+  Parser := TBatchParser.Create;
+  try
+    Parser.ParseAll([Path]);
+    Assert.AreEqual<NativeInt>(1, Parser.Units[0].Types.Count);
+    Assert.AreEqual<NativeInt>(1, Parser.Units[0].Types[0].NestedTypes.Count);
+    Assert.AreEqual('HMXPNestedSource.TOuter.TInner', Parser.Units[0].Types[0].NestedTypes[0].FullName);
+    Assert.AreEqual<NativeInt>(1, Parser.Units[0].Types[0].NestedTypes[0].Members.Count);
+    Assert.IsTrue(Parser.SymbolIndex.ContainsKey('HMXPNestedSource.TOuter.TInner.Run'));
+  finally Parser.Free; TFile.Delete(Path); end;
 end;
 
 initialization

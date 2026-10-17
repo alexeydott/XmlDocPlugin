@@ -235,10 +235,8 @@ body {
 
 .doc-editor .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  float: left;
   color: var(--text-placeholder);
   pointer-events: none;
-  height: 0;
 }
 
 /* ── Parameter Table ── */
@@ -250,6 +248,7 @@ body {
 }
 
 .param-table thead th {
+  overflow-wrap: anywhere;
   text-align: left;
   font-weight: 700;
   font-size: 12px;

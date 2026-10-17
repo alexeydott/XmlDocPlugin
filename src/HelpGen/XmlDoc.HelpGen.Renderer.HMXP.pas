@@ -9,7 +9,7 @@ uses
 
 type
   THMTopic = class
-    ID, Name, FullName, UnitName, Signature, Ancestor: string;
+    ID, Name, FullName, UnitName, Signature, Ancestor, GroupName: string;
     Doc: TXmlDocModel;
     Children: TList<THMTopic>;
     constructor Create;
@@ -34,7 +34,8 @@ type
     function Section(const ATitle, AText: string; AContext: THMTopic): string;
     function TopicBody(ATopic: THMTopic): string;
     function Toc(ATopic: THMTopic): string;
-    procedure WriteResources(const ADir: string);
+    procedure SortTree(ATopic: THMTopic);
+    procedure WriteResources(const ADir, AProjectFile: string);
   public
     procedure Render(const AUnits: TObjectList<TUnitDocInfo>;
       const AResolver: TCrossRefResolver; const AOptions: TRenderOptions);
@@ -143,6 +144,7 @@ procedure THMXPDocRenderer.AddElement(AElement: TElementDocInfo;
 var
   LSignature: string;
   LParam: TParamInfo;
+  LTopic: THMTopic;
 begin
   if not Visible(AElement.Visibility) then Exit;
   LSignature := AElement.Signature;
@@ -166,7 +168,17 @@ begin
     if AElement.CodeElement.ReturnType <> '' then
       LSignature := LSignature + ': ' + AElement.CodeElement.ReturnType;
   end;
-  AddTopic(AElement.Name, AElement.FullName, AUnitName, Trim(LSignature), AElement.Doc, AParent);
+  LTopic := AddTopic(AElement.Name, AElement.FullName, AUnitName, Trim(LSignature), AElement.Doc, AParent);
+  case AElement.Kind of
+    dekProperty: LTopic.GroupName := 'Properties';
+    dekField: LTopic.GroupName := 'Fields';
+    dekConstant: LTopic.GroupName := 'Constants';
+    dekType: LTopic.GroupName := 'Types';
+  else
+    if SameText(AElement.CodeElement.MethodKind, 'constructor') then LTopic.GroupName := 'Constructors'
+    else if SameText(AElement.CodeElement.MethodKind, 'destructor') then LTopic.GroupName := 'Destructors'
+    else LTopic.GroupName := 'Methods';
+  end;
 end;
 
 procedure THMXPDocRenderer.AddType(AType: TTypeDocInfo;
@@ -179,6 +191,12 @@ var
 begin
   if not Visible(AType.Visibility) then Exit;
   LTopic := AddTopic(AType.Name, AType.FullName, AUnitName, '', AType.Doc, AParent);
+  case AType.Kind of
+    dekClass: LTopic.GroupName := 'Classes';
+    dekRecord: LTopic.GroupName := 'Records';
+    dekInterface: LTopic.GroupName := 'Interfaces';
+  else LTopic.GroupName := 'Types';
+  end;
   LTopic.Ancestor := AType.Ancestor;
   for LInterface in AType.Implements do
   begin
@@ -312,7 +330,7 @@ var
   Ex: TExampleDoc;
   S: TSeeAlsoDoc;
   LChild: THMTopic;
-  LID: string;
+  LID, LGroup: string;
 begin
   Result := Para(Text(ATopic.FullName), 'Code');
   if ATopic.Signature <> '' then Result := Result + Para(Text(ATopic.Signature), 'Code');
@@ -342,16 +360,49 @@ begin
   if ATopic.Children.Count > 0 then
   begin
     Result := Result + Para(Text('Contents'), 'Heading2');
+    LGroup := '';
     for LChild in ATopic.Children do
+    begin
+      if LChild.GroupName <> LGroup then
+      begin
+        LGroup := LChild.GroupName;
+        if LGroup <> '' then Result := Result + Para(Text(LGroup), 'Heading2');
+      end;
       Result := Result + Para('<link type="topiclink" displaytype="text" href="' + LChild.ID + '">' + Esc(LChild.Name) + '</link>');
+    end;
   end;
 end;
 
-function THMXPDocRenderer.Toc(ATopic: THMTopic): string;
+procedure THMXPDocRenderer.SortTree(ATopic: THMTopic);
 var LChild: THMTopic;
 begin
+  ATopic.Children.Sort(TComparer<THMTopic>.Construct(
+    function(const Left, Right: THMTopic): Integer
+    begin
+      Result := CompareText(Left.GroupName, Right.GroupName);
+      if Result = 0 then Result := CompareText(Left.Name, Right.Name);
+      if Result = 0 then Result := CompareStr(Left.Signature, Right.Signature);
+      if Result = 0 then Result := CompareStr(Left.ID, Right.ID);
+    end));
+  for LChild in ATopic.Children do SortTree(LChild);
+end;
+
+function THMXPDocRenderer.Toc(ATopic: THMTopic): string;
+var LChild: THMTopic; LGroup: string;
+begin
   Result := '<topicref type="topic" build="ALL" href="' + ATopic.ID + '"><caption>' + Esc(ATopic.Name) + '</caption>';
-  for LChild in ATopic.Children do Result := Result + Toc(LChild);
+  LGroup := '';
+  for LChild in ATopic.Children do
+  begin
+    if LChild.GroupName <> LGroup then
+    begin
+      if LGroup <> '' then Result := Result + '</topicref>';
+      LGroup := LChild.GroupName;
+      if LGroup <> '' then Result := Result + '<topicref type="topic" build="ALL"><caption>' + Esc(LGroup) + '</caption>';
+    end;
+    Result := Result + Toc(LChild);
+  end;
+  if LGroup <> '' then Result := Result + '</topicref>';
   Result := Result + '</topicref>' + sLineBreak;
 end;
 
@@ -367,12 +418,13 @@ begin
   finally S.Free; end;
 end;
 
-procedure THMXPDocRenderer.WriteResources(const ADir: string);
+procedure THMXPDocRenderer.WriteResources(const ADir, AProjectFile: string);
 var S: string;
 begin
   S := ResourceText('XMLDOC_HM_SCHEMA').Replace('schemaLocation="http://www.w3.org/XML/1998/namespace"', 'schemaLocation="xml.xsd"');
   TFile.WriteAllText(TPath.Combine(ADir, 'helpproject.xsd'), S, TEncoding.UTF8);
   S := ResourceText('XMLDOC_HM_STYLESHEET');
+  S := S.Replace(CProjectFile, Esc(AProjectFile.Replace('%', '%25').Replace('#', '%23').Replace('''', '%27').Replace(' ', '%20')));
   TFile.WriteAllText(TPath.Combine(ADir, 'helpproject.xsl'), S, TEncoding.UTF8);
   TFile.WriteAllText(TPath.Combine(ADir, 'xml.xsd'), CXml +
     '<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.w3.org/XML/1998/namespace">' +
@@ -395,7 +447,7 @@ var
   U: TUnitDocInfo;
   T: TTypeDocInfo;
   E: TElementDocInfo;
-  LDir, LProject, LStyles, LName, LStyle, LFiles: string;
+  LDir, LProject, LStyles, LName, LStyle, LFiles, LProjectFile: string;
   LPrevious, LCurrent: TStringList;
   LDoc: IXMLDocument;
   LFileNodes: IXMLNode;
@@ -403,6 +455,9 @@ var
 begin
   FOptions := AOptions;
   LDir := TPath.Combine(AOptions.OutputDir, 'hmxp');
+  LProjectFile := CProjectFile;
+  if AOptions.ProjectName <> '' then
+    LProjectFile := TPath.GetFileName(AOptions.ProjectName) + '.hmxp';
   LPrevious := TStringList.Create;
   LCurrent := TStringList.Create;
   FTopics := TObjectList<THMTopic>.Create(True);
@@ -410,9 +465,9 @@ begin
   FSymbols := TDictionary<string, THMTopic>.Create(TIStringComparer.Ordinal);
   FShortNames := TDictionary<string, THMTopic>.Create(TIStringComparer.Ordinal);
   try
-    if TFile.Exists(TPath.Combine(LDir, CProjectFile)) then
+    if TFile.Exists(TPath.Combine(LDir, LProjectFile)) then
     try
-      LDoc := LoadXMLDocument(TPath.Combine(LDir, CProjectFile));
+      LDoc := LoadXMLDocument(TPath.Combine(LDir, LProjectFile));
       LFileNodes := LDoc.DocumentElement.ChildNodes.FindNode('project-files');
       if Assigned(LFileNodes) then
         for I := 0 to LFileNodes.ChildNodes.Count - 1 do
@@ -433,13 +488,24 @@ begin
     begin
       LUnit := AddTopic(U.UnitName, U.UnitName, U.UnitName, '', U.UnitDoc, LRoot);
       for T in U.Types do AddType(T, U.UnitName, LUnit);
-      for E in U.StandaloneMethods do AddElement(E, U.UnitName, LUnit);
+      for E in U.StandaloneMethods do
+      begin
+        AddElement(E, U.UnitName, LUnit);
+        if Visible(E.Visibility) then
+          if E.Kind = dekField then FTopics.Last.GroupName := 'Variables'
+          else FTopics.Last.GroupName := 'Routines';
+      end;
       for E in U.Constants do AddElement(E, U.UnitName, LUnit);
-      for E in U.Variables do AddElement(E, U.UnitName, LUnit);
+      for E in U.Variables do
+      begin
+        AddElement(E, U.UnitName, LUnit);
+        if Visible(E.Visibility) then FTopics.Last.GroupName := 'Variables';
+      end;
     end;
+    SortTree(LRoot);
     for LName in ['Topics', 'Maps', 'Baggage', 'Images'] do
       TDirectory.CreateDirectory(TPath.Combine(LDir, LName));
-    WriteResources(LDir);
+    WriteResources(LDir, LProjectFile);
     LStyles := '';
     for LName in ['Normal', 'Heading1', 'Heading2', 'Code'] do
     begin
@@ -463,7 +529,7 @@ begin
       '<xi:include parse="xml" href="Maps/table_of_contents.xml"/>' +
       '<project-files>' + LFiles +
       '<file href="Baggage/*.*" build="ALL" filetype="baggage"/></project-files></helpproject>';
-    TFile.WriteAllText(TPath.Combine(LDir, CProjectFile), LProject, TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(LDir, LProjectFile), LProject, TEncoding.UTF8);
     TFile.WriteAllText(TPath.Combine(LDir, 'Maps\table_of_contents.xml'), CXml + '<map>' + Toc(LRoot) + '</map>', TEncoding.UTF8);
     for LTopic in FTopics do
       TFile.WriteAllText(TPath.Combine(LDir, 'Topics\' + LTopic.ID + '.xml'), CXml +

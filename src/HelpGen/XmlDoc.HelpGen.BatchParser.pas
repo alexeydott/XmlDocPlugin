@@ -62,9 +62,15 @@ end;
 procedure TBatchParser.BuildSymbolIndex;
 var
   LUnit: TUnitDocInfo;
-  LType: TTypeDocInfo;
   LElem: TElementDocInfo;
-  I, J, K: Integer;
+  I, J: Integer;
+  procedure IndexType(AType: TTypeDocInfo);
+  var Member: TElementDocInfo; Nested: TTypeDocInfo;
+  begin
+    for Member in AType.Members do
+      if Member.FullName <> '' then FSymbolIndex.AddOrSetValue(Member.FullName, Member);
+    for Nested in AType.NestedTypes do IndexType(Nested);
+  end;
 begin
   FSymbolIndex.Clear;
 
@@ -87,16 +93,7 @@ begin
     end;
 
     for J := 0 to LUnit.Types.Count - 1 do
-    begin
-      LType := LUnit.Types[J];
-
-      for K := 0 to LType.Members.Count - 1 do
-      begin
-        LElem := LType.Members[K];
-        if LElem.FullName <> '' then
-          FSymbolIndex.AddOrSetValue(LElem.FullName, LElem);
-      end;
-    end;
+      IndexType(LUnit.Types[J]);
   end;
 end;
 
@@ -113,7 +110,7 @@ var
   LLines: TArray<string>;
   I: Integer;
   LCodeElem: TCodeElementInfo;
-  LLine: string;
+  LLine, LTypeKey: string;
 begin
   LSource := TFile.ReadAllText(AFilePath, TEncoding.UTF8);
 
@@ -168,14 +165,19 @@ begin
           begin
             LTypeDoc := TTypeDocInfo.Create;
             LTypeDoc.Name := LCodeElem.Name;
-            LTypeDoc.FullName := LUnitDoc.UnitName + '.' + LCodeElem.Name;
+            LTypeKey := LCodeElem.Name;
+            if LCodeElem.QualifiedParent <> '' then
+              LTypeKey := LCodeElem.QualifiedParent + '.' + LTypeKey;
+            LTypeDoc.FullName := LUnitDoc.UnitName + '.' + LTypeKey;
             LTypeDoc.Kind := LCodeElem.Kind;
 
             if LCodeElem.ExistingDocXml <> '' then
               LTypeDoc.Doc.LoadFromXml(LCodeElem.ExistingDocXml);
 
-            LUnitDoc.Types.Add(LTypeDoc);
-            LTypeMap.AddOrSetValue(LCodeElem.Name, LTypeDoc);
+            if (LCodeElem.QualifiedParent <> '') and LTypeMap.ContainsKey(LCodeElem.QualifiedParent) then
+              LTypeMap[LCodeElem.QualifiedParent].NestedTypes.Add(LTypeDoc)
+            else LUnitDoc.Types.Add(LTypeDoc);
+            LTypeMap.AddOrSetValue(LTypeKey, LTypeDoc);
           end;
 
           dekMethod, dekProperty, dekField:
