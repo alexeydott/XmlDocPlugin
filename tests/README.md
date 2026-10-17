@@ -10,15 +10,8 @@ The browser smoke test uses the actual embedded editor and WebView2 Runtime.
 It checks document rendering, light/dark/system themes, and saved section state
 through three HWND recreations on both Win32 and Win64.
 
-The core suite currently reports 70 passed and 6 failed tests on Delphi 12.3.
-The same failures reproduce at the original commit `a63ea73`:
-
-- `TestSummaryOnly`, `TestSummaryWithIndent`, `TestWithException`,
-  `TestApplyToSource_NewComment` in `TestDocCodeGen`.
-- `TestLoadFromXml_Example` in `TestDocModel`.
-- `TestGetElementAtLine_Constant` in `TestDocParser`.
-
-The script returns a failure status when these tests fail.
+The full core suite runs on both Win32 and Win64, alongside the settings and
+browser smoke tests. The script returns a failure status if any test fails.
 
 For IDE integration, open Doc Inspector, dock it in an IDE tab group, and check
 that its content and selected documentation remain visible. Save the desktop

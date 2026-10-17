@@ -22,13 +22,10 @@ try {
         New-Item -ItemType Directory -Force $output | Out-Null
         Copy-Item "$sdk\build\native\$arch\WebView2Loader.dll" $output
         $compiler = if ($arch -eq 'x86') { 'dcc32' } else { 'dcc64' }
-        foreach ($name in @('SettingsSmoke', 'BrowserSmoke')) {
+        foreach ($name in @('SettingsSmoke', 'BrowserSmoke', 'XmlDocTests')) {
             Compile-Test $compiler $name $output
             & "$output\$name.exe"
             if ($LASTEXITCODE) { throw "$arch $name failed" }
         }
     }
-    Compile-Test 'dcc32' 'XmlDocTests' (Join-Path $testRoot 'x86')
-    & "$testRoot\x86\XmlDocTests.exe"
-    if ($LASTEXITCODE) { throw 'Core unit tests failed; see the test output.' }
 } finally { Pop-Location }
