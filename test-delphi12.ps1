@@ -1,5 +1,8 @@
-﻿param([string]$Bds = 'D:\Embarcadero RAD Studio\23.0')
+param([string]$Bds = 'D:\Embarcadero RAD Studio\23.0')
 $ErrorActionPreference = 'Stop'
+if (!(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'vendor\DelphiAST\Source\DelphiAST.pas'))) {
+    throw 'Initialize DelphiAST first: git submodule update --init --recursive'
+}
 $testRoot = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Tests'
 $sdk = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Build\WebView2-1.0.2045.28\sdk'
 if (!(Test-Path "$sdk\build\native\x86\WebView2Loader.dll")) {
@@ -7,7 +10,7 @@ if (!(Test-Path "$sdk\build\native\x86\WebView2Loader.dll")) {
 }
 function Compile-Test([string]$Compiler, [string]$Name, [string]$Output) {
     $search = "src\Core;src\Plugin;src\HelpGen;vendor\DelphiAST\Source;vendor\DelphiAST\Source\SimpleParser;$Bds\source\DunitX"
-    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && $Compiler -B --codepage:65001 -NSSystem;System.Win;Winapi;Vcl `"-U$search`" `"-E$Output`" `"-N0$Output`" tests\$Name.dpr"
+    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && $Compiler -B --codepage:65001 -NSSystem;System.Win;Winapi;Vcl -Ivendor\DelphiAST\Source\SimpleParser `"-U$search`" `"-E$Output`" `"-N0$Output`" tests\$Name.dpr"
     if ($LASTEXITCODE) { throw "$Name compilation failed" }
 }
 Push-Location $PSScriptRoot

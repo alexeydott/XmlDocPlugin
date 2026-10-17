@@ -120,6 +120,7 @@
         <VerInfo_Locale>1042</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.5.0.0;InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProductName=XmlDoc Plugin;ProductVersion=0.5.0;Comments=;CFBundleName=</VerInfo_Keys>
         <DCC_UnitSearchPath>..\..\..\vendor\DelphiAST\Source;..\..\..\vendor\DelphiAST\Source\SimpleParser;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_IncludePath>..\..\..\vendor\DelphiAST\Source\SimpleParser;$(DCC_IncludePath)</DCC_IncludePath>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">

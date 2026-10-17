@@ -186,6 +186,13 @@ var
   LList: TList<string>;
 begin
   LTypeParams := ANode.FindNode(ntTypeParams);
+  if not Assigned(LTypeParams) and (ANode.Typ = ntMethod) then
+  begin
+    LChild := ANode.FindNode(ntName);
+    if Assigned(LChild) and (Length(LChild.ChildNodes) > 0) and
+       (LChild.ChildNodes[High(LChild.ChildNodes)].Typ = ntTypeParams) then
+      LTypeParams := LChild.ChildNodes[High(LChild.ChildNodes)];
+  end;
   if not Assigned(LTypeParams) then
   begin
     Result := nil;
@@ -200,6 +207,11 @@ begin
       if LChild.Typ = ntTypeParam then
       begin
         LName := LChild.GetAttribute(anName);
+        if LName = '' then
+        begin
+          LChild := LChild.FindNode(ntType);
+          if Assigned(LChild) then LName := LChild.GetAttribute(anName);
+        end;
         if LName <> '' then
           LList.Add(LName);
       end;
@@ -241,7 +253,9 @@ begin
         // 파라미터 이름: ntName 자식 노드(TValuedSyntaxNode)에서 추출
         LNameNode := LChild.FindNode(ntName);
         if Assigned(LNameNode) and (LNameNode is TValuedSyntaxNode) then
-          LParam.Name := TValuedSyntaxNode(LNameNode).Value;
+          LParam.Name := TValuedSyntaxNode(LNameNode).Value
+        else if Assigned(LNameNode) then
+          LParam.Name := LNameNode.GetAttribute(anName);
 
         // 타입: ntType 자식 노드에서 추출
         LTypeNode := LChild.FindNode(ntType);
@@ -483,6 +497,7 @@ function TDocParser.NodeToElementInfo(ANode: TSyntaxNode): TCodeElementInfo;
 var
   LTypeNode: TSyntaxNode;
   LTypeAttr: string;
+  I, Depth, ScopeEnd: Integer;
 begin
   Result := Default(TCodeElementInfo);
   Result.LineNumber := ANode.Line;
@@ -499,6 +514,23 @@ begin
     begin
       Result.Kind := dekMethod;
       Result.Name := ANode.GetAttribute(anName);
+      LTypeNode := ANode.FindNode(ntName);
+      if Assigned(LTypeNode) and (LTypeNode.GetAttribute(anName) <> '') then
+        Result.Name := LTypeNode.GetAttribute(anName);
+      Depth := 0; ScopeEnd := 0;
+      for I := 1 to Length(Result.Name) do
+        case Result.Name[I] of
+          '<': Inc(Depth);
+          '>': Dec(Depth);
+          '.': if Depth = 0 then ScopeEnd := I;
+        end;
+      if ScopeEnd > 0 then
+      begin
+        Result.QualifiedParent := Copy(Result.Name, 1, ScopeEnd - 1);
+        Result.Name := Copy(Result.Name, ScopeEnd + 1, MaxInt);
+      end;
+      I := Pos('<', Result.Name);
+      if I > 0 then Result.Name := Copy(Result.Name, 1, I - 1);
       Result.MethodKind := ANode.GetAttribute(anKind);
       Result.Params := ExtractParams(ANode);
       Result.ReturnType := ExtractReturnType(ANode);
@@ -545,7 +577,9 @@ begin
       begin
         LTypeNode := ANode.FindNode(ntName);
         if LTypeNode is TValuedSyntaxNode then
-          Result.Name := TValuedSyntaxNode(LTypeNode).Value;
+          Result.Name := TValuedSyntaxNode(LTypeNode).Value
+        else if Assigned(LTypeNode) then
+          Result.Name := LTypeNode.GetAttribute(anName);
       end;
     end;
 
@@ -553,12 +587,20 @@ begin
     begin
       Result.Kind := dekField;
       Result.Name := ANode.GetAttribute(anName);
+      if Result.Name = '' then
+      begin
+        LTypeNode := ANode.FindNode(ntName);
+        if LTypeNode is TValuedSyntaxNode then
+          Result.Name := TValuedSyntaxNode(LTypeNode).Value
+        else if Assigned(LTypeNode) then Result.Name := LTypeNode.GetAttribute(anName);
+      end;
       Result.Visibility := ANode.GetAttribute(anVisibility);
     end;
   end;
 
   // 부모 경로
-  Result.QualifiedParent := BuildParentPath(ANode);
+  if Result.QualifiedParent = '' then
+    Result.QualifiedParent := BuildParentPath(ANode);
   if Result.QualifiedParent <> '' then
     Result.FullName := Result.QualifiedParent + '.' + Result.Name
   else

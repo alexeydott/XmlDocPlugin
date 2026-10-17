@@ -215,8 +215,8 @@ Module routines, constants, and variables have separate sections. Entries
 within each group are sorted alphabetically; nested types stay under their owner.
 
 When exporting a `.dproj`, `.dpr`, or `.dpk` project with `-p` or **Current Project**
-in the IDE, the HMXP filename follows that project name. For example,
-`skia_vcl_canvas.dproj` produces `hmxp/skia_vcl_canvas.hmxp`. Directory exports
+in the IDE, the output filename follows that project name. For example,
+`Project1.dproj` produces `hmxp/Project1.hmxp`. Directory exports
 retain the default `Documentation.hmxp` filename.
 
 The schema and preview stylesheet are bundled from the supplied XML reference.
@@ -230,10 +230,21 @@ To validate its project, topics, styles, links, and XSL previews offline:
 
 ## Tech Stack
 
+The parser in `vendor/DelphiAST` is a Git submodule pinned to a tested commit of
+the maintained fork. Initialize dependencies after cloning or pulling:
+
+```powershell
+git submodule update --init --recursive
+```
+
+For a new checkout, use `git clone --recurse-submodules`.
+Parser changes, attribution and cross-compiler/fuzz test instructions are in
+[DelphiAST UPSTREAM.md](https://github.com/alexeydott/DelphiAST/blob/master/UPSTREAM.md).
+
 | Area | Technology |
 |------|------------|
 | IDE Plugin | Delphi OTA (Open Tools API), VCL |
-| Source Parsing | [DelphiAST](https://github.com/RomanYankworsky/DelphiAST) |
+| Source Parsing | [DelphiAST maintained fork](https://github.com/alexeydott/DelphiAST) |
 | Doc Editor | [TipTap](https://tiptap.dev/) + TypeScript, WebView2 |
 | Build Tool | Vite + vite-plugin-singlefile |
 | Testing | DUnitX |

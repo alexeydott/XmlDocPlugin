@@ -1,0 +1,4 @@
+[submodule "vendor/DelphiAST"]
+	path = vendor/DelphiAST
+	url = https://github.com/alexeydott/DelphiAST.git
+	branch = master

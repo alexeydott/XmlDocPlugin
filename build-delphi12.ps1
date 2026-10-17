@@ -5,6 +5,9 @@ param(
     [string]$DcpOutputDir = ''
 )
 $ErrorActionPreference = 'Stop'
+if (!(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'vendor\DelphiAST\Source\DelphiAST.pas'))) {
+    throw 'Initialize DelphiAST first: git submodule update --init --recursive'
+}
 $OutputDir = [IO.Path]::GetFullPath($OutputDir)
 $dcpOption = ''
 if ($DcpOutputDir) {
