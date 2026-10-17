@@ -135,16 +135,36 @@ end;
 
 function TMarkdownDocRenderer.MakeMDLink(const ACref, AUnitName: string): string;
 var
-  LParts: TArray<string>;
-  LFile: string;
+  U: TUnitDocInfo;
+  T: TTypeDocInfo;
+  E: TElementDocInfo;
+  Href: string;
+  function Matches(const FullName, Name: string): Boolean;
+  begin
+    Result := SameText(ACref, FullName) or
+      (SameText(U.UnitName, AUnitName) and SameText(ACref, Name));
+  end;
 begin
-  LParts := ACref.Split(['.']);
-  if Length(LParts) >= 2 then
-    LFile := LParts[0] + '.' + LParts[1] + '.md'
-  else
-    LFile := ACref + '.md';
-
-  Result := Format('[`%s`](units/%s)', [ACref, LFile]);
+  // All documentation references are rendered inside units/. Only link to
+  // pages/anchors actually emitted by this renderer; external symbols are text.
+  Href := '';
+  for U in FUnits do
+  begin
+    if SameText(ACref, U.UnitName) then Href := U.UnitName + '.md';
+    for T in U.Types do
+    begin
+      if Matches(T.FullName, T.Name) then Href := U.UnitName + '.' + T.Name + '.md';
+      for E in T.Members do
+        if Matches(E.FullName, T.Name + '.' + E.Name) then
+          Href := U.UnitName + '.' + T.Name + '.md#' + LowerCase(E.Name);
+    end;
+    for E in U.StandaloneMethods do
+      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.md#' + LowerCase(E.Name);
+    for E in U.Constants do
+      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.md#' + LowerCase(E.Name);
+  end;
+  Result := '`' + ACref + '`';
+  if Href <> '' then Result := '[' + Result + '](' + Href + ')';
 end;
 
 procedure TMarkdownDocRenderer.WriteFile(const ARelPath, AContent: string);

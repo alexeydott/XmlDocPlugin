@@ -53,6 +53,7 @@ var
 begin
   FUnits := AUnits;
   FOptions := AOptions;
+  if FOptions.ProjectName = '' then FOptions.ProjectName := 'Documentation';
 
   // 먼저 HTML 렌더링
   LHtmlDir := TPath.Combine(AOptions.OutputDir, '_chm_html');
@@ -68,10 +69,10 @@ begin
   end;
 
   // HHP, HHC, HHK 파일 생성
-  LHHPPath := TPath.Combine(AOptions.OutputDir, 'XmlDoc.hhp');
+  LHHPPath := TPath.Combine(AOptions.OutputDir, TPath.GetFileName(FOptions.ProjectName) + '.hhp');
   GenerateHHP(LHHPPath);
-  GenerateHHC(TPath.Combine(AOptions.OutputDir, 'XmlDoc.hhc'));
-  GenerateHHK(TPath.Combine(AOptions.OutputDir, 'XmlDoc.hhk'));
+  GenerateHHC(TPath.Combine(AOptions.OutputDir, TPath.GetFileName(FOptions.ProjectName) + '.hhc'));
+  GenerateHHK(TPath.Combine(AOptions.OutputDir, TPath.GetFileName(FOptions.ProjectName) + '.hhk'));
 
   // CHM 컴파일
   if not CompileCHM(LHHPPath) then
@@ -90,12 +91,12 @@ begin
   try
     LSB.AppendLine('[OPTIONS]');
     LSB.AppendLine('Compatibility=1.1 or later');
-    LSB.AppendLine('Compiled file=' + TPath.Combine(FOptions.OutputDir, 'XmlDoc.chm'));
-    LSB.AppendLine('Contents file=XmlDoc.hhc');
+    LSB.AppendLine('Compiled file=' + TPath.GetFileName(FOptions.ProjectName) + '.chm');
+    LSB.AppendLine('Contents file=' + TPath.GetFileName(FOptions.ProjectName) + '.hhc');
     LSB.AppendLine('Default topic=' + LHtmlDir + '\index.html');
     LSB.AppendLine('Display compile progress=No');
     LSB.AppendLine('Full-text search=Yes');
-    LSB.AppendLine('Index file=XmlDoc.hhk');
+    LSB.AppendLine('Index file=' + TPath.GetFileName(FOptions.ProjectName) + '.hhk');
     LSB.AppendLine('Language=0x0409 English (United States)');
     LSB.AppendLine('Title=' + FOptions.Title);
     LSB.AppendLine;

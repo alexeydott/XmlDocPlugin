@@ -187,17 +187,37 @@ end;
 
 function THTMLDocRenderer.MakeCrefLink(const ACref, AUnitName: string): string;
 var
-  LParts: TArray<string>;
-  LHref: string;
+  U: TUnitDocInfo;
+  T: TTypeDocInfo;
+  E: TElementDocInfo;
+  Href: string;
+  function Matches(const FullName, Name: string): Boolean;
+  begin
+    Result := SameText(ACref, FullName) or
+      (SameText(U.UnitName, AUnitName) and SameText(ACref, Name));
+  end;
 begin
-  // FullName → 링크 생성 (Unit.Type.Member → Unit.Type.html#Member)
-  LParts := ACref.Split(['.']);
-  if Length(LParts) >= 2 then
-    LHref := LParts[0] + '.' + LParts[1] + '.html'
-  else
-    LHref := '#';
-
-  Result := Format('<a href="units/%s"><code>%s</code></a>', [LHref, EscapeHtml(ACref)]);
+  // All documentation references are rendered inside units/. Only link to
+  // pages/anchors actually emitted by this renderer; external symbols are text.
+  Href := '';
+  for U in FUnits do
+  begin
+    if SameText(ACref, U.UnitName) then Href := U.UnitName + '.html';
+    for T in U.Types do
+    begin
+      if Matches(T.FullName, T.Name) then Href := U.UnitName + '.' + T.Name + '.html';
+      for E in T.Members do
+        if Matches(E.FullName, T.Name + '.' + E.Name) then
+          Href := U.UnitName + '.' + T.Name + '.html#' + E.Name;
+    end;
+    for E in U.StandaloneMethods do
+      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.html#' + E.Name;
+    for E in U.Constants do
+      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.html#' + E.Name;
+  end;
+  Result := '<code>' + EscapeHtml(ACref) + '</code>';
+  if Href <> '' then
+    Result := '<a href="' + EscapeHtml(Href) + '">' + Result + '</a>';
 end;
 
 function THTMLDocRenderer.GenerateNav(const APrefix: string): string;

@@ -42,6 +42,21 @@ type
 
 implementation
 
+uses System.JSON;
+
+procedure WriteUTF8(const Path, Content: string);
+begin
+  // package.json is parsed directly by Node tools that reject a UTF-8 BOM.
+  TFile.WriteAllBytes(Path, TEncoding.UTF8.GetBytes(Content));
+end;
+
+function QuotedValue(const Value: string): string;
+var J: TJSONString;
+begin
+  J := TJSONString.Create(Value);
+  try Result := J.ToJSON; finally J.Free; end;
+end;
+
 { TSitePublisher }
 
 procedure TSitePublisher.Publish(
@@ -72,6 +87,10 @@ begin
     LMDRenderer := nil;
   end;
 
+  // These navigation files belong to Docsify/GitBook, not these site frameworks.
+  TFile.Delete(TPath.Combine(LOutputDir, 'docs/_sidebar.md'));
+  TFile.Delete(TPath.Combine(LOutputDir, 'docs/SUMMARY.md'));
+
   // 프레임워크별 설정 파일 생성
   case AOpts.Generator of
     sgMkDocs:     GenerateMkDocs(LOutputDir, AOpts, AUnits);
@@ -88,15 +107,15 @@ var
 begin
   LSB := TStringBuilder.Create;
   try
-    LSB.AppendLine('site_name: ' + AOpts.SiteName);
+    LSB.AppendLine('site_name: ' + QuotedValue(AOpts.SiteName));
     if AOpts.BaseURL <> '' then
-      LSB.AppendLine('site_url: ' + AOpts.BaseURL);
+      LSB.AppendLine('site_url: ' + QuotedValue(AOpts.BaseURL));
     if AOpts.RepoURL <> '' then
-      LSB.AppendLine('repo_url: ' + AOpts.RepoURL);
+      LSB.AppendLine('repo_url: ' + QuotedValue(AOpts.RepoURL));
 
     LSB.AppendLine('theme:');
     LSB.AppendLine('  name: material');
-    LSB.AppendLine('  language: ko');
+    LSB.AppendLine('  language: en');
     LSB.AppendLine;
     LSB.AppendLine('nav:');
     LSB.AppendLine('  - Home: index.md');
@@ -124,14 +143,22 @@ begin
     LSB.AppendLine('  - tables');
     LSB.AppendLine('  - fenced_code');
 
-    TFile.WriteAllText(TPath.Combine(AOutputDir, 'mkdocs.yml'), LSB.ToString, TEncoding.UTF8);
+    WriteUTF8(TPath.Combine(AOutputDir, 'mkdocs.yml'), LSB.ToString);
 
+    WriteUTF8(TPath.Combine(AOutputDir, 'requirements.txt'),
+      'mkdocs>=1.6,<2' + sLineBreak + 'mkdocs-material>=9.6,<10' + sLineBreak);
+    WriteUTF8(TPath.Combine(AOutputDir, 'README.md'),
+      '# ' + AOpts.SiteName + sLineBreak + sLineBreak +
+      'Install Python 3.10 or later, then run:' + sLineBreak +
+      '```shell' + sLineBreak + 'python -m pip install -r requirements.txt' + sLineBreak +
+      'python -m mkdocs build --strict' + sLineBreak + 'python -m mkdocs serve' + sLineBreak + '```' + sLineBreak);
     // docs/index.md 복사 (README.md → index.md)
     TFile.Copy(
       TPath.Combine(AOutputDir, 'docs', 'README.md'),
       TPath.Combine(AOutputDir, 'docs', 'index.md'),
       True
     );
+    TFile.Delete(TPath.Combine(AOutputDir, 'docs/README.md'));
   finally
     LSB.Free;
   end;
@@ -147,29 +174,45 @@ begin
     LSB.AppendLine('// @ts-check');
     LSB.AppendLine('/** @type {import(''@docusaurus/types'').Config} */');
     LSB.AppendLine('const config = {');
-    LSB.AppendFormat('  title: ''%s'',', [AOpts.SiteName]);
+    LSB.AppendLine('  title: ' + QuotedValue(AOpts.SiteName) + ',');
     LSB.AppendLine;
     if AOpts.BaseURL <> '' then
     begin
-      LSB.AppendFormat('  url: ''%s'',', [AOpts.BaseURL]);
+      LSB.AppendLine('  url: ' + QuotedValue(AOpts.BaseURL) + ',');
       LSB.AppendLine;
     end;
+    if AOpts.BaseURL = '' then LSB.AppendLine('  url: ''http://localhost'',');
     LSB.AppendLine('  baseUrl: ''/'',');
-    LSB.AppendLine('  onBrokenLinks: ''warn'',');
+    LSB.AppendLine('  i18n: { defaultLocale: ''en'', locales: [''en''] },');
+    LSB.AppendLine('  markdown: { format: ''md'' },');
+    LSB.AppendLine('  onBrokenLinks: ''throw'',');
     LSB.AppendLine('  themeConfig: {');
     LSB.AppendLine('    navbar: {');
-    LSB.AppendFormat('      title: ''%s'',', [AOpts.SiteName]);
+    LSB.AppendLine('      title: ' + QuotedValue(AOpts.SiteName) + ',');
     LSB.AppendLine;
     LSB.AppendLine('    },');
     LSB.AppendLine('  },');
     LSB.AppendLine('  presets: [');
-    LSB.AppendLine('    [''classic'', { docs: { routeBasePath: ''/'' } }],');
+    LSB.AppendLine('    [''classic'', { docs: { routeBasePath: ''/'', exclude: [''**/_sidebar.md'', ''**/SUMMARY.md''] }, blog: false }],');
     LSB.AppendLine('  ],');
     LSB.AppendLine('};');
     LSB.AppendLine('module.exports = config;');
 
-    TFile.WriteAllText(
-      TPath.Combine(AOutputDir, 'docusaurus.config.js'), LSB.ToString, TEncoding.UTF8);
+    WriteUTF8(
+      TPath.Combine(AOutputDir, 'docusaurus.config.js'), LSB.ToString);
+    WriteUTF8(TPath.Combine(AOutputDir, 'package.json'),
+      '{"name":"api-documentation","version":"1.0.0","private":true,' +
+      '"scripts":{"start":"docusaurus start","build":"docusaurus build","serve":"docusaurus serve"},' +
+      '"dependencies":{"@docusaurus/core":"3.10.2","@docusaurus/preset-classic":"3.10.2",' +
+      '"react":"18.3.1","react-dom":"18.3.1"},"engines":{"node":">=20.0.0"}}');
+    WriteUTF8(TPath.Combine(AOutputDir, 'docs/README.md'),
+      '---' + sLineBreak + 'slug: /' + sLineBreak + '---' + sLineBreak +
+      TFile.ReadAllText(TPath.Combine(AOutputDir, 'docs/README.md')));
+    WriteUTF8(TPath.Combine(AOutputDir, 'README.md'),
+      '# ' + AOpts.SiteName + sLineBreak + sLineBreak +
+      'Requires Node.js 20 or later. Run `npm install`, then `npm run build`.' + sLineBreak +
+      'Use `npm start` for development or `npm run serve` to preview the build.' + sLineBreak +
+      'Set `url` and `baseUrl` in docusaurus.config.js before deployment.' + sLineBreak);
   finally
     LSB.Free;
   end;
@@ -190,8 +233,9 @@ begin
     LSB.AppendLine('import { defineConfig } from ''vitepress''');
     LSB.AppendLine;
     LSB.AppendLine('export default defineConfig({');
-    LSB.AppendFormat('  title: ''%s'',', [AOpts.SiteName]);
+    LSB.AppendLine('  title: ' + QuotedValue(AOpts.SiteName) + ',');
     LSB.AppendLine;
+    LSB.AppendLine('  lang: ''en-US'',');
     LSB.AppendLine('  themeConfig: {');
     LSB.AppendLine('    sidebar: [');
     LSB.AppendLine('      {');
@@ -211,8 +255,18 @@ begin
     LSB.AppendLine('  }');
     LSB.AppendLine('})');
 
-    TFile.WriteAllText(
-      TPath.Combine(LConfigDir, 'config.mts'), LSB.ToString, TEncoding.UTF8);
+    WriteUTF8(
+      TPath.Combine(LConfigDir, 'config.mts'), LSB.ToString);
+    TFile.Copy(TPath.Combine(AOutputDir, 'docs/README.md'), TPath.Combine(AOutputDir, 'docs/index.md'), True);
+    TFile.Delete(TPath.Combine(AOutputDir, 'docs/README.md'));
+    WriteUTF8(TPath.Combine(AOutputDir, 'package.json'),
+      '{"name":"api-documentation","version":"1.0.0","private":true,"type":"module",' +
+      '"scripts":{"dev":"vitepress dev docs","build":"vitepress build docs","preview":"vitepress preview docs"},' +
+      '"devDependencies":{"vitepress":"1.6.4","vue":"3.5.22"},"engines":{"node":">=20.0.0"}}');
+    WriteUTF8(TPath.Combine(AOutputDir, 'README.md'),
+      '# ' + AOpts.SiteName + sLineBreak + sLineBreak +
+      'Requires Node.js 20 or later. Run `npm install`, then `npm run build`.' + sLineBreak +
+      'Use `npm run dev` for development or `npm run preview` to preview the build.' + sLineBreak);
   finally
     LSB.Free;
   end;

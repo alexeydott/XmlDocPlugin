@@ -432,8 +432,10 @@ begin
   FEdtTitle.Top := LTop - S(2);
   FEdtTitle.Width := S(416);
   FEdtTitle.Text := LSettings.Project.HelpGen.Title;
-  if FEdtTitle.Text = '' then
-    FEdtTitle.Text := 'API Reference';
+  if (FEdtTitle.Text = '') or (FEdtTitle.Text = 'API Reference') then
+    if LProjectPath <> '' then
+      FEdtTitle.Text := ChangeFileExt(ExtractFileName(LProjectPath), '')
+    else FEdtTitle.Text := 'Documentation';
   Inc(LTop, S(38));
 
   // Progress 영역
@@ -628,6 +630,8 @@ var
   LItems: TArray<TCoverageItem>;
   I: Integer;
 begin
+  LScanOpts := Default(TScanOptions);
+  LRenderOpts := Default(TRenderOptions);
   LFormats := GetSelectedFormats;
   if Length(LFormats) = 0 then
   begin
@@ -805,7 +809,8 @@ begin
     TJSONDocRenderer.Create.Render(AUnits, AResolver, ARenderOpts)
   else if (AFormat = 'mkdocs') or (AFormat = 'docusaurus') or (AFormat = 'vitepress') then
   begin
-    LSiteOpts.SiteName := TPluginSettings.Instance.Project.HelpGen.Title;
+    LSiteOpts := Default(TSitePublishOptions);
+    LSiteOpts.SiteName := ARenderOpts.Title;
     if LSiteOpts.SiteName = '' then
       LSiteOpts.SiteName := 'Documentation';
 

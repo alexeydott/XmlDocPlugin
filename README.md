@@ -56,6 +56,15 @@ This project was born from a simple belief: **writing documentation should be a 
 - **Cross-References** — Automatic link generation between types and members
 - **Static Site Publishing** — Generate standalone API documentation sites
 
+CHM and Help & Manual exports use the source project name, such as
+`skia_vcl_canvas.chm` and `skia_vcl_canvas.hmxp`. The project name is also the
+default documentation title; a custom title entered in the generation dialog
+applies to all three static site formats.
+
+Generated MkDocs, Docusaurus, and VitePress projects include English configuration,
+dependency manifests, and a README with build and preview commands. MkDocs requires
+Python 3.10 or later; Docusaurus and VitePress require Node.js 20 or later.
+
 ### CLI Tool (XmlDocGen)
 
 ```
