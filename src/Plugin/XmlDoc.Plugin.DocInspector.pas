@@ -253,6 +253,7 @@ begin
     Exit;
 
   FBrowserReady := True;
+  FBrowser.RestoreSections;
   FPendingLoad := False;
   RefreshFromCurrentEditor;
 end;
@@ -280,7 +281,13 @@ begin
   try
     LMsgType := LMsg.GetValue<string>('type');
 
-    if LMsgType = 'docUpdated' then
+    if LMsgType = 'sectionStateChanged' then
+    begin
+      LDocObj := LMsg.GetValue<TJSONObject>('sections');
+      if Assigned(LDocObj) then
+        FBrowser.SaveSections(LDocObj.ToJSON);
+    end
+    else if LMsgType = 'docUpdated' then
     begin
       LDocObj := LMsg.GetValue<TJSONObject>('doc');
       if Assigned(LDocObj) then

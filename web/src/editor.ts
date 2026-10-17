@@ -369,10 +369,23 @@ function addSeeAlsoRow(container: HTMLElement, cref = ''): void {
 // Section Collapsing
 // ────────────────────────────────────────────
 function setupCollapsible(): void {
+  const states: Record<string, boolean> = {};
+  (window as any).xmlDocSections = {
+    restore(saved: Record<string, boolean>) {
+      document.querySelectorAll<HTMLElement>('.doc-section[id]').forEach(section => {
+        if (typeof saved?.[section.id] === 'boolean') {
+          states[section.id] = saved[section.id];
+          section.classList.toggle('collapsed', saved[section.id]);
+        }
+      });
+    },
+  };
   document.querySelectorAll('.doc-heading').forEach(heading => {
     heading.addEventListener('click', () => {
       const section = heading.parentElement!;
       section.classList.toggle('collapsed');
+      states[section.id] = section.classList.contains('collapsed');
+      bridge.sendToHost({ type: 'sectionStateChanged', sections: { ...states } });
     });
   });
 }

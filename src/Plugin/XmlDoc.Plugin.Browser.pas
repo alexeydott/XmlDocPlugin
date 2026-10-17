@@ -11,10 +11,13 @@ type
   private
     FLoadTimer: TTimer;
     FHtml: string;
+    FResourceName: string;
     procedure LoadTimer(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
     procedure LoadEditorResource(AInstance: THandle; const AName: string);
+    procedure RestoreSections;
+    procedure SaveSections(const AJson: string);
   end;
 
 procedure ConfigureWebViewLoader;
@@ -22,7 +25,7 @@ procedure ConfigureWebViewLoader;
 implementation
 
 uses
-  System.IOUtils, Winapi.Windows, Winapi.EdgeUtils;
+  System.IOUtils, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils;
 
 procedure ConfigureWebViewLoader;
 var
@@ -48,6 +51,7 @@ var
   LStream: TResourceStream;
   LBytes: TBytes;
 begin
+  FResourceName := AName;
   LStream := TResourceStream.Create(AInstance, AName, RT_RCDATA);
   try
     SetLength(LBytes, LStream.Size);
@@ -57,6 +61,33 @@ begin
     LStream.Free;
   end;
   FLoadTimer.Enabled := True;
+end;
+
+procedure TXmlDocBrowser.RestoreSections;
+var
+  LReg: TRegistry;
+begin
+  LReg := TRegistry.Create(KEY_READ);
+  try
+    if LReg.OpenKeyReadOnly('Software\XmlDocPlugin\EditorSections') and
+       LReg.ValueExists(FResourceName) then
+      ExecuteScript('window.xmlDocSections?.restore(' + LReg.ReadString(FResourceName) + ');');
+  finally
+    LReg.Free;
+  end;
+end;
+
+procedure TXmlDocBrowser.SaveSections(const AJson: string);
+var
+  LReg: TRegistry;
+begin
+  LReg := TRegistry.Create(KEY_WRITE);
+  try
+    if LReg.OpenKey('Software\XmlDocPlugin\EditorSections', True) then
+      LReg.WriteString(FResourceName, AJson);
+  finally
+    LReg.Free;
+  end;
 end;
 
 procedure TXmlDocBrowser.LoadTimer(Sender: TObject);
