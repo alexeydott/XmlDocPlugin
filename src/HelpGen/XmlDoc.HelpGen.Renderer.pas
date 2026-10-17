@@ -12,6 +12,7 @@ uses
 type
   /// <summary>렌더링 옵션</summary>
   TRenderOptions = record
+    NumericFileNames: Boolean;
     CSSTheme: string;
     FooterText: string;
     IncludeInheritanceTree: Boolean;

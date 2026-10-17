@@ -1,268 +1,206 @@
 ﻿unit XmlDoc.HelpGen.Renderer.CHM;
 
 interface
-
-uses
-  System.SysUtils,
-  System.Classes,
-  System.IOUtils,
-  System.Generics.Collections,
-  XmlDoc.HelpGen.Types,
-  XmlDoc.HelpGen.CrossRef,
-  XmlDoc.HelpGen.Renderer,
-  XmlDoc.HelpGen.Renderer.HTML;
-
+uses System.SysUtils, System.Classes, System.IOUtils, System.Generics.Collections,
+  XmlDoc.HelpGen.Types, XmlDoc.HelpGen.CrossRef, XmlDoc.HelpGen.Renderer;
 type
-  /// <summary>HTML Help Workshop (.chm) 파일을 생성합니다.</summary>
+  ECHMBuildError = class(Exception);
   TCHMDocRenderer = class(TInterfacedObject, IDocRenderer)
   private
-    FHTMLRenderer: THTMLDocRenderer;
+    FCompilerPath: string;
     FOptions: TRenderOptions;
     FUnits: TObjectList<TUnitDocInfo>;
-
-    function CompileCHM(const AHHPPath: string): Boolean;
-    procedure GenerateHHC(const APath: string);
-    procedure GenerateHHK(const APath: string);
-    procedure GenerateHHP(const APath: string);
+    procedure CompileCHM(const ProjectPath: string);
+    procedure GenerateProject;
+    procedure ExportProject(const Destination: string);
   public
-    procedure Render(
-      const AUnits: TObjectList<TUnitDocInfo>;
-      const AResolver: TCrossRefResolver;
-      const AOptions: TRenderOptions
-    );
+    constructor Create(const ACompilerPath: string = '');
+    procedure Render(const AUnits: TObjectList<TUnitDocInfo>;
+      const AResolver: TCrossRefResolver; const AOptions: TRenderOptions);
   end;
-
 implementation
+uses Winapi.Windows, System.Win.Registry, System.RegularExpressions,
+  XmlDoc.HelpGen.Renderer.HTML, XmlDoc.HelpGen.Navigation;
 
-uses
-  System.Win.Registry,
-  Winapi.ShellAPI,
-  Winapi.Windows,
-  XmlDoc.Logger;
+constructor TCHMDocRenderer.Create(const ACompilerPath: string);
+begin inherited Create; FCompilerPath := ACompilerPath; end;
 
-{ TCHMDocRenderer }
-
-procedure TCHMDocRenderer.Render(
-  const AUnits: TObjectList<TUnitDocInfo>;
-  const AResolver: TCrossRefResolver;
-  const AOptions: TRenderOptions);
-var
-  LHtmlDir: string;
-  LHtmlOptions: TRenderOptions;
-  LHHPPath: string;
+function Esc(const S: string): string;
+var C: Char;
 begin
-  FUnits := AUnits;
-  FOptions := AOptions;
-  if FOptions.ProjectName = '' then FOptions.ProjectName := 'Documentation';
-
-  // 먼저 HTML 렌더링
-  LHtmlDir := TPath.Combine(AOptions.OutputDir, '_chm_html');
-  LHtmlOptions := AOptions;
-  LHtmlOptions.OutputDir := LHtmlDir;
-  LHtmlOptions.IncludeSearchIndex := False;
-
-  FHTMLRenderer := THTMLDocRenderer.Create;
-  try
-    FHTMLRenderer.Render(AUnits, AResolver, LHtmlOptions);
-  finally
-    FHTMLRenderer := nil;
-  end;
-
-  // HHP, HHC, HHK 파일 생성
-  LHHPPath := TPath.Combine(AOptions.OutputDir, TPath.GetFileName(FOptions.ProjectName) + '.hhp');
-  GenerateHHP(LHHPPath);
-  GenerateHHC(TPath.Combine(AOptions.OutputDir, TPath.GetFileName(FOptions.ProjectName) + '.hhc'));
-  GenerateHHK(TPath.Combine(AOptions.OutputDir, TPath.GetFileName(FOptions.ProjectName) + '.hhk'));
-
-  // CHM 컴파일
-  if not CompileCHM(LHHPPath) then
-    TLogger.Instance.Warn('hhc.exe not found. CHM compilation skipped. HTML output preserved.',
-      'TCHMDocRenderer.Render');
+  Result := '';
+  for C in S do
+    case C of
+      '&': Result := Result + '&amp;';
+      '<': Result := Result + '&lt;';
+      '>': Result := Result + '&gt;';
+      '"': Result := Result + '&quot;';
+    else
+      if Ord(C) > 127 then Result := Result + '&#' + IntToStr(Ord(C)) + ';'
+      else Result := Result + C;
+    end;
 end;
 
-procedure TCHMDocRenderer.GenerateHHP(const APath: string);
-var
-  LSB: TStringBuilder;
-  LHtmlDir: string;
-  I, J: Integer;
+procedure CheckPath(const Path: string);
 begin
-  LHtmlDir := '_chm_html';
-  LSB := TStringBuilder.Create;
-  try
-    LSB.AppendLine('[OPTIONS]');
-    LSB.AppendLine('Compatibility=1.1 or later');
-    LSB.AppendLine('Compiled file=' + TPath.GetFileName(FOptions.ProjectName) + '.chm');
-    LSB.AppendLine('Contents file=' + TPath.GetFileName(FOptions.ProjectName) + '.hhc');
-    LSB.AppendLine('Default topic=' + LHtmlDir + '\index.html');
-    LSB.AppendLine('Display compile progress=No');
-    LSB.AppendLine('Full-text search=Yes');
-    LSB.AppendLine('Index file=' + TPath.GetFileName(FOptions.ProjectName) + '.hhk');
-    LSB.AppendLine('Language=0x0409 English (United States)');
-    LSB.AppendLine('Title=' + FOptions.Title);
-    LSB.AppendLine;
-    LSB.AppendLine('[FILES]');
-    LSB.AppendLine(LHtmlDir + '\index.html');
-    LSB.AppendLine(LHtmlDir + '\assets\style.css');
-
-    for I := 0 to FUnits.Count - 1 do
-    begin
-      LSB.AppendLine(LHtmlDir + '\units\' + FUnits[I].UnitName + '.html');
-      for J := 0 to FUnits[I].Types.Count - 1 do
-        LSB.AppendLine(LHtmlDir + '\units\' + FUnits[I].UnitName + '.' +
-          FUnits[I].Types[J].Name + '.html');
-    end;
-
-    TFile.WriteAllText(APath, LSB.ToString, TEncoding.Default);
-  finally
-    LSB.Free;
-  end;
+  // HHC 4.74 still uses MAX_PATH, regardless of Windows long-path settings.
+  if Length(TPath.GetFullPath(Path)) >= MAX_PATH then
+    raise ECHMBuildError.CreateFmt('HTML Help requires paths shorter than %d characters: %s', [MAX_PATH, Path]);
 end;
 
-procedure TCHMDocRenderer.GenerateHHC(const APath: string);
-var
-  LSB: TStringBuilder;
-  LHtmlDir: string;
-  I, J: Integer;
-begin
-  LHtmlDir := '_chm_html';
-  LSB := TStringBuilder.Create;
-  try
-    LSB.AppendLine('<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">');
-    LSB.AppendLine('<HTML><HEAD></HEAD><BODY>');
-    LSB.AppendLine('<OBJECT type="text/site properties"><param name="ImageType" value="Folder"></OBJECT>');
-    LSB.AppendLine('<UL>');
-
-    for I := 0 to FUnits.Count - 1 do
-    begin
-      LSB.AppendLine('<LI><OBJECT type="text/sitemap">');
-      LSB.AppendFormat('<param name="Name" value="%s">', [FUnits[I].UnitName]);
-      LSB.AppendFormat('<param name="Local" value="%s\units\%s.html">',
-        [LHtmlDir, FUnits[I].UnitName]);
-      LSB.AppendLine('</OBJECT>');
-
-      if FUnits[I].Types.Count > 0 then
-      begin
-        LSB.AppendLine('<UL>');
-        for J := 0 to FUnits[I].Types.Count - 1 do
-        begin
-          LSB.AppendLine('<LI><OBJECT type="text/sitemap">');
-          LSB.AppendFormat('<param name="Name" value="%s">', [FUnits[I].Types[J].Name]);
-          LSB.AppendFormat('<param name="Local" value="%s\units\%s.%s.html">',
-            [LHtmlDir, FUnits[I].UnitName, FUnits[I].Types[J].Name]);
-          LSB.AppendLine('</OBJECT>');
-        end;
-        LSB.AppendLine('</UL>');
-      end;
-    end;
-
-    LSB.AppendLine('</UL></BODY></HTML>');
-    TFile.WriteAllText(APath, LSB.ToString, TEncoding.Default);
-  finally
-    LSB.Free;
-  end;
-end;
-
-procedure TCHMDocRenderer.GenerateHHK(const APath: string);
-var
-  LSB: TStringBuilder;
-  LHtmlDir: string;
-  I, J, K: Integer;
-begin
-  LHtmlDir := '_chm_html';
-  LSB := TStringBuilder.Create;
-  try
-    LSB.AppendLine('<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">');
-    LSB.AppendLine('<HTML><HEAD></HEAD><BODY>');
-    LSB.AppendLine('<UL>');
-
-    for I := 0 to FUnits.Count - 1 do
-    begin
-      // 유닛
-      LSB.AppendLine('<LI><OBJECT type="text/sitemap">');
-      LSB.AppendFormat('<param name="Name" value="%s">', [FUnits[I].UnitName]);
-      LSB.AppendFormat('<param name="Local" value="%s\units\%s.html">',
-        [LHtmlDir, FUnits[I].UnitName]);
-      LSB.AppendLine('</OBJECT>');
-
-      // 타입 + 멤버
-      for J := 0 to FUnits[I].Types.Count - 1 do
-      begin
-        LSB.AppendLine('<LI><OBJECT type="text/sitemap">');
-        LSB.AppendFormat('<param name="Name" value="%s">', [FUnits[I].Types[J].FullName]);
-        LSB.AppendFormat('<param name="Local" value="%s\units\%s.%s.html">',
-          [LHtmlDir, FUnits[I].UnitName, FUnits[I].Types[J].Name]);
-        LSB.AppendLine('</OBJECT>');
-
-        for K := 0 to FUnits[I].Types[J].Members.Count - 1 do
-        begin
-          LSB.AppendLine('<LI><OBJECT type="text/sitemap">');
-          LSB.AppendFormat('<param name="Name" value="%s">',
-            [FUnits[I].Types[J].Members[K].FullName]);
-          LSB.AppendFormat('<param name="Local" value="%s\units\%s.%s.html#%s">',
-            [LHtmlDir, FUnits[I].UnitName, FUnits[I].Types[J].Name,
-             FUnits[I].Types[J].Members[K].Name]);
-          LSB.AppendLine('</OBJECT>');
-        end;
-      end;
-    end;
-
-    LSB.AppendLine('</UL></BODY></HTML>');
-    TFile.WriteAllText(APath, LSB.ToString, TEncoding.Default);
-  finally
-    LSB.Free;
-  end;
-end;
-
-function TCHMDocRenderer.CompileCHM(const AHHPPath: string): Boolean;
-var
-  LReg: TRegistry;
-  LHHCPath: string;
-  LExitCode: Cardinal;
-  LSI: TStartupInfo;
-  LPI: TProcessInformation;
-  LCmdLine: string;
-begin
-  Result := False;
-
-  // hhc.exe 경로 찾기
-  LHHCPath := '';
-  LReg := TRegistry.Create(KEY_READ);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-    if LReg.OpenKey('Software\Microsoft\HTML Help Workshop', False) then
-    begin
-      if LReg.ValueExists('InstallDir') then
-        LHHCPath := TPath.Combine(LReg.ReadString('InstallDir'), 'hhc.exe');
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
-
-  // 기본 경로 시도
-  if (LHHCPath = '') or not TFile.Exists(LHHCPath) then
-    LHHCPath := 'C:\Program Files (x86)\HTML Help Workshop\hhc.exe';
-
-  if not TFile.Exists(LHHCPath) then
-    Exit;
-
-  LCmdLine := '"' + LHHCPath + '" "' + AHHPPath + '"';
-
-  FillChar(LSI, SizeOf(LSI), 0);
-  LSI.cb := SizeOf(LSI);
-  LSI.dwFlags := STARTF_USESHOWWINDOW;
-  LSI.wShowWindow := SW_HIDE;
-
-  if CreateProcess(nil, PChar(LCmdLine), nil, nil, False,
-    CREATE_NO_WINDOW, nil, PChar(ExtractFilePath(AHHPPath)), LSI, LPI) then
+procedure TCHMDocRenderer.GenerateProject;
+var Root: TDocNavNode; Files: TArray<string>; FileName, Rel, Base: string;
+    HHP, HHC, HHK: TStringBuilder;
+  procedure Toc(Node: TDocNavNode);
+  var Child: TDocNavNode; Target: string;
   begin
-    WaitForSingleObject(LPI.hProcess, 60000);
-    GetExitCodeProcess(LPI.hProcess, LExitCode);
-    CloseHandle(LPI.hProcess);
-    CloseHandle(LPI.hThread);
-    // hhc.exe는 성공 시 1을 반환
-    Result := LExitCode = 1;
+    HHC.AppendLine('<li><object type="text/sitemap">');
+    HHC.AppendLine('<param name="Name" value="' + Esc(Copy(Node.Caption, 1, 240)) + '">');
+    if Node.Target <> '' then begin
+      Target := '_chm_html/' + Node.Target;
+      HHC.AppendLine('<param name="Local" value="' + Esc(Target) + '">');
+      HHK.AppendLine('<li><object type="text/sitemap"><param name="Name" value="' + Esc(Copy(Node.Caption, 1, 240)) + '"><param name="Local" value="' + Esc(Target) + '"></object></li>');
+    end;
+    HHC.AppendLine('</object>');
+    if Node.Children.Count > 0 then begin
+      HHC.AppendLine('<ul>');
+      for Child in Node.Children do Toc(Child);
+      HHC.AppendLine('</ul>');
+    end;
+    HHC.AppendLine('</li>');
+  end;
+begin
+  Base := FOptions.ProjectName;
+  Root := BuildNavigation(FUnits, FOptions.Title, '.html', True, FOptions.NumericFileNames);
+  HHP := TStringBuilder.Create; HHC := TStringBuilder.Create; HHK := TStringBuilder.Create;
+  try
+    HHP.AppendLine('[OPTIONS]');
+    HHP.AppendLine('Compatibility=1.1 or later');
+    HHP.AppendLine('Compiled file=' + Base + '.chm');
+    HHP.AppendLine('Contents file=' + Base + '.hhc');
+    HHP.AppendLine('Index file=' + Base + '.hhk');
+    HHP.AppendLine('Default topic=_chm_html\index.html');
+    HHP.AppendLine('Display compile progress=No');
+    HHP.AppendLine('Full-text search=Yes');
+    HHP.AppendLine('Language=0x0409 English (United States)');
+    HHP.AppendLine('Title=' + StringReplace(StringReplace(FOptions.Title, #13, ' ', [rfReplaceAll]), #10, ' ', [rfReplaceAll]));
+    HHP.AppendLine;
+    HHP.AppendLine('[FILES]');
+    Files := TDirectory.GetFiles(TPath.Combine(FOptions.OutputDir, '_chm_html'), '*', TSearchOption.soAllDirectories);
+    TArray.Sort<string>(Files);
+    for FileName in Files do begin
+      CheckPath(FileName);
+      Rel := ExtractRelativePath(IncludeTrailingPathDelimiter(FOptions.OutputDir), FileName);
+      HHP.AppendLine(Rel);
+    end;
+    HHC.AppendLine('<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN"><html><body><ul>');
+    HHK.AppendLine('<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN"><html><body><ul>');
+    Toc(Root);
+    HHC.AppendLine('</ul></body></html>'); HHK.AppendLine('</ul></body></html>');
+    TFile.WriteAllText(TPath.Combine(FOptions.OutputDir, Base + '.hhp'), HHP.ToString, TEncoding.ANSI);
+    TFile.WriteAllText(TPath.Combine(FOptions.OutputDir, Base + '.hhc'), HHC.ToString, TEncoding.ANSI);
+    TFile.WriteAllText(TPath.Combine(FOptions.OutputDir, Base + '.hhk'), HHK.ToString, TEncoding.ANSI);
+  finally Root.Free; HHP.Free; HHC.Free; HHK.Free; end;
+end;
+
+procedure TCHMDocRenderer.CompileCHM(const ProjectPath: string);
+var Reg: TRegistry; Compiler, Command, LogPath, LogText, Output: string;
+    SI: TStartupInfo; PI: TProcessInformation; SA: TSecurityAttributes;
+    LogHandle, InputHandle: THandle; ExitCode, WaitResult: Cardinal;
+begin
+  Compiler := FCompilerPath;
+  if Compiler = '' then begin
+  Reg := TRegistry.Create(KEY_READ);
+  try
+    Reg.RootKey := HKEY_CURRENT_USER;
+    if Reg.OpenKeyReadOnly('Software\Microsoft\HTML Help Workshop') and Reg.ValueExists('InstallDir') then
+      Compiler := TPath.Combine(Reg.ReadString('InstallDir'), 'hhc.exe');
+  finally Reg.Free; end;
+  if not TFile.Exists(Compiler) then Compiler := 'C:\Program Files (x86)\HTML Help Workshop\hhc.exe';
+  end;
+  if not TFile.Exists(Compiler) then
+    raise ECHMBuildError.Create('HTML Help compiler hhc.exe was not found. Install Microsoft HTML Help Workshop.');
+  CheckPath(ProjectPath);
+  LogPath := TPath.Combine(FOptions.OutputDir, 'chm-compiler.log');
+  SA := Default(TSecurityAttributes); SA.nLength := SizeOf(SA); SA.bInheritHandle := True;
+  LogHandle := CreateFile(PChar(LogPath), GENERIC_WRITE, FILE_SHARE_READ, @SA, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+  if LogHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
+  InputHandle := INVALID_HANDLE_VALUE;
+  try
+    InputHandle := CreateFile('NUL', GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_WRITE, @SA, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if InputHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
+    SI := Default(TStartupInfo); SI.cb := SizeOf(SI);
+    SI.dwFlags := STARTF_USESHOWWINDOW or STARTF_USESTDHANDLES; SI.wShowWindow := SW_HIDE;
+    SI.hStdOutput := LogHandle; SI.hStdError := LogHandle; SI.hStdInput := InputHandle;
+    Command := '"' + Compiler + '" "' + ProjectPath + '"'; UniqueString(Command);
+    if not CreateProcess(PChar(Compiler), PChar(Command), nil, nil, True, CREATE_NO_WINDOW,
+      nil, PChar(FOptions.OutputDir), SI, PI) then RaiseLastOSError;
+    try
+      WaitResult := WaitForSingleObject(PI.hProcess, 60000);
+      if WaitResult = WAIT_TIMEOUT then begin
+        TerminateProcess(PI.hProcess, ERROR_TIMEOUT); WaitForSingleObject(PI.hProcess, 5000);
+        raise ECHMBuildError.Create('HTML Help compiler timed out after 60 seconds.');
+      end;
+      if WaitResult <> WAIT_OBJECT_0 then RaiseLastOSError;
+      if not GetExitCodeProcess(PI.hProcess, ExitCode) then RaiseLastOSError;
+    finally CloseHandle(PI.hProcess); CloseHandle(PI.hThread); end;
+  finally if InputHandle <> INVALID_HANDLE_VALUE then CloseHandle(InputHandle); CloseHandle(LogHandle); end;
+  LogText := TFile.ReadAllText(LogPath);
+  Output := TPath.Combine(FOptions.OutputDir, FOptions.ProjectName + '.chm');
+  // HHC's unusual success code is 1. A partial CHM can exist even after failure.
+  if (ExitCode <> 1) or not TFile.Exists(Output) or
+     TRegEx.IsMatch(LogText, 'HHC\d+:\s*Error', [roIgnoreCase]) then
+    raise ECHMBuildError.CreateFmt('HTML Help compilation failed (exit %d). See chm-compiler.log.', [ExitCode]);
+end;
+
+procedure TCHMDocRenderer.ExportProject(const Destination: string);
+var FileName, Rel, Target: string; Files: TArray<string>;
+begin
+  Files := TDirectory.GetFiles(FOptions.OutputDir, '*', TSearchOption.soAllDirectories);
+  for FileName in Files do
+    CheckPath(TPath.Combine(Destination, ExtractRelativePath(IncludeTrailingPathDelimiter(FOptions.OutputDir), FileName)));
+  for FileName in Files do begin
+    Rel := ExtractRelativePath(IncludeTrailingPathDelimiter(FOptions.OutputDir), FileName);
+    Target := TPath.Combine(Destination, Rel); CheckPath(Target);
+    TDirectory.CreateDirectory(ExtractFilePath(Target)); TFile.Copy(FileName, Target, True);
   end;
 end;
 
+procedure TCHMDocRenderer.Render(const AUnits: TObjectList<TUnitDocInfo>;
+  const AResolver: TCrossRefResolver; const AOptions: TRenderOptions);
+var Destination, Work, Base, Failure: string; Renderer: IDocRenderer;
+    Options: TRenderOptions; B: TBytes;
+begin
+  FUnits := AUnits; FOptions := AOptions;
+  Base := TPath.GetFileName(AOptions.ProjectName);
+  if Base = '' then Base := 'Documentation';
+  Destination := TPath.GetFullPath(AOptions.OutputDir);
+  CheckPath(TPath.Combine(Destination, Base + '.chm'));
+  Work := TPath.Combine(TPath.GetTempPath, 'xdc-' + StringReplace(TPath.GetRandomFileName, '.', '', [rfReplaceAll]));
+  CheckPath(TPath.Combine(Work, StringOfChar('t', 80)));
+  TDirectory.CreateDirectory(Work);
+  try
+    FOptions.ProjectName := Base; FOptions.OutputDir := Work;
+    CheckPath(TPath.Combine(Work, Base + '.hhp'));
+    Options := FOptions; Options.OutputDir := TPath.Combine(Work, '_chm_html');
+    Options.IncludeSearchIndex := False;
+    Renderer := THTMLDocRenderer.Create(True); Renderer.Render(AUnits, AResolver, Options); Renderer := nil;
+    GenerateProject;
+    Failure := '';
+    try
+      CompileCHM(TPath.Combine(Work, Base + '.hhp'));
+      B := TFile.ReadAllBytes(TPath.Combine(Work, Base + '.chm'));
+      if (Length(B) < 4) or (B[0] <> Ord('I')) or (B[1] <> Ord('T')) or
+        (B[2] <> Ord('S')) or (B[3] <> Ord('F')) then raise ECHMBuildError.Create('Invalid compiled CHM header.');
+    except on E: Exception do begin
+      Failure := E.Message;
+      if TFile.Exists(TPath.Combine(Work, Base + '.chm')) then TFile.Delete(TPath.Combine(Work, Base + '.chm'));
+    end; end;
+    ExportProject(Destination);
+    if Failure <> '' then raise ECHMBuildError.Create(Failure + ' Project and diagnostics: ' + Destination);
+  finally
+    Renderer := nil;
+    TDirectory.Delete(Work, True);
+  end;
+end;
 end.

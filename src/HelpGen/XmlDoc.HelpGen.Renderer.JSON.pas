@@ -33,6 +33,8 @@ type
 
 implementation
 
+uses XmlDoc.HelpGen.Navigation;
+
 { TJSONDocRenderer }
 
 procedure TJSONDocRenderer.Render(
@@ -44,7 +46,9 @@ var
   LUnitsArr: TJSONArray;
   I: Integer;
   LOutputPath: string;
+  Nav: TDocNavNode;
 begin
+  SortDocumentation(AUnits);
   TDirectory.CreateDirectory(AOptions.OutputDir);
 
   LRoot := TJSONObject.Create;
@@ -58,6 +62,8 @@ begin
       LUnitsArr.AddElement(UnitToJson(AUnits[I]));
 
     LRoot.AddPair('units', LUnitsArr);
+    Nav := BuildNavigation(AUnits, AOptions.Title, '.html', False, AOptions.NumericFileNames);
+    try LRoot.AddPair('navigation', Nav.ToJSON(False)); finally Nav.Free; end;
 
     LOutputPath := TPath.Combine(AOptions.OutputDir, 'api.json');
     TFile.WriteAllText(LOutputPath, LRoot.Format(2), TEncoding.UTF8);
@@ -134,6 +140,7 @@ end;
 function TJSONDocRenderer.TypeToJson(const AType: TTypeDocInfo): TJSONObject;
 var
   LMembers: TJSONArray;
+  Nested: TJSONArray;
   I: Integer;
   LImpl: TJSONArray;
 begin
@@ -159,6 +166,11 @@ begin
   for I := 0 to AType.Members.Count - 1 do
     LMembers.AddElement(ElementToJson(AType.Members[I]));
   Result.AddPair('members', LMembers);
+  if AType.NestedTypes.Count > 0 then begin
+    Nested := TJSONArray.Create;
+    for I := 0 to AType.NestedTypes.Count - 1 do Nested.AddElement(TypeToJson(AType.NestedTypes[I]));
+    Result.AddPair('nestedTypes', Nested);
+  end;
 end;
 
 function TJSONDocRenderer.UnitToJson(const AUnit: TUnitDocInfo): TJSONObject;

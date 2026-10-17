@@ -51,6 +51,20 @@ function Run-Setup([string]$Name, [bool]$Success, [string[]]$ExtraArguments = @(
     if (!$Success -and (Test-Path $app)) { throw "Rejected installation wrote application files: $Name" }
     $script:results += "PASS: $Name (exit $($p.ExitCode))"
 }
+function Test-InstalledCLI {
+    $cli = Join-Path $app 'bin\XmlDocGen.exe'
+    $bytes = [IO.File]::ReadAllBytes($cli)
+    $pe = [BitConverter]::ToInt32($bytes, 60)
+    if ([BitConverter]::ToUInt16($bytes, $pe + 4) -ne 0x8664) { throw 'Installed CLI is not x64' }
+    if ((Get-FileHash $cli).Hash -ne (Get-FileHash (Join-Path $PayloadDir 'bin\XmlDocGen.exe')).Hash) { throw 'Installed CLI hash mismatch' }
+    $inputDir = Join-Path $dir 'cli-source'
+    New-Item -ItemType Directory -Force $inputDir | Out-Null
+    [IO.File]::WriteAllText((Join-Path $inputDir 'Sample.pas'), 'unit Sample; interface type TSample = class public procedure Run; end; implementation procedure TSample.Run; begin end; end.')
+    $output = Join-Path $dir 'cli-output'
+    & $cli --directory $inputDir --output $output --format html,json --title 'Installed CLI' --numeric-file-names *> (Join-Path $dir 'cli.log')
+    if ($LASTEXITCODE) { throw 'Installed CLI generation failed' }
+    if (!(Test-Path "$output\api.json") -or !(Test-Path "$output\units\t000001.html") -or !(Test-Path "$output\topic-map.json")) { throw 'Installed CLI output missing' }
+}
 try {
     $env:XMLDOC_TEST_RUNTIME_KEY = "$key\WebView\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
     $env:XMLDOC_TEST_RUNTIME_MARKER = Join-Path $dir 'runtime-executed.txt'
@@ -109,11 +123,15 @@ try {
         if ((Get-FileHash $installed).Hash -ne $entry.SHA256) { throw "Installed manifest mismatch: $installed" }
     }
     if ((Get-Item $known).Property -contains $old) { throw 'Old registration was not replaced' }
+    Test-InstalledCLI
     Run-Setup 'upgrade' $true
+    Test-InstalledCLI
     $un = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru -WindowStyle Hidden
     if (!$un.WaitForExit(60000) -or $un.ExitCode -ne 0) { throw 'Uninstall failed' }
     if ((Get-ItemPropertyValue $known -Name $old) -ne 'Previous plugin') { throw 'Previous registration was not restored' }
     if (Test-Path "$app\rad12-x86\XmlDocPlugin290.bpl") { throw 'Uninstall left the package behind' }
+    if (Test-Path "$app\bin\XmlDocGen.exe") { throw 'Uninstall left the command-line generator behind' }
+    $script:results += 'PASS: x64 CLI installation, generation, upgrade and removal'
     $script:results += 'PASS: all three registrations, PE architectures and installed hashes'
     $script:results += 'PASS: uninstall restores the previous package registration'
     $script:results | Tee-Object -FilePath (Join-Path $dir 'results.txt')

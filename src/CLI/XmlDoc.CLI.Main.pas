@@ -27,6 +27,7 @@ type
     Directory: string;
     ExcludePatterns: TArray<string>;
     Formats: TArray<string>;
+    NumericFileNames: Boolean;
     IncludePrivate: Boolean;
     InterfaceOnly: Boolean;
     OutputDir: string;
@@ -128,6 +129,8 @@ begin
       if I <= ParamCount then
         FOptions.ExcludePatterns := ParamStr(I).Split([';']);
     end
+    else if LArg = '--numeric-file-names' then
+      FOptions.NumericFileNames := True
     else if LArg = '--include-private' then
       FOptions.IncludePrivate := True
     else if LArg = '--interface-only' then
@@ -187,6 +190,7 @@ begin
   WriteLn('  -f, --format <list>        Output formats: html,chm,md,json,hmxp,mkdocs,docusaurus,vitepress');
   WriteLn('  -t, --title <title>        Documentation title');
   WriteLn('  --exclude <patterns>       Semicolon-separated exclude patterns');
+  WriteLn('  --numeric-file-names       Use short numeric topic filenames');
   WriteLn('  --include-private          Include private members');
   WriteLn('  --interface-only           Interface section only');
   WriteLn('  --coverage                 Generate coverage report');
@@ -212,6 +216,7 @@ var
   LPublisher: TSitePublisher;
   LSiteOpts: TSitePublishOptions;
 begin
+  LSiteOpts := Default(TSitePublishOptions);
   LSiteOpts.SiteName := FOptions.SiteName;
   if AFormat = 'mkdocs' then
     LSiteOpts.Generator := sgMkDocs
@@ -243,6 +248,7 @@ var
   LItems: TArray<TCoverageItem>;
 begin
   Result := 0;
+  LRenderOpts := Default(TRenderOptions);
 
   if not ParseArgs then
   begin
@@ -296,6 +302,7 @@ begin
           [LResolver.Unresolved.Count]));
 
       // 렌더링 옵션
+      LRenderOpts.NumericFileNames := FOptions.NumericFileNames;
       LRenderOpts.OutputDir := FOptions.OutputDir;
       LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(FOptions.ProjectPath), '');
       LRenderOpts.Title := FOptions.Title;

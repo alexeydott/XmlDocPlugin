@@ -11,6 +11,7 @@ uses
   XmlDoc.Model,
   XmlDoc.HelpGen.Types,
   XmlDoc.HelpGen.CrossRef,
+  XmlDoc.HelpGen.Navigation,
   XmlDoc.HelpGen.Renderer;
 
 type
@@ -18,6 +19,7 @@ type
   TMarkdownDocRenderer = class(TInterfacedObject, IDocRenderer)
   private
     FOptions: TRenderOptions;
+    FNames: TTopicNameMap;
     FResolver: TCrossRefResolver;
     FUnits: TObjectList<TUnitDocInfo>;
 
@@ -31,6 +33,7 @@ type
     procedure WriteFile(const ARelPath, AContent: string);
 
   public
+    destructor Destroy; override;
     procedure Render(
       const AUnits: TObjectList<TUnitDocInfo>;
       const AResolver: TCrossRefResolver;
@@ -40,7 +43,11 @@ type
 
 implementation
 
+
 { TMarkdownDocRenderer }
+
+destructor TMarkdownDocRenderer.Destroy;
+begin FNames.Free; inherited; end;
 
 procedure TMarkdownDocRenderer.Render(
   const AUnits: TObjectList<TUnitDocInfo>;
@@ -49,12 +56,16 @@ procedure TMarkdownDocRenderer.Render(
 var
   I, J: Integer;
 begin
+  SortDocumentation(AUnits);
   FUnits := AUnits;
   FResolver := AResolver;
   FOptions := AOptions;
+  FreeAndNil(FNames);
+  FNames := TTopicNameMap.Create(AUnits, AOptions.NumericFileNames);
 
   TDirectory.CreateDirectory(FOptions.OutputDir);
   TDirectory.CreateDirectory(TPath.Combine(FOptions.OutputDir, 'units'));
+  FNames.Save(TPath.Combine(FOptions.OutputDir, 'topic-map.json'));
 
   RenderReadme;
   RenderSummary;
@@ -150,18 +161,18 @@ begin
   Href := '';
   for U in FUnits do
   begin
-    if SameText(ACref, U.UnitName) then Href := U.UnitName + '.md';
+    if SameText(ACref, U.UnitName) then Href := FNames.FileName(U.UnitName, '.md');
     for T in U.Types do
     begin
-      if Matches(T.FullName, T.Name) then Href := U.UnitName + '.' + T.Name + '.md';
+      if Matches(T.FullName, T.Name) then Href := FNames.FileName(T.FullName, '.md');
       for E in T.Members do
         if Matches(E.FullName, T.Name + '.' + E.Name) then
-          Href := U.UnitName + '.' + T.Name + '.md#' + LowerCase(E.Name);
+          Href := FNames.FileName(T.FullName, '.md') + '#' + LowerCase(E.Name);
     end;
     for E in U.StandaloneMethods do
-      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.md#' + LowerCase(E.Name);
+      if Matches(E.FullName, E.Name) then Href := FNames.FileName(U.UnitName, '.md') + '#' + LowerCase(E.Name);
     for E in U.Constants do
-      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.md#' + LowerCase(E.Name);
+      if Matches(E.FullName, E.Name) then Href := FNames.FileName(U.UnitName, '.md') + '#' + LowerCase(E.Name);
   end;
   Result := '`' + ACref + '`';
   if Href <> '' then Result := '[' + Result + '](' + Href + ')';
@@ -196,8 +207,8 @@ begin
 
     for I := 0 to FUnits.Count - 1 do
     begin
-      LSB.AppendFormat('| [%s](units/%s.md) | %s |',
-        [FUnits[I].UnitName, FUnits[I].UnitName, FUnits[I].UnitDoc.Summary]);
+      LSB.AppendFormat('| [%s](units/%s) | %s |',
+        [FUnits[I].UnitName, FNames.FileName(FUnits[I].UnitName, '.md'), FUnits[I].UnitDoc.Summary]);
       LSB.AppendLine;
     end;
 
@@ -207,66 +218,30 @@ begin
   end;
 end;
 
-procedure TMarkdownDocRenderer.RenderSummary;
-var
-  LSB: TStringBuilder;
-  I, J: Integer;
-  LUnit: TUnitDocInfo;
+function MarkdownNav(Node: TDocNavNode; Level: Integer): string;
+var Child: TDocNavNode;
 begin
-  LSB := TStringBuilder.Create;
-  try
-    LSB.AppendLine('# Summary');
-    LSB.AppendLine;
+  Result := StringOfChar(' ', Level * 2) + '- ';
+  if Node.Target <> '' then Result := Result + '[' + Node.Caption + '](' + Node.Target + ')'
+  else Result := Result + '**' + Node.Caption + '**';
+  Result := Result + sLineBreak;
+  for Child in Node.Children do Result := Result + MarkdownNav(Child, Level + 1);
+end;
 
-    for I := 0 to FUnits.Count - 1 do
-    begin
-      LUnit := FUnits[I];
-      LSB.AppendFormat('* [%s](units/%s.md)', [LUnit.UnitName, LUnit.UnitName]);
-      LSB.AppendLine;
-
-      for J := 0 to LUnit.Types.Count - 1 do
-      begin
-        LSB.AppendFormat('  * [%s](units/%s.%s.md)',
-          [LUnit.Types[J].Name, LUnit.UnitName, LUnit.Types[J].Name]);
-        LSB.AppendLine;
-      end;
-    end;
-
-    WriteFile('SUMMARY.md', LSB.ToString);
-  finally
-    LSB.Free;
-  end;
+procedure TMarkdownDocRenderer.RenderSummary;
+var Root: TDocNavNode;
+begin
+  Root := BuildNavigation(FUnits, FOptions.Title, '.md', False, FOptions.NumericFileNames);
+  try WriteFile('SUMMARY.md', '# Summary' + sLineBreak + sLineBreak + MarkdownNav(Root, 0));
+  finally Root.Free; end;
 end;
 
 procedure TMarkdownDocRenderer.RenderSidebar;
-var
-  LSB: TStringBuilder;
-  I, J: Integer;
-  LUnit: TUnitDocInfo;
+var Root: TDocNavNode;
 begin
-  LSB := TStringBuilder.Create;
-  try
-    LSB.AppendLine('**' + FOptions.Title + '**');
-    LSB.AppendLine;
-
-    for I := 0 to FUnits.Count - 1 do
-    begin
-      LUnit := FUnits[I];
-      LSB.AppendFormat('- [%s](units/%s)', [LUnit.UnitName, LUnit.UnitName]);
-      LSB.AppendLine;
-
-      for J := 0 to LUnit.Types.Count - 1 do
-      begin
-        LSB.AppendFormat('  - [%s](units/%s.%s)',
-          [LUnit.Types[J].Name, LUnit.UnitName, LUnit.Types[J].Name]);
-        LSB.AppendLine;
-      end;
-    end;
-
-    WriteFile('_sidebar.md', LSB.ToString);
-  finally
-    LSB.Free;
-  end;
+  Root := BuildNavigation(FUnits, FOptions.Title, '.md', False, FOptions.NumericFileNames);
+  try WriteFile('_sidebar.md', MarkdownNav(Root, 0));
+  finally Root.Free; end;
 end;
 
 procedure TMarkdownDocRenderer.RenderUnitMD(const AUnit: TUnitDocInfo);
@@ -290,9 +265,9 @@ begin
 
       for I := 0 to AUnit.Types.Count - 1 do
       begin
-        LSB.AppendFormat('| [`%s`](%s.%s.md) | %s | %s |',
+        LSB.AppendFormat('| [`%s`](%s) | %s | %s |',
           [AUnit.Types[I].Name,
-           AUnit.UnitName, AUnit.Types[I].Name,
+           FNames.FileName(AUnit.UnitName + '.' + AUnit.Types[I].Name, '.md'),
            AUnit.Types[I].Kind.ToString,
            AUnit.Types[I].Doc.Summary]);
         LSB.AppendLine;
@@ -327,7 +302,14 @@ begin
       end;
     end;
 
-    WriteFile('units/' + AUnit.UnitName + '.md', LSB.ToString);
+    if AUnit.Variables.Count > 0 then begin
+      LSB.AppendLine('## Variables');
+      for I := 0 to AUnit.Variables.Count - 1 do begin
+        LSB.AppendLine('### ' + AUnit.Variables[I].Name);
+        LSB.Append(FormatDocToMD(AUnit.Variables[I].Doc, AUnit.UnitName));
+      end;
+    end;
+    WriteFile('units/' + FNames.FileName(AUnit.UnitName, '.md'), LSB.ToString);
   finally
     LSB.Free;
   end;
@@ -338,6 +320,7 @@ var
   LSB: TStringBuilder;
   I: Integer;
 begin
+  if AType.FullName = '' then AType.FullName := AUnitName + '.' + AType.Name;
   LSB := TStringBuilder.Create;
   try
     LSB.AppendFormat('# %s `%s`', [AType.Kind.ToString, AType.Name]);
@@ -381,9 +364,13 @@ begin
       end;
     end;
 
-    WriteFile('units/' + AUnitName + '.' + AType.Name + '.md', LSB.ToString);
+    WriteFile('units/' + FNames.FileName(AType.FullName, '.md'), LSB.ToString);
   finally
     LSB.Free;
+  end;
+  for I := 0 to AType.NestedTypes.Count - 1 do begin
+    if AType.NestedTypes[I].FullName = '' then AType.NestedTypes[I].FullName := AType.FullName + '.' + AType.NestedTypes[I].Name;
+    RenderTypeMD(AType.NestedTypes[I], AUnitName);
   end;
 end;
 

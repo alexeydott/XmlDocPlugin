@@ -1,4 +1,4 @@
-param([string]$Bds = 'D:\Embarcadero RAD Studio\23.0')
+﻿param([string]$Bds = 'D:\Embarcadero RAD Studio\23.0')
 $ErrorActionPreference = 'Stop'
 $testRoot = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Tests'
 $sdk = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Build\WebView2-1.0.2045.28\sdk'
@@ -27,8 +27,9 @@ try {
         New-Item -ItemType Directory -Force $output | Out-Null
         Copy-Item "$sdk\build\native\$arch\WebView2Loader.dll" $output
         $compiler = if ($arch -eq 'x86') { 'dcc32' } else { 'dcc64' }
-        foreach ($name in @('SettingsSmoke', 'BrowserSmoke', 'XmlDocTests')) {
+        foreach ($name in @('SettingsSmoke', 'BrowserSmoke', 'FakeHHC', 'XmlDocTests')) {
             Compile-Test $compiler $name $output
+            if ($name -eq 'FakeHHC') { continue }
             & "$output\$name.exe"
             if ($LASTEXITCODE) { throw "$arch $name failed" }
         }

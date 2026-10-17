@@ -19,6 +19,7 @@ type
   /// <summary>사이트 퍼블리시 옵션</summary>
   TSitePublishOptions = record
     AutoBuild: Boolean;
+    NumericFileNames: Boolean;
     BaseURL: string;
     Generator: TSiteGenerator;
     RepoURL: string;
@@ -42,7 +43,7 @@ type
 
 implementation
 
-uses System.JSON;
+uses System.JSON, XmlDoc.HelpGen.Navigation;
 
 procedure WriteUTF8(const Path, Content: string);
 begin
@@ -57,6 +58,22 @@ begin
   try Result := J.ToJSON; finally J.Free; end;
 end;
 
+procedure WriteSiteNavigation(const OutputDir, Title: string; Units: TObjectList<TUnitDocInfo>; Numeric: Boolean);
+var Root: TDocNavNode; J: TJSONObject;
+  procedure AbsoluteLinks(N: TDocNavNode);
+  var Child: TDocNavNode;
+  begin
+    if N.Target <> '' then N.Target := '/' + N.Target;
+    for Child in N.Children do AbsoluteLinks(Child);
+  end;
+begin
+  Root := BuildNavigation(Units, Title, '', False, Numeric);
+  try
+    AbsoluteLinks(Root); J := Root.ToJSON;
+    try WriteUTF8(TPath.Combine(OutputDir, 'navigation.json'), J.Format(2)); finally J.Free; end;
+  finally Root.Free; end;
+end;
+
 { TSitePublisher }
 
 procedure TSitePublisher.Publish(
@@ -68,6 +85,7 @@ var
   LOutputDir: string;
   LMDRenderer: TMarkdownDocRenderer;
   LMDOpts: TRenderOptions;
+  SiteOpts: TSitePublishOptions;
 begin
   case AOpts.Generator of
     sgMkDocs:     LOutputDir := TPath.Combine(ARenderOpts.OutputDir, 'site-mkdocs');
@@ -75,7 +93,11 @@ begin
     sgVitePress:  LOutputDir := TPath.Combine(ARenderOpts.OutputDir, 'site-vitepress');
   end;
 
+  SiteOpts := AOpts;
+  SiteOpts.NumericFileNames := ARenderOpts.NumericFileNames;
+  SortDocumentation(AUnits);
   TDirectory.CreateDirectory(LOutputDir);
+  WriteSiteNavigation(LOutputDir, AOpts.SiteName, AUnits, ARenderOpts.NumericFileNames);
 
   // Markdown 렌더링
   LMDOpts := ARenderOpts;
@@ -93,7 +115,7 @@ begin
 
   // 프레임워크별 설정 파일 생성
   case AOpts.Generator of
-    sgMkDocs:     GenerateMkDocs(LOutputDir, AOpts, AUnits);
+    sgMkDocs:     GenerateMkDocs(LOutputDir, SiteOpts, AUnits);
     sgDocusaurus: GenerateDocusaurus(LOutputDir, AOpts, AUnits);
     sgVitePress:  GenerateVitePress(LOutputDir, AOpts, AUnits);
   end;
@@ -103,7 +125,32 @@ procedure TSitePublisher.GenerateMkDocs(const AOutputDir: string;
   const AOpts: TSitePublishOptions; const AUnits: TObjectList<TUnitDocInfo>);
 var
   LSB: TStringBuilder;
-  I, J: Integer;
+  Root: TDocNavNode;
+  function HasPage(Node: TDocNavNode): Boolean;
+  var Child: TDocNavNode;
+  begin
+    if Pos('#', Node.Target) > 0 then Exit(False);
+    if Node.Target <> '' then Exit(True);
+    for Child in Node.Children do
+      if HasPage(Child) then Exit(True);
+    Result := False;
+  end;
+  procedure Nav(Node: TDocNavNode; Level: Integer);
+  var Child: TDocNavNode; Pad: string; HasChildren: Boolean;
+  begin
+    Pad := StringOfChar(' ', Level * 2);
+    if not HasPage(Node) then Exit;
+    HasChildren := False;
+    for Child in Node.Children do
+      if HasPage(Child) then HasChildren := True;
+    if not HasChildren then
+      LSB.AppendLine(Pad + '- ' + QuotedValue(Node.Caption) + ': ' + QuotedValue(Node.Target))
+    else begin
+      LSB.AppendLine(Pad + '- ' + QuotedValue(Node.Caption) + ':');
+      if Node.Target <> '' then LSB.AppendLine(Pad + '  - Overview: ' + QuotedValue(Node.Target));
+      for Child in Node.Children do Nav(Child, Level + 1);
+    end;
+  end;
 begin
   LSB := TStringBuilder.Create;
   try
@@ -121,20 +168,8 @@ begin
     LSB.AppendLine('  - Home: index.md');
     LSB.AppendLine('  - API Reference:');
 
-    for I := 0 to AUnits.Count - 1 do
-    begin
-      LSB.AppendFormat('    - %s:', [AUnits[I].UnitName]);
-      LSB.AppendLine;
-      LSB.AppendFormat('      - Overview: units/%s.md', [AUnits[I].UnitName]);
-      LSB.AppendLine;
-
-      for J := 0 to AUnits[I].Types.Count - 1 do
-      begin
-        LSB.AppendFormat('      - %s: units/%s.%s.md',
-          [AUnits[I].Types[J].Name, AUnits[I].UnitName, AUnits[I].Types[J].Name]);
-        LSB.AppendLine;
-      end;
-    end;
+    Root := BuildNavigation(AUnits, AOpts.SiteName, '.md', False, AOpts.NumericFileNames);
+    try Nav(Root, 2); finally Root.Free; end;
 
     LSB.AppendLine;
     LSB.AppendLine('markdown_extensions:');
@@ -193,13 +228,20 @@ begin
     LSB.AppendLine('    },');
     LSB.AppendLine('  },');
     LSB.AppendLine('  presets: [');
-    LSB.AppendLine('    [''classic'', { docs: { routeBasePath: ''/'', exclude: [''**/_sidebar.md'', ''**/SUMMARY.md''] }, blog: false }],');
+    LSB.AppendLine('    [''classic'', { docs: { routeBasePath: ''/'', sidebarPath: require.resolve(''./sidebars.js''), exclude: [''**/_sidebar.md'', ''**/SUMMARY.md''] }, blog: false }],');
     LSB.AppendLine('  ],');
     LSB.AppendLine('};');
     LSB.AppendLine('module.exports = config;');
 
     WriteUTF8(
       TPath.Combine(AOutputDir, 'docusaurus.config.js'), LSB.ToString);
+    WriteUTF8(TPath.Combine(AOutputDir, 'sidebars.js'),
+      'const nav = require("./navigation.json");' + sLineBreak +
+      'const page = (href,label) => href.includes("#") ? {type:"link",label,href} : {type:"doc",label,id:href.replace(/^\//,"")};' + sLineBreak +
+      'const convert = n => n.items ? {type:"category",label:n.text,items:[' +
+      '...(n.link ? [page(n.link,"Overview")] : []),...n.items.map(convert)]}' +
+      ' : page(n.link,n.text);' + sLineBreak +
+      'module.exports = {api: [{type:"doc",id:"README",label:"Home"},...nav.items.map(convert)]};' + sLineBreak);
     WriteUTF8(TPath.Combine(AOutputDir, 'package.json'),
       '{"name":"api-documentation","version":"1.0.0","private":true,' +
       '"scripts":{"start":"docusaurus start","build":"docusaurus build","serve":"docusaurus serve"},' +
@@ -231,28 +273,13 @@ begin
   LSB := TStringBuilder.Create;
   try
     LSB.AppendLine('import { defineConfig } from ''vitepress''');
+    LSB.AppendLine('import navigation from ''../../navigation.json''');
     LSB.AppendLine;
     LSB.AppendLine('export default defineConfig({');
     LSB.AppendLine('  title: ' + QuotedValue(AOpts.SiteName) + ',');
     LSB.AppendLine;
     LSB.AppendLine('  lang: ''en-US'',');
-    LSB.AppendLine('  themeConfig: {');
-    LSB.AppendLine('    sidebar: [');
-    LSB.AppendLine('      {');
-    LSB.AppendLine('        text: ''API Reference'',');
-    LSB.AppendLine('        items: [');
-
-    for I := 0 to AUnits.Count - 1 do
-    begin
-      LSB.AppendFormat('          { text: ''%s'', link: ''/units/%s'' },',
-        [AUnits[I].UnitName, AUnits[I].UnitName]);
-      LSB.AppendLine;
-    end;
-
-    LSB.AppendLine('        ]');
-    LSB.AppendLine('      }');
-    LSB.AppendLine('    ]');
-    LSB.AppendLine('  }');
+    LSB.AppendLine('  themeConfig: { sidebar: navigation.items }');
     LSB.AppendLine('})');
 
     WriteUTF8(

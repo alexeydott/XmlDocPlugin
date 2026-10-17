@@ -42,6 +42,7 @@ type
     FBtnCancel: TButton;
     FBtnGenerate: TButton;
     FCancelled: Boolean;
+    FChkNumericFileNames: TCheckBox;
     FChkCHM: TCheckBox;
     FChkCoverage: TCheckBox;
     FChkDocusaurus: TCheckBox;
@@ -417,6 +418,13 @@ begin
   FChkCoverage.Caption := 'Generate coverage report';
   Inc(LTop, S(28));
 
+  FChkNumericFileNames := TCheckBox.Create(Self);
+  FChkNumericFileNames.Parent := LContent;
+  FChkNumericFileNames.ScaleForPPI(CurrentPPI);
+  FChkNumericFileNames.SetBounds(S(24), LTop, S(440), S(20));
+  FChkNumericFileNames.Caption := 'Use numeric topic file names';
+  Inc(LTop, S(28));
+
   // Title
   LLabel := TLabel.Create(Self);
   LLabel.Parent := LContent;
@@ -597,6 +605,7 @@ begin
   FChkInterfaceOnly.Enabled := AEnabled;
   FChkSearchIndex.Enabled := AEnabled;
   FChkCoverage.Enabled := AEnabled;
+  FChkNumericFileNames.Enabled := AEnabled;
 
   if AEnabled then
     FBtnCancel.Caption := 'Close'
@@ -715,6 +724,7 @@ begin
             Format(' | %d unresolved refs', [LResolver.Unresolved.Count]);
 
         // 렌더링 옵션
+        LRenderOpts.NumericFileNames := FChkNumericFileNames.Checked;
         LRenderOpts.OutputDir := FEdtOutputDir.Text;
         LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(LProjectPath), '');
         LRenderOpts.Title := FEdtTitle.Text;

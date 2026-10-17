@@ -11,6 +11,7 @@ uses
   XmlDoc.Model,
   XmlDoc.HelpGen.Types,
   XmlDoc.HelpGen.CrossRef,
+  XmlDoc.HelpGen.Navigation,
   XmlDoc.HelpGen.Renderer;
 
 type
@@ -18,9 +19,13 @@ type
   THTMLDocRenderer = class(TInterfacedObject, IDocRenderer)
   private
     FOptions: TRenderOptions;
+    FNames: TTopicNameMap;
+    FCompact: Boolean;
     FResolver: TCrossRefResolver;
     FUnits: TObjectList<TUnitDocInfo>;
 
+    function FileName(const FullName: string): string;
+    function Anchor(const Name: string): string;
     procedure CopyStaticAssets;
     function EscapeHtml(const AText: string): string;
     function FormatDocToHtml(const ADoc: TXmlDocModel; const AUnitName: string): string;
@@ -34,15 +39,32 @@ type
     function WrapPage(const ATitle, ABody, ANav: string): string;
     procedure WriteFile(const ARelPath, AContent: string);
   public
+    destructor Destroy; override;
+    constructor Create(ACompact: Boolean = False);
     procedure Render(const AUnits: TObjectList<TUnitDocInfo>; const AResolver: TCrossRefResolver; const AOptions: TRenderOptions);
   end;
 
 implementation
 
 uses
-  System.JSON;
+  System.JSON, System.Hash;
 
 { THTMLDocRenderer }
+
+constructor THTMLDocRenderer.Create(ACompact: Boolean);
+begin inherited Create; FCompact := ACompact; end;
+
+function THTMLDocRenderer.FileName(const FullName: string): string;
+begin Result := FNames.FileName(FullName, '.html'); end;
+
+
+function THTMLDocRenderer.Anchor(const Name: string): string;
+begin
+  if FCompact then Result := 'a_' + LowerCase(THashSHA2.GetHashString(Name)) else Result := Name;
+end;
+
+destructor THTMLDocRenderer.Destroy;
+begin FNames.Free; inherited; end;
 
 procedure THTMLDocRenderer.Render(
   const AUnits: TObjectList<TUnitDocInfo>;
@@ -51,12 +73,16 @@ procedure THTMLDocRenderer.Render(
 var
   I, J: Integer;
 begin
+  SortDocumentation(AUnits);
   FUnits := AUnits;
   FResolver := AResolver;
   FOptions := AOptions;
+  FreeAndNil(FNames);
+  FNames := TTopicNameMap.Create(AUnits, FCompact or AOptions.NumericFileNames, AOptions.NumericFileNames);
 
   TDirectory.CreateDirectory(FOptions.OutputDir);
   TDirectory.CreateDirectory(TPath.Combine(FOptions.OutputDir, 'units'));
+  FNames.Save(TPath.Combine(FOptions.OutputDir, 'topic-map.json'));
   TDirectory.CreateDirectory(TPath.Combine(FOptions.OutputDir, 'assets'));
 
   CopyStaticAssets;
@@ -89,6 +115,7 @@ begin
     'nav h2{font-size:14px;margin-bottom:12px}' +
     'nav ul{list-style:none}nav li{margin:2px 0}' +
     'nav a{color:var(--text);text-decoration:none;font-size:13px}' +
+    'nav summary{cursor:pointer}nav a,nav summary{overflow-wrap:anywhere}' +
     'nav a:hover{color:var(--accent)}' +
     'main{flex:1;padding:24px 32px;max-width:900px}' +
     'h1{font-size:24px;margin-bottom:8px}' +
@@ -202,18 +229,18 @@ begin
   Href := '';
   for U in FUnits do
   begin
-    if SameText(ACref, U.UnitName) then Href := U.UnitName + '.html';
+    if SameText(ACref, U.UnitName) then Href := FileName(U.UnitName);
     for T in U.Types do
     begin
-      if Matches(T.FullName, T.Name) then Href := U.UnitName + '.' + T.Name + '.html';
+      if Matches(T.FullName, T.Name) then Href := FileName(T.FullName);
       for E in T.Members do
         if Matches(E.FullName, T.Name + '.' + E.Name) then
-          Href := U.UnitName + '.' + T.Name + '.html#' + E.Name;
+          Href := FileName(T.FullName) + '#' + Anchor(E.Name);
     end;
     for E in U.StandaloneMethods do
-      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.html#' + E.Name;
+      if Matches(E.FullName, E.Name) then Href := FileName(U.UnitName) + '#' + Anchor(E.Name);
     for E in U.Constants do
-      if Matches(E.FullName, E.Name) then Href := U.UnitName + '.html#' + E.Name;
+      if Matches(E.FullName, E.Name) then Href := FileName(U.UnitName) + '#' + Anchor(E.Name);
   end;
   Result := '<code>' + EscapeHtml(ACref) + '</code>';
   if Href <> '' then
@@ -221,52 +248,32 @@ begin
 end;
 
 function THTMLDocRenderer.GenerateNav(const APrefix: string): string;
-var
-  LSB: TStringBuilder;
-  LIndexHref: string;
-  I, J: Integer;
-  LUnit: TUnitDocInfo;
-begin
-  // APrefix: units/ 폴더 내 페이지에서는 '' (기본), index.html에서는 'units/'
-  if APrefix <> '' then
-    LIndexHref := 'index.html'
-  else
-    LIndexHref := '../index.html';
-
-  LSB := TStringBuilder.Create;
-  try
-    LSB.AppendLine('<h2>' + EscapeHtml(FOptions.Title) + '</h2>');
-    LSB.AppendLine('<ul>');
-    LSB.AppendFormat('<li><a href="%s">Index</a></li>', [LIndexHref]);
-    LSB.AppendLine;
-
-    for I := 0 to FUnits.Count - 1 do
-    begin
-      LUnit := FUnits[I];
-      LSB.AppendFormat('<li><a href="%s%s.html">%s</a>',
-        [APrefix, LUnit.UnitName, EscapeHtml(LUnit.UnitName)]);
-
-      if LUnit.Types.Count > 0 then
-      begin
-        LSB.AppendLine('<ul>');
-        for J := 0 to LUnit.Types.Count - 1 do
-        begin
-          LSB.AppendFormat('<li><a href="%s%s.%s.html">%s</a></li>',
-            [APrefix, LUnit.UnitName, LUnit.Types[J].Name,
-             EscapeHtml(LUnit.Types[J].Name)]);
-          LSB.AppendLine;
-        end;
-        LSB.AppendLine('</ul>');
-      end;
-
-      LSB.AppendLine('</li>');
+var Root, Node: TDocNavNode; IndexHref: string;
+  function NodeHTML(Node: TDocNavNode): string;
+  var Child: TDocNavNode; Href: string;
+  begin
+    Result := '<li>';
+    if Node.Children.Count > 0 then Result := Result + '<details><summary>';
+    if Node.Target <> '' then begin
+      Href := Node.Target;
+      if APrefix = '' then Delete(Href, 1, Length('units/'));
+      Result := Result + '<a href="' + EscapeHtml(Href) + '">' + EscapeHtml(Node.Caption) + '</a>';
+    end else Result := Result + '<span>' + EscapeHtml(Node.Caption) + '</span>';
+    if Node.Children.Count > 0 then begin
+      Result := Result + '</summary><ul>';
+      for Child in Node.Children do Result := Result + NodeHTML(Child);
+      Result := Result + '</ul></details>';
     end;
-
-    LSB.AppendLine('</ul>');
-    Result := LSB.ToString;
-  finally
-    LSB.Free;
+    Result := Result + '</li>';
   end;
+begin
+  Root := BuildNavigation(FUnits, FOptions.Title, '.html', FCompact, FOptions.NumericFileNames);
+  try
+    if APrefix = '' then IndexHref := '../index.html' else IndexHref := 'index.html';
+    Result := '<h2>' + EscapeHtml(FOptions.Title) + '</h2><ul><li><a href="' + IndexHref + '">Index</a></li>';
+    for Node in Root.Children do Result := Result + NodeHTML(Node);
+    Result := Result + '</ul>';
+  finally Root.Free; end;
 end;
 
 function THTMLDocRenderer.WrapPage(const ATitle, ABody, ANav: string): string;
@@ -319,8 +326,8 @@ begin
     for I := 0 to FUnits.Count - 1 do
     begin
       LUnit := FUnits[I];
-      LSB.AppendFormat('<tr><td><a href="units/%s.html">%s</a></td><td>%s</td></tr>',
-        [LUnit.UnitName, EscapeHtml(LUnit.UnitName),
+      LSB.AppendFormat('<tr><td><a href="units/%s">%s</a></td><td>%s</td></tr>',
+        [FileName(LUnit.UnitName), EscapeHtml(LUnit.UnitName),
          EscapeHtml(LUnit.UnitDoc.Summary)]);
       LSB.AppendLine;
     end;
@@ -354,8 +361,8 @@ begin
       LSB.AppendLine('<table><tr><th>Type</th><th>Kind</th><th>Description</th></tr>');
       for I := 0 to AUnit.Types.Count - 1 do
       begin
-        LSB.AppendFormat('<tr><td><a href="%s.%s.html">%s</a></td><td>%s</td><td>%s</td></tr>',
-          [AUnit.UnitName, AUnit.Types[I].Name,
+        LSB.AppendFormat('<tr><td><a href="%s">%s</a></td><td>%s</td><td>%s</td></tr>',
+          [FileName(AUnit.UnitName + '.' + AUnit.Types[I].Name),
            EscapeHtml(AUnit.Types[I].Name),
            EscapeHtml(AUnit.Types[I].Kind.ToString),
            EscapeHtml(AUnit.Types[I].Doc.Summary)]);
@@ -380,7 +387,12 @@ begin
         RenderMemberSection(LSB, AUnit.Constants[I], AUnit.UnitName);
     end;
 
-    WriteFile('units/' + AUnit.UnitName + '.html',
+    if AUnit.Variables.Count > 0 then begin
+      LSB.AppendLine('<h2>Variables</h2>');
+      for I := 0 to AUnit.Variables.Count - 1 do RenderMemberSection(LSB, AUnit.Variables[I], AUnit.UnitName);
+    end;
+
+    WriteFile('units/' + FileName(AUnit.UnitName),
       WrapPage(AUnit.UnitName, LSB.ToString, LNav));
   finally
     LSB.Free;
@@ -394,6 +406,7 @@ var
   I: Integer;
   LNav: string;
 begin
+  if AType.FullName = '' then AType.FullName := AUnitName + '.' + AType.Name;
   LNav := GenerateNav;
   LSB := TStringBuilder.Create;
   try
@@ -416,7 +429,7 @@ begin
       for I := 0 to AType.Members.Count - 1 do
       begin
         LSB.AppendFormat('<tr><td><a href="#%s"><code>%s</code></a></td><td>%s</td><td>%s</td><td>%s</td></tr>',
-          [EscapeHtml(AType.Members[I].Name),
+          [EscapeHtml(Anchor(AType.Members[I].Name)),
            EscapeHtml(AType.Members[I].Name),
            EscapeHtml(AType.Members[I].Kind.ToString),
            EscapeHtml(AType.Members[I].Visibility),
@@ -430,10 +443,14 @@ begin
         RenderMemberSection(LSB, AType.Members[I], AUnitName);
     end;
 
-    WriteFile('units/' + AUnitName + '.' + AType.Name + '.html',
+    WriteFile('units/' + FileName(AType.FullName),
       WrapPage(AType.FullName, LSB.ToString, LNav));
   finally
     LSB.Free;
+  end;
+  for I := 0 to AType.NestedTypes.Count - 1 do begin
+    if AType.NestedTypes[I].FullName = '' then AType.NestedTypes[I].FullName := AType.FullName + '.' + AType.NestedTypes[I].Name;
+    RenderTypePage(AType.NestedTypes[I], AUnitName);
   end;
 end;
 
@@ -441,7 +458,7 @@ procedure THTMLDocRenderer.RenderMemberSection(const ABuilder: TStringBuilder;
   const AElem: TElementDocInfo; const AUnitName: string);
 begin
   ABuilder.AppendFormat('<div class="member-card" id="%s">',
-    [EscapeHtml(AElem.Name)]);
+    [EscapeHtml(Anchor(AElem.Name))]);
   ABuilder.AppendLine;
   ABuilder.AppendFormat('<div class="member-sig"><span class="badge">%s</span> %s</div>',
     [EscapeHtml(AElem.Kind.ToString), EscapeHtml(AElem.Name)]);
@@ -466,7 +483,7 @@ begin
       LObj := TJSONObject.Create;
       LObj.AddPair('name', LUnit.UnitName);
       LObj.AddPair('type', 'unit');
-      LObj.AddPair('url', 'units/' + LUnit.UnitName + '.html');
+      LObj.AddPair('url', 'units/' + FileName(LUnit.UnitName));
       LObj.AddPair('summary', LUnit.UnitDoc.Summary);
       LArr.AddElement(LObj);
 
@@ -475,7 +492,7 @@ begin
         LObj := TJSONObject.Create;
         LObj.AddPair('name', LUnit.Types[J].FullName);
         LObj.AddPair('type', LUnit.Types[J].Kind.ToString);
-        LObj.AddPair('url', 'units/' + LUnit.UnitName + '.' + LUnit.Types[J].Name + '.html');
+        LObj.AddPair('url', 'units/' + FileName(LUnit.Types[J].FullName));
         LObj.AddPair('summary', LUnit.Types[J].Doc.Summary);
         LArr.AddElement(LObj);
       end;

@@ -20,6 +20,7 @@ DefaultDirName={localappdata}\Programs\XmlDocPlugin
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 MinVersion=10.0
+ArchitecturesAllowed=x64compatible
 OutputDir={#OutputDir}
 OutputBaseFilename=XmlDocPlugin-Setup
 Compression=lzma2
@@ -41,6 +42,7 @@ Name: rad13x86; Description: "RAD Studio 13 - 32-bit IDE"; Types: full; Check: T
 Name: rad13x64; Description: "RAD Studio 13 - 64-bit IDE"; Types: full; Check: TargetAvailable(2)
 
 [Files]
+Source: "{#StageDir}\bin\XmlDocGen.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "{#StageDir}\rad12-x86\*"; DestDir: "{app}\rad12-x86"; Components: rad12x86; Flags: ignoreversion
 Source: "{#StageDir}\rad13-x86\*"; DestDir: "{app}\rad13-x86"; Components: rad13x86; Flags: ignoreversion
 Source: "{#StageDir}\rad13-x64\*"; DestDir: "{app}\rad13-x64"; Components: rad13x64; Flags: ignoreversion

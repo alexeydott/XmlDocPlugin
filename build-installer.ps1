@@ -48,6 +48,14 @@ try {
         Copy-Item "$sdk\LICENSE.txt" (Join-Path $dir 'WebView2-LICENSE.txt')
         Copy-Item "$sdk\NOTICE.txt" (Join-Path $dir 'WebView2-NOTICE.txt')
     }
+    & .\build-cli.ps1 -Bds $Rad13 -Platform Win64 -OutputDir (Join-Path $workDir 'cli-build')
+    if (!$?) { throw 'Win64 command-line generator build failed' }
+    $cliDir = Join-Path $stage 'bin'
+    New-Item -ItemType Directory -Force $cliDir | Out-Null
+    Copy-Item (Join-Path $workDir 'cli-build\Win64\XmlDocGen.exe') $cliDir -Force
+    $cliBytes = [IO.File]::ReadAllBytes((Join-Path $cliDir 'XmlDocGen.exe'))
+    $cliPE = [BitConverter]::ToInt32($cliBytes, 60)
+    if ([BitConverter]::ToUInt16($cliBytes, $cliPE + 4) -ne 0x8664) { throw 'Command-line generator must be an x64 executable' }
     $cache = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\InstallerCache'
     New-Item -ItemType Directory -Force $cache | Out-Null
     $bootstrap = Join-Path $cache 'MicrosoftEdgeWebview2Setup.exe'

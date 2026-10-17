@@ -56,6 +56,7 @@ contains
   XmlDoc.HelpGen.Scanner in '..\..\HelpGen\XmlDoc.HelpGen.Scanner.pas',
   XmlDoc.HelpGen.BatchParser in '..\..\HelpGen\XmlDoc.HelpGen.BatchParser.pas',
   XmlDoc.HelpGen.CrossRef in '..\..\HelpGen\XmlDoc.HelpGen.CrossRef.pas',
+  XmlDoc.HelpGen.Navigation in '..\..\HelpGen\XmlDoc.HelpGen.Navigation.pas',
   XmlDoc.HelpGen.Renderer in '..\..\HelpGen\XmlDoc.HelpGen.Renderer.pas',
   XmlDoc.HelpGen.Renderer.HTML in '..\..\HelpGen\XmlDoc.HelpGen.Renderer.HTML.pas',
   XmlDoc.HelpGen.Renderer.MD in '..\..\HelpGen\XmlDoc.HelpGen.Renderer.MD.pas',

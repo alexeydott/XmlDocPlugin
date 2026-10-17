@@ -46,7 +46,7 @@ implementation
 {$R HelpManual.res}
 
 uses
-  System.IOUtils, System.Hash, System.StrUtils, System.Generics.Defaults,
+  System.IOUtils, System.Hash, System.JSON, XmlDoc.HelpGen.Navigation, System.StrUtils, System.Generics.Defaults,
   Winapi.Windows, Xml.XMLDoc, XmlDoc.Consts;
 
 const
@@ -131,7 +131,8 @@ begin
     FTopicKeys.Add(LKey, 1);
   end;
   LKey := LKey + '|' + IntToStr(LCount);
-  Result.ID := 'T' + THashSHA2.GetHashString(LKey).ToLower;
+  if FOptions.NumericFileNames then Result.ID := Format('T%.6d', [FTopics.Count])
+  else Result.ID := 'T' + THashSHA2.GetHashString(LKey).ToLower;
   if AParent = nil then Exit;
   AParent.Children.Add(Result);
   if not FSymbols.ContainsKey(AFullName) then FSymbols.Add(AFullName, Result);
@@ -449,10 +450,12 @@ var
   E: TElementDocInfo;
   LDir, LProject, LStyles, LName, LStyle, LFiles, LProjectFile: string;
   LPrevious, LCurrent: TStringList;
+  TopicMap, Entry: TJSONObject;
   LDoc: IXMLDocument;
   LFileNodes: IXMLNode;
   I: Integer;
 begin
+  SortDocumentation(AUnits);
   FOptions := AOptions;
   LDir := TPath.Combine(AOptions.OutputDir, 'hmxp');
   LProjectFile := CProjectFile;
@@ -506,6 +509,19 @@ begin
     for LName in ['Topics', 'Maps', 'Baggage', 'Images'] do
       TDirectory.CreateDirectory(TPath.Combine(LDir, LName));
     WriteResources(LDir, LProjectFile);
+    if AOptions.NumericFileNames then begin
+      TopicMap := TJSONObject.Create;
+      try
+        for LTopic in FTopics do begin
+          Entry := TJSONObject.Create;
+          Entry.AddPair('symbol', LTopic.FullName);
+          Entry.AddPair('signature', LTopic.Signature);
+          Entry.AddPair('file', 'Topics/' + LTopic.ID + '.xml');
+          TopicMap.AddPair(LTopic.ID, Entry);
+        end;
+        TFile.WriteAllBytes(TPath.Combine(LDir, 'Baggage/topic-map.json'), TEncoding.UTF8.GetBytes(TopicMap.Format(2)));
+      finally TopicMap.Free; end;
+    end;
     LStyles := '';
     for LName in ['Normal', 'Heading1', 'Heading2', 'Code'] do
     begin

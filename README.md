@@ -73,6 +73,26 @@ XmlDocGen -d "C:\MyProject\src" -o "C:\MyProject\docs" -f HTML,MD
 
 Generate documentation from the command line. Integrates with CI/CD pipelines.
 
+Use `--numeric-file-names`, or select **Use numeric topic file names** in the
+generation dialog, to name topic files `t000001`, `t000002`, and so on. This
+applies to HTML, Markdown, CHM, HMXP, and all static site exports. Links and
+navigation use the same mapping; displayed symbol names remain unchanged.
+Numbering is reproducible for the same symbol set, but adding or removing
+symbols can change numbers. Regenerate the entire output together.
+HTML, Markdown, CHM, and site exports include `topic-map.json`; HMXP stores its
+map in `Baggage/topic-map.json`. JSON remains a single `api.json` with logical
+symbol names. Project filenames retain the source project name.
+
+Navigation groups symbols by module, type category, type, and member category,
+with alphabetical ordering. MkDocs uses page-level navigation and each type's
+page table of contents for its members.
+
+CHM always uses short topic filenames: stable hashes by default, numeric names
+when requested. Compilation runs in a short temporary directory. Paths that
+exceed the legacy compiler's 259-character usable path budget are rejected
+with a clear error. Missing compilers, failed compilations, and invalid output
+stop generation; compiler diagnostics are saved in `chm-compiler.log`.
+
 ## Supported XML Tags
 
 | Tag | Description |
@@ -264,6 +284,19 @@ Setup replaces older XmlDocPlugin registrations for selected targets and
 remembers them. Uninstall removes this installation's registrations and restores
 the previous ones. User documentation and editor preferences are preserved.
 The Runtime is shared with other applications and is not removed on uninstall.
+
+Setup also installs the standalone 64-bit command-line generator in
+`%LOCALAPPDATA%\Programs\XmlDocPlugin\bin\XmlDocGen.exe`. It runs independently
+of the IDE; installation requires 64-bit Windows. For example:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\XmlDocPlugin\bin\XmlDocGen.exe" `
+  --project 'C:\MyProject\MyProject.dproj' --output 'C:\MyProject\docs' `
+  --format html,hmxp --numeric-file-names
+```
+
+The CLI is updated with the plugin and removed on uninstall. Setup does not
+change `PATH`; use the full executable path in scripts.
 
 Run `installer\Test-Installer.ps1` after building to exercise detection failures,
 Runtime consent/failure handling, installation, upgrade, payload hashes and
