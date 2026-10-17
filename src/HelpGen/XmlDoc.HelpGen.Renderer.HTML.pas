@@ -197,12 +197,27 @@ begin
       LSB.AppendLine('</table>');
     end;
 
+    if ADoc.Value <> '' then
+      LSB.AppendLine('<h3>Value</h3><p>' + EscapeHtml(ADoc.Value) + '</p>');
+    if ADoc.TypeParams.Count > 0 then
+    begin
+      LSB.AppendLine('<h3>Type Parameters</h3><ul>');
+      for I := 0 to ADoc.TypeParams.Count - 1 do
+        LSB.AppendLine('<li><code>' + EscapeHtml(ADoc.TypeParams[I].Name) + '</code>: ' + EscapeHtml(ADoc.TypeParams[I].Description) + '</li>');
+      LSB.AppendLine('</ul>');
+    end;
+    for I := 0 to ADoc.Examples.Count - 1 do
+    begin
+      LSB.AppendLine('<h3>Example ' + EscapeHtml(ADoc.Examples[I].Title) + '</h3>');
+      LSB.AppendLine('<p>' + EscapeHtml(ADoc.Examples[I].Description) + '</p>');
+      LSB.AppendLine('<pre><code>' + EscapeHtml(ADoc.Examples[I].Code) + '</code></pre>');
+    end;
     if ADoc.SeeAlso.Count > 0 then
     begin
       LSB.AppendLine('<h3>See Also</h3>');
       LSB.Append('<ul>');
       for I := 0 to ADoc.SeeAlso.Count - 1 do
-        LSB.AppendFormat('<li>%s</li>', [MakeCrefLink(ADoc.SeeAlso[I].Cref, AUnitName)]);
+        LSB.AppendFormat('<li>%s %s</li>', [MakeCrefLink(ADoc.SeeAlso[I].Cref, AUnitName), EscapeHtml(ADoc.SeeAlso[I].Description)]);
       LSB.AppendLine('</ul>');
     end;
 

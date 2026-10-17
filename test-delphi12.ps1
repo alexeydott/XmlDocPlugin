@@ -17,6 +17,11 @@ try {
         & "$Bds\bin\brcc32.exe" HelpManual.rc
         if ($LASTEXITCODE) { throw 'Help & Manual resource compilation failed' }
     } finally { Pop-Location }
+    Push-Location src\Plugin
+    try {
+        & "$Bds\bin\brcc32.exe" XmlDocEditor.rc
+        if ($LASTEXITCODE) { throw 'Editor resource compilation failed' }
+    } finally { Pop-Location }
     Push-Location tests
     try {
         & "$Bds\bin\brcc32.exe" BrowserSmoke.rc
@@ -27,7 +32,7 @@ try {
         New-Item -ItemType Directory -Force $output | Out-Null
         Copy-Item "$sdk\build\native\$arch\WebView2Loader.dll" $output
         $compiler = if ($arch -eq 'x86') { 'dcc32' } else { 'dcc64' }
-        foreach ($name in @('SettingsSmoke', 'BrowserSmoke', 'FakeHHC', 'XmlDocTests')) {
+        foreach ($name in @('SettingsSmoke', 'BrowserSmoke', 'UnitEditorSmoke', 'FakeHHC', 'XmlDocTests')) {
             Compile-Test $compiler $name $output
             if ($name -eq 'FakeHHC') { continue }
             & "$output\$name.exe"

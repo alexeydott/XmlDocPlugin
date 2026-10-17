@@ -504,6 +504,7 @@ export function loadDocument(element: ElementInfo, doc: DocModel): void {
   const isProperty = element.kind === 'property';
   $('#returns-section')!.classList.toggle('hidden', !hasReturn);
   $('#value-section')!.classList.toggle('hidden', !isProperty);
+  $('#exceptions-section')!.classList.toggle('hidden', element.kind === 'unit');
 
   if (hasReturn && element.returnType) {
     $('#return-type')!.innerHTML = `Type: <strong>${escapeHtml(element.returnType)}</strong>`;

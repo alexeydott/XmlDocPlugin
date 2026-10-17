@@ -161,6 +161,13 @@ begin
           Continue;
 
         case LCodeElem.Kind of
+          dekUnit:
+          begin
+            LUnitDoc.UnitElement := LCodeElem;
+            LUnitDoc.UnitName := LCodeElem.Name;
+            if LCodeElem.ExistingDocXml <> '' then
+              LUnitDoc.UnitDoc.LoadFromXml(LCodeElem.ExistingDocXml);
+          end;
           dekClass, dekRecord, dekInterface:
           begin
             LTypeDoc := TTypeDocInfo.Create;

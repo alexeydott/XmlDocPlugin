@@ -39,6 +39,12 @@ function buildTree(fileName: string, elements: TreeElementInfo[]): TreeNode {
     // 이름 없는 요소 건너뛰기
     if (!el.name) continue;
 
+    if (el.kind === 'unit') {
+      root.label = el.name;
+      root.element = el;
+      continue;
+    }
+
     const node: TreeNode = {
       label: el.name,
       element: el,
@@ -87,6 +93,7 @@ function buildTree(fileName: string, elements: TreeElementInfo[]): TreeNode {
 // ────────────────────────────────────────────
 function kindIcon(kind: DocElementKind): string {
   switch (kind) {
+    case 'unit':      return '<span class="tree-icon tree-icon-unit">U</span>';
     case 'class':     return '<span class="tree-icon tree-icon-class">C</span>';
     case 'record':    return '<span class="tree-icon tree-icon-record">R</span>';
     case 'interface': return '<span class="tree-icon tree-icon-intf">I</span>';

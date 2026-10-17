@@ -134,6 +134,8 @@ begin
   LMethodKind := LowerCase(AElement.MethodKind);
 
   case AElement.Kind of
+  dekUnit:
+    Result := CPlaceholderPrefix + AElement.Name + ' unit description';
   dekMethod:
     begin
       if LMethodKind = 'constructor' then

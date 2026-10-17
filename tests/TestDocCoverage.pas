@@ -66,9 +66,9 @@ begin
         Assert.AreEqual(Summary, Parser.Units[0].Types[0].Doc.Summary);
         Stats := Report.Analyze(Parser.Units);
         try
-          Assert.AreEqual(1, Stats.TotalElements);
+          Assert.AreEqual(2, Stats.TotalElements);
           Assert.AreEqual(1, Stats.Documented);
-          Assert.AreEqual<NativeInt>(0, Length(Report.GetUndocumented(Parser.Units)));
+          Assert.AreEqual<NativeInt>(1, Length(Report.GetUndocumented(Parser.Units)));
         finally
           Stats.ByKind.Free;
           Stats.ByVisibility.Free;

@@ -80,6 +80,8 @@ var
   LExceptions: TJSONArray;
   LExc: TJSONObject;
   LSeeAlso: TJSONArray;
+  LExamples, LTypeParams: TJSONArray;
+  LEntry: TJSONObject;
 begin
   Result := TJSONObject.Create;
   Result.AddPair('summary', ADoc.Summary);
@@ -89,6 +91,32 @@ begin
 
   if ADoc.Returns <> '' then
     Result.AddPair('returns', ADoc.Returns);
+  if ADoc.Value <> '' then Result.AddPair('value', ADoc.Value);
+  if ADoc.TypeParams.Count > 0 then
+  begin
+    LTypeParams := TJSONArray.Create;
+    for I := 0 to ADoc.TypeParams.Count - 1 do
+    begin
+      LEntry := TJSONObject.Create;
+      LEntry.AddPair('name', ADoc.TypeParams[I].Name);
+      LEntry.AddPair('description', ADoc.TypeParams[I].Description);
+      LTypeParams.AddElement(LEntry);
+    end;
+    Result.AddPair('typeParams', LTypeParams);
+  end;
+  if ADoc.Examples.Count > 0 then
+  begin
+    LExamples := TJSONArray.Create;
+    for I := 0 to ADoc.Examples.Count - 1 do
+    begin
+      LEntry := TJSONObject.Create;
+      LEntry.AddPair('title', ADoc.Examples[I].Title);
+      LEntry.AddPair('description', ADoc.Examples[I].Description);
+      LEntry.AddPair('code', ADoc.Examples[I].Code);
+      LExamples.AddElement(LEntry);
+    end;
+    Result.AddPair('examples', LExamples);
+  end;
 
   if ADoc.Params.Count > 0 then
   begin

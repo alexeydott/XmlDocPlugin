@@ -447,6 +447,8 @@ var
   LTypeAttr: string;
 begin
   case ANode.Typ of
+    ntUnit:
+      Result := (ANode = FRootNode) and (ANode.GetAttribute(anName) <> '');
     ntMethod,
     ntProperty,
     ntField,
@@ -488,6 +490,11 @@ begin
   Result.CommentEndLine := -1;
 
   case ANode.Typ of
+    ntUnit:
+    begin
+      Result.Kind := dekUnit;
+      Result.Name := ANode.GetAttribute(anName);
+    end;
     ntMethod:
     begin
       Result.Kind := dekMethod;

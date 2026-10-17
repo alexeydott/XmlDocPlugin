@@ -129,12 +129,29 @@ begin
       LSB.AppendLine;
     end;
 
+    if ADoc.Value <> '' then
+      LSB.AppendLine('**Value:** ' + ADoc.Value + sLineBreak);
+    if ADoc.TypeParams.Count > 0 then
+    begin
+      LSB.AppendLine('**Type Parameters:**');
+      for I := 0 to ADoc.TypeParams.Count - 1 do
+        LSB.AppendLine('- **' + ADoc.TypeParams[I].Name + '**: ' + ADoc.TypeParams[I].Description);
+      LSB.AppendLine;
+    end;
+    for I := 0 to ADoc.Examples.Count - 1 do
+    begin
+      LSB.AppendLine('## Example ' + ADoc.Examples[I].Title);
+      LSB.AppendLine(ADoc.Examples[I].Description + sLineBreak);
+      LSB.AppendLine('```pascal');
+      LSB.AppendLine(ADoc.Examples[I].Code);
+      LSB.AppendLine('```' + sLineBreak);
+    end;
     if ADoc.SeeAlso.Count > 0 then
     begin
       LSB.AppendLine('**See Also:**');
       LSB.AppendLine;
       for I := 0 to ADoc.SeeAlso.Count - 1 do
-        LSB.AppendLine('- ' + MakeMDLink(ADoc.SeeAlso[I].Cref, AUnitName));
+        LSB.AppendLine('- ' + MakeMDLink(ADoc.SeeAlso[I].Cref, AUnitName) + ' ' + ADoc.SeeAlso[I].Description);
       LSB.AppendLine;
     end;
 

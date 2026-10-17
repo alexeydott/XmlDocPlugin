@@ -56,6 +56,13 @@ This project was born from a simple belief: **writing documentation should be a 
 - **Cross-References** — Automatic link generation between types and members
 - **Static Site Publishing** — Generate standalone API documentation sites
 
+XML documentation immediately above a `unit` declaration is supported alongside
+type and member documentation. Select the declaration or its `///` comment in
+Doc Inspector, or select the unit root in Documentation Explorer, to edit its
+summary, remarks, examples and related references. Saving updates the comment
+above the declaration. Batch exports include this documentation on the module
+page in every format, and Coverage Report includes the unit itself.
+
 CHM and Help & Manual exports use the source project name, such as
 `skia_vcl_canvas.chm` and `skia_vcl_canvas.hmxp`. The project name is also the
 default documentation title; a custom title entered in the generation dialog

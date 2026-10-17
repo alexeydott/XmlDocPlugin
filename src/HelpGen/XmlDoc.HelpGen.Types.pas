@@ -52,6 +52,7 @@ type
     StandaloneMethods: TObjectList<TElementDocInfo>;
     Types: TObjectList<TTypeDocInfo>;
     UnitDoc: TXmlDocModel;
+    UnitElement: TCodeElementInfo;
     UnitName: string;
     Variables: TObjectList<TElementDocInfo>;
 

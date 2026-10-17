@@ -116,6 +116,14 @@ begin
   begin
     LUnit := AUnits[I];
 
+    if LUnit.UnitName = AFullName then
+    begin
+      ALocItem^.FilePath := LUnit.FilePath;
+      ALocItem^.LineNumber := LUnit.UnitElement.LineNumber;
+      if ALocItem^.LineNumber < 1 then ALocItem^.LineNumber := 1;
+      Exit;
+    end;
+
     for J := 0 to LUnit.Types.Count - 1 do
     begin
       LType := LUnit.Types[J];

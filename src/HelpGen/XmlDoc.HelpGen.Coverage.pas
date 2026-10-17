@@ -46,6 +46,7 @@ type
   private
     function AnalyzeElement(const AElem: TElementDocInfo): TCoverageItem;
     function AnalyzeType(const AType: TTypeDocInfo): TCoverageItem;
+    function AnalyzeUnit(const AUnit: TUnitDocInfo): TCoverageItem;
     function CoverageLevelToString(ALevel: TCoverageLevel): string;
   public
     /// <summary>유닛 목록의 문서 커버리지를 분석합니다.</summary>
@@ -159,6 +160,17 @@ begin
   end;
 end;
 
+function TDocCoverageReport.AnalyzeUnit(const AUnit: TUnitDocInfo): TCoverageItem;
+begin
+  Result := Default(TCoverageItem);
+  Result.ElementFullName := AUnit.UnitName;
+  Result.Kind := dekUnit;
+  if AUnit.UnitDoc.IsEmpty then Result.Level := clNone
+  else if Trim(AUnit.UnitDoc.Summary) <> '' then Result.Level := clComplete
+  else Result.Level := clPartial;
+  if Result.Level <> clComplete then Result.MissingTags := ['summary'];
+end;
+
 function TDocCoverageReport.CoverageLevelToString(ALevel: TCoverageLevel): string;
 begin
   case ALevel of
@@ -193,6 +205,13 @@ begin
     LUnit := AUnits[I];
     LUnitTotal := 0;
     LUnitDoc := 0;
+
+    LItem := AnalyzeUnit(LUnit);
+    Inc(Result.TotalElements);
+    Inc(LUnitTotal);
+    if LItem.Level <> clNone then begin Inc(Result.Documented); Inc(LUnitDoc); end;
+    if LItem.Level = clComplete then Inc(Result.Complete);
+    Result.ByKind.AddOrSetValue(dekUnit, I + 1);
 
     // Types
     for J := 0 to LUnit.Types.Count - 1 do
@@ -312,6 +331,9 @@ begin
     for I := 0 to AUnits.Count - 1 do
     begin
       LUnit := AUnits[I];
+
+      LItem := AnalyzeUnit(LUnit);
+      if LItem.Level = clNone then LResults.Add(LItem);
 
       for J := 0 to LUnit.Types.Count - 1 do
       begin
