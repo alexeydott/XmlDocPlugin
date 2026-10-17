@@ -4,6 +4,25 @@ An **XML Documentation** plugin integrated into the Delphi IDE. Write C#-style `
 
 [한국어](README.ko.md)
 
+## Download and Install
+
+[Download XmlDocPlugin-Setup.exe from the latest release](https://github.com/alexeydott/XmlDocPlugin/releases/latest/download/XmlDocPlugin-Setup.exe)
+
+The installer supports RAD Studio 12 (32-bit IDE) and RAD Studio 13 (32-bit and
+64-bit IDEs).
+
+1. Close all running RAD Studio instances.
+2. Download and run `XmlDocPlugin-Setup.exe`.
+3. If prompted, allow Setup to install Microsoft Edge WebView2 Runtime. This
+   requires an Internet connection; declining cancels installation.
+4. Select the detected IDE versions to install the plugin into and finish Setup.
+5. Start RAD Studio. Open **Doc Inspector** to edit XML documentation, or use
+   **Generate API Documentation** to export your project's documentation.
+
+Installation is per user and does not require administrator privileges. To
+update, close RAD Studio and run the latest installer. To uninstall, close RAD
+Studio and remove **XmlDoc Plugin** from Windows Installed apps.
+
 ## Why This Project?
 
 XML Documentation comments (`///`) are a standard practice in C# and many other languages, yet Delphi has never shipped with built-in tooling to author or manage them. The only option available today is [Documentation Insight](https://www.devjetsoftware.com/products/documentation-insight/) by DevJet Software — a well-made commercial product, but its licensing cost can be a barrier, especially for individual developers, small teams, and open-source contributors.
