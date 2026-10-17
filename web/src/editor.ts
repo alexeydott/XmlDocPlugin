@@ -492,6 +492,22 @@ export function loadDocument(element: ElementInfo, doc: DocModel): void {
 // Init
 // ────────────────────────────────────────────
 export function init(): void {
+  let theme = 'light';
+  const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
+  const applyTheme = () => {
+    document.documentElement.dataset.theme =
+      theme === 'auto' ? (darkMode.matches ? 'dark' : 'light') : theme;
+  };
+  darkMode.addEventListener('change', applyTheme);
+  (window as any).xmlDocSettings = {
+    apply(settings: { theme: string; fontSize: number; showSignatureHeader: boolean }) {
+      theme = ['light', 'dark', 'auto'].includes(settings.theme) ? settings.theme : 'light';
+      applyTheme();
+      document.body.style.fontSize = `${Math.max(8, Math.min(40, settings.fontSize))}px`;
+      const signature = $('#member-signature');
+      if (signature) signature.style.display = settings.showSignatureHeader ? '' : 'none';
+    },
+  };
   initToolbar();
   setupCollapsible();
   setupAddButtons();

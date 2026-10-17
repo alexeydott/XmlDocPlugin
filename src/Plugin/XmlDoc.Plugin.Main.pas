@@ -378,6 +378,10 @@ begin
       if ShowSettingsDialog then
       begin
         FMenuIntegration.RefreshShortcuts;
+        if Assigned(FDocInspector) then
+          FDocInspector.RefreshFromCurrentEditor;
+        if Assigned(FDocExplorer) then
+          FDocExplorer.RefreshFromCurrentEditor;
 
         if Supports(BorlandIDEServices, IOTAKeyboardServices, LKeyServices) then
         begin

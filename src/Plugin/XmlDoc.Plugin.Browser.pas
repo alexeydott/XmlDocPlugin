@@ -18,6 +18,7 @@ type
     procedure LoadEditorResource(AInstance: THandle; const AName: string);
     procedure RestoreSections;
     procedure SaveSections(const AJson: string);
+    procedure ApplySettings;
   end;
 
 procedure ConfigureWebViewLoader;
@@ -25,7 +26,8 @@ procedure ConfigureWebViewLoader;
 implementation
 
 uses
-  System.IOUtils, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils;
+  System.IOUtils, System.JSON, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils,
+  XmlDoc.Plugin.Settings;
 
 procedure ConfigureWebViewLoader;
 var
@@ -87,6 +89,23 @@ begin
       LReg.WriteString(FResourceName, AJson);
   finally
     LReg.Free;
+  end;
+end;
+
+procedure TXmlDocBrowser.ApplySettings;
+var
+  LJson: TJSONObject;
+  LSettings: TEditorSettings;
+begin
+  LSettings := TPluginSettings.Instance.Global.Editor;
+  LJson := TJSONObject.Create;
+  try
+    LJson.AddPair('theme', LSettings.Theme);
+    LJson.AddPair('fontSize', TJSONNumber.Create(LSettings.FontSize));
+    LJson.AddPair('showSignatureHeader', TJSONBool.Create(LSettings.ShowSignatureHeader));
+    ExecuteScript('window.xmlDocSettings?.apply(' + LJson.ToJSON + ');');
+  finally
+    LJson.Free;
   end;
 end;
 

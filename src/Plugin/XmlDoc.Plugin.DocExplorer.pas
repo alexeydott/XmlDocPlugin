@@ -497,6 +497,8 @@ var
   LSource: string;
   LFileName: string;
 begin
+  if Assigned(FBrowser) and FBrowserReady then
+    FBrowser.ApplySettings;
   LEditor := TDocOTAWriter.GetCurrentSourceEditor;
   if not Assigned(LEditor) then
     Exit;
