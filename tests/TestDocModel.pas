@@ -88,6 +88,9 @@ type
     procedure TestLoadFromXml_Example;
 
     [Test]
+    procedure TestLoadFromXml_ExampleDescriptionAndCode;
+
+    [Test]
     procedure TestLoadFromXml_SeeAlso;
 
     [Test]
@@ -408,6 +411,22 @@ begin
   Assert.AreEqual(1, FModel.Examples.Count);
   Assert.AreEqual('사용 예시', FModel.Examples[0].Title);
   Assert.AreEqual('DoSomething;', FModel.Examples[0].Code);
+end;
+
+procedure TTestXmlDocModel.TestLoadFromXml_ExampleDescriptionAndCode;
+const
+  CXml = '<example title="Sample">Call Run first.' +
+    '<code><![CDATA[if A < B then Run;]]></code></example>';
+begin
+  FModel.LoadFromXml(CXml);
+  Assert.AreEqual(1, FModel.Examples.Count);
+  Assert.AreEqual('Sample', FModel.Examples[0].Title);
+  Assert.AreEqual('Call Run first.', FModel.Examples[0].Description);
+  Assert.AreEqual('if A < B then Run;', FModel.Examples[0].Code);
+  FModel.LoadFromXml(FModel.ToXml);
+  Assert.AreEqual(1, FModel.Examples.Count);
+  Assert.AreEqual('Call Run first.', FModel.Examples[0].Description);
+  Assert.AreEqual('if A < B then Run;', FModel.Examples[0].Code);
 end;
 
 procedure TTestXmlDocModel.TestLoadFromXml_SeeAlso;
