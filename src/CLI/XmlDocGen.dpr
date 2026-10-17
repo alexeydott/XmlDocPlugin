@@ -1,17 +1,19 @@
-program XmlDocGen;
+﻿program XmlDocGen;
 
 {$APPTYPE CONSOLE}
 
-{$R *.res}
 
 uses
   System.SysUtils,
+  Winapi.ActiveX,
   XmlDoc.CLI.Main;
 
 var
   LCLI: TCLIMain;
   LExitCode: Integer;
 begin
+  CoInitialize(nil);
+  try
   try
     LCLI := TCLIMain.Create;
     try
@@ -26,5 +28,8 @@ begin
       WriteLn('Fatal error: ', E.Message);
       ExitCode := 2;
     end;
+  end;
+  finally
+    CoUninitialize;
   end;
 end.

@@ -24,6 +24,11 @@ try {
         & npm.cmd run build
         if ($LASTEXITCODE) { throw 'Web editor build failed' }
     } finally { Pop-Location }
+    Push-Location src\HelpGen
+    try {
+        & "$Bds\bin\brcc32.exe" HelpManual.rc
+        if ($LASTEXITCODE) { throw 'Help & Manual resource compilation failed' }
+    } finally { Pop-Location }
     Push-Location src\Plugin
     try {
         & "$Bds\bin\brcc32.exe" XmlDocEditor.rc

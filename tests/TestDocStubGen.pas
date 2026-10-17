@@ -114,7 +114,7 @@ begin
   LElement := MakeElement(dekMethod, 'Create', 'constructor');
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
-    Assert.AreEqual('새 인스턴스를 생성합니다.', LModel.Summary);
+    Assert.AreEqual('Creates a new instance.', LModel.Summary);
   finally
     LModel.Free;
   end;
@@ -128,7 +128,7 @@ begin
   LElement := MakeElement(dekMethod, 'Destroy', 'destructor');
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
-    Assert.AreEqual('인스턴스를 해제합니다.', LModel.Summary);
+    Assert.AreEqual('Destroys the instance.', LModel.Summary);
   finally
     LModel.Free;
   end;
@@ -158,7 +158,7 @@ begin
   LElement.ReturnType := 'Boolean';
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
-    Assert.AreEqual('True이면 성공', LModel.Returns);
+    Assert.AreEqual('True on success', LModel.Returns);
   finally
     LModel.Free;
   end;
@@ -191,7 +191,7 @@ begin
   try
     Assert.AreEqual<NativeInt>(1, LModel.Params.Count);
     Assert.AreEqual('AFileName', LModel.Params[0].Name);
-    Assert.AreEqual('파일 이름', LModel.Params[0].Description);
+    Assert.AreEqual('File name', LModel.Params[0].Description);
   finally
     LModel.Free;
   end;
@@ -208,7 +208,7 @@ begin
   LElement.Params[0].TypeName := 'Integer';
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
-    Assert.AreEqual('인덱스 (0-based)', LModel.Params[0].Description);
+    Assert.AreEqual('Index (zero-based)', LModel.Params[0].Description);
   finally
     LModel.Free;
   end;
@@ -225,7 +225,7 @@ begin
   LElement.Params[0].TypeName := 'Integer';
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
-    Assert.AreEqual('개수', LModel.Params[0].Description);
+    Assert.AreEqual('Count', LModel.Params[0].Description);
   finally
     LModel.Free;
   end;
@@ -260,7 +260,7 @@ begin
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
     Assert.AreEqual<NativeInt>(1, LModel.Params.Count);
-    Assert.AreEqual('이벤트 발생 객체', LModel.Params[0].Description);
+    Assert.AreEqual('Event sender', LModel.Params[0].Description);
   finally
     LModel.Free;
   end;
@@ -275,7 +275,7 @@ begin
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
     Assert.Contains(LModel.Summary, 'TMyClass');
-    Assert.Contains(LModel.Summary, '클래스');
+    Assert.Contains(LModel.Summary, 'class');
   finally
     LModel.Free;
   end;
@@ -290,7 +290,7 @@ begin
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
     Assert.Contains(LModel.Summary, 'TMyRecord');
-    Assert.Contains(LModel.Summary, '레코드');
+    Assert.Contains(LModel.Summary, 'record');
   finally
     LModel.Free;
   end;
@@ -305,7 +305,7 @@ begin
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
     Assert.Contains(LModel.Summary, 'IMyInterface');
-    Assert.Contains(LModel.Summary, '인터페이스');
+    Assert.Contains(LModel.Summary, 'interface');
   finally
     LModel.Free;
   end;
@@ -376,9 +376,9 @@ begin
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
     Assert.AreEqual<NativeInt>(3, LModel.Params.Count);
-    Assert.AreEqual('원본', LModel.Params[0].Description);
-    Assert.AreEqual('대상', LModel.Params[1].Description);
-    Assert.AreEqual('개수', LModel.Params[2].Description);
+    Assert.AreEqual('Source', LModel.Params[0].Description);
+    Assert.AreEqual('Target', LModel.Params[1].Description);
+    Assert.AreEqual('Count', LModel.Params[2].Description);
   finally
     LModel.Free;
   end;

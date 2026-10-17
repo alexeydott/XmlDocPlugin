@@ -194,7 +194,7 @@ function collectDoc(): DocModel {
   if (exRows.length > 0) {
     doc.exceptions = [];
     exRows.forEach(row => {
-      const typeRef = (row.querySelector('.exception-type') as HTMLInputElement)?.value ?? '';
+      const typeRef = (row.querySelector('.exception-type') as HTMLTextAreaElement)?.value ?? '';
       const desc = (row.querySelector('.exception-desc') as HTMLElement)?.innerText ?? '';
       doc.exceptions!.push({ typeRef, description: desc });
     });
@@ -205,7 +205,7 @@ function collectDoc(): DocModel {
   if (seeRows.length > 0) {
     doc.seeAlso = [];
     seeRows.forEach(row => {
-      const cref = (row.querySelector('.seealso-cref') as HTMLInputElement)?.value ?? '';
+      const cref = (row.querySelector('.seealso-cref') as HTMLTextAreaElement)?.value ?? '';
       doc.seeAlso!.push({ cref });
     });
   }
@@ -323,29 +323,56 @@ function addExampleRow(container: HTMLElement, description = '', code = ''): voi
 
 function renderExceptions(exceptions: DocModel['exceptions']): void {
   const container = $('#exceptions-body')!;
+  container.querySelectorAll('textarea').forEach(field => referenceFieldObserver.unobserve(field));
   container.innerHTML = '';
   (exceptions ?? []).forEach(ex => addExceptionRow(container, ex.typeRef, ex.description));
+}
+
+function resizeReferenceField(field: HTMLTextAreaElement): void {
+  field.style.height = 'auto';
+  const borderHeight = field.offsetHeight - field.clientHeight;
+  field.style.height = `${field.scrollHeight + borderHeight}px`;
+}
+
+const referenceFieldObserver = new ResizeObserver(entries => {
+  entries.forEach(entry => resizeReferenceField(entry.target as HTMLTextAreaElement));
+});
+
+function setupReferenceField(row: HTMLElement, selector: string): void {
+  const field = row.querySelector<HTMLTextAreaElement>(selector)!;
+  field.addEventListener('input', () => {
+    field.value = field.value.replace(/[\r\n]+/g, '');
+    resizeReferenceField(field);
+    notifyChanged();
+  });
+  field.addEventListener('keydown', event => {
+    if (event.key === 'Enter') event.preventDefault();
+  });
+  referenceFieldObserver.observe(field);
+  row.querySelector('.btn-remove')!.addEventListener('click', () => referenceFieldObserver.unobserve(field));
+  resizeReferenceField(field);
 }
 
 function addExceptionRow(container: HTMLElement, typeRef = '', description = ''): void {
   const row = document.createElement('div');
   row.className = 'exception-row';
   row.innerHTML = `
-    <input class="exception-type" value="${escapeHtml(typeRef)}" placeholder="Exception type (e.g. EArgumentException)" />
+    <textarea class="exception-type" rows="1" placeholder="Exception type (e.g. EArgumentException)">${escapeHtml(typeRef)}</textarea>
     <span class="exception-desc" contenteditable="true" data-placeholder="Description...">${escapeHtml(description)}</span>
     <button class="btn-remove" title="Remove">&times;</button>
   `;
-  row.querySelector('.exception-type')!.addEventListener('input', notifyChanged);
   row.querySelector('.exception-desc')!.addEventListener('input', notifyChanged);
   row.querySelector('.btn-remove')!.addEventListener('click', () => {
     row.remove();
     notifyChanged();
   });
   container.appendChild(row);
+  setupReferenceField(row, '.exception-type');
 }
 
 function renderSeeAlso(seeAlso: DocModel['seeAlso']): void {
   const container = $('#seealso-body')!;
+  container.querySelectorAll('textarea').forEach(field => referenceFieldObserver.unobserve(field));
   container.innerHTML = '';
   (seeAlso ?? []).forEach(sa => addSeeAlsoRow(container, sa.cref));
 }
@@ -354,15 +381,15 @@ function addSeeAlsoRow(container: HTMLElement, cref = ''): void {
   const row = document.createElement('div');
   row.className = 'seealso-row';
   row.innerHTML = `
-    <input class="seealso-cref" value="${escapeHtml(cref)}" placeholder="Reference (e.g. TMyClass.DoWork)" />
+    <textarea class="seealso-cref" rows="1" placeholder="Reference (e.g. TMyClass.DoWork)">${escapeHtml(cref)}</textarea>
     <button class="btn-remove" title="Remove">&times;</button>
   `;
-  row.querySelector('.seealso-cref')!.addEventListener('input', notifyChanged);
   row.querySelector('.btn-remove')!.addEventListener('click', () => {
     row.remove();
     notifyChanged();
   });
   container.appendChild(row);
+  setupReferenceField(row, '.seealso-cref');
 }
 
 // ────────────────────────────────────────────

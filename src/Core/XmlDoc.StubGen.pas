@@ -48,63 +48,63 @@ begin
 
   // 이름 기반 힌트
   if LName = 'filename' then
-    Result := '파일 이름'
+    Result := 'File name'
   else if LName = 'filepath' then
-    Result := '파일 경로'
+    Result := 'File path'
   else if LName = 'dirname' then
-    Result := '디렉토리 이름'
+    Result := 'Directory name'
   else if LName = 'dirpath' then
-    Result := '디렉토리 경로'
+    Result := 'Directory path'
   else if LName = 'count' then
-    Result := '개수'
+    Result := 'Count'
   else if LName = 'index' then
-    Result := '인덱스 (0-based)'
+    Result := 'Index (zero-based)'
   else if LName = 'name' then
-    Result := '이름'
+    Result := 'Name'
   else if LName = 'text' then
-    Result := '텍스트'
+    Result := 'Text'
   else if LName = 'value' then
-    Result := '값'
+    Result := 'Value'
   else if LName = 'source' then
-    Result := '원본'
+    Result := 'Source'
   else if LName = 'target' then
-    Result := '대상'
+    Result := 'Target'
   else if LName = 'stream' then
-    Result := '스트림'
+    Result := 'Stream'
   else if LName = 'format' then
-    Result := '형식'
+    Result := 'Format'
   else if LName = 'owner' then
-    Result := '소유자'
+    Result := 'Owner'
   else if LName = 'parent' then
-    Result := '부모'
+    Result := 'Parent'
   else if LName = 'key' then
-    Result := '키'
+    Result := 'Key'
   else if LName = 'msg' then
-    Result := '메시지'
+    Result := 'Message'
   else if LName = 'message' then
-    Result := '메시지'
+    Result := 'Message'
   else if LName = 'result' then
-    Result := '결과'
+    Result := 'Result'
   else if LName = 'enabled' then
-    Result := '활성화 여부'
+    Result := 'Whether enabled'
   else if LName = 'visible' then
-    Result := '표시 여부'
+    Result := 'Whether visible'
   else if LName = 'width' then
-    Result := '너비'
+    Result := 'Width'
   else if LName = 'height' then
-    Result := '높이'
+    Result := 'Height'
   else if LName = 'size' then
-    Result := '크기'
+    Result := 'Size'
   else if LName = 'timeout' then
-    Result := '타임아웃 (밀리초)'
+    Result := 'Timeout (milliseconds)'
   else if LName = 'callback' then
-    Result := '콜백'
+    Result := 'Callback'
   else if LName = 'handler' then
-    Result := '핸들러'
+    Result := 'Handler'
   else if LName = 'sender' then
-    Result := '이벤트 발생 객체'
+    Result := 'Event sender'
   else if LName = 'args' then
-    Result := '인수'
+    Result := 'Arguments'
   else
     Result := '';
 end;
@@ -116,13 +116,13 @@ begin
   LType := LowerCase(AReturnType);
 
   if LType = 'boolean' then
-    Result := 'True이면 성공'
+    Result := 'True on success'
   else if LType = 'string' then
-    Result := CPlaceholderPrefix + '반환 문자열 설명'
+    Result := CPlaceholderPrefix + 'Description of the returned string'
   else if (LType = 'integer') or (LType = 'int64') or (LType = 'cardinal') then
-    Result := CPlaceholderPrefix + '반환 값 설명'
+    Result := CPlaceholderPrefix + 'Description of the return value'
   else if LType <> '' then
-    Result := CPlaceholderPrefix + AReturnType + ' 설명'
+    Result := CPlaceholderPrefix + AReturnType + ' description'
   else
     Result := '';
 end;
@@ -137,29 +137,29 @@ begin
   dekMethod:
     begin
       if LMethodKind = 'constructor' then
-        Result := '새 인스턴스를 생성합니다.'
+        Result := 'Creates a new instance.'
       else
       if LMethodKind = 'destructor' then
-        Result := '인스턴스를 해제합니다.'
+        Result := 'Destroys the instance.'
       else
-        Result := CPlaceholderPrefix + AElement.Name + ' 설명';
+        Result := CPlaceholderPrefix + AElement.Name + ' description';
     end;
   dekClass:
-    Result := CPlaceholderPrefix + AElement.Name + ' 클래스 설명';
+    Result := CPlaceholderPrefix + AElement.Name + ' class description';
   dekRecord:
-    Result := CPlaceholderPrefix + AElement.Name + ' 레코드 설명';
+    Result := CPlaceholderPrefix + AElement.Name + ' record description';
   dekInterface:
-    Result := CPlaceholderPrefix + AElement.Name + ' 인터페이스 설명';
+    Result := CPlaceholderPrefix + AElement.Name + ' interface description';
   dekProperty:
-    Result := CPlaceholderPrefix + AElement.Name + ' 설명';
+    Result := CPlaceholderPrefix + AElement.Name + ' description';
   dekField:
-    Result := CPlaceholderPrefix + AElement.Name + ' 설명';
+    Result := CPlaceholderPrefix + AElement.Name + ' description';
   dekConstant:
-    Result := CPlaceholderPrefix + AElement.Name + ' 설명';
+    Result := CPlaceholderPrefix + AElement.Name + ' description';
   dekType:
-    Result := CPlaceholderPrefix + AElement.Name + ' 타입 설명';
+    Result := CPlaceholderPrefix + AElement.Name + ' type description';
   else
-    Result := CPlaceholderPrefix + '설명';
+    Result := CPlaceholderPrefix + 'Description';
   end;
 end;
 
@@ -190,7 +190,7 @@ begin
     if LHint <> '' then
       LParamDoc.Description := LHint
     else
-      LParamDoc.Description := CPlaceholderPrefix + AElement.Params[I].Name + ' 설명';
+      LParamDoc.Description := CPlaceholderPrefix + AElement.Params[I].Name + ' description';
     Result.Params.Add(LParamDoc);
   end;
 
@@ -198,7 +198,7 @@ begin
   for I := 0 to Length(AElement.GenericParams) - 1 do
   begin
     LTypeParamDoc.Name := AElement.GenericParams[I];
-    LTypeParamDoc.Description := CPlaceholderPrefix + AElement.GenericParams[I] + ' 타입 설명';
+    LTypeParamDoc.Description := CPlaceholderPrefix + AElement.GenericParams[I] + ' type description';
     Result.TypeParams.Add(LTypeParamDoc);
   end;
 

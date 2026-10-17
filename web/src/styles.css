@@ -389,7 +389,8 @@ code.xml-c {
 
 /* ── Exceptions ── */
 .exception-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 4px 0;
@@ -406,7 +407,12 @@ code.xml-c {
   padding: 3px 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  min-width: 160px;
+  min-width: 0;
+  width: 100%;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   outline: none;
 }
 
@@ -415,6 +421,9 @@ code.xml-c {
 }
 
 .exception-desc {
+  grid-column: 1;
+  grid-row: 2;
+  overflow-wrap: anywhere;
   flex: 1;
   padding: 2px 6px;
   border: 1px solid transparent;
@@ -447,12 +456,18 @@ code.xml-c {
 }
 
 .seealso-cref {
+  flex: 1;
   font-family: var(--font-mono);
   font-size: 12px;
   padding: 3px 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  min-width: 200px;
+  min-width: 0;
+  width: 100%;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   outline: none;
 }
 

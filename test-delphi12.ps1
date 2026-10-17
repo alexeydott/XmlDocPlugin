@@ -6,12 +6,17 @@ if (!(Test-Path "$sdk\build\native\x86\WebView2Loader.dll")) {
     throw 'Run build-delphi12.ps1 first to obtain the WebView2 SDK.'
 }
 function Compile-Test([string]$Compiler, [string]$Name, [string]$Output) {
-    $search = "src\Core;src\Plugin;vendor\DelphiAST\Source;vendor\DelphiAST\Source\SimpleParser;$Bds\source\DunitX"
+    $search = "src\Core;src\Plugin;src\HelpGen;vendor\DelphiAST\Source;vendor\DelphiAST\Source\SimpleParser;$Bds\source\DunitX"
     & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && $Compiler -B --codepage:65001 -NSSystem;System.Win;Winapi;Vcl `"-U$search`" `"-E$Output`" `"-N0$Output`" tests\$Name.dpr"
     if ($LASTEXITCODE) { throw "$Name compilation failed" }
 }
 Push-Location $PSScriptRoot
 try {
+    Push-Location src\HelpGen
+    try {
+        & "$Bds\bin\brcc32.exe" HelpManual.rc
+        if ($LASTEXITCODE) { throw 'Help & Manual resource compilation failed' }
+    } finally { Pop-Location }
     Push-Location tests
     try {
         & "$Bds\bin\brcc32.exe" BrowserSmoke.rc
@@ -26,6 +31,9 @@ try {
             Compile-Test $compiler $name $output
             & "$output\$name.exe"
             if ($LASTEXITCODE) { throw "$arch $name failed" }
+        }
+        foreach ($fixture in @('HMXPFixture', 'HMXPEmpty')) {
+            & "$PSScriptRoot\tests\Validate-HMXP.ps1" (Join-Path $output "$fixture\hmxp\Documentation.hmxp")
         }
     }
 } finally { Pop-Location }

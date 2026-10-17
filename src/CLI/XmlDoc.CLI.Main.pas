@@ -15,6 +15,7 @@ uses
   XmlDoc.HelpGen.Renderer.MD,
   XmlDoc.HelpGen.Renderer.CHM,
   XmlDoc.HelpGen.Renderer.JSON,
+  XmlDoc.HelpGen.Renderer.HMXP,
   XmlDoc.HelpGen.SitePublisher,
   XmlDoc.HelpGen.Coverage;
 
@@ -112,7 +113,7 @@ begin
       if I <= ParamCount then
       begin
         LFormats := ParamStr(I);
-        FOptions.Formats := LFormats.Split([',']);
+        FOptions.Formats := LFormats.ToLower.Split([',']);
       end;
     end
     else if (LArg = '-t') or (LArg = '--title') then
@@ -183,7 +184,7 @@ begin
   WriteLn('  -p, --project <path>       .dpr/.dpk project file');
   WriteLn('  -d, --directory <path>     Source directory');
   WriteLn('  -o, --output <path>        Output directory (default: docs)');
-  WriteLn('  -f, --format <list>        Output formats: html,chm,md,json,mkdocs,docusaurus,vitepress');
+  WriteLn('  -f, --format <list>        Output formats: html,chm,md,json,hmxp,mkdocs,docusaurus,vitepress');
   WriteLn('  -t, --title <title>        Documentation title');
   WriteLn('  --exclude <patterns>       Semicolon-separated exclude patterns');
   WriteLn('  --include-private          Include private members');
@@ -235,6 +236,7 @@ var
   LScanOpts: TScanOptions;
   LFiles: TArray<string>;
   LRenderOpts: TRenderOptions;
+  LRenderer: IDocRenderer;
   LFormat: string;
   LCoverage: TDocCoverageReport;
   LStats: TCoverageStats;
@@ -312,6 +314,11 @@ begin
           TMarkdownDocRenderer.Create.Render(LParser.Units, LResolver, LRenderOpts)
         else if LFormat = 'chm' then
           TCHMDocRenderer.Create.Render(LParser.Units, LResolver, LRenderOpts)
+        else if (LFormat = 'hmxp') or (LFormat = 'helpmanual') then
+        begin
+          LRenderer := THMXPDocRenderer.Create;
+          LRenderer.Render(LParser.Units, LResolver, LRenderOpts);
+        end
         else if LFormat = 'json' then
           TJSONDocRenderer.Create.Render(LParser.Units, LResolver, LRenderOpts)
         else if (LFormat = 'mkdocs') or (LFormat = 'docusaurus') or (LFormat = 'vitepress') then

@@ -96,7 +96,7 @@ begin
     LSB.AppendLine('Display compile progress=No');
     LSB.AppendLine('Full-text search=Yes');
     LSB.AppendLine('Index file=XmlDoc.hhk');
-    LSB.AppendLine('Language=0x0412 Korean');
+    LSB.AppendLine('Language=0x0409 English (United States)');
     LSB.AppendLine('Title=' + FOptions.Title);
     LSB.AppendLine;
     LSB.AppendLine('[FILES]');

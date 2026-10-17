@@ -70,14 +70,10 @@ uses
   XmlDoc.Consts,
   XmlDoc.Model;
 
-var
-  GWizardIndex: Integer = -1;
-  GWizard: TXmlDocWizard = nil;
-
 procedure Register;
 begin
-  GWizard := TXmlDocWizard.Create;
-  GWizardIndex := (BorlandIDEServices as IOTAWizardServices).AddWizard(GWizard);
+  // Let the IDE release the wizard before unloading its design-time package.
+  RegisterPackageWizard(TXmlDocWizard.Create);
 end;
 
 { TXmlDocWizard }
@@ -394,14 +390,5 @@ begin
     end
   );
 end;
-
-initialization
-
-finalization
-  if GWizardIndex >= 0 then
-  begin
-    (BorlandIDEServices as IOTAWizardServices).RemoveWizard(GWizardIndex);
-    GWizardIndex := -1;
-  end;
 
 end.

@@ -363,7 +363,7 @@ var
 begin
   LSB := TStringBuilder.Create;
   try
-    LSB.AppendLine('<!DOCTYPE html><html lang="ko"><head>');
+    LSB.AppendLine('<!DOCTYPE html><html lang="en"><head>');
     LSB.AppendLine('<meta charset="UTF-8"><title>Documentation Coverage Report</title>');
     LSB.AppendLine('<style>');
     LSB.AppendLine('body{font-family:-apple-system,sans-serif;max-width:900px;margin:40px auto;padding:0 20px}');

@@ -1,0 +1,2 @@
+XMLDOC_HM_SCHEMA RCDATA "..\..\resources\helpmanual\helpproject.xsd"
+XMLDOC_HM_STYLESHEET RCDATA "..\..\resources\helpmanual\helpproject.xsl"

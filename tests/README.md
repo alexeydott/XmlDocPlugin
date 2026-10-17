@@ -10,6 +10,12 @@ The browser smoke test uses the actual embedded editor and WebView2 Runtime.
 It checks document rendering, light/dark/system themes, and saved section state
 through three HWND recreations on both Win32 and Win64.
 
+The HMXP renderer tests cover complete and empty projects, nested types,
+overloads, stable IDs, private-symbol filtering, Unicode, code examples and
+cross-references. Each generated project is independently checked against the
+bundled XSD, including its expanded TOC, followed by local-reference and style
+checks and an XSL transform of every topic.
+
 The full core suite runs on both Win32 and Win64, alongside the settings and
 browser smoke tests. The script returns a failure status if any test fails.
 

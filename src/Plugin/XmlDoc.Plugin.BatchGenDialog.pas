@@ -26,6 +26,7 @@ uses
   XmlDoc.HelpGen.Renderer.MD,
   XmlDoc.HelpGen.Renderer.CHM,
   XmlDoc.HelpGen.Renderer.JSON,
+  XmlDoc.HelpGen.Renderer.HMXP,
   XmlDoc.HelpGen.SitePublisher,
   XmlDoc.HelpGen.Coverage,
   XmlDoc.Plugin.Settings,
@@ -47,6 +48,7 @@ type
     FChkIncludePrivate: TCheckBox;
     FChkInterfaceOnly: TCheckBox;
     FChkJSON: TCheckBox;
+    FChkHMXP: TCheckBox;
     FChkMarkdown: TCheckBox;
     FChkMkDocs: TCheckBox;
     FChkSearchIndex: TCheckBox;
@@ -236,6 +238,14 @@ begin
   FChkJSON.Caption := 'JSON (Machine-readable)';
   Inc(LTop, 28);
 
+  FChkHMXP := TCheckBox.Create(Self);
+  FChkHMXP.Parent := Self;
+  FChkHMXP.Left := 24;
+  FChkHMXP.Top := LTop;
+  FChkHMXP.Width := 440;
+  FChkHMXP.Caption := 'Help && Manual (HMXP project)';
+  Inc(LTop, 28);
+
   // Static Site
   LLabel := TLabel.Create(Self);
   LLabel.Parent := Self;
@@ -410,6 +420,7 @@ begin
   FBtnCancel.Caption := 'Close';
   FBtnCancel.Cancel := True;
   FBtnCancel.OnClick := OnCancelClick;
+  ClientHeight := LTop + FBtnCancel.Height + 16;
 end;
 
 procedure TBatchGenDialog.OnBrowseDirClick(Sender: TObject);
@@ -453,6 +464,8 @@ begin
       LList.Add('chm');
     if FChkMarkdown.Checked then
       LList.Add('md');
+    if FChkHMXP.Checked then
+      LList.Add('hmxp');
     if FChkJSON.Checked then
       LList.Add('json');
     if FChkMkDocs.Checked then
@@ -480,6 +493,7 @@ begin
   FChkCHM.Enabled := AEnabled;
   FChkMarkdown.Enabled := AEnabled;
   FChkJSON.Enabled := AEnabled;
+  FChkHMXP.Enabled := AEnabled;
   FChkMkDocs.Enabled := AEnabled;
   FChkDocusaurus.Enabled := AEnabled;
   FChkVitePress.Enabled := AEnabled;
@@ -679,6 +693,7 @@ procedure TBatchGenDialog.RenderFormat(const AFormat: string;
 var
   LPublisher: TSitePublisher;
   LSiteOpts: TSitePublishOptions;
+  LRenderer: IDocRenderer;
 begin
   if AFormat = 'html' then
     THTMLDocRenderer.Create.Render(AUnits, AResolver, ARenderOpts)
@@ -686,6 +701,11 @@ begin
     TMarkdownDocRenderer.Create.Render(AUnits, AResolver, ARenderOpts)
   else if AFormat = 'chm' then
     TCHMDocRenderer.Create.Render(AUnits, AResolver, ARenderOpts)
+  else if (AFormat = 'hmxp') or (AFormat = 'helpmanual') then
+  begin
+    LRenderer := THMXPDocRenderer.Create;
+    LRenderer.Render(AUnits, AResolver, ARenderOpts);
+  end
   else if AFormat = 'json' then
     TJSONDocRenderer.Create.Render(AUnits, AResolver, ARenderOpts)
   else if (AFormat = 'mkdocs') or (AFormat = 'docusaurus') or (AFormat = 'vitepress') then
