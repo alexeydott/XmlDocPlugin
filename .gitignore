@@ -40,3 +40,13 @@ docs/session-*.md
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Installer: publish only the final binary, never staging or test artifacts.
+/XmlDocPlugin-Setup.exe.sha256
+/payload/
+/intermediate/
+/installer/output/
+/installer/payload/
+/installer/intermediate/
+/installer/InstallerTests/
+!/XmlDocPlugin-Setup.exe

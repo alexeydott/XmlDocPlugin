@@ -94,7 +94,7 @@ begin
 
   LSource := TStringList.Create;
   try
-    LSource.LoadFromFile(ADprojPath, TEncoding.UTF8);
+    LSource.Text := TFile.ReadAllText(ADprojPath);
     LText := LSource.Text;
   finally
     LSource.Free;
@@ -157,7 +157,7 @@ begin
   try
     LSource := TStringList.Create;
     try
-      LSource.LoadFromFile(LSourcePath, TEncoding.UTF8);
+      LSource.Text := TFile.ReadAllText(LSourcePath);
       LText := LSource.Text;
     finally
       LSource.Free;

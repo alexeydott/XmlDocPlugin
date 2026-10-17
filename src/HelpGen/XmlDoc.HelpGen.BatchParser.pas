@@ -112,7 +112,7 @@ var
   LCodeElem: TCodeElementInfo;
   LLine, LTypeKey: string;
 begin
-  LSource := TFile.ReadAllText(AFilePath, TEncoding.UTF8);
+  LSource := TFile.ReadAllText(AFilePath);
 
   // implementation 섹션 시작 행 찾기 (interface 요소만 처리하기 위함)
   LLines := LSource.Split([#10]);

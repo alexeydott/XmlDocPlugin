@@ -3,6 +3,7 @@
 interface
 
 uses
+  Winapi.Windows,
   System.SysUtils,
   System.Classes,
   System.IOUtils,
@@ -76,6 +77,7 @@ type
     procedure UpdateProgress(ACurrent, ATotal: Integer; const AMessage: string);
 
   public
+    procedure ScaleForPPI(NewPPI: Integer); override;
     constructor Create(AOwner: TComponent); override;
   end;
 
@@ -102,24 +104,53 @@ constructor TBatchGenDialog.Create(AOwner: TComponent);
 begin
   inherited CreateNew(AOwner);
 
+  // Establish the monitor DPI before creating controls in code. Their bounds
+  // below are converted from design pixels to the form's current DPI.
   Caption := 'Generate API Documentation';
-  Width := 520;
-  Height := 620;
   Position := poMainFormCenter;
   BorderStyle := bsDialog;
+  ScaleForCurrentDPI;
+  Font.Name := 'Segoe UI';
+  Font.Size := 9;
+  ClientWidth := MulDiv(504, CurrentPPI, 96);
   FCancelled := False;
 
   BuildUI;
 end;
 
+procedure TBatchGenDialog.ScaleForPPI(NewPPI: Integer);
+begin
+  inherited;
+  // Keep the fixed button row visible when moving to a higher-DPI monitor.
+  if HandleAllocated and (Height > Monitor.WorkareaRect.Height - MulDiv(16, NewPPI, 96)) then
+    Height := Monitor.WorkareaRect.Height - MulDiv(16, NewPPI, 96);
+end;
+
 procedure TBatchGenDialog.BuildUI;
 var
-  LPanel: TPanel;
+  LPanel, LButtons: TPanel;
+  LContent: TScrollBox;
   LLabel: TLabel;
   LTop: Integer;
   LProjectPath: string;
   LSettings: TPluginSettings;
+  function S(Value: Integer): Integer;
+  begin
+    Result := MulDiv(Value, CurrentPPI, 96);
+  end;
 begin
+  LContent := TScrollBox.Create(Self);
+  LContent.Parent := Self;
+  LContent.BorderStyle := bsNone;
+  LContent.Align := alClient;
+  LContent.HorzScrollBar.Visible := False;
+
+  LButtons := TPanel.Create(Self);
+  LButtons.Parent := Self;
+  LButtons.BevelOuter := bvNone;
+  LButtons.Align := alBottom;
+  LButtons.Height := S(60);
+
   LSettings := TPluginSettings.Instance;
 
   // 현재 프로젝트 경로 가져오기
@@ -134,293 +165,356 @@ begin
     end;
   end;
 
-  LTop := 16;
+  LTop := S(16);
 
   // Source 섹션
   LLabel := TLabel.Create(Self);
-  LLabel.Parent := Self;
-  LLabel.Left := 16;
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(16);
   LLabel.Top := LTop;
   LLabel.Caption := 'Source:';
   LLabel.Font.Style := [fsBold];
-  Inc(LTop, 22);
+  Inc(LTop, S(22));
 
   FRbProject := TRadioButton.Create(Self);
-  FRbProject.Parent := Self;
-  FRbProject.Left := 24;
+  FRbProject.Parent := LContent;
+  FRbProject.ScaleForPPI(CurrentPPI);
+  FRbProject.Left := S(24);
   FRbProject.Top := LTop;
-  FRbProject.Width := 460;
+  FRbProject.Width := S(460);
+  FRbProject.Height := S(20);
   if LProjectPath <> '' then
     FRbProject.Caption := 'Current Project (' + ExtractFileName(LProjectPath) + ')'
   else
     FRbProject.Caption := 'Current Project (none)';
   FRbProject.Checked := LProjectPath <> '';
   FRbProject.Enabled := LProjectPath <> '';
-  Inc(LTop, 24);
+  Inc(LTop, S(24));
 
   FRbDirectory := TRadioButton.Create(Self);
-  FRbDirectory.Parent := Self;
-  FRbDirectory.Left := 24;
+  FRbDirectory.Parent := LContent;
+  FRbDirectory.ScaleForPPI(CurrentPPI);
+  FRbDirectory.Left := S(24);
   FRbDirectory.Top := LTop;
-  FRbDirectory.Width := 80;
+  FRbDirectory.Width := S(80);
+  FRbDirectory.Height := S(20);
   FRbDirectory.Caption := 'Directory:';
   FRbDirectory.Checked := LProjectPath = '';
-  Inc(LTop, 1);
+  Inc(LTop, S(1));
 
   FEdtDirectory := TEdit.Create(Self);
-  FEdtDirectory.Parent := Self;
-  FEdtDirectory.Left := 110;
-  FEdtDirectory.Top := LTop - 3;
-  FEdtDirectory.Width := 340;
+  FEdtDirectory.Parent := LContent;
+  FEdtDirectory.ScaleForPPI(CurrentPPI);
+  FEdtDirectory.Left := S(110);
+  FEdtDirectory.Top := LTop - S(3);
+  FEdtDirectory.Width := S(340);
 
   FBtnBrowseDir := TButton.Create(Self);
-  FBtnBrowseDir.Parent := Self;
-  FBtnBrowseDir.Left := 456;
-  FBtnBrowseDir.Top := LTop - 4;
-  FBtnBrowseDir.Width := 30;
+  FBtnBrowseDir.Parent := LContent;
+  FBtnBrowseDir.ScaleForPPI(CurrentPPI);
+  FBtnBrowseDir.Left := S(456);
+  FBtnBrowseDir.Top := LTop - S(4);
+  FBtnBrowseDir.Width := S(30);
+  FBtnBrowseDir.Height := S(25);
   FBtnBrowseDir.Caption := '...';
   FBtnBrowseDir.OnClick := OnBrowseDirClick;
-  Inc(LTop, 30);
+  Inc(LTop, S(30));
 
   // Exclude
   LLabel := TLabel.Create(Self);
-  LLabel.Parent := Self;
-  LLabel.Left := 24;
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(24);
   LLabel.Top := LTop;
   LLabel.Caption := 'Exclude:';
-  Inc(LTop, 18);
+  Inc(LTop, S(18));
 
   FEdtExclude := TEdit.Create(Self);
-  FEdtExclude.Parent := Self;
-  FEdtExclude.Left := 24;
+  FEdtExclude.Parent := LContent;
+  FEdtExclude.ScaleForPPI(CurrentPPI);
+  FEdtExclude.Left := S(24);
   FEdtExclude.Top := LTop;
-  FEdtExclude.Width := 462;
+  FEdtExclude.Width := S(462);
   FEdtExclude.Text := String.Join(';', LSettings.Project.HelpGen.ExcludePatterns);
-  Inc(LTop, 36);
+  Inc(LTop, S(36));
 
   // Output Format 섹션
   LLabel := TLabel.Create(Self);
-  LLabel.Parent := Self;
-  LLabel.Left := 16;
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(16);
   LLabel.Top := LTop;
   LLabel.Caption := 'Output Format:';
   LLabel.Font.Style := [fsBold];
-  Inc(LTop, 22);
+  Inc(LTop, S(22));
 
   FChkHTML := TCheckBox.Create(Self);
-  FChkHTML.Parent := Self;
-  FChkHTML.Left := 24;
+  FChkHTML.Parent := LContent;
+  FChkHTML.ScaleForPPI(CurrentPPI);
+  FChkHTML.Left := S(24);
   FChkHTML.Top := LTop;
-  FChkHTML.Width := 220;
+  FChkHTML.Width := S(220);
+  FChkHTML.Height := S(20);
   FChkHTML.Caption := 'HTML (Multi-page website)';
   FChkHTML.Checked := True;
 
   FChkCHM := TCheckBox.Create(Self);
-  FChkCHM.Parent := Self;
-  FChkCHM.Left := 260;
+  FChkCHM.Parent := LContent;
+  FChkCHM.ScaleForPPI(CurrentPPI);
+  FChkCHM.Left := S(260);
   FChkCHM.Top := LTop;
-  FChkCHM.Width := 220;
+  FChkCHM.Width := S(220);
+  FChkCHM.Height := S(20);
   FChkCHM.Caption := 'CHM (Windows Help)';
-  Inc(LTop, 24);
+  Inc(LTop, S(24));
 
   FChkMarkdown := TCheckBox.Create(Self);
-  FChkMarkdown.Parent := Self;
-  FChkMarkdown.Left := 24;
+  FChkMarkdown.Parent := LContent;
+  FChkMarkdown.ScaleForPPI(CurrentPPI);
+  FChkMarkdown.Left := S(24);
   FChkMarkdown.Top := LTop;
-  FChkMarkdown.Width := 220;
+  FChkMarkdown.Width := S(220);
+  FChkMarkdown.Height := S(20);
   FChkMarkdown.Caption := 'Markdown (GitHub Wiki)';
 
   FChkJSON := TCheckBox.Create(Self);
-  FChkJSON.Parent := Self;
-  FChkJSON.Left := 260;
+  FChkJSON.Parent := LContent;
+  FChkJSON.ScaleForPPI(CurrentPPI);
+  FChkJSON.Left := S(260);
   FChkJSON.Top := LTop;
-  FChkJSON.Width := 220;
+  FChkJSON.Width := S(220);
+  FChkJSON.Height := S(20);
   FChkJSON.Caption := 'JSON (Machine-readable)';
-  Inc(LTop, 28);
+  Inc(LTop, S(28));
 
   FChkHMXP := TCheckBox.Create(Self);
-  FChkHMXP.Parent := Self;
-  FChkHMXP.Left := 24;
+  FChkHMXP.Parent := LContent;
+  FChkHMXP.ScaleForPPI(CurrentPPI);
+  FChkHMXP.Left := S(24);
   FChkHMXP.Top := LTop;
-  FChkHMXP.Width := 440;
+  FChkHMXP.Width := S(440);
+  FChkHMXP.Height := S(20);
   FChkHMXP.Caption := 'Help && Manual (HMXP project)';
-  Inc(LTop, 28);
+  Inc(LTop, S(28));
 
   // Static Site
   LLabel := TLabel.Create(Self);
-  LLabel.Parent := Self;
-  LLabel.Left := 24;
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(24);
   LLabel.Top := LTop;
   LLabel.Caption := '── Static Site ──';
   LLabel.Font.Color := clGray;
-  Inc(LTop, 20);
+  Inc(LTop, S(20));
 
   FChkMkDocs := TCheckBox.Create(Self);
-  FChkMkDocs.Parent := Self;
-  FChkMkDocs.Left := 24;
+  FChkMkDocs.Parent := LContent;
+  FChkMkDocs.ScaleForPPI(CurrentPPI);
+  FChkMkDocs.Left := S(24);
   FChkMkDocs.Top := LTop;
-  FChkMkDocs.Width := 220;
+  FChkMkDocs.Width := S(220);
+  FChkMkDocs.Height := S(20);
   FChkMkDocs.Caption := 'MkDocs (Material theme)';
 
   FChkDocusaurus := TCheckBox.Create(Self);
-  FChkDocusaurus.Parent := Self;
-  FChkDocusaurus.Left := 260;
+  FChkDocusaurus.Parent := LContent;
+  FChkDocusaurus.ScaleForPPI(CurrentPPI);
+  FChkDocusaurus.Left := S(260);
   FChkDocusaurus.Top := LTop;
-  FChkDocusaurus.Width := 220;
+  FChkDocusaurus.Width := S(220);
+  FChkDocusaurus.Height := S(20);
   FChkDocusaurus.Caption := 'Docusaurus (React-based)';
-  Inc(LTop, 24);
+  Inc(LTop, S(24));
 
   FChkVitePress := TCheckBox.Create(Self);
-  FChkVitePress.Parent := Self;
-  FChkVitePress.Left := 24;
+  FChkVitePress.Parent := LContent;
+  FChkVitePress.ScaleForPPI(CurrentPPI);
+  FChkVitePress.Left := S(24);
   FChkVitePress.Top := LTop;
-  FChkVitePress.Width := 220;
+  FChkVitePress.Width := S(220);
+  FChkVitePress.Height := S(20);
   FChkVitePress.Caption := 'VitePress (Vue-based)';
-  Inc(LTop, 36);
+  Inc(LTop, S(36));
 
   // Output Directory
   LLabel := TLabel.Create(Self);
-  LLabel.Parent := Self;
-  LLabel.Left := 16;
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(16);
   LLabel.Top := LTop;
   LLabel.Caption := 'Output Directory:';
   LLabel.Font.Style := [fsBold];
-  Inc(LTop, 20);
+  Inc(LTop, S(20));
 
   FEdtOutputDir := TEdit.Create(Self);
-  FEdtOutputDir.Parent := Self;
-  FEdtOutputDir.Left := 24;
+  FEdtOutputDir.Parent := LContent;
+  FEdtOutputDir.ScaleForPPI(CurrentPPI);
+  FEdtOutputDir.Left := S(24);
   FEdtOutputDir.Top := LTop;
-  FEdtOutputDir.Width := 426;
+  FEdtOutputDir.Width := S(426);
   FEdtOutputDir.Text := LSettings.Project.HelpGen.OutputDir;
 
   FBtnBrowseOutput := TButton.Create(Self);
-  FBtnBrowseOutput.Parent := Self;
-  FBtnBrowseOutput.Left := 456;
-  FBtnBrowseOutput.Top := LTop - 1;
-  FBtnBrowseOutput.Width := 30;
+  FBtnBrowseOutput.Parent := LContent;
+  FBtnBrowseOutput.ScaleForPPI(CurrentPPI);
+  FBtnBrowseOutput.Left := S(456);
+  FBtnBrowseOutput.Top := LTop - S(1);
+  FBtnBrowseOutput.Width := S(30);
+  FBtnBrowseOutput.Height := S(25);
   FBtnBrowseOutput.Caption := '...';
   FBtnBrowseOutput.OnClick := OnBrowseOutputClick;
-  Inc(LTop, 34);
+  Inc(LTop, S(34));
 
   // Options
   LLabel := TLabel.Create(Self);
-  LLabel.Parent := Self;
-  LLabel.Left := 16;
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(16);
   LLabel.Top := LTop;
   LLabel.Caption := 'Options:';
   LLabel.Font.Style := [fsBold];
-  Inc(LTop, 22);
+  Inc(LTop, S(22));
 
   FChkIncludePrivate := TCheckBox.Create(Self);
-  FChkIncludePrivate.Parent := Self;
-  FChkIncludePrivate.Left := 24;
+  FChkIncludePrivate.Parent := LContent;
+  FChkIncludePrivate.ScaleForPPI(CurrentPPI);
+  FChkIncludePrivate.Left := S(24);
   FChkIncludePrivate.Top := LTop;
-  FChkIncludePrivate.Width := 220;
+  FChkIncludePrivate.Width := S(220);
+  FChkIncludePrivate.Height := S(20);
   FChkIncludePrivate.Caption := 'Include private members';
   FChkIncludePrivate.Checked := LSettings.Project.HelpGen.IncludePrivate;
 
   FChkSearchIndex := TCheckBox.Create(Self);
-  FChkSearchIndex.Parent := Self;
-  FChkSearchIndex.Left := 260;
+  FChkSearchIndex.Parent := LContent;
+  FChkSearchIndex.ScaleForPPI(CurrentPPI);
+  FChkSearchIndex.Left := S(260);
   FChkSearchIndex.Top := LTop;
-  FChkSearchIndex.Width := 220;
+  FChkSearchIndex.Width := S(220);
+  FChkSearchIndex.Height := S(20);
   FChkSearchIndex.Caption := 'Generate search index';
   FChkSearchIndex.Checked := True;
-  Inc(LTop, 24);
+  Inc(LTop, S(24));
 
   FChkInterfaceOnly := TCheckBox.Create(Self);
-  FChkInterfaceOnly.Parent := Self;
-  FChkInterfaceOnly.Left := 24;
+  FChkInterfaceOnly.Parent := LContent;
+  FChkInterfaceOnly.ScaleForPPI(CurrentPPI);
+  FChkInterfaceOnly.Left := S(24);
   FChkInterfaceOnly.Top := LTop;
-  FChkInterfaceOnly.Width := 220;
+  FChkInterfaceOnly.Width := S(220);
+  FChkInterfaceOnly.Height := S(20);
   FChkInterfaceOnly.Caption := 'Interface section only';
   FChkInterfaceOnly.Checked := LSettings.Project.HelpGen.InterfaceOnly;
 
   FChkCoverage := TCheckBox.Create(Self);
-  FChkCoverage.Parent := Self;
-  FChkCoverage.Left := 260;
+  FChkCoverage.Parent := LContent;
+  FChkCoverage.ScaleForPPI(CurrentPPI);
+  FChkCoverage.Left := S(260);
   FChkCoverage.Top := LTop;
-  FChkCoverage.Width := 220;
+  FChkCoverage.Width := S(220);
+  FChkCoverage.Height := S(20);
   FChkCoverage.Caption := 'Generate coverage report';
-  Inc(LTop, 28);
+  Inc(LTop, S(28));
 
   // Title
   LLabel := TLabel.Create(Self);
-  LLabel.Parent := Self;
-  LLabel.Left := 24;
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(24);
   LLabel.Top := LTop;
   LLabel.Caption := 'Title:';
 
   FEdtTitle := TEdit.Create(Self);
-  FEdtTitle.Parent := Self;
-  FEdtTitle.Left := 70;
-  FEdtTitle.Top := LTop - 2;
-  FEdtTitle.Width := 416;
+  FEdtTitle.Parent := LContent;
+  FEdtTitle.ScaleForPPI(CurrentPPI);
+  FEdtTitle.Left := S(70);
+  FEdtTitle.Top := LTop - S(2);
+  FEdtTitle.Width := S(416);
   FEdtTitle.Text := LSettings.Project.HelpGen.Title;
   if FEdtTitle.Text = '' then
     FEdtTitle.Text := 'API Reference';
-  Inc(LTop, 38);
+  Inc(LTop, S(38));
 
   // Progress 영역
   LPanel := TPanel.Create(Self);
-  LPanel.Parent := Self;
-  LPanel.Left := 16;
+  LPanel.Parent := LContent;
+  LPanel.ScaleForPPI(CurrentPPI);
+  LPanel.Left := S(16);
   LPanel.Top := LTop;
-  LPanel.Width := 472;
-  LPanel.Height := 60;
+  LPanel.Width := S(472);
+  LPanel.Height := S(60);
   LPanel.BevelOuter := bvLowered;
 
   FProgress := TProgressBar.Create(Self);
   FProgress.Parent := LPanel;
-  FProgress.Left := 8;
-  FProgress.Top := 8;
-  FProgress.Width := 456;
-  FProgress.Height := 16;
+  FProgress.ScaleForPPI(CurrentPPI);
+  FProgress.Left := S(8);
+  FProgress.Top := S(8);
+  FProgress.Width := S(456);
+  FProgress.Height := S(16);
 
   FLblPhase := TLabel.Create(Self);
+  FLblPhase.AutoSize := False;
   FLblPhase.Parent := LPanel;
-  FLblPhase.Left := 8;
-  FLblPhase.Top := 28;
-  FLblPhase.Width := 300;
+  FLblPhase.ScaleForPPI(CurrentPPI);
+  FLblPhase.Left := S(8);
+  FLblPhase.Top := S(28);
+  FLblPhase.Width := S(300);
+  FLblPhase.Height := S(18);
+  FLblPhase.EllipsisPosition := epEndEllipsis;
   FLblPhase.Caption := '';
 
   FLblStats := TLabel.Create(Self);
+  FLblStats.AutoSize := False;
   FLblStats.Parent := LPanel;
-  FLblStats.Left := 8;
-  FLblStats.Top := 42;
-  FLblStats.Width := 300;
+  FLblStats.ScaleForPPI(CurrentPPI);
+  FLblStats.Left := S(8);
+  FLblStats.Top := S(42);
+  FLblStats.Width := S(300);
+  FLblStats.Height := S(18);
+  FLblStats.EllipsisPosition := epEndEllipsis;
   FLblStats.Caption := '';
 
   FLblProgress := TLabel.Create(Self);
+  FLblProgress.AutoSize := False;
   FLblProgress.Parent := LPanel;
-  FLblProgress.Left := 420;
-  FLblProgress.Top := 28;
+  FLblProgress.ScaleForPPI(CurrentPPI);
+  FLblProgress.Left := S(420);
+  FLblProgress.Width := S(44);
+  FLblProgress.Top := S(28);
   FLblProgress.Alignment := taRightJustify;
+  FLblProgress.Height := S(18);
+  FLblProgress.EllipsisPosition := epEndEllipsis;
   FLblProgress.Caption := '';
-  Inc(LTop, 72);
+  Inc(LTop, S(72));
 
   // 버튼
   FBtnGenerate := TButton.Create(Self);
-  FBtnGenerate.Parent := Self;
-  FBtnGenerate.Left := 300;
-  FBtnGenerate.Top := LTop;
-  FBtnGenerate.Width := 90;
-  FBtnGenerate.Height := 28;
+  FBtnGenerate.Parent := LButtons;
+  FBtnGenerate.ScaleForPPI(CurrentPPI);
+  FBtnGenerate.Left := S(300);
+  FBtnGenerate.Top := S(16);
+  FBtnGenerate.Width := S(90);
+  FBtnGenerate.Height := S(28);
   FBtnGenerate.Caption := 'Generate';
   FBtnGenerate.Default := True;
   FBtnGenerate.OnClick := OnGenerateClick;
 
   FBtnCancel := TButton.Create(Self);
-  FBtnCancel.Parent := Self;
-  FBtnCancel.Left := 396;
-  FBtnCancel.Top := LTop;
-  FBtnCancel.Width := 90;
-  FBtnCancel.Height := 28;
+  FBtnCancel.Parent := LButtons;
+  FBtnCancel.ScaleForPPI(CurrentPPI);
+  FBtnCancel.Left := S(396);
+  FBtnCancel.Top := S(16);
+  FBtnCancel.Width := S(90);
+  FBtnCancel.Height := S(28);
   FBtnCancel.Caption := 'Close';
   FBtnCancel.Cancel := True;
   FBtnCancel.OnClick := OnCancelClick;
-  ClientHeight := LTop + FBtnCancel.Height + 16;
+  LContent.VertScrollBar.Range := LTop;
+  ClientHeight := LTop + LButtons.Height;
+  if Height > Monitor.WorkareaRect.Height - S(16) then
+    Height := Monitor.WorkareaRect.Height - S(16);
 end;
 
 procedure TBatchGenDialog.OnBrowseDirClick(Sender: TObject);

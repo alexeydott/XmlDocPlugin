@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{48F785A6-2355-49EC-8CBE-E57FDDFD8CA8}</ProjectGuid>
         <MainSource>XmlDocPlugin.dpk</MainSource>
@@ -116,10 +116,10 @@
         <SanitizedProjectName>XmlDocPlugin</SanitizedProjectName>
         <DCC_Description>XmlDoc Plugin - XML Documentation WYSIWYG Editor</DCC_Description>
         <DesignOnlyPackage>true</DesignOnlyPackage>
-        <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DUnitX.Loggers.GUI;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_Namespace>Winapi;System.Win;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DUnitX.Loggers.GUI;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>1042</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.5.0.0;InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProductName=XmlDoc Plugin;ProductVersion=0.5.0;Comments=;CFBundleName=</VerInfo_Keys>
-        <DCC_UnitSearchPath>..\..\Vendor\DelphiAST\Source;..\..\Vendor\DelphiAST\Source\SimpleParser;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\..\vendor\DelphiAST\Source;..\..\..\vendor\DelphiAST\Source\SimpleParser;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">

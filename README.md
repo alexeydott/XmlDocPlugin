@@ -188,3 +188,59 @@ To validate its project, topics, styles, links, and XSL previews offline:
 This project is licensed under the [MIT License](LICENSE).
 
 - DelphiAST: [MPL 2.0](vendor/DelphiAST/LICENSE)
+
+## Binary installer for RAD Studio 12 and 13
+
+Build a single Inno Setup installer containing native packages for the 32-bit
+IDE of RAD Studio 12 and the 32-bit and 64-bit IDEs of RAD Studio 13:
+
+```powershell
+.\build-installer.ps1 -Rad12 'D:\Embarcadero RAD Studio\23.0' `
+  -Rad13 'D:\Embarcadero RAD Studio\37.0' `
+  -ISCC 'D:\tools\InnoSetup\6\ISCC.exe'
+```
+
+The build requires both RAD Studio toolchains, Inno Setup 6, Node.js/npm, and
+Internet access on the first build. It verifies the WebView2 SDK checksum and
+the Microsoft signature of the Evergreen Runtime bootstrapper. The output is
+`XmlDocPlugin-Setup.exe` in the repository root. Only this binary is allowed
+through the executable ignore rule; staging files, intermediate binaries and
+checksums stay under `%LOCALAPPDATA%\XmlDocPlugin\Installer`.
+
+The four-part file/product version is stored in `installer\Version.txt`.
+Use `-IncrementVersion` to increment its last component, or `-Version 1.2.0.0`
+to set a release version. The version file is updated only after a successful
+build and verification of the EXE's embedded FileVersion. The filename stays
+`XmlDocPlugin-Setup.exe`. Use `-OutputDir` to change its destination.
+
+```powershell
+.\build-installer.ps1 -IncrementVersion
+.\build-installer.ps1 -Version 1.2.0.0
+```
+
+Setup detects installed IDEs using their registry configuration and checks that
+`bin\bds.exe` or `bin64\bds.exe` exists. Only detected targets can be selected.
+All RAD Studio instances must be closed before installation or removal. Setup
+never closes the IDE automatically. Files and package registrations belong to
+the current user; administrator privileges are not required.
+
+If WebView2 Runtime is missing, Setup asks to install it using Microsoft's
+Evergreen bootstrapper, which requires Internet access. Declining or failing
+to install the Runtime stops Setup before plugin installation. For unattended
+installation, explicitly permit Runtime installation with
+`/VERYSILENT /SUPPRESSMSGBOXES /INSTALLWEBVIEW2=1`; without that permission,
+missing WebView2 causes Setup to exit. The runtime detection and deployment
+follow [Microsoft's WebView2 distribution guidance](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
+
+Setup replaces older XmlDocPlugin registrations for selected targets and
+remembers them. Uninstall removes this installation's registrations and restores
+the previous ones. User documentation and editor preferences are preserved.
+The Runtime is shared with other applications and is not removed on uninstall.
+
+Run `installer\Test-Installer.ps1` after building to exercise detection failures,
+Runtime consent/failure handling, installation, upgrade, payload hashes and
+architectures, and restoration on uninstall. Tests use unique temporary registry
+keys and a deterministic Runtime fixture; they do not change real IDE or
+WebView2 registrations. Installer source is `installer\XmlDocPlugin.iss`.
+The [InnoSetupScripts RAD Studio helpers](https://github.com/civilian7/InnoSetupScripts/tree/main/Source)
+were consulted for RAD Studio version and registration conventions.

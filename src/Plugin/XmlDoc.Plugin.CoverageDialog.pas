@@ -372,6 +372,7 @@ begin
   SetControlsEnabled(False);
   lvItems.Items.BeginUpdate;
   try
+    try
     lvItems.Items.Clear;
     ClearItems;
 
@@ -461,8 +462,10 @@ begin
       MessageDlg('Error: ' + E.Message, mtError, [mbOK], 0);
   end;
 
-  lvItems.Items.EndUpdate;
-  SetControlsEnabled(True);
+  finally
+    lvItems.Items.EndUpdate;
+    SetControlsEnabled(True);
+  end;
 end;
 
 procedure TCoverageDialog.JumpToFile(const AFilePath: string; ALineNumber: Integer);

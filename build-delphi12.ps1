@@ -1,10 +1,17 @@
 param(
     [string]$Bds = 'D:\Embarcadero RAD Studio\23.0',
     [ValidateSet('Debug', 'Release')][string]$Config = 'Release',
-    [string]$OutputDir = "$env:PUBLIC\Documents\Embarcadero\Studio\23.0\Bpl"
+    [string]$OutputDir = "$env:PUBLIC\Documents\Embarcadero\Studio\23.0\Bpl",
+    [string]$DcpOutputDir = ''
 )
 $ErrorActionPreference = 'Stop'
 $OutputDir = [IO.Path]::GetFullPath($OutputDir)
+$dcpOption = ''
+if ($DcpOutputDir) {
+    $DcpOutputDir = [IO.Path]::GetFullPath($DcpOutputDir)
+    New-Item -ItemType Directory -Force $DcpOutputDir | Out-Null
+    $dcpOption = "`"/p:DCC_DcpOutput=$DcpOutputDir`""
+}
 $cache = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Build\WebView2-1.0.2045.28'
 New-Item -ItemType Directory -Force $cache, $OutputDir | Out-Null
 $archive = Join-Path $cache 'sdk.zip'
@@ -34,7 +41,7 @@ try {
         & "$Bds\bin\brcc32.exe" XmlDocEditor.rc
         if ($LASTEXITCODE) { throw 'Resource compilation failed' }
     } finally { Pop-Location }
-    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && msbuild src\Packages\12\XmlDocPlugin.dproj /t:Rebuild /p:Config=$Config /p:Platform=Win32 `"/p:DCC_BplOutput=$OutputDir`" /v:minimal"
+    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && msbuild src\Packages\12\XmlDocPlugin.dproj /t:Rebuild /p:Config=$Config /p:Platform=Win32 `"/p:DCC_BplOutput=$OutputDir`" $dcpOption /v:minimal"
     if ($LASTEXITCODE) { throw 'Delphi package build failed' }
     Copy-Item -LiteralPath "$cache\sdk\build\native\x86\WebView2Loader.dll" -Destination $OutputDir
     Copy-Item -LiteralPath "$cache\sdk\LICENSE.txt" -Destination (Join-Path $OutputDir 'WebView2-LICENSE.txt')
