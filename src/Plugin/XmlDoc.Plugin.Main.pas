@@ -3,6 +3,7 @@
 interface
 
 uses
+  DeskUtil,
   System.SysUtils,
   System.Classes,
   Vcl.Menus,
@@ -90,6 +91,10 @@ begin
   FEditorNotifierIndex := -1;
   FKeyBindingIndex := -1;
 
+  RegisterDesktopFormClass(TDocInspectorForm, 'XmlDocDocInspector', 'XmlDocDocInspector');
+  if Assigned(RegisterFieldAddress) then
+    RegisterFieldAddress('XmlDocDocInspector', @FDocInspector);
+
   // 에디터 노티파이어 등록
   if Supports(BorlandIDEServices, IOTAEditorServices, LEditorServices) then
   begin
@@ -145,6 +150,9 @@ begin
   FreeAndNil(FUndocNavigator);
   DestroyDocExplorer;
   DestroyDocInspector;
+  if Assigned(UnregisterFieldAddress) then
+    UnregisterFieldAddress(@FDocInspector);
+  UnRegisterClass(TDocInspectorForm);
   inherited;
 end;
 

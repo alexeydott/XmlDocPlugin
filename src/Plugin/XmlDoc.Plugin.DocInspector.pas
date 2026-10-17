@@ -60,8 +60,6 @@ type
     procedure HandleDocUpdated(const AJsonStr: string);
     procedure InitTimerFired(Sender: TObject);
     function IsSameElement(const AElement: TCodeElementInfo): Boolean;
-    procedure LoadBounds;
-    procedure SaveBounds;
     procedure SendToEditor(const AMessageType, APayload: string);
     procedure UpdateFromCursor;
   protected
@@ -94,8 +92,10 @@ begin
   inherited Create(AOwner);
 
   Caption := 'Doc Inspector';
-  DeskSection := 'XmlDocPlugin';
+  Name := 'XmlDocDocInspector';
+  DeskSection := 'XmlDocDocInspector';
   AutoSave := True;
+  SaveStateNecessary := True;
   KeyPreview := True;
 
   FDocModel := TXmlDocModel.Create;
@@ -109,7 +109,8 @@ begin
   FLastElementLine := -1;
   FLastPolledLine := -1;
 
-  LoadBounds;
+  Width := 420;
+  Height := 600;
 
   // TTimer로 브라우저 생성 지연 — 폼이 완전히 표시된 후 실행
   FInitTimer := TTimer.Create(Self);
@@ -126,8 +127,8 @@ end;
 
 destructor TDocInspectorForm.Destroy;
 begin
+  SaveStateNecessary := True;
   TParamDictionary.Instance.SaveToFile;
-  SaveBounds;
   FDocParser.Free;
   FDocModel.Free;
 
@@ -576,58 +577,6 @@ begin
   FLastElementLine := -1;
 
   HandleCursorChanged(LLine, LSource, LFileName);
-end;
-
-procedure TDocInspectorForm.LoadBounds;
-const
-  CRegKey = 'Software\XmlDocPlugin\DocInspector';
-var
-  LReg: TRegistry;
-begin
-  // 기본 크기
-  Width := 420;
-  Height := 600;
-
-  LReg := TRegistry.Create(KEY_READ);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-    if LReg.OpenKeyReadOnly(CRegKey) then
-    begin
-      if LReg.ValueExists('Left') then
-        Left := LReg.ReadInteger('Left');
-      if LReg.ValueExists('Top') then
-        Top := LReg.ReadInteger('Top');
-      if LReg.ValueExists('Width') then
-        Width := LReg.ReadInteger('Width');
-      if LReg.ValueExists('Height') then
-        Height := LReg.ReadInteger('Height');
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
-end;
-
-procedure TDocInspectorForm.SaveBounds;
-const
-  CRegKey = 'Software\XmlDocPlugin\DocInspector';
-var
-  LReg: TRegistry;
-begin
-  LReg := TRegistry.Create(KEY_WRITE);
-  try
-    LReg.RootKey := HKEY_CURRENT_USER;
-    if LReg.OpenKey(CRegKey, True) then
-    begin
-      LReg.WriteInteger('Left', Left);
-      LReg.WriteInteger('Top', Top);
-      LReg.WriteInteger('Width', Width);
-      LReg.WriteInteger('Height', Height);
-      LReg.CloseKey;
-    end;
-  finally
-    LReg.Free;
-  end;
 end;
 
 procedure TDocInspectorForm.CaptureParamDescriptions;
