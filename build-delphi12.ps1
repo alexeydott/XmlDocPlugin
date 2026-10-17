@@ -34,7 +34,7 @@ try {
         & "$Bds\bin\brcc32.exe" XmlDocEditor.rc
         if ($LASTEXITCODE) { throw 'Resource compilation failed' }
     } finally { Pop-Location }
-    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && msbuild src\Packages\12\XmlDocPlugin.dproj /t:Build /p:Config=$Config /p:Platform=Win32 `"/p:DCC_BplOutput=$OutputDir`" /v:minimal"
+    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && msbuild src\Packages\12\XmlDocPlugin.dproj /t:Rebuild /p:Config=$Config /p:Platform=Win32 `"/p:DCC_BplOutput=$OutputDir`" /v:minimal"
     if ($LASTEXITCODE) { throw 'Delphi package build failed' }
     Copy-Item -LiteralPath "$cache\sdk\build\native\x86\WebView2Loader.dll" -Destination $OutputDir
     Copy-Item -LiteralPath "$cache\sdk\LICENSE.txt" -Destination (Join-Path $OutputDir 'WebView2-LICENSE.txt')

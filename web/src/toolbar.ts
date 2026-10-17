@@ -161,11 +161,19 @@ function showSeePopover(anchor: HTMLElement): void {
   content.className = 'popover-form';
   content.innerHTML = `
     <label class="popover-label">cref (reference target)</label>
-    <input class="popover-input" type="text" placeholder="e.g. TMyClass.DoWork" />
+    <textarea class="popover-input" rows="1" placeholder="e.g. TMyClass.DoWork"></textarea>
     <button class="popover-submit">Insert</button>
   `;
 
-  const input = content.querySelector('input')!;
+  const input = content.querySelector('textarea')!;
+  const resize = () => {
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`;
+  };
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/[\r\n]+/g, '');
+    resize();
+  });
   const submitBtn = content.querySelector('.popover-submit')!;
 
   const doInsert = () => {
@@ -177,10 +185,16 @@ function showSeePopover(anchor: HTMLElement): void {
 
   submitBtn.addEventListener('click', doInsert);
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') doInsert();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doInsert();
+    }
   });
 
-  showPopover(anchor, content);
+  const observer = new ResizeObserver(resize);
+  showPopover(anchor, content, () => observer.disconnect());
+  observer.observe(input);
+  resize();
   setTimeout(() => input.focus(), 0);
 }
 
