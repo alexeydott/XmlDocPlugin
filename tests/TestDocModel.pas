@@ -14,6 +14,8 @@ type
   TTestXmlDocModel = class
   private
     FModel: TXmlDocModel;
+    FChanged: Boolean;
+    procedure ModelChanged(Sender: TObject);
 
   public
     [Setup]
@@ -328,17 +330,17 @@ begin
   Assert.IsFalse(FModel.IsModified);
 end;
 
-procedure TTestXmlDocModel.TestOnChanged_Fires;
-var
-  LFired: Boolean;
+procedure TTestXmlDocModel.ModelChanged(Sender: TObject);
 begin
-  LFired := False;
-  FModel.OnChanged := procedure(Sender: TObject)
-    begin
-      LFired := True;
-    end;
+  FChanged := True;
+end;
+
+procedure TTestXmlDocModel.TestOnChanged_Fires;
+begin
+  FChanged := False;
+  FModel.OnChanged := ModelChanged;
   FModel.Summary := '이벤트 테스트';
-  Assert.IsTrue(LFired);
+  Assert.IsTrue(FChanged);
 end;
 
 procedure TTestXmlDocModel.TestAssign;
