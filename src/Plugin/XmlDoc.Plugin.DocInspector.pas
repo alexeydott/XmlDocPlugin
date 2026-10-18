@@ -35,6 +35,7 @@ type
     FBrowser: TXmlDocBrowser;
     FBrowserError: TLabel;
     FBrowserReady: Boolean;
+    FParseError:string;
     FCursorPollTimer: TTimer;
     FCurrentElement: TCodeElementInfo;
     FDocModel: TXmlDocModel;
@@ -51,6 +52,7 @@ type
     procedure BrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HRESULT);
     procedure BrowserNavigationCompleted(Sender: TCustomEdgeBrowser; IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);
     procedure BrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
+    function ParseEditorSource(const Source:string):Boolean;
     function BuildElementJson: string;
     function BuildLoadDocScript: string;
     procedure CaptureParamDescriptions;
@@ -101,6 +103,13 @@ begin
 
   FDocModel := TXmlDocModel.Create;
   FDocParser := TDocParser.Create;
+  FBrowserError := TLabel.Create(Self);
+  FBrowserError.Parent := Self;
+  FBrowserError.Align := alTop;
+  FBrowserError.WordWrap := True;
+  FBrowserError.Caption := FParseError;
+  FBrowserError.Visible := FParseError<>'';
+
   FBrowserReady := False;
   FParamDictLoaded := False;
   FPendingLoad := False;
@@ -208,11 +217,6 @@ begin
     TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'), 'XmlDocPlugin'), 'WebView2');
   ForceDirectories(LDataDir);
 
-  FBrowserError := TLabel.Create(Self);
-  FBrowserError.Parent := Self;
-  FBrowserError.Align := alTop;
-  FBrowserError.WordWrap := True;
-  FBrowserError.Visible := False;
 
   FBrowser := TXmlDocBrowser.Create(Self);
   FBrowser.UserDataFolder := LDataDir;
@@ -221,6 +225,7 @@ begin
   FBrowser.OnWebMessageReceived := BrowserWebMessageReceived;
   FBrowser.Parent := Self;
   FBrowser.Align := alClient;
+  FBrowser.Visible := FParseError='';
 
   // TDockableForm에서 Parent 설정만으로 자동 초기화되지 않는 경우 명시적 호출
   if not FBrowser.WebViewCreated then
@@ -230,7 +235,8 @@ end;
 procedure TDocInspectorForm.BrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HRESULT);
 begin
   FBrowserReady := False;
-  FBrowserError.Visible := Winapi.Windows.Failed(AResult);
+  FBrowserError.Visible := Winapi.Windows.Failed(AResult) or (FParseError<>'');
+  if FParseError<>'' then FBrowserError.Caption:=FParseError;
   if Winapi.Windows.Failed(AResult) then
   begin
     FBrowserError.Caption := 'WebView2 could not start (0x' + IntToHex(AResult, 8) +
@@ -257,6 +263,28 @@ begin
   FBrowser.RestoreSections;
   FPendingLoad := False;
   RefreshFromCurrentEditor;
+end;
+
+function TDocInspectorForm.ParseEditorSource(const Source:string):Boolean;
+begin
+  try
+    FDocParser.ParseSource(Source);
+    FParseError:='';
+    if Assigned(FBrowserError) then FBrowserError.Visible:=False;
+    if Assigned(FBrowser) then FBrowser.Visible:=True;
+    Result:=True;
+  except
+    on E:Exception do begin
+      FCurrentElement:=Default(TCodeElementInfo);
+      FLastElementName:='';FLastElementLine:=-1;FPendingLoad:=False;
+      if Assigned(FBrowser) then FBrowser.Visible:=False;
+      FParseError:='Cannot parse '+FLastFileName+': '+E.Message;
+      if Assigned(FBrowserError) then begin
+        FBrowserError.Caption:=FParseError;FBrowserError.Visible:=True;
+      end;
+      Result:=False;
+    end;
+  end;
 end;
 
 procedure TDocInspectorForm.BrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
@@ -389,7 +417,7 @@ begin
           LStream.Free;
         end;
 
-        FDocParser.ParseSource(LSource);
+        if not ParseEditorSource(LSource) then Exit;
 
         LElement := FDocParser.GetElementAtLine(LView.CursorPos.Line);
         if LElement.Name <> '' then
@@ -503,11 +531,11 @@ begin
   if FUpdatingSource then
     Exit;
 
+  FLastFileName := AFileName;
   // 소스 변경 시 재파싱
   if not FDocParser.IsUpToDate(ASource) then
-    FDocParser.ParseSource(ASource);
+    if not ParseEditorSource(ASource) then Exit;
 
-  FLastFileName := AFileName;
   //Caption := Format('Doc Inspector - %s / %d', [ExtractFileName(AFileName), ALine]);
   LElement := FDocParser.GetElementAtLine(ALine);
 

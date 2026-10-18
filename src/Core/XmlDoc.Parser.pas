@@ -8,6 +8,7 @@ uses
   System.Generics.Collections,
   System.Generics.Defaults,
   System.Hash,
+  SimpleParser.Lexer,
   DelphiAST,
   DelphiAST.Classes,
   DelphiAST.Consts,
@@ -24,6 +25,8 @@ type
     FLastCommentStart: Integer;
     FRootNode: TSyntaxNode;
     FSourceLines: TArray<string>;
+    FOnResolveDeclaration: TResolveDeclarationEvent;
+    procedure SetResolveDeclaration(const Value: TResolveDeclarationEvent);
 
     function BuildParentPath(ANode: TSyntaxNode): string;
     procedure BuildFlatIndex;
@@ -60,6 +63,8 @@ type
     function IsUpToDate(const ASource: string): Boolean;
 
     /// <summary>파싱된 AST 루트 노드</summary>
+    /// <summary>Returns known visibility, or False when external scope information is unavailable.</summary>
+    property OnResolveDeclaration: TResolveDeclarationEvent read FOnResolveDeclaration write SetResolveDeclaration;
     property RootNode: TSyntaxNode read FRootNode;
 
     /// <summary>마지막으로 파싱한 소스 텍스트</summary>
@@ -67,6 +72,112 @@ type
   end;
 
 implementation
+
+type
+  TScopeAwareBuilder = class(TPasSyntaxTreeBuilder)
+  private
+    FExternalResolver: TResolveDeclarationEvent;
+    FDeclarationScope:TSyntaxNode;
+    function ResolveDeclaration(Sender:TmwBasePasLex; const Identifier:string;
+      out Declared:Boolean):Boolean;
+  protected
+    procedure VarSection; override;
+  public
+    constructor Create; override;
+  end;
+
+constructor TScopeAwareBuilder.Create;
+begin
+  inherited;
+  Lexer.Lexer.OnResolveDeclaration := ResolveDeclaration;
+end;
+
+procedure TScopeAwareBuilder.VarSection;
+var Saved:TSyntaxNode;
+begin
+  Saved:=FDeclarationScope;
+  FDeclarationScope:=FStack.Peek;
+  try inherited;finally FDeclarationScope:=Saved;end;
+end;
+
+function DeclarationName(Node:TSyntaxNode):string;
+var N:TSyntaxNode;
+begin
+  Result:=Node.GetAttribute(anName);
+  if Result='' then begin
+    N:=Node.FindNode(ntName);
+    if Assigned(N) then Result:=N.GetAttribute(anName);
+  end;
+end;
+
+function FindDeclaration(Scope:TSyntaxNode; const Name:string):TSyntaxNode;
+var Child:TSyntaxNode;
+begin
+  Result:=nil;
+  for Child in Scope.ChildNodes do begin
+    if Child.Typ in [ntTypeDecl,ntMethod,ntField,ntVariable,ntConstant,ntParameter,ntProperty,ntTypeParam] then begin
+      if SameText(DeclarationName(Child),Name) then Exit(Child);
+      Continue;
+    end;
+    if (Child.Typ=ntName) and (Scope.Typ in [ntVariables,ntFields,ntParameter]) and
+      SameText(DeclarationName(Child),Name) then Exit(Child);
+    if Child.Typ in [ntType,ntAnonymousMethod,ntAnonymousMethodType,ntStatements,
+      ntFor,ntWhile,ntRepeat,ntTry,ntIf,ntCase,ntExceptionHandler,ntWith] then Continue;
+    Result:=FindDeclaration(Child,Name);
+    if Assigned(Result) then Exit;
+  end;
+end;
+
+function TScopeAwareBuilder.ResolveDeclaration(Sender:TmwBasePasLex;
+  const Identifier:string; out Declared:Boolean):Boolean;
+var Scope,Root,Found,TypeNode:TSyntaxNode; Parts:TArray<string>;
+  I:Integer; Name,Known:string; UsedDeclarationScope:Boolean;
+begin
+  Declared:=False; Result:=False;
+  Parts:=Identifier.Split(['.']);
+  if Length(Parts)=0 then Exit;
+  Root:=nil;
+  if FStack.Count>0 then begin
+    Scope:=FStack.Peek; Root:=Scope;
+    while Assigned(Root.ParentNode) do Root:=Root.ParentNode;
+    I:=0;
+    if (Length(Parts)>1) and SameText(Parts[0],Root.GetAttribute(anName)) then I:=1;
+    UsedDeclarationScope:=False;
+    while Assigned(Scope) do begin
+      Found:=FindDeclaration(Scope,Parts[I]);
+      if Assigned(Found) then begin
+        Inc(I);
+        while (I<Length(Parts)) and Assigned(Found) do begin
+          TypeNode:=Found.FindNode(ntType);
+          if Assigned(TypeNode) then Found:=FindDeclaration(TypeNode,Parts[I])
+          else Found:=FindDeclaration(Found,Parts[I]);
+          Inc(I);
+        end;
+        if Assigned(Found) then begin Declared:=True;Exit(True);end;
+        Break;
+      end;
+      Scope:=Scope.ParentNode;
+      if not Assigned(Scope) and not UsedDeclarationScope then begin
+        Scope:=FDeclarationScope;UsedDeclarationScope:=True;
+      end;
+    end;
+  end;
+  Name:=LowerCase(Identifier);
+  if Name.StartsWith('system.') then Delete(Name,1,7);
+  Known:='|integer|byte|word|cardinal|longword|fixedint|fixeduint|pfixedint|pfixeduint|utf8char|putf8char|longint|shortint|smallint|int64|uint64|nativeint|nativeuint|boolean|bytebool|wordbool|longbool|char|widechar|ansichar|string|unicodestring|ansistring|widestring|shortstring|pointer|pchar|pwidechar|pansichar|single|double|extended|real|currency|comp|variant|olevariant|tobject|iinterface|iunknown|';
+  if Pos('|'+Name+'|',Known)>0 then begin Declared:=True;Exit(True);end;
+  if Assigned(FExternalResolver) and FExternalResolver(Sender,Identifier,Declared) then Exit(True);
+  // Absence from a partial AST is not proof of absence from implicit System,
+  // imports, inherited members or lookahead scopes. Require a known answer.
+  Result:=False;
+
+end;
+
+procedure TDocParser.SetResolveDeclaration(const Value:TResolveDeclarationEvent);
+begin
+  FOnResolveDeclaration:=Value;
+  FCachedHash:='';
+end;
 
 { TDocParser }
 
@@ -490,7 +601,8 @@ end;
 
 function TDocParser.IsUpToDate(const ASource: string): Boolean;
 begin
-  Result := (FCachedHash <> '') and (FCachedHash = HashSource(ASource));
+  Result := not Assigned(FOnResolveDeclaration) and
+    (FCachedHash <> '') and (FCachedHash = HashSource(ASource));
 end;
 
 function TDocParser.NodeToElementInfo(ANode: TSyntaxNode): TCodeElementInfo;
@@ -630,7 +742,7 @@ var
   LHash: string;
 begin
   LHash := HashSource(ASource);
-  if LHash = FCachedHash then
+  if not Assigned(FOnResolveDeclaration) and (LHash = FCachedHash) then
     Exit;
 
   // 이전 AST 해제
@@ -647,7 +759,8 @@ begin
 
   LStream := TStringStream.Create(ASource, TEncoding.UTF8);
   try
-    FBuilder := TPasSyntaxTreeBuilder.Create;
+    FBuilder := TScopeAwareBuilder.Create;
+    TScopeAwareBuilder(FBuilder).FExternalResolver := FOnResolveDeclaration;
     try
       try
         FRootNode := FBuilder.Run(LStream);
@@ -655,6 +768,7 @@ begin
         // 파싱 실패 시 이전 캐시 무효화
         FCachedHash := '';
         FRootNode := nil;
+        raise;
       end;
     finally
       FBuilder.Free;

@@ -133,7 +133,7 @@ begin
     try
       LDocParser.ParseSource(LSource);
     except
-      Exit;
+      on E:Exception do raise Exception.CreateFmt('Cannot parse %s: %s', [AFilePath,E.Message]);
     end;
 
     if not Assigned(LDocParser.RootNode) then

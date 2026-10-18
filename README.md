@@ -228,6 +228,25 @@ To validate its project, topics, styles, links, and XSL previews offline:
 .\tests\Validate-HMXP.ps1 "C:\MyProject\docs\hmxp\Documentation.hmxp"
 ```
 
+## Conditional compilation diagnostics
+
+`DECLARED` resolves declarations already visible in the current syntax scope,
+including local parameters and variables, and a conservative set of predefined
+`System` types. It does not treat the absence of a name in a partial AST as proof
+that the name is undeclared. Imports, inheritance and other external declarations
+require semantic information from the caller through
+`TDocParser.OnResolveDeclaration`. A resolver returns `True` for a known answer
+and sets `Declared` to either `True` or `False`; returning `False` means unknown.
+Changing the resolver invalidates the parser cache. With an external resolver,
+parsing is repeated even for unchanged source because external visibility may change.
+
+Unresolved declarations and invalid conditional expressions produce errors.
+Inspector and Explorer display a diagnostic instead of stale documentation;
+batch generation and coverage analysis stop with the failing source filename.
+Qualified `DECLARED(Type.Member)` expressions are currently rejected by the
+underlying conditional-expression grammar and are reported as errors. Existing
+DelphiAST `$IFOPT` limitations still apply.
+
 ## Tech Stack
 
 The parser in `vendor/DelphiAST` is a Git submodule pinned to a tested commit of

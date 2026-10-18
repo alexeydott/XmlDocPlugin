@@ -510,7 +510,7 @@ procedure TTestDocParser.TestParseSource_ParseError;
 const
   CBrokenSource = 'this is not valid pascal code at all!!!';
 begin
-  FParser.ParseSource(CBrokenSource);
+  Assert.WillRaise(procedure begin FParser.ParseSource(CBrokenSource); end);
   // 파싱 실패 시 RootNode가 nil이어야 함
   Assert.IsNull(FParser.RootNode, '잘못된 소스에서 RootNode는 nil이어야 합니다');
 end;

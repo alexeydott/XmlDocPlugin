@@ -33,6 +33,7 @@ type
     FBrowser: TXmlDocBrowser;
     FBrowserError: TLabel;
     FBrowserReady: Boolean;
+    FParseError:string;
     FCurrentFileName: string;
     FDocParser: TDocParser;
     FElements: TArray<TCodeElementInfo>;
@@ -45,6 +46,7 @@ type
     procedure BrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HRESULT);
     procedure BrowserNavigationCompleted(Sender: TCustomEdgeBrowser; IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);
     procedure BrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
+    function ParseEditorSource(const Source:string):Boolean;
     function BuildElementJson(const AElement: TCodeElementInfo): string;
     function BuildDocJson(const AElement: TCodeElementInfo): string;
     function BuildLoadTreeScript: string;
@@ -92,6 +94,13 @@ begin
   KeyPreview := True;
 
   FDocParser := TDocParser.Create;
+  FBrowserError := TLabel.Create(Self);
+  FBrowserError.Parent := Self;
+  FBrowserError.Align := alTop;
+  FBrowserError.WordWrap := True;
+  FBrowserError.Caption := FParseError;
+  FBrowserError.Visible := FParseError<>'';
+
   FBrowserReady := False;
   FPendingLoad := False;
   FUpdatingSource := False;
@@ -152,11 +161,6 @@ begin
     TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'), 'XmlDocPlugin'), 'WebView2');
   ForceDirectories(LDataDir);
 
-  FBrowserError := TLabel.Create(Self);
-  FBrowserError.Parent := Self;
-  FBrowserError.Align := alTop;
-  FBrowserError.WordWrap := True;
-  FBrowserError.Visible := False;
 
   FBrowser := TXmlDocBrowser.Create(Self);
   FBrowser.UserDataFolder := LDataDir;
@@ -165,6 +169,7 @@ begin
   FBrowser.OnWebMessageReceived := BrowserWebMessageReceived;
   FBrowser.Parent := Self;
   FBrowser.Align := alClient;
+  FBrowser.Visible := FParseError='';
 
   if not FBrowser.WebViewCreated then
     FBrowser.CreateWebView;
@@ -173,7 +178,8 @@ end;
 procedure TDocExplorerForm.BrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HRESULT);
 begin
   FBrowserReady := False;
-  FBrowserError.Visible := Winapi.Windows.Failed(AResult);
+  FBrowserError.Visible := Winapi.Windows.Failed(AResult) or (FParseError<>'');
+  if FParseError<>'' then FBrowserError.Caption:=FParseError;
   if Winapi.Windows.Failed(AResult) then
   begin
     FBrowserError.Caption := 'WebView2 could not start (0x' + IntToHex(AResult, 8) +
@@ -201,6 +207,27 @@ begin
   FBrowser.RestoreSections;
   FPendingLoad := False;
   RefreshFromCurrentEditor;
+end;
+
+function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
+begin
+  try
+    FDocParser.ParseSource(Source);
+    FParseError:='';
+    if Assigned(FBrowserError) then FBrowserError.Visible:=False;
+    if Assigned(FBrowser) then FBrowser.Visible:=True;
+    Result:=True;
+  except
+    on E:Exception do begin
+      FElements:=nil;FLastSource:='';
+      if Assigned(FBrowser) then FBrowser.Visible:=False;
+      FParseError:='Cannot parse '+FCurrentFileName+': '+E.Message;
+      if Assigned(FBrowserError) then begin
+        FBrowserError.Caption:=FParseError;FBrowserError.Visible:=True;
+      end;
+      Result:=False;
+    end;
+  end;
 end;
 
 procedure TDocExplorerForm.BrowserWebMessageReceived(Sender: TCustomEdgeBrowser;
@@ -436,7 +463,7 @@ begin
       if LSource <> '' then
       begin
         FLastSource := LSource;
-        FDocParser.ParseSource(LSource);
+        if not ParseEditorSource(LSource) then Exit;
         FElements := FDocParser.GetAllElements;
         SendTreeToEditor;
       end;
@@ -486,7 +513,7 @@ begin
 
   FCurrentFileName := AFileName;
   FLastSource := ASource;
-  FDocParser.ParseSource(ASource);
+  if not ParseEditorSource(ASource) then Exit;
   FElements := FDocParser.GetAllElements;
   SendTreeToEditor;
 end;
@@ -513,7 +540,7 @@ begin
 
   FCurrentFileName := LFileName;
   FLastSource := LSource;
-  FDocParser.ParseSource(LSource);
+  if not ParseEditorSource(LSource) then Exit;
   FElements := FDocParser.GetAllElements;
   SendTreeToEditor;
 end;
