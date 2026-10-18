@@ -9,6 +9,12 @@
   <DCC_DcuOutput Condition="'$(XMLDOC_E2E_OUT)'!=''">$(XMLDOC_E2E_OUT)</DCC_DcuOutput>
   <DCC_Define>XMLDOC_E2E;$(DCC_Define)</DCC_Define>
  </PropertyGroup>
+ <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
+  <Base_Win32>true</Base_Win32>
+ </PropertyGroup>
+ <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
+  <Base_Win64>true</Base_Win64>
+ </PropertyGroup>
  <ItemGroup><DelphiCompile Include="XmlDocE2E.dpr"><MainSource>MainSource</MainSource></DelphiCompile>
  <DCCReference Include="Units\Workbench.Contracts.pas"/><DCCReference Include="Units\Workbench.Sample.pas"/>
  <DCCReference Include="Units\Workbench.Second.pas"/><DCCReference Include="Examples\Workbench.Examples.pas"/>

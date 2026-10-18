@@ -4,7 +4,7 @@ procedure Register;
 implementation
 uses System.SysUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Forms,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
- XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog;
+ XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics;
 type TProbe=class
  Timer:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
  Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
@@ -125,6 +125,19 @@ begin
   end;
  end;
 end;
+procedure AssertErrorLabelTheme(Form:TForm);
+var LabelControl:TLabel;Foreground,Background:Longint;Difference:Integer;
+begin
+ for var I:=0 to Form.ComponentCount-1 do if Form.Components[I] is TLabel then begin
+  LabelControl:=TLabel(Form.Components[I]);
+  Foreground:=ColorToRGB(LabelControl.Font.Color);Background:=ColorToRGB(Form.Color);
+  Difference:=Abs(Integer(GetRValue(Foreground))-Integer(GetRValue(Background)))+
+   Abs(Integer(GetGValue(Foreground))-Integer(GetGValue(Background)))+
+   Abs(Integer(GetBValue(Foreground))-Integer(GetBValue(Background)));
+  if Difference<192 then raise Exception.Create('Unreadable native error label in '+Form.Caption);
+ end;
+ Log('PASS native error label theme: '+Form.Caption);
+end;
 procedure TProbe.ExportAll;
 var D:TBatchGenDialog;C:TComponent;B:TButton;T:TTimer;N:Integer;Output:string;Done:Boolean;
 begin
@@ -166,7 +179,7 @@ begin
     AssertTrue(Found,'Documentation actions are not registered in the IDE action catalog');Log('PASS IDE action registration');
     Root:=GetEnvironmentVariable('XMLDOC_E2E_FIXTURE');SampleFile:=TPath.Combine(Root,'Units\Workbench.Sample.pas');SecondFile:=TPath.Combine(Root,'Units\Workbench.Second.pas');
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
-  1:begin ExportAll;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);end;
+  1:begin ExportAll;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
   2:begin
     for I:=0 to Inspector.ComponentCount-1 do if Inspector.Components[I] is TXmlDocBrowser then Browser:=TXmlDocBrowser(Inspector.Components[I]);
     AssertTrue(Assigned(Browser),'Browser unavailable');

@@ -2,6 +2,7 @@ import { bridge } from './bridge';
 import { analyze, synchronize, modelXml, parseXml, inheritDoc, ready, issueKey, replaceProse, compatibleInheritedMember, wordingMatches, editableXml } from './docTools';
 import type { DocModel, ElementInfo, TreeElementInfo } from './types';
 import { escapeXml } from './xmlCodec';
+import { initWorkbenchIcons } from './workbenchIcons';
 interface Hooks { get:()=>{element:ElementInfo|null;doc:DocModel}; apply:(doc:DocModel)=>void; }
 let catalog:TreeElementInfo[]=[];
 export function initWorkbench(hooks:Hooks):void {
@@ -19,6 +20,7 @@ export function initWorkbench(hooks:Hooks):void {
  <label>Project terminology<textarea id="project-terms" placeholder="Known words, one per line"></textarea><button id="save-terms">Save terminology</button></label><label>Spell-check language <select id="spell-language"><option value="en">English</option><option value="ru">Russian</option></select></label><label><input id="spell-enabled" type="checkbox" checked> Spell check prose</label></details>
  <details><summary>Examples and search</summary><button id="insert-selection">Insert selected source as example</button><input id="example-source" placeholder="Relative example source file"><input id="example-region" placeholder="Region name (optional)"><button id="link-example">Preview linked example</button><input id="find-doc" aria-label="Find in documentation" placeholder="Find text"><input id="replace-doc" aria-label="Replacement" placeholder="Replacement"><button id="replace-all">Preview replacement</button></details>
  <div id="documentation-problems" aria-live="polite"></div><div id="operation-preview" hidden><h4>Review documentation changes</h4><div class="xml-diff"><pre id="xml-before"></pre><pre id="xml-after"></pre></div><button id="apply-operation">Apply changes</button><button id="cancel-operation">Cancel</button></div>`;
+ initWorkbenchIcons(box);
  document.getElementById('doc-toolbar')?.before(box);
  const raw=document.createElement('section');raw.id='doc-xml';raw.className='hidden';raw.innerHTML='<label for="xml-source">Documentation XML</label><textarea id="xml-source" spellcheck="false" aria-label="Documentation XML"></textarea><button id="apply-xml">Validate and apply XML</button><output id="xml-error" aria-live="polite"></output>';
  document.getElementById('doc-preview')?.after(raw);

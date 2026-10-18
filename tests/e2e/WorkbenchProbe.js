@@ -7,6 +7,13 @@
  try{
   await pause(300);
   assert(document.querySelector('#workbench'),'Documentation tools missing');
+  const iconButtons=document.querySelectorAll('#workbench .workbench-icon');
+  assert(iconButtons.length===17,'Documentation tool icons are missing');
+  for(const button of iconButtons){
+   assert(button.querySelector('svg[aria-hidden="true"]'),'Tool must use an inline SVG: '+button.id);
+   assert(button.title && button.getAttribute('aria-label'),'Tool needs a hint and accessible name: '+button.id);
+   assert(!button.textContent.trim(),'Icon button retained its visible label: '+button.id);
+  }
   // Initial host updates can replace the ProseMirror image node while the
   // WebView is loading. Observe the current DOM, not a detached first node.
   let image;
@@ -18,6 +25,7 @@
   assert(image?.isConnected && image.complete && image.naturalWidth>0,'Project image resource failed to load: '+image?.src+' base='+window.xmlDocResourceBase);
   document.body.style.width='320px';await pause(50);
   for(const field of document.querySelectorAll('#workbench input,#workbench textarea,#workbench select'))assert(field.getBoundingClientRect().width<=322,'Control exceeds narrow panel: '+field.id);
+  for(const button of iconButtons)if(button.getClientRects().length)assert(button.getBoundingClientRect().width===30,'Icon button size changed: '+button.id);
   document.body.style.width='';send('assert-resources');
   assert(window.xmlDocEditor.get().element.signature.includes('string'),'String overload was not selected: '+JSON.stringify(window.xmlDocEditor.get().element));
   editSummary('E2E draft for A');await pause(25);send('switch-second');await pause(900);send('assert-cancelled');

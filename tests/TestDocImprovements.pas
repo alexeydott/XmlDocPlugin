@@ -16,6 +16,8 @@ public
  [Test] procedure MarkdownCodeFence;
  [Test] procedure UnknownXmlRoundTrip;
  [Test] procedure ProjectContextFixture;
+ [Test] procedure GroupedProjectConditions;
+ [Test] procedure ProjectConditionFuzz;
  [Test] procedure UnsavedImportSnapshot;
  [Test] procedure UnknownAttributesSurviveEditing;
  [Test] procedure EditedSummaryPreservesExtensions;
@@ -145,6 +147,58 @@ var S:string;
 begin
  S:=MarkupMarkdown('<para><b>Bold</b><br/>Break</para><code>A &lt; B; // ```</code>');
  Assert.IsTrue(S.Contains('**Bold**'));Assert.IsTrue(S.Contains('````pascal'));Assert.IsTrue(S.Contains('A < B; // ```'));Assert.IsFalse(S.Contains('<pre>'));
+end;
+function EvaluateProjectCondition(const Expression:string):Boolean;
+var Root,FileName,Escaped:string;C:TProjectContext;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(Root);
+ try
+  TDirectory.CreateDirectory(TPath.Combine(Root,'and or (x)'));
+  FileName:=TPath.Combine(Root,'Conditions.dproj');
+  Escaped:=Expression.Replace('&','&amp;').Replace('"','&quot;').Replace('<','&lt;');
+  TFile.WriteAllText(FileName,'<Project><PropertyGroup><MainSource>Conditions.dpr</MainSource></PropertyGroup>'+
+   '<PropertyGroup Condition="'+Escaped+'"><DCC_Define>MATCHED</DCC_Define></PropertyGroup></Project>');
+  C:=TProjectContext.Create(FileName,'Debug','Win64');
+  try Result:=Length(C.Defines)>0;finally C.Free;end;
+ finally TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.GroupedProjectConditions;
+begin
+ Assert.IsFalse(EvaluateProjectCondition('(''$(Platform)''==''Win32'' and ''true''==''true'') or ''''!='''''));
+ Assert.IsTrue(EvaluateProjectCondition('(''$(Platform)''==''Win64'' and ''true''==''true'') or ''''!='''''));
+ Assert.IsTrue(EvaluateProjectCondition('true or false and false'));
+ Assert.IsFalse(EvaluateProjectCondition('(true or false) and false'));
+ Assert.IsTrue(EvaluateProjectCondition('(''sand or (and)''==''sand or (and)'') AND (!false OR false)'));
+ Assert.IsTrue(EvaluateProjectCondition('Exists(''and or (x)'') and !Exists(''missing'')'));
+ Assert.IsFalse(EvaluateProjectCondition('Exists('''')'));
+ Assert.IsTrue(EvaluateProjectCondition('"A"=="a" and "left"!="right"'));
+ Assert.WillRaise(procedure begin EvaluateProjectCondition('(true or false');end,Exception);
+ Assert.WillRaise(procedure begin EvaluateProjectCondition('false and Unsupported()');end,Exception);
+ Assert.WillRaise(procedure begin EvaluateProjectCondition('true or Unsupported()');end,Exception);
+ Assert.WillRaise(procedure begin EvaluateProjectCondition('(''a''==''a'') trailing');end,Exception);
+end;
+procedure TImprovementsTests.ProjectConditionFuzz;
+var Seed:Cardinal;Expression:string;Expected:Boolean;I:Integer;
+ function MakeExpression(Depth:Integer;out Value:Boolean):string;
+ var Left,Right:string;L,R:Boolean;Choice:Cardinal;
+ begin
+  Seed:=Seed*1664525+1013904223;Choice:=Seed;
+  if Depth=0 then begin
+   Value:=(Choice and 1)=0;
+   if Value then Result:='''x and (or)''==''x and (or)''' else Result:='''$(Platform)''==''Win32''';
+   Exit;
+  end;
+  Left:=MakeExpression(Depth-1,L);Right:=MakeExpression(Depth-1,R);
+  if (Choice and 2)=0 then begin Result:='('+Left+' AnD '+Right+')';Value:=L and R;end
+  else begin Result:='('+Left+' oR '+Right+')';Value:=L or R;end;
+  if (Choice and 4)<>0 then begin Result:='!('+Result+')';Value:=not Value;end;
+ end;
+begin
+ Seed:=$C01D17;
+ for I:=1 to 256 do begin
+  Expression:=MakeExpression(I mod 5,Expected);
+  Assert.AreEqual(Expected,EvaluateProjectCondition(Expression),'Condition seed '+UIntToStr(Seed)+': '+Expression);
+ end;
 end;
 procedure TImprovementsTests.ProjectContextFixture;
 var Root:string;C:TProjectContext;Scanner:TProjectScanner;Options:TScanOptions;

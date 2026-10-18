@@ -75,6 +75,8 @@ type
     procedure SendToEditor(const AMessageType, APayload: string);
     procedure UpdateFromCursor;
   protected
+    procedure ApplyIDETheme;
+    procedure CMStyleChanged(var Message: TMessage); message CM_STYLECHANGED;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -118,6 +120,8 @@ begin
   FBrowserError.Parent := Self;
   FBrowserError.Align := alTop;
   FBrowserError.WordWrap := True;
+  FBrowserError.AlignWithMargins := True;
+  FBrowserError.Margins.SetBounds(8, 8, 8, 8);
   FBrowserError.Caption := FParseError;
   FBrowserError.Visible := FParseError<>'';
 
@@ -144,8 +148,21 @@ begin
   FCursorPollTimer.Interval := 500;
   FCursorPollTimer.Enabled := True;
   FCursorPollTimer.OnTimer := CursorPollTimerFired;
+  ApplyIDETheme;
 end;
 
+procedure TDocInspectorForm.ApplyIDETheme;
+var Theme: IOTAIDEThemingServices;
+begin
+  if Supports(BorlandIDEServices, IOTAIDEThemingServices, Theme) then
+    Theme.ApplyTheme(Self);
+end;
+
+procedure TDocInspectorForm.CMStyleChanged(var Message: TMessage);
+begin
+  inherited;
+  ApplyIDETheme;
+end;
 destructor TDocInspectorForm.Destroy;
 begin
   if Assigned(FInitTimer) then FInitTimer.Enabled:=False;

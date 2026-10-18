@@ -1,4 +1,4 @@
-unit XmlDoc.ProjectContext;
+﻿unit XmlDoc.ProjectContext;
 interface
 uses System.SysUtils,System.Generics.Collections;
 type
@@ -31,20 +31,63 @@ begin
  raise Exception.Create('Recursive project property: '+Text);
 end;
 function TProjectContext.Condition(const Text:string):Boolean;
-var Value,Part:string;Match:TMatch;Parts:TArray<string>;All:Boolean;
+var Value:string;Pos:Integer;
+ procedure Fail;
+ begin raise Exception.Create('Unsupported project condition: '+Text);end;
+ procedure SkipSpace;
+ begin while (Pos<=Length(Value)) and CharInSet(Value[Pos],[#9,#10,#13,' ']) do Inc(Pos);end;
+ function Take(const Token:string):Boolean;
+ begin SkipSpace;Result:=SameText(Copy(Value,Pos,Length(Token)),Token);if Result then Inc(Pos,Length(Token));end;
+ function Keyword(const Token:string):Boolean;
+ var Last:Integer;
+ begin
+  SkipSpace;Last:=Pos+Length(Token);
+  Result:=SameText(Copy(Value,Pos,Length(Token)),Token) and
+   ((Last>Length(Value)) or not CharInSet(Value[Last],['a'..'z','A'..'Z','0'..'9','_']));
+  if Result then Pos:=Last;
+ end;
+ function ReadValue:string;
+ var First:Integer;Quote:Char;
+ begin
+  SkipSpace;if Pos>Length(Value) then Fail;
+  Quote:=Value[Pos];
+  if CharInSet(Quote,['''','"']) then begin
+   Inc(Pos);First:=Pos;while (Pos<=Length(Value)) and (Value[Pos]<>Quote) do Inc(Pos);
+   if Pos>Length(Value) then Fail;Result:=Copy(Value,First,Pos-First);Inc(Pos);
+  end else begin
+   First:=Pos;while (Pos<=Length(Value)) and not CharInSet(Value[Pos],[#9,#10,#13,' ','(',')','=','!','<','>']) do Inc(Pos);
+   if Pos=First then Fail;Result:=Copy(Value,First,Pos-First);
+  end;
+ end;
+ function ParseOr:Boolean;forward;
+ function Primary:Boolean;
+ var Left,Right,Path:string;Different:Boolean;
+ begin
+  SkipSpace;
+  if Take('!') then Exit(not Primary);
+  if Take('(') then begin Result:=ParseOr;if not Take(')') then Fail;Exit;end;
+  if Keyword('Exists') then begin
+   if not Take('(') then Fail;Path:=ReadValue;if not Take(')') then Fail;
+   if Path='' then Exit(False);
+   if not TPath.IsPathRooted(Path) then Path:=TPath.Combine(FDirectory,Path);
+   Exit(TFile.Exists(Path) or TDirectory.Exists(Path));
+  end;
+  Left:=ReadValue;
+  Different:=Take('!=');
+  if Different or Take('==') then begin Right:=ReadValue;Result:=SameText(Left,Right);if Different then Result:=not Result;Exit;end;
+  if SameText(Left,'true') then Exit(True);
+  if SameText(Left,'false') then Exit(False);
+  Fail;Result:=False;
+ end;
+ function ParseAnd:Boolean;
+ var Right:Boolean;
+ begin Result:=Primary;while Keyword('and') do begin Right:=Primary;Result:=Result and Right;end;end;
+ function ParseOr:Boolean;
+ var Right:Boolean;
+ begin Result:=ParseAnd;while Keyword('or') do begin Right:=ParseAnd;Result:=Result or Right;end;end;
 begin
  Value:=Trim(Expand(Text));if Value='' then Exit(True);
- Parts:=TRegEx.Split(Value,'(?i)\s+or\s+');
- if Length(Parts)>1 then begin for Part in Parts do if Condition(Part) then Exit(True);Exit(False);end;
- Parts:=TRegEx.Split(Value,'(?i)\s+and\s+');
- if Length(Parts)>1 then begin for Part in Parts do if not Condition(Part) then Exit(False);Exit(True);end;
- if Value.StartsWith('(') and Value.EndsWith(')') then Exit(Condition(Copy(Value,2,Length(Value)-2)));
- Match:=TRegEx.Match(Value,'^\s*''([^'']*)''\s*(==|!=)\s*''([^'']*)''\s*$');
- if Match.Success then begin Result:=SameText(Match.Groups[1].Value,Match.Groups[3].Value);if Match.Groups[2].Value='!=' then Result:=not Result;Exit;end;
- Match:=TRegEx.Match(Value,'(?i)^(!?)Exists\(''([^'']*)''\)$');
- if Match.Success then begin Result:=TFile.Exists(TPath.Combine(FDirectory,Match.Groups[2].Value));if Match.Groups[1].Value='!' then Result:=not Result;Exit;end;
- if SameText(Value,'true') then Exit(True);if SameText(Value,'false') then Exit(False);
- raise Exception.Create('Unsupported project condition: '+Text);
+ Pos:=1;Result:=ParseOr;SkipSpace;if Pos<=Length(Value) then Fail;
 end;
 function TProjectContext.Paths(const Value:string):TArray<string>;
 var Part,Path:string;List:TList<string>;

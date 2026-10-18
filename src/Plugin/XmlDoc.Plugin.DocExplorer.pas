@@ -10,6 +10,7 @@ uses
   System.JSON,
   System.Win.Registry,
   Winapi.Windows,
+  Winapi.Messages,
   Winapi.ActiveX,
   Vcl.Controls,
   Vcl.ExtCtrls,
@@ -67,6 +68,8 @@ type
     procedure SaveBounds;
     procedure SendTreeToEditor;
   protected
+    procedure ApplyIDETheme;
+    procedure CMStyleChanged(var Message: TMessage); message CM_STYLECHANGED;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -106,6 +109,8 @@ begin
   FBrowserError.Parent := Self;
   FBrowserError.Align := alTop;
   FBrowserError.WordWrap := True;
+  FBrowserError.AlignWithMargins := True;
+  FBrowserError.Margins.SetBounds(8, 8, 8, 8);
   FBrowserError.Caption := FParseError;
   FBrowserError.Visible := FParseError<>'';
 
@@ -128,8 +133,21 @@ begin
   FFilePollTimer.Interval := 1000;
   FFilePollTimer.Enabled := True;
   FFilePollTimer.OnTimer := FilePollTimerFired;
+  ApplyIDETheme;
 end;
 
+procedure TDocExplorerForm.ApplyIDETheme;
+var Theme: IOTAIDEThemingServices;
+begin
+  if Supports(BorlandIDEServices, IOTAIDEThemingServices, Theme) then
+    Theme.ApplyTheme(Self);
+end;
+
+procedure TDocExplorerForm.CMStyleChanged(var Message: TMessage);
+begin
+  inherited;
+  ApplyIDETheme;
+end;
 destructor TDocExplorerForm.Destroy;
 begin
   if Assigned(FInitTimer) then FInitTimer.Enabled:=False;
