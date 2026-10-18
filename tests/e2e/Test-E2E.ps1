@@ -1,8 +1,21 @@
-param([string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
+param([string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,
+ [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
+ [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
+ [ValidateSet('rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
 $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-New-Item -ItemType Directory -Force $EvidenceDir | Out-Null
+$EvidenceDir=[IO.Path]::GetFullPath($EvidenceDir)
+if(Test-Path -LiteralPath $EvidenceDir){throw "Use a fresh evidence directory to exclude stale exports: $EvidenceDir"}
+New-Item -ItemType Directory $EvidenceDir | Out-Null
 $build=Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Improvements1'
+if($Installed){$build=[IO.Path]::GetFullPath($InstallRoot)}
+function Test-Export([string]$Output){
+ & python tests/Validate-DocExport.py $Output --project XmlDocE2E
+ if($LASTEXITCODE){throw "Export links or resources failed: $Output"}
+ & tests/Validate-HMXP.ps1 "$Output\hmxp\XmlDocE2E.hmxp"
+ & python tests/e2e/Validate-WorkbenchExport.py $Output
+ if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
+}
 $savedEnvironment=@{}
 foreach($name in 'XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
@@ -12,6 +25,21 @@ try {foreach($name in 'Left','Top','Width','Height'){
 }} finally {if($boundsKey){$boundsKey.Dispose()}}
 Push-Location $repo
 try {
+ if($Installed){
+  $manifest=Get-Content (Join-Path $build 'manifest.json') -Raw | ConvertFrom-Json
+  foreach($entry in $manifest){
+   # The bootstrapper is embedded in Setup and deliberately not installed.
+   if($entry.Path -eq 'MicrosoftEdgeWebview2Setup.exe'){continue}
+   if(($entry.Path -notlike 'bin\*') -and !(@($Targets | Where-Object {$entry.Path.StartsWith($_+'\')}).Count)){continue}
+   if((Get-FileHash (Join-Path $build $entry.Path)).Hash -ne $entry.SHA256){throw "Installed payload mismatch: $($entry.Path)"}
+  }
+  $cli=Join-Path $build 'bin\XmlDocGen.exe'
+  $bytes=[IO.File]::ReadAllBytes($cli);$pe=[BitConverter]::ToInt32($bytes,60)
+  if([BitConverter]::ToUInt16($bytes,$pe+4) -ne 0x8664){throw 'Installed CLI must be x64'}
+  & $cli -p "$PSScriptRoot\DocumentationWorkbench\XmlDocE2E.dproj" -o "$EvidenceDir\cli" -f html,chm,md,json,hmxp,mkdocs,docusaurus,vitepress -t XmlDocE2E --site-name XmlDocE2E --numeric-file-names --coverage *> "$EvidenceDir\cli.log"
+  if($LASTEXITCODE){throw "Installed CLI generation failed: $EvidenceDir\cli.log"}
+  Test-Export "$EvidenceDir\cli"
+ }
  foreach($t in @(
   @{Name='rad12-x86';Version='23.0';Platform='Win32';Compiler='dcc32';Bin='bin';Suffix='290';Node='Known Packages'},
   @{Name='rad13-x86';Version='37.0';Platform='Win32';Compiler='dcc32';Bin='bin';Suffix='370';Node='Known Packages'},
@@ -20,7 +48,13 @@ try {
   $rad=if($t.Version -eq '23.0'){$Rad12}else{$Rad13}
   $out=Join-Path $EvidenceDir $t.Name;New-Item -ItemType Directory -Force $out | Out-Null
   $bplDir=Join-Path $build $t.Name;$dcp=Join-Path $build "dcp\$($t.Name)"
-  if(!$SkipBuild){
+  if($Installed){
+   $dcp=Join-Path $InstalledDcpRoot $t.Name
+   if(!(Test-Path "$dcp\XmlDocPlugin.dcp")){throw "Matching package DCP required to compile the probe: $dcp"}
+   $registered=Get-Item "HKCU:\Software\Embarcadero\BDS\$($t.Version)\$($t.Node)"
+   if(!$registered.GetValue("$bplDir\XmlDocPlugin$($t.Suffix).bpl")){throw "Installed package is not registered: $($t.Name)"}
+  }
+  if(!$SkipBuild -and !$Installed){
    if($t.Version -eq '23.0') { & .\build-delphi12.ps1 -Bds $rad -OutputDir $bplDir -DcpOutputDir $dcp *> "$out\plugin-build.log" }
    else {
     New-Item -ItemType Directory -Force $bplDir,$dcp | Out-Null
@@ -58,6 +92,8 @@ try {
   Get-Content "$out\runtime.log"
   if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name)"}
   "PASS IDE exit 0: $($t.Name)"
+  Test-Export "$out\documentation"
+  if($Installed -and (Get-Content "$out\documentation\topic-map.json" -Raw) -ne (Get-Content "$EvidenceDir\cli\topic-map.json" -Raw)){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
   # Keep isolated profile and copied sources for reproducible failure analysis.
  }
 } finally {

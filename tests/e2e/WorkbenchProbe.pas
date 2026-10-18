@@ -1,14 +1,14 @@
-unit WorkbenchProbe;
+﻿unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
 uses System.SysUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Forms,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
- XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts;
+ XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog;
 type TProbe=class
  Timer:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
  Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
- procedure Tick(Sender:TObject);
+ procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
  procedure ExplorerMessage(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
  procedure MessageReceived(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
  procedure Select(const FileName,Name,TypeName:string);
@@ -109,6 +109,50 @@ begin
   except on E:Exception do begin Log('FAIL '+E.Message);ExitProcess(1);end;end;
  finally Json.Free;end;
 end;
+procedure TProbe.CloseExportMessage(Sender:TObject);
+var F:TForm;C:TComponent;Text:string;W:HWND;P:DWORD;
+begin
+ W:=FindWindowEx(0,0,'#32770',nil);
+ while W<>0 do begin
+  GetWindowThreadProcessId(W,@P);
+  if P=GetCurrentProcessId then begin Log('GENERATION native completion dialog');PostMessage(W,WM_USER+102,IDOK,0);PostMessage(W,WM_COMMAND,IDOK,0);end;
+  W:=FindWindowEx(0,W,'#32770',nil);
+ end;
+ for var I:=0 to Screen.FormCount-1 do begin F:=Screen.Forms[I];
+  if (F.ClassName='TMessageForm') then begin
+   Text:='';for var J:=0 to F.ComponentCount-1 do begin C:=F.Components[J];if C is TLabel then Text:=Text+TLabel(C).Caption;end;
+   Log('GENERATION MESSAGE: '+Text);F.ModalResult:=mrOK;
+  end;
+ end;
+end;
+procedure TProbe.ExportAll;
+var D:TBatchGenDialog;C:TComponent;B:TButton;T:TTimer;N:Integer;Output:string;Done:Boolean;
+begin
+ Output:=TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'documentation');
+ D:=TBatchGenDialog.Create(nil);T:=TTimer.Create(nil);
+ try
+  B:=nil;N:=0;
+  for var I:=0 to D.ComponentCount-1 do begin C:=D.Components[I];
+   if C is TCheckBox then begin
+    if TCheckBox(C).Caption='Include private members' then TCheckBox(C).Checked:=False
+    else TCheckBox(C).Checked:=True;
+   end;
+   if C is TEdit then begin
+    Inc(N);case N of 2:TEdit(C).Text:='';3:TEdit(C).Text:=Output;4:TEdit(C).Text:='XmlDocE2E';end;
+   end;
+   if (C is TButton) and (TButton(C).Caption='Generate') then B:=TButton(C);
+  end;
+  AssertTrue(Assigned(B),'Generate button unavailable');D.Show;T.Interval:=200;T.OnTimer:=CloseExportMessage;
+  B.Click;T.Enabled:=False;
+  Done:=False;
+  for var I:=0 to D.ComponentCount-1 do
+    if (D.Components[I] is TLabel) and (TLabel(D.Components[I]).Caption='Done!') then Done:=True;
+  AssertTrue(Done,'Generation did not reach the successful completion phase');
+  AssertTrue(TFile.Exists(TPath.Combine(Output,'XmlDocE2E.chm')),'CHM generation did not complete');
+  AssertTrue(TFile.Exists(TPath.Combine(Output,'site-vitepress\package.json')),'Site generation did not complete');
+  Log('PASS all eight formats through installed plugin dialog: '+Output);
+ finally T.Free;D.Free;end;
+end;
 procedure TProbe.Tick(Sender:TObject);
 var I:Integer;Editor:IOTASourceEditor;
 begin
@@ -122,7 +166,7 @@ begin
     AssertTrue(Found,'Documentation actions are not registered in the IDE action catalog');Log('PASS IDE action registration');
     Root:=GetEnvironmentVariable('XMLDOC_E2E_FIXTURE');SampleFile:=TPath.Combine(Root,'Units\Workbench.Sample.pas');SecondFile:=TPath.Combine(Root,'Units\Workbench.Second.pas');
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
-  1:begin Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);end;
+  1:begin ExportAll;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);end;
   2:begin
     for I:=0 to Inspector.ComponentCount-1 do if Inspector.Components[I] is TXmlDocBrowser then Browser:=TXmlDocBrowser(Inspector.Components[I]);
     AssertTrue(Assigned(Browser),'Browser unavailable');

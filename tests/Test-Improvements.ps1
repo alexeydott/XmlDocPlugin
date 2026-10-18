@@ -2,7 +2,8 @@ param(
  [string]$EvidenceDir="$env:LOCALAPPDATA\XmlDocPlugin\WorkbenchTests\$([guid]::NewGuid())",
  [string]$Rad12='D:\Embarcadero RAD Studio\23.0',
  [string]$Rad13='D:\Embarcadero RAD Studio\37.0',
- [switch]$SkipIDE
+ [switch]$SkipIDE,
+ [switch]$Installed
 )
 $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -33,6 +34,6 @@ try {
  if($LASTEXITCODE -ne 3){throw 'Changed public API was not rejected'}
  $diagnostics=Get-Content "$EvidenceDir\changed-documentation\diagnostics.json" -Raw | ConvertFrom-Json
  if(!($diagnostics.issues | Where-Object code -eq XD011)){throw 'Public API change diagnostic is missing'}
- if(!$SkipIDE){& tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -EvidenceDir "$EvidenceDir\ide"}
+ if(!$SkipIDE){& tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -EvidenceDir "$EvidenceDir\ide"}
  Write-Host "PASS. Evidence: $EvidenceDir"
 } finally {Pop-Location}

@@ -7,8 +7,15 @@
  try{
   await pause(300);
   assert(document.querySelector('#workbench'),'Documentation tools missing');
-  const image=document.querySelector('#remarks-editor img');assert(image,'Project image was not rendered');
-  for(let i=0;i<15 && !image.complete;i++)await pause(50);assert(image.complete && image.naturalWidth>0,'Project image resource failed to load: '+image.src+' base='+window.xmlDocResourceBase);
+  // Initial host updates can replace the ProseMirror image node while the
+  // WebView is loading. Observe the current DOM, not a detached first node.
+  let image;
+  for(let i=0;i<100;i++){
+   image=document.querySelector('#remarks-editor img');
+   if(image?.complete && image.naturalWidth>0)break;
+   await pause(50);
+  }
+  assert(image?.isConnected && image.complete && image.naturalWidth>0,'Project image resource failed to load: '+image?.src+' base='+window.xmlDocResourceBase);
   document.body.style.width='320px';await pause(50);
   for(const field of document.querySelectorAll('#workbench input,#workbench textarea,#workbench select'))assert(field.getBoundingClientRect().width<=322,'Control exceeds narrow panel: '+field.id);
   document.body.style.width='';send('assert-resources');

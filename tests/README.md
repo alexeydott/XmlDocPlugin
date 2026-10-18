@@ -55,6 +55,32 @@ buffers: delayed A-to-B/file switches, simultaneous editors, stale revisions,
 Unicode, unknown markup/metadata, native source Undo/Redo, malformed XML,
 explicit parameter renaming, project search, selected member-summary edits,
 project image loading and narrow controls. It requires a normal IDE exit code 0.
+Before editing the fixture, the probe opens the production **Generate API
+Documentation** dialog, selects all eight formats, coverage and numeric topic
+filenames, and invokes its Generate button. It requires the successful completion
+phase, validates all output links and resources, and checks unit/type/member
+grouping in HTML, CHM, Markdown, JSON, HMXP and each site's navigation.
+
+To test an installation, including its standalone x64 CLI:
+
+```powershell
+.\tests\e2e\Test-E2E.ps1 -Installed
+# Or include native, browser, fuzz and baseline checks:
+.\tests\Test-Improvements.ps1 -Installed
+```
+
+Installed mode loads BPLs from `%LOCALAPPDATA%\Programs\XmlDocPlugin`, verifies
+their registration and installed manifest hashes, and never rebuilds or replaces
+them. It runs the installed x64 CLI with `--numeric-file-names`, validates all
+eight formats and compares the IDE/CLI topic maps. `-InstallRoot` supports a
+custom installation. Compiling the probe requires the matching package DCPs
+from `build-installer.ps1`, normally retained under
+`%LOCALAPPDATA%\XmlDocPlugin\Installer\intermediate`; use `-InstalledDcpRoot` to
+select an archived matching build. Missing artifacts cause an explicit failure.
+Evidence goes into a fresh directory outside Git. Settings and Explorer bounds
+are preserved. The test-owned completion dialogs are acknowledged automatically;
+an error or incomplete generation fails the test.
+
 A browser PASS marker alone is insufficient. Closing forms is deferred until the WebView callback has returned. The runner
 then invokes the actual IDE File > Exit menu command from the deferred callback, rather than terminating
 a message loop or closing an unrelated hidden VCL form.
