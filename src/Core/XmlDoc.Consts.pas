@@ -68,7 +68,8 @@ type
     FullName: string;
     SymbolId: string;
     UnitName,CanonicalName:string;
-    IsOverload:Boolean;
+    IsOverload,IsReintroduce:Boolean;
+    MethodBinding:string;
     FileName: string;
     Signature: string;
     Ancestor: string;

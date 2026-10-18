@@ -3,6 +3,12 @@ interface
 uses DUnitX.TestFramework;
 type [TestFixture] TImprovementsTests=class
 public
+ [Test] procedure ReviewGenericFuzz;
+ [Test] procedure ReviewMetadata;
+ [Test] procedure ReviewContextAndResources;
+ [Test] procedure ReviewBatchAndInheritance;
+ [Test] procedure ReviewRenameCollision;
+ [Test] procedure ReviewMultipleCodeBlocks;
  [Test] procedure ScannerTargetPlatform;
  [Test] procedure ShortcutConflicts;
  [Test] procedure SystemSourceParsing;
@@ -34,7 +40,112 @@ public
  [Test] procedure DeterministicXmlFuzz;
 end;
 implementation
-uses XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+uses XmlDoc.HelpGen.BatchParser,XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+procedure TImprovementsTests.ReviewContextAndResources;
+var Root,FileName,UnitPath:string;Scanner:TProjectScanner;Opt:TScanOptions;Files:TArray<string>;C:TProjectContext;P:TDocParser;Source:string;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(Root);Scanner:=TProjectScanner.Create;P:=TDocParser.Create;
+ try
+  FileName:=TPath.Combine(Root,'App.dproj');
+  TFile.WriteAllText(FileName,'<Project><PropertyGroup><AppName>DebugApp</AppName><MainSource>$(AppName).dpr</MainSource></PropertyGroup><PropertyGroup Condition="''$(Config)''==''Release''"><AppName>ReleaseApp</AppName><MainSource>$(AppName).dpr</MainSource><DCC_Define>RELEASE</DCC_Define></PropertyGroup></Project>');
+  TFile.WriteAllText(TPath.Combine(Root,'DebugApp.dpr'),'program DebugApp; uses DebugUnit in ''DebugUnit.pas''; begin end.');
+  TFile.WriteAllText(TPath.Combine(Root,'ReleaseApp.dpr'),'program ReleaseApp; uses ReleaseUnit in ''ReleaseUnit.pas''; begin end.');
+  TFile.WriteAllText(TPath.Combine(Root,'DebugUnit.pas'),'unit DebugUnit; interface implementation end.');TFile.WriteAllText(TPath.Combine(Root,'ReleaseUnit.pas'),'unit ReleaseUnit; interface implementation end.');
+  Opt:=Default(TScanOptions);Opt.Source:=ssProjectFile;Opt.ProjectPath:=FileName;Opt.Configuration:='Release';Files:=Scanner.Scan(Opt);
+  Assert.AreEqual<NativeInt>(1,Length(Files));Assert.IsTrue(Files[0].EndsWith('ReleaseUnit.pas'));
+  Source:='unit Switch; interface {$IFDEF RELEASE}type TRelease=class end;{$ELSE}type TDebug=class end;{$ENDIF} implementation end.';
+  C:=TProjectContext.Create(FileName,'Debug','Win32');try P.Defines:=C.Defines;P.ParseSource(Source);Assert.AreEqual('TDebug',P.GetAllElements[1].Name);finally C.Free;end;
+  C:=TProjectContext.Create(FileName,'Release','Win64');try P.Defines:=C.Defines;P.Platform:=C.Platform;Assert.IsFalse(P.IsUpToDate(Source));P.ParseSource(Source);Assert.AreEqual('TRelease',P.GetAllElements[1].Name);finally C.Free;end;
+  UnitPath:=TPath.Combine(Root,'Units');TDirectory.CreateDirectory(UnitPath);UnitPath:=TPath.Combine(UnitPath,'Nested.pas');TDirectory.CreateDirectory(TPath.Combine(Root,'Resources'));
+  TFile.WriteAllText(TPath.Combine(Root,'Resources','sample.png'),'fixture');
+  Assert.AreEqual(TPath.GetFullPath(TPath.Combine(Root,'Resources','sample.png')),ResolveDocumentationResource('Resources/sample.png',UnitPath));
+  Assert.WillRaise(procedure begin ResolveDocumentationResource('../escape',UnitPath);end,Exception);
+ finally P.Free;Scanner.Free;TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.ReviewBatchAndInheritance;
+var Root,FileName,Xml:string;P:TBatchParser;U:TUnitDocInfo;Typ:TTypeDocInfo;Member:TElementDocInfo;Found:Integer;R:TDocumentationReport;Json:TJSONObject;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(Root);FileName:=TPath.Combine(Root,'Review.pas');P:=TBatchParser.Create;R:=TDocumentationReport.Create;
+ try
+  TFile.WriteAllText(FileName,'unit Review; interface'+sLineBreak+'type TMode=(One,Two);'+sLineBreak+
+   '/// <summary>Base type description</summary>'+sLineBreak+'TBase<T>=class'+sLineBreak+'private procedure Secret;'+sLineBreak+'public'+sLineBreak+
+   '/// <summary>Base Run</summary>'+sLineBreak+'function Run(Value:T):T; virtual;'+sLineBreak+
+   '/// <summary>Base Hidden</summary>'+sLineBreak+'procedure Hidden;'+sLineBreak+'end;'+sLineBreak+
+   'TParent<U>=class(TBase<U>) end;'+sLineBreak+'TChild=class(TParent<Integer>)'+sLineBreak+'public function Run(Value:Integer):Integer; override; procedure Hidden; reintroduce; end;'+sLineBreak+
+   'implementation end.');
+  P.ParseAll([FileName]);U:=P.Units[0];Found:=0;
+  for Typ in U.Types do begin
+   if Typ.Name='TMode' then begin Assert.AreEqual(dekType,Typ.Kind);Inc(Found);end;
+   if Typ.Name='TChild' then begin
+    Assert.AreEqual('Base type description',Typ.Doc.Summary);
+    for Member in Typ.Members do begin
+     if Member.Name='Run' then begin Assert.AreEqual('Base Run',Member.Doc.Summary);Inc(Found);end;
+     if Member.Name='Hidden' then begin Assert.AreEqual('',Member.Doc.Summary);Inc(Found);end;
+    end;
+   end;
+  end;
+  Assert.AreEqual<Integer>(3,Found);R.Analyze(P.Units);R.SaveBaseline(TPath.Combine(Root,'baseline.json'));Xml:=TFile.ReadAllText(TPath.Combine(Root,'baseline.json'));
+  Json:=TJSONObject.ParseJSONValue(Xml) as TJSONObject;
+  try for var Item in Json.GetValue<TJSONArray>('publicSymbols') do Assert.IsFalse((Item as TJSONObject).GetValue<string>('name','').EndsWith('.Secret'));finally Json.Free;end;
+ finally R.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.ReviewGenericFuzz;
+var P:TDocParser;Seed:Cardinal;I:Integer;A,B:string;Ids:TArray<string>;
+begin
+ P:=TDocParser.Create;Seed:=$513ABC;
+ try
+  for I:=0 to 399 do begin
+   Seed:=Seed*1664525+1013904223;A:='TList<Integer>';B:='TList<string>';
+   for var Depth:=0 to Integer(Seed mod 5) do begin A:='TMap<string,'+A+'>';B:='TMap<string,'+B+'>';end;
+   P.ParseSource('unit Fuzz; interface procedure Run(A: '+A+'); overload; procedure Run(A: '+B+'); overload; implementation end.');
+   Ids:=nil;for var E in P.GetAllElements do if E.Name='Run' then begin
+    Ids:=Ids+[E.SymbolId];Assert.IsTrue((E.Params[0].TypeName=A) or (E.Params[0].TypeName=B));
+   end;
+   Assert.AreEqual<NativeInt>(2,Length(Ids));Assert.AreNotEqual(Ids[0],Ids[1]);
+  end;
+ finally P.Free;end;
+end;
+procedure TImprovementsTests.ReviewMetadata;
+var P:TDocParser;Elements:TArray<TCodeElementInfo>;E:TCodeElementInfo;First,Second,Decl,Impl:string;Found:Integer;
+begin
+ P:=TDocParser.Create;
+ try
+  P.ParseSource('unit Metadata; interface type TBase<T>=class end; TMode=(one,two);'+sLineBreak+
+   'TBox<T>=class(TBase<T>) private procedure Hidden; public procedure Run(A:TList<Integer>); overload;'+sLineBreak+
+   'procedure Run(A:TList<string>); overload; function GetItem(Index:Integer):TList<T>; property Items[Index:Integer]:TList<T> read GetItem; end;'+sLineBreak+
+   'implementation procedure TBox<T>.Run(A:TList<Integer>); begin end; end.');
+  Elements:=P.GetAllElements;Found:=0;
+  for E in Elements do begin
+   if E.Name='Hidden' then begin Assert.AreEqual('private',E.Visibility);Inc(Found);end;
+   if E.Name='TBox' then begin Assert.AreEqual('TBase<T>',E.Ancestor);Inc(Found);end;
+   if E.Name='Items' then begin Assert.AreEqual('TList<T>',E.ReturnType);Assert.AreEqual<NativeInt>(1,Length(E.Params));Assert.AreEqual('Integer',E.Params[0].TypeName);Inc(Found);end;
+   if E.Name='Run' then begin
+    Assert.AreEqual('TBox<T>',E.QualifiedParent);
+    if E.Params[0].TypeName='TList<Integer>' then begin if Decl='' then begin Decl:=E.SymbolId;First:=E.SymbolId;end else Impl:=E.SymbolId;end;
+    if E.Params[0].TypeName='TList<string>' then Second:=E.SymbolId;
+   end;
+  end;
+  Assert.AreEqual<Integer>(3,Found);Assert.IsTrue(First<>'');Assert.IsTrue(Second<>'');Assert.AreNotEqual(First,Second);Assert.AreEqual(Decl,Impl);
+ finally P.Free;end;
+end;
+procedure TImprovementsTests.ReviewRenameCollision;
+var M:TXmlDocModel;E:TCodeElementInfo;P:TParamInfo;Before:string;
+begin
+ M:=TXmlDocModel.Create;E:=Default(TCodeElementInfo);P:=Default(TParamInfo);P.Name:='Current';E.Params:=[P];
+ try M.LoadFromXml('<param name="Old">Old text</param><param name="Current">Current text</param>');Before:=M.ToXml;
+  Assert.WillRaise(procedure begin TDocumentation.Synchronize(E,M,['Old=Current']);end,Exception);Assert.AreEqual(Before,M.ToXml);
+  M.LoadFromXml('<param name="Current">One</param><param name="Current">Two</param>');TDocumentation.Synchronize(E,M,[]);Assert.AreEqual<Integer>(2,M.Params.Count);
+ finally M.Free;end;
+end;
+procedure TImprovementsTests.ReviewMultipleCodeBlocks;
+var M:TXmlDocModel;Ex:TExampleDoc;Xml:string;
+begin
+ M:=TXmlDocModel.Create;
+ try M.LoadFromXml('<example title="Before">Start<code>One;</code>Between<code>Two;</code>End</example>');
+  Ex:=M.Examples[0];Ex.Description:=Ex.Description.Replace('Between','Changed');M.Examples[0]:=Ex;Xml:=M.ToXml;
+  Assert.IsTrue(Xml.Contains('<code>One;</code>'));Assert.IsTrue(Xml.Contains('<code>Two;</code>'));Assert.IsTrue(Pos('Changed',Xml)>Pos('One;',Xml));Assert.IsTrue(Pos('Changed',Xml)<Pos('Two;',Xml));
+ finally M.Free;end;
+end;
 procedure TImprovementsTests.ScannerTargetPlatform;
 var Root:string;Options:TScanOptions;Scanner:TProjectScanner;Files:TArray<string>;
 begin
@@ -154,6 +265,10 @@ begin
   E:=M.Examples[0];E.Title:='New';M.Examples[0]:=E;
   Assert.IsTrue(M.ToXml.Contains('<code>First</code>Between<code>Second</code>'));
   Assert.IsTrue(M.ToXml.Contains('title="New"'));
+  M.LoadFromXml('<example><para>Before</para><code language="pascal" custom="keep">OldCode;</code></example>');
+  E:=M.Examples[0];E.Description:='<para>After</para>';E.Code:='NewCode;';M.Examples[0]:=E;
+  Assert.IsTrue(M.ToXml.Contains('language="pascal"'));Assert.IsTrue(M.ToXml.Contains('custom="keep"'));Assert.IsTrue(M.ToXml.Contains('NewCode;'));
+
  finally M.Free;end;
 end;
 procedure TImprovementsTests.RenameChainIsSimultaneous;

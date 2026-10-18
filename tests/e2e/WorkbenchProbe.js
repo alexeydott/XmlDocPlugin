@@ -3,7 +3,8 @@
  const send=(action,extra={})=>window.chrome.webview.postMessage(JSON.stringify({type:'e2e',action,...extra}));
  const pause=ms=>new Promise(r=>setTimeout(r,ms));
  const assert=(test,text)=>{if(!test)throw Error(text);};
- const editSummary=text=>{const e=document.querySelector('#summary-editor .tiptap');e.focus();const range=document.createRange();range.selectNodeContents(e);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);document.execCommand('insertText',false,text);};
+ const editSummary=text=>{const e=document.querySelector('#summary-editor .tiptap');assert(e?.editor,'TipTap editor unavailable');e.editor.chain().focus().selectAll().insertContent(text).run();};
+
  try{
   await pause(300);
   assert(document.querySelector('#workbench'),'Documentation tools missing');
@@ -63,6 +64,18 @@
   document.querySelector('#member-summaries textarea[data-id*="undocumentedfirst"]').value='E2E grid first';
   document.querySelector('#member-summaries textarea[data-id*="undocumentedsecond"]').value='E2E grid second';
   document.querySelector('#apply-summaries').click();assert(!document.querySelector('#operation-preview').hidden,'Batch edit needs a preview');document.querySelector('#apply-operation').click();await pause(650);send('assert-grid');
+  send('switch-sample');await pause(350);
+  document.querySelector('#doc-tabs [data-tab=design]').click();
+  window.bridge.setPinned(true);window.bridge.sendToHost({type:'pin',pinned:true});
+  editSummary('E2E ACK first');window.bridge.flush();editSummary('E2E ACK second');
+  await pause(1400);
+  assert(window.xmlDocEditor.get().doc.summary==='E2E ACK second','ACK discarded newer edit');
+  assert(window.bridge.status==='Applied','Second edit was not saved after ACK: '+window.bridge.status);
+  editSummary('E2E pinned third');await pause(1100);
+  assert(window.bridge.status==='Applied','Pinned second save used stale context');
+  document.querySelector('#summary-editor .tiptap').dispatchEvent(new KeyboardEvent('keydown',{key:'z',code:'KeyZ',ctrlKey:true,bubbles:true}));
+  await pause(100);assert(window.xmlDocEditor.get().doc.summary==='E2E ACK second','Panel Undo history was lost after autosave');await pause(1000);
+  window.bridge.setPinned(false);window.bridge.sendToHost({type:'pin',pinned:false});
   const checkReadOnly=()=>{
    const current=window.xmlDocEditor.get();assert(current.element.readOnly,'Source is not marked read-only');
    assert(document.querySelector('#summary-editor .tiptap')?.contentEditable==='false','Rich editor remains editable');
@@ -76,8 +89,12 @@
   for(const mode of ['file','buffer','system']){
    send('lock-source',{mode});await pause(600);checkReadOnly();await pause(200);send('assert-protected');await pause(300);
    assert(!window.xmlDocEditor.get().element.readOnly,'Writable source did not unlock: '+mode);
+   assert(document.querySelector('#summary-editor .tiptap').contentEditable==='true','Rich editor did not unlock: '+mode);
   }
-  send('view-system');await pause(2500);checkReadOnly();await pause(250);send('assert-system');await pause(100);
-  send('finish');
+  for(const [config,platform,first,second] of [['Debug','Win32','Integer','Integer'],['Release','Win32','string','Integer'],['Debug','Win64','Integer','Int64'],['Debug','Win32','Integer','Integer']]){
+   send('context',{config,platform});await pause(450);const e=window.xmlDocEditor.get().element;
+   assert(e.name==='ContextProbe' && e.params[0].type===first && e.params[1].type===second,'Stale IDE configuration/platform: '+JSON.stringify(e));
+  }
+  send('prepare-group');return;
  }catch(error){send('fail',{message:error.message,stack:error.stack});}
 })();

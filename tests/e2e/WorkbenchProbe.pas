@@ -2,14 +2,14 @@
 interface
 procedure Register;
 implementation
-uses System.SysUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
- Vcl.Forms,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
+uses System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+ Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TProbe=class
- Timer:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
- ProtectedBefore,SystemFile:string;
- Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
- procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
+ Timer,FormatConfirmation:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
+ ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
+ FormatWait,Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
+ procedure ConfirmFormat(Sender:TObject);procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
  procedure ExplorerMessage(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
  procedure MessageReceived(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
  procedure Select(const FileName,Name,TypeName:string);
@@ -110,6 +110,49 @@ begin
    else if Action='assert-sync' then begin Source:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(Source.Contains('<param name="NewName">Description to map explicitly.</param>'),'Mapped description lost');AssertTrue(Source.Contains('<param name="Options">'),'New parameter not added');AssertTrue(Source.Contains('<paramref name="NewName"'),'Inline reference not renamed');Log('PASS synchronization preview and explicit rename');end
    else if Action='assert-resources' then Log('PASS project image resource and narrow controls')
    else if Action='assert-project' then Log('PASS project catalog, search and diagnostics')
+   else if Action='context' then begin
+    var Project:=GetActiveProject;AssertTrue(Assigned(Project),'Context project unavailable');
+    var Configs:IOTAProjectOptionsConfigurations;AssertTrue(Supports(Project.ProjectOptions,IOTAProjectOptionsConfigurations,Configs),'Build configurations unavailable');
+    Project.CurrentPlatform:=Json.GetValue<string>('platform','Win32');
+    var ConfigName:=Json.GetValue<string>('config','Debug');var Chosen:IOTABuildConfiguration:=nil;
+    for var I:=0 to Configs.ConfigurationCount-1 do if SameText(Configs.Configurations[I].Name,ConfigName) then begin Chosen:=Configs.Configurations[I];Break;end;
+    if not Assigned(Chosen) then Chosen:=Configs.AddConfiguration(ConfigName,Configs.BaseConfiguration);
+    Configs.ActiveConfiguration:=Chosen;Select(SecondFile,'ContextProbe','');Inspector.RefreshFromCurrentEditor;
+    Log('PASS switched IDE context '+ConfigName+' '+Project.CurrentPlatform+' with unchanged source');
+   end
+   else if Action='prepare-group' then begin
+    PrimaryProjectFile:=GetActiveProject.FileName;var Dir:=TPath.Combine(Root,'GroupB');TDirectory.CreateDirectory(Dir);
+    TFile.WriteAllText(TPath.Combine(Dir,'ContextB.pas'),'unit ContextB;'+sLineBreak+'interface'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'implementation'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'begin end;'+sLineBreak+'end.');
+    TFile.WriteAllText(TPath.Combine(Dir,'GroupB.dpr'),'program GroupB; uses ContextB in ''ContextB.pas''; begin end.');
+    var GroupXml:=TFile.ReadAllText(TPath.Combine(Root,'XmlDocE2E.dproj')).Replace('XmlDocE2E','GroupB');
+    GroupXml:=GroupXml.Replace('{3A72602E-67CF-469D-A733-BC75247CC365}',TGUID.NewGuid.ToString);
+    GroupXml:=GroupXml.Replace('<DCCReference Include="Units\Workbench.Contracts.pas"/>','<DCCReference Include="ContextB.pas"/>');
+    GroupXml:=GroupXml.Replace('<DCCReference Include="Units\Workbench.Sample.pas"/>','').Replace('<DCCReference Include="Units\Workbench.Second.pas"/>','').Replace('<DCCReference Include="Examples\Workbench.Examples.pas"/>','');
+    GroupXml:=GroupXml.Replace('<DCC_Define>DEBUG;','<DCC_Define>FROM_B;DEBUG;');
+    TFile.WriteAllText(TPath.Combine(Dir,'GroupB.dproj'),GroupXml);
+    Step:=80;Timer.Interval:=100;Timer.Enabled:=True;
+   end
+   else if Action='assert-group' then begin
+    AssertTrue(SameText(GetActiveProject.FileName,TPath.Combine(Root,'XmlDocE2E.dproj')),'Group navigation changed active project A');
+    AssertTrue(Assigned(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas'))),'Group source did not open');
+    Log('PASS group symbol navigation uses project B defines while A is active');
+   end
+   else if Action='assert-group-format' then begin
+    var GroupFile:=TPath.Combine(Root,'GroupB','ContextB.pas');
+    var GroupSource:=EditorSource(SourceEditorForFile(GroupFile));
+    AssertTrue(GroupSource.Contains('GroupB '+Json.GetValue<string>('mode')+' before format'),'Formatted GroupB documentation was not written');
+    AssertTrue(GroupSource.Contains('Пример &amp; details'),'Format lost Unicode or XML escaping');
+    AssertTrue(GroupSource.Contains('procedure FromB'),'Format damaged GroupB declaration');
+    Log('PASS GroupB open, edit, format, apply: '+Json.GetValue<string>('mode'));
+   end
+   else if Action='format-group-source' then begin
+    {$IF CompilerVersion >= 37.0}
+    Log('SKIP native Ctrl+D: the built-in Pascal formatter is unavailable in RAD Studio 13');
+    Browser.ExecuteScript('window.__xmlDocNativeFormatted="unavailable";');
+    {$ELSE}
+    Step:=82;Timer.Interval:=100;Timer.Enabled:=True;
+    {$IFEND}
+   end
    else if Action='lock-source' then begin
     ProtectedBefore:=EditorSource(SourceEditorForFile(SampleFile));
     if Json.GetValue<string>('mode','')='buffer' then begin
@@ -137,7 +180,7 @@ begin
    end
    else if Action='finish' then begin Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;end
    else if Action='fail' then raise Exception.Create(Json.GetValue<string>('message','Unknown browser failure')+' '+Json.GetValue<string>('stack',''));
-  except on E:Exception do begin Log('FAIL '+E.Message);ExitProcess(1);end;end;
+  except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;
  finally Json.Free;end;
 end;
 procedure TProbe.CloseExportMessage(Sender:TObject);
@@ -197,6 +240,40 @@ begin
   Log('PASS all eight formats through installed plugin dialog: '+Output);
  finally T.Free;D.Free;end;
 end;
+function NativeWindowText(W:HWND):string;
+var C:HWND;Buffer:array[0..4095] of Char;
+begin
+ GetWindowText(W,Buffer,Length(Buffer));Result:=string(Buffer);C:=GetWindow(W,GW_CHILD);
+ while C<>0 do begin Result:=Result+NativeWindowText(C);C:=GetWindow(C,GW_HWNDNEXT);end;
+end;
+function NativeYesButton(W:HWND):HWND;
+var C:HWND;Buffer:array[0..127] of Char;
+begin
+ Result:=0;GetWindowText(W,Buffer,Length(Buffer));if SameText(StringReplace(string(Buffer),'&','',[rfReplaceAll]),'Yes') then Exit(W);
+ C:=GetWindow(W,GW_CHILD);while C<>0 do begin Result:=NativeYesButton(C);if Result<>0 then Exit;C:=GetWindow(C,GW_HWNDNEXT);end;
+end;
+procedure TProbe.ConfirmFormat(Sender:TObject);
+var Text:string;W,Button:HWND;P:DWORD;
+begin
+ W:=FindWindowEx(0,0,nil,nil);
+ while W<>0 do begin
+  GetWindowThreadProcessId(W,@P);
+  if P=GetCurrentProcessId then begin
+   Text:=NativeWindowText(W);
+   if Text.Contains('Do you really want to format the selected file:') and Text.Contains(TPath.Combine(Root,'GroupB','ContextB.pas')) then begin
+    Button:=NativeYesButton(W);
+    if Button<>0 then begin Log('Confirmed native formatter for isolated GroupB fixture');SendMessage(Button,BM_CLICK,0,0);end;
+   end;
+  end;
+  W:=FindWindowEx(0,W,nil,nil);
+ end;
+end;
+function FocusCodeEditor(Control:TWinControl):Boolean;
+begin
+ Result:=False;
+ if ContainsText(Control.ClassName,'EditControl') and Control.CanFocus then begin Log('Native editor focus '+Control.ClassName);Control.SetFocus;Exit(True);end;
+ for var I:=0 to Control.ControlCount-1 do if Control.Controls[I] is TWinControl then if FocusCodeEditor(TWinControl(Control.Controls[I])) then Exit(True);
+end;
 procedure TProbe.Tick(Sender:TObject);
 var I:Integer;Editor:IOTASourceEditor;
 begin
@@ -204,6 +281,43 @@ begin
  try
  case Step of
   90:begin Finish;Exit;end;
+  80:begin
+   Log('Adding project B outside WebView callback');
+   AssertTrue((BorlandIDEServices as IOTAActionServices).OpenProject(TPath.Combine(Root,'GroupB','GroupB.dproj'),False),'Cannot add group project B');
+   var Group:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;
+   for var J:=0 to Group.ProjectCount-1 do if SameText(Group.Projects[J].FileName,PrimaryProjectFile) then begin Group.ActiveProject:=Group.Projects[J];Break;end;
+   Log('Added project B; active project '+GetActiveProject.FileName);Step:=81;Timer.Interval:=1500;Timer.Enabled:=True;
+   Exit;
+  end;
+  82:begin
+   var GroupFile:=TPath.Combine(Root,'GroupB','ContextB.pas');
+   var GroupEditor:=SourceEditorForFile(GroupFile);AssertTrue(Assigned(GroupEditor),'GroupB editor unavailable for Format Source');var ProjectGroup:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;ProjectGroup.ActiveProject:=ProjectGroup.FindProject(GroupFile);GroupEditor.Show;
+   var Actions:=(BorlandIDEServices as INTAServices).ActionList;var FormatAction:TCustomAction:=nil;
+   for var K:=0 to Actions.ActionCount-1 do if Actions.Actions[K] is TCustomAction then begin
+    var A:=TCustomAction(Actions.Actions[K]);
+    if SameText(A.Name,'actFormatSource') then FormatAction:=A;
+   end;
+   AssertTrue(Assigned(FormatAction),'Native Format Source action not found');AssertTrue(FormatAction.ShortCut=ShortCut(Ord('D'),[ssCtrl]),'Native formatter is not bound to Ctrl+D');
+   var SourceBytes:=UTF8Encode(EditorSource(GroupEditor));var EditOffset:=Pos(UTF8String('begin end;'),SourceBytes)-1;AssertTrue(EditOffset>=0,'GroupB body missing');
+   var NativeWriter:=GroupEditor.CreateUndoableWriter;NativeWriter.CopyTo(EditOffset);NativeWriter.DeleteTo(EditOffset+Length('begin end;'));var InsertBytes:=UTF8String('begin   {E2E native format}   end;');NativeWriter.Insert(PAnsiChar(InsertBytes));NativeWriter:=nil;FormatBefore:=EditorSource(GroupEditor);
+   Application.MainForm.Show;Application.MainForm.BringToFront;Application.MainForm.SetFocus;var EditForm:=GroupEditor.GetEditView(0).GetEditWindow.Form;AssertTrue(FocusCodeEditor(EditForm),'Native source control could not acquire focus');
+   Log('Invoking native formatter '+FormatAction.Name+' after Pascal buffer edit');FormatConfirmation:=TTimer.Create(nil);FormatConfirmation.Interval:=100;FormatConfirmation.OnTimer:=ConfirmFormat;if Assigned(FormatAction.OnExecute) then FormatAction.OnExecute(FormatAction) else AssertTrue(FormatAction.Execute,'Native Format Source action rejected');
+   Step:=83;Timer.Interval:=750;Timer.Enabled:=True;Exit;
+  end;
+  83:begin
+   var GroupEditor:=SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas'));
+   if (EditorSource(GroupEditor)=FormatBefore) and (FormatWait<40) then begin Inc(FormatWait);Timer.Enabled:=True;Exit;end;
+   AssertTrue(EditorSource(GroupEditor)<>FormatBefore,'Native formatter did not change unformatted Pascal buffer');
+   FreeAndNil(FormatConfirmation);
+   AssertTrue(EditorSource(GroupEditor).Contains('E2E native format'),'Native formatter lost Pascal buffer edit');
+   AssertTrue(EditorSource(GroupEditor).Contains('GroupB saved before format'),'Native formatter lost documentation');
+   Inspector.RefreshFromCurrentEditor;Log('PASS native Format Source on edited GroupB');
+   Browser.ExecuteScript('window.__xmlDocNativeFormatted=true;');Step:=81;Timer.Interval:=1500;Timer.Enabled:=True;Exit;
+  end;
+  81:begin
+   Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'WorkbenchGroupProbe.js')));
+   Timer.Enabled:=True;Exit;
+  end;
   0:begin
     var Actions:=(BorlandIDEServices as INTAServices).ActionList;var Found:=False;
     for var ActionIndex:=0 to Actions.ActionCount-1 do if Actions.Actions[ActionIndex].Name='XmlDocActionsyncdocument' then Found:=True;
@@ -220,6 +334,16 @@ begin
     try AssertTrue(About.lblVersion.Caption='Version '+GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'About dialog version mismatch');finally About.Free;end;
     Log('PASS loaded BPL and About dialog shared version');
     Root:=GetEnvironmentVariable('XMLDOC_E2E_FIXTURE');SampleFile:=TPath.Combine(Root,'Units\Workbench.Sample.pas');SecondFile:=TPath.Combine(Root,'Units\Workbench.Second.pas');
+    var Settings:=TPluginSettings.Create;
+    var SettingsRoot:=TPath.Combine(Root,'settings-fixture');TDirectory.CreateDirectory(SettingsRoot);
+    try
+     TFile.WriteAllText(TPath.Combine(SettingsRoot,'.xmldocplugin.json'),'{"helpGen":{"outputDir":"project-a","includePrivate":true}}');Settings.LoadProject(SettingsRoot);
+     AssertTrue(Settings.Project.HelpGen.OutputDir='project-a','Project A options were not loaded');
+     Settings.LoadProject(Root);AssertTrue((Settings.Project.HelpGen.OutputDir='docs') and not Settings.Project.HelpGen.IncludePrivate,'Project A options leaked into B');
+     TFile.WriteAllText(TPath.Combine(SettingsRoot,'.xmldocplugin.json'),'{"helpGen":{"title":"Partial"}}');Settings.LoadProject(SettingsRoot);
+     AssertTrue((Settings.Project.HelpGen.OutputDir='docs') and (Settings.Project.HelpGen.Title='Partial'),'Partial settings did not use defaults');
+     Log('PASS project settings reset between projects and partial files');
+    finally Settings.Free;TDirectory.Delete(SettingsRoot,True);end;
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
   1:begin ExportAll;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
   2:begin
@@ -234,14 +358,14 @@ begin
     OriginalMessage:=Browser.OnWebMessageReceived;Browser.OnWebMessageReceived:=MessageReceived;
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
-  3:begin Inc(Step);Select(SampleFile,'Run','string');Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
+  3:begin Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
  end;
  if Step<4 then Timer.Enabled:=True;
- except on E:Exception do begin Log('FAIL '+E.Message);ExitProcess(1);end;end;
+ except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;
 end;
 procedure Register;
 begin if Assigned(Probe) then Exit;Probe:=TProbe.Create;Probe.Timer:=TTimer.Create(nil);Probe.Timer.Interval:=2500;Probe.Timer.OnTimer:=Probe.Tick;end;
 initialization
 finalization
- Log('Finalizing probe');if Probe<>nil then begin Probe.Timer.Free;Probe.Inspector.Free;Probe.Explorer.Free;Probe.Free;Probe:=nil;end;Log('Probe finalized');
+ Log('Finalizing probe');if Probe<>nil then begin Probe.Timer.Free;Probe.FormatConfirmation.Free;Probe.Inspector.Free;Probe.Explorer.Free;Probe.Free;Probe:=nil;end;Log('Probe finalized');
 end.

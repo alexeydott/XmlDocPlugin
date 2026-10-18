@@ -1,10 +1,28 @@
-unit XmlDoc.SourceText;
+﻿unit XmlDoc.SourceText;
 interface
 uses System.SysUtils;
 function DecodeSource(const Bytes:TBytes;Offset,Count:Integer):string;
 function ReadSourceFile(const FileName:string):string;
+function DocumentationResourceRoot(const FileName:string;const ProjectDir:string=''):string;
+function ResolveDocumentationResource(const Source,FileName:string;const ProjectDir:string=''):string;
 implementation
 uses System.Classes,System.IOUtils;
+function DocumentationResourceRoot(const FileName,ProjectDir:string):string;
+var Root,Parent:string;
+begin
+ if ProjectDir<>'' then Exit(TPath.GetFullPath(ProjectDir));
+ Root:=ExtractFilePath(TPath.GetFullPath(FileName));Result:=Root;
+ while TDirectory.Exists(Root) do begin
+  if TFile.Exists(TPath.Combine(Root,'.xmldocplugin.json')) or (Length(TDirectory.GetFiles(Root,'*.dproj',TSearchOption.soTopDirectoryOnly))>0) then Exit(Root);
+  Parent:=ExtractFileDir(ExcludeTrailingPathDelimiter(Root));if SameText(Parent,ExcludeTrailingPathDelimiter(Root)) then Break;Root:=Parent;
+ end;
+end;
+function ResolveDocumentationResource(const Source,FileName,ProjectDir:string):string;
+begin
+ if (Trim(Source)='') or TPath.IsPathRooted(Source) or Source.Contains(':') then raise Exception.Create('Resource must use a relative project path: '+Source);
+ for var Part in Source.Replace('\','/').Split(['/']) do if Part='..' then raise Exception.Create('Resource cannot leave the project: '+Source);
+ Result:=TPath.GetFullPath(TPath.Combine(DocumentationResourceRoot(FileName,ProjectDir),Source.Replace('/',PathDelim)));
+end;
 function DecodeSource(const Bytes:TBytes;Offset,Count:Integer):string;
 var Utf8:TUTF8Encoding;ExplicitUtf8:Boolean;
 begin

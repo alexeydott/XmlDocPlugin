@@ -1,3 +1,4 @@
+import {JSDOM} from 'jsdom';const dom=new JSDOM();globalThis.DOMParser=dom.window.DOMParser;globalThis.XMLSerializer=dom.window.XMLSerializer;
 import test from 'node:test';import assert from 'node:assert/strict';import {load} from './load.mjs';import {Schema} from '@tiptap/pm/model';
 const {serializeNode}=load('xmlCodec.ts');const {synchronize,inheritDoc}=load('docTools.ts');
 const schema=new Schema({nodes:{doc:{content:'block+'},paragraph:{group:'block',content:'inline*'},text:{group:'inline'},hardBreak:{group:'inline',inline:true},bulletList:{group:'block',content:'listItem+'},listItem:{content:'paragraph+'},opaqueXml:{group:'inline',inline:true,atom:true,attrs:{xml:{default:''}}}},marks:{bold:{},italic:{},seeRef:{attrs:{cref:{}}}}});
@@ -47,4 +48,38 @@ test('recovered XML drafts take precedence over the original source, including e
  assert.equal(editableXml({summary:'Original',sourceXml:'<summary>Original</summary>',xmlEdited:true,rawXml:'<summary>unfinished'}),'<summary>unfinished');
  assert.equal(editableXml({summary:'Original',sourceXml:'<summary>Original</summary>',xmlEdited:true,rawXml:''}),'');
  assert.equal(editableXml({summary:'Original',sourceXml:'<summary custom="keep">Original</summary>'}),'<summary custom="keep">Original</summary>');
+});
+
+test('XML mode reflects unsaved design fields while retaining source attributes',()=>{
+ const {editableXml}=load('docTools.ts');
+ assert.equal(editableXml({summary:'New text',sourceXml:'<summary custom="keep">Original text</summary>'}),'<summary custom="keep">New text</summary>');
+});
+
+test('clearing optional fields and last collection entries is an explicit deletion',()=>{
+ const {mergeRenderedDoc}=load('docTools.ts');
+ for(const key of ['remarks','returns','value','examples','exceptions','seeAlso','params','typeParams']){
+  const value=['remarks','returns','value'].includes(key)?'old':[{description:'old'}];const original={summary:'Keep',[key]:value};
+  const result=mergeRenderedDoc(original,original,{summary:'Keep'});
+  assert.deepEqual(result[key],typeof value==='string'?'':[]);assert.deepEqual(original[key],value);
+ }
+});
+
+test('rename collision is rejected without losing descriptions and plain synchronization keeps duplicates',()=>{
+ const element={kind:'method',params:[{name:'Current'}]};
+ const old={summary:'Keep',params:[{name:'Old',description:'old text'},{name:'Current',description:'current text'}]};
+ assert.throws(()=>synchronize(element,old,{Old:'Current'}),/conflicts/);assert.equal(old.params.length,2);
+ const duplicated={summary:'Keep',params:[{name:'Current',description:'first'},{name:'Current',description:'second'}]};
+ assert.deepEqual(synchronize(element,duplicated).params,duplicated.params);
+});
+test('list items serialize distinct paragraphs without joining words',()=>{
+ const doc=schema.node('doc',null,[schema.node('bulletList',null,[schema.node('listItem',null,[schema.node('paragraph',null,[schema.text('First')]),schema.node('paragraph',null,[schema.text('Second')])])])]);
+ assert.match(serializeNode(doc),/<para>First<\/para><para>Second<\/para>/);
+});
+
+test('nested XML attributes survive prose edits and table cells keep paragraphs',()=>{
+ const {modelXml}=load('docTools.ts');const {textToHtml}=load('xmlCodec.ts');
+ const xml=modelXml({summary:'<b>After</b>',sourceXml:'<summary><b custom="keep">Before</b></summary>'});assert.match(xml,/custom="keep"/);
+ const html=textToHtml('<list type="table"><item><term>A</term><description><para>First</para><para>Second</para></description></item></list>');
+ assert.match(html,/<td><p>First<\/p><p>Second<\/p><\/td>/);assert.ok(!html.startsWith('<p><table'));
+ assert.match(textToHtml('<code language="pascal">Code;</code>'),/data-xml=/);
 });

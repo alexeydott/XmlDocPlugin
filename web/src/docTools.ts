@@ -11,13 +11,18 @@ export function synchronize(element:ElementInfo,doc:DocModel,renames:Record<stri
   if(!names.some(n=>same(n,name)) || targets.has(name.toLowerCase()) || mappings.has(old.toLowerCase()))throw Error('Invalid or ambiguous rename mapping');
   targets.add(name.toLowerCase());mappings.set(old.toLowerCase(),name);
  }
+ for(const key of ['params','typeParams'] as const){
+  const groups=new Map<string,{count:number;renamed:boolean}>();
+  for(const p of result[key]??[]){const name=mappings.get(p.name.toLowerCase())??p.name;const group=groups.get(name.toLowerCase())??{count:0,renamed:false};group.count++;group.renamed ||= !same(name,p.name);groups.set(name.toLowerCase(),group);}
+  if(Array.from(groups.values()).some(g=>g.count>1 && g.renamed))throw Error('Rename conflicts with an existing description; keep both entries and resolve in XML');
+ }
  for(const key of ['params','typeParams'] as const)for(const p of result[key]??[])p.name=mappings.get(p.name.toLowerCase())??p.name;
  const replace=(text:string)=>text.replace(/<(paramref|typeparamref)\b([^>]*?)name=["']([^"']+)["']/g,(all,tag,attrs,n)=>mappings.has(n.toLowerCase())?`<${tag}${attrs}name="${escapeXml(mappings.get(n.toLowerCase())!)}"`:all);
  for(const key of ['summary','remarks','returns','value'] as const)if(result[key])result[key]=replace(result[key]!);
  for(const key of ['params','typeParams','exceptions','examples','seeAlso'] as const)for(const entry of result[key]??[])if(entry.description)entry.description=replace(entry.description);
  if(mappings.size)result.renameMappings={...result.renameMappings,...renames};
  const order=(expected:string[],old:{name:string;description:string}[])=>[
-  ...expected.map(name=>old.find(p=>same(p.name,name))??{name,description:''}),
+  ...expected.flatMap(name=>{const matches=old.filter(p=>same(p.name,name));return matches.length?matches:[{name,description:''}];}),
   ...old.filter(p=>!expected.some(n=>same(n,p.name)))];
  result.params=order((element.params??[]).map(p=>p.name),result.params??[]);
  result.typeParams=order(element.genericParams??[],result.typeParams??[]);
@@ -43,6 +48,14 @@ export function modelXml(doc:DocModel):string {
  const generated=fragments.join('\n');
  if(!doc.sourceXml)return generated;
  const old=parseXml(doc.sourceXml),fresh=parseXml(generated);if(old.querySelector('parsererror') || fresh.querySelector('parsererror'))return generated;
+ const preserveAttributes=(source:Element,target:Element)=>{
+  for(const attribute of Array.from(source.attributes))if(!target.hasAttribute(attribute.name))target.setAttribute(attribute.name,attribute.value);
+  const counts=new Map<string,number>();
+  for(const child of Array.from(target.children)){
+   const ordinal=counts.get(child.tagName)??0;counts.set(child.tagName,ordinal+1);
+   const old=Array.from(source.children).filter(n=>n.tagName===child.tagName)[ordinal];if(old)preserveAttributes(old,child);
+  }
+ };
  const counts=new Map<string,number>();
  for(const node of Array.from(fresh.documentElement.children)){
   const key=node.tagName+'|'+(node.getAttribute('name')??node.getAttribute('cref')??'');const ordinal=counts.get(key)??0;counts.set(key,ordinal+1);
@@ -50,7 +63,7 @@ export function modelXml(doc:DocModel):string {
    if(n.tagName!==node.tagName)return false;const name=n.getAttribute('name');const mapped=name?(doc.renameMappings?.[name]??name):n.getAttribute('cref')??'';
    return mapped===(node.getAttribute('name')??node.getAttribute('cref')??'');
   });const source=matches[ordinal];if(!source)continue;
-  for(const attribute of Array.from(source.attributes))if(!node.hasAttribute(attribute.name))node.setAttribute(attribute.name,attribute.value);
+  preserveAttributes(source,node);
  }
  return Array.from(fresh.documentElement.childNodes).map(n=>new XMLSerializer().serializeToString(n)).join('');
 }
@@ -66,6 +79,7 @@ export function analyze(element:ElementInfo,doc:DocModel,catalog:TreeElementInfo
   const nodes=Array.from(d.querySelectorAll(`doc > ${tag}`));
   const seen=new Set<string>();
   for(const node of nodes){const name=node.getAttribute('name')??'';if(!names.some(n=>same(n,name)))add('XD002',`Unknown ${tag} ${name}`,'Map name',`<${tag}`);if(seen.has(name.toLowerCase()))add('XD003',`Duplicate ${tag} ${name}`,'XML');seen.add(name.toLowerCase());}
+  for(const node of nodes)if(!node.textContent?.trim() || /\bTODO\b/i.test(node.textContent??''))add('XD004',`Missing ${tag} description ${node.getAttribute('name')??''}`,'Edit',`<${tag}`);
   for(const name of names)if(!seen.has(name.toLowerCase()))add('XD004',`Missing ${tag} ${name}`,'Synchronize');
  }
  for(const node of Array.from(d.querySelectorAll('paramref,typeparamref'))){const name=node.getAttribute('name')??'';const names=node.tagName==='paramref'?(element.params??[]).map(p=>p.name):element.genericParams??[];if(!names.some(n=>same(n,name)))add('XD005',`Unknown ${node.tagName} ${name}`,'Map name',`<${node.tagName}`);}
@@ -115,8 +129,10 @@ export function genericArguments(name:string):string[]{
 export function compatibleInheritedMember(target:ElementInfo,source:ElementInfo,parent:ElementInfo,ancestor:string):boolean {
  if(target.name.toLowerCase()!==source.name.toLowerCase() || target.kind!==source.kind || target.params.length!==source.params.length)return false;
  const args=genericArguments(ancestor);const substitute=(type:string)=>{
-  let result=type;for(let i=0;i<(parent.genericParams?.length??0);i++)if(args[i]){const name=parent.genericParams![i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&');result=result.replace(new RegExp('\\b'+name+'\\b','g'),args[i]);}return result.toLowerCase().replace(/\s+/g,'');
+  let result=type;for(let i=0;i<(parent.genericParams?.length??0);i++)if(args[i]){const name=parent.genericParams![i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&');result=result.replace(new RegExp('\\b'+name+'\\b','gi'),args[i]);}return result.toLowerCase().replace(/\s+/g,'');
  };
+ if((target.returnType??'').toLowerCase().replace(/\s+/g,'')!==substitute(source.returnType??''))return false;
+ if(parent.kind && parent.kind!=='interface' && target.kind==='method' && (target.isReintroduce || (target.methodBinding!==undefined && target.methodBinding!=='override')))return false;
  return target.params.every((p,i)=>p.type.toLowerCase().replace(/\s+/g,'')===substitute(source.params[i].type) && !!p.isVar===!!source.params[i].isVar && !!p.isOut===!!source.params[i].isOut && !!p.isConst===!!source.params[i].isConst);
 }
 
@@ -126,5 +142,19 @@ export function wordingMatches(name:string,type:string,namePattern='',typePatter
 }
 
 export function editableXml(doc:DocModel):string {
- return doc.xmlEdited?(doc.rawXml??''):(doc.sourceXml||modelXml(doc));
+ return doc.xmlEdited?(doc.rawXml??''):doc.parseError?(doc.sourceXml??''):modelXml(doc);
+}
+
+export function mergeRenderedDoc(original:DocModel,baseline:DocModel,rendered:DocModel):DocModel {
+ const next={...original};
+ for(const key of ['summary','remarks','returns','value','params','typeParams','exceptions','examples','seeAlso'] as const){
+  const empty=['summary','remarks','returns','value'].includes(key)?'':[];
+  if(JSON.stringify(rendered[key]??empty)!==JSON.stringify(baseline[key]??empty))(next as any)[key]=rendered[key]??empty;
+ }
+ return next;
+}
+export function sameDocContent(a:DocModel,b:DocModel):boolean {
+ const normalize=(v:any):any=>Array.isArray(v)?v.map(normalize):v && typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>v[k]!==undefined && v[k]!=='' && !(Array.isArray(v[k])&&!v[k].length)).map(k=>[k,normalize(v[k])])):v;
+ const content=(doc:DocModel)=>Object.fromEntries(['summary','remarks','returns','value','params','typeParams','exceptions','examples','seeAlso'].map(k=>[k,(doc as any)[k]]));
+ return JSON.stringify(normalize(content(a)))===JSON.stringify(normalize(content(b)));
 }

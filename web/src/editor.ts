@@ -1,3 +1,4 @@
+import {mergeRenderedDoc,sameDocContent} from './docTools';
 import { applySourceAccess } from './sourceAccess';
 import { Editor,Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
@@ -93,14 +94,15 @@ export function collectDoc(): DocModel {
     parseError: original.parseError,
   };
 
+  doc.params=[];doc.typeParams=[];doc.examples=[];doc.exceptions=[];doc.seeAlso=[];
   const remarksText = remarksEditor ? serializeContent(remarksEditor) : '';
-  if (remarksText) doc.remarks = remarksText;
+  doc.remarks = remarksText;
 
   const returnsText = returnsEditor ? serializeContent(returnsEditor) : '';
-  if (returnsText) doc.returns = returnsText;
+  doc.returns = returnsText;
 
   const valueText = valueEditor ? serializeContent(valueEditor) : '';
-  if (valueText) doc.value = valueText;
+  doc.value = valueText;
 
   // Params
   const paramRows = document.querySelectorAll('#params-body tr');
@@ -163,10 +165,7 @@ export function collectDoc(): DocModel {
 function notifyChanged(): void {
   if(loading || bridge.readOnly)return;
   const rendered=collectDoc();
-  const next:DocModel={...original};
-  for(const key of Object.keys(rendered) as (keyof DocModel)[]){
-    if(JSON.stringify(rendered[key])!==JSON.stringify(baseline[key])) (next as any)[key]=rendered[key];
-  }
+  const next=mergeRenderedDoc(original,baseline,rendered);
   if(JSON.stringify(next)===JSON.stringify(currentDoc))return;
   currentDoc=next;
   bridge.notifyDocChanged(currentDoc);
@@ -180,7 +179,7 @@ function renderSignature(el: ElementInfo): void {
   const sig = $('#member-signature')!;
   const kind = el.methodKind ?? el.kind;
   const parent = el.qualifiedParent ? escapeHtml(el.qualifiedParent) : '';
-  const name = escapeHtml(el.signature ?? el.name);
+  const name = escapeHtml(el.name);
   const generics = el.genericParams?.length
     ? `<span class="sig-generic">&lt;${el.genericParams.map(escapeHtml).join(', ')}&gt;</span>`
     : '';
@@ -461,8 +460,13 @@ function initEditors(doc: DocModel): void {
 export function loadDocument(element: ElementInfo, doc: DocModel): void {
   const oldKey=currentElement?`${currentElement.fileName}|${currentElement.symbolId}`:'';
   if(currentElement)positions.set(oldKey,{scroll:$('#doc-design')?.scrollTop??0,fields:editors().map(e=>({from:e.state.selection.from,to:e.state.selection.to,focus:e.view.dom.contains(document.activeElement)}))});
+  if(currentElement && oldKey===`${element.fileName}|${element.symbolId}` && sameDocContent(currentDoc,doc)){
+    currentElement=element;currentDoc=doc;original=JSON.parse(JSON.stringify(doc));baseline=collectDoc();renderSignature(element);editors().forEach(e=>e.setEditable(!bridge.readOnly));applySourceAccess(bridge.readOnly,bridge.readOnlyReason);
+    window.dispatchEvent(new CustomEvent('documentationLoaded',{detail:{element,doc}}));return;
+  }
   loading=true;
-  bridge.setContext(element);
+  // Context is owned by the bridge for incoming documents. Local preview operations retain it.
+
   fieldEditors.forEach(editor=>editor.destroy());fieldEditors.clear();
   (window as any).xmlDocResourceBase=element.resourceBase;
   currentElement = element;

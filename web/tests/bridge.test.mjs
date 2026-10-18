@@ -81,3 +81,39 @@ test('seeded protection/navigation fuzz never schedules protected writes',()=>{
   sent.length=0;
  }
 });
+
+test('ACK of first write retains newer edit and rebases its source context, also when pinned',()=>{
+ for(const pinned of [false,true]){
+  const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);b.setContext(element('A'));b.setPinned(pinned);
+  b.notifyDocChanged({summary:'first'});b.flush();const first=sent.find(m=>m.type==='docUpdated');
+  b.notifyDocChanged({summary:'second'});b.flush();assert.equal(sent.filter(m=>m.type==='docUpdated').length,1);
+  b.receive({type:'editResult',sessionId:'session',editId:first.editId,status:'Applied'});
+  let shown;b.onElementLoaded((e,d)=>shown=d);
+  b.receive({type:'loadDoc',data:{element:{...element('A','2'),sessionId:'session2'},doc:{summary:'first'}}});
+  assert.equal(shown.summary,'second');b.flush();const second=sent.filter(m=>m.type==='docUpdated')[1];
+  assert.equal(second.doc.summary,'second');assert.equal(second.sourceRevision,'2');assert.equal(second.sessionId,'session2');
+  b.receive({type:'editResult',sessionId:'session',editId:first.editId,status:'Applied'});
+  assert.equal(b.drafts.get('A.pas|A').doc.summary,'second');
+  b.receive({type:'editResult',sessionId:'session2',editId:second.editId,status:'Applied'});
+  b.receive({type:'loadDoc',data:{element:{...element('A','3'),sessionId:'session3'},doc:{summary:'second'}}});
+  assert.equal(b.drafts.size,0);b.cancelPending();
+ }
+});
+test('same bridge loading restores draft after A to B to A',()=>{
+ const b=new DelphiBridge();b.sendToHost=()=>{};let shown;b.onElementLoaded((e,d)=>shown=d);
+ b.receive({type:'loadDoc',data:{element:element('A'),doc:{summary:'source'}}});b.notifyDocChanged({summary:'draft'});
+ b.receive({type:'loadDoc',data:{element:element('B'),doc:{summary:'B'}}});
+ b.receive({type:'loadDoc',data:{element:element('A'),doc:{summary:'source'}}});assert.equal(shown.summary,'draft');b.cancelPending();
+});
+
+test('same revision refresh retains pending formatted edit, external revision does not autosave it',async()=>{
+ for(const revision of ['1','external']){
+  const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);b.saveDebounceMs=5;
+  b.setContext(element('FromB'));b.notifyDocChanged({summary:'edited',rawXml:'<summary>edited</summary>',xmlEdited:true});
+  b.receive({type:'loadDoc',data:{element:element('FromB',revision),doc:{summary:'source'}}});
+  await sleep(20);const writes=sent.filter(m=>m.type==='docUpdated');
+  assert.equal(writes.length,revision==='1'?1:0);
+  if(writes.length){assert.equal(writes[0].doc.xmlEdited,true);assert.equal(writes[0].doc.summary,'edited');}
+  b.cancelPending();
+ }
+});

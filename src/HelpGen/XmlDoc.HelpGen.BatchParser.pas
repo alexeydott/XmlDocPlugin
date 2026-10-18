@@ -174,7 +174,7 @@ begin
             if LCodeElem.ExistingDocXml <> '' then
               LUnitDoc.UnitDoc.LoadFromXml(LCodeElem.ExistingDocXml);
           end;
-          dekClass, dekRecord, dekInterface:
+          dekClass, dekRecord, dekInterface, dekType:
           begin
             LTypeDoc := TTypeDocInfo.Create;
             LTypeDoc.CodeElement:=LCodeElem;LTypeDoc.Visibility:=LCodeElem.Visibility;
@@ -193,6 +193,7 @@ begin
               LTypeMap[LCodeElem.QualifiedParent].NestedTypes.Add(LTypeDoc)
             else LUnitDoc.Types.Add(LTypeDoc);
             LTypeMap.AddOrSetValue(LTypeKey, LTypeDoc);
+            if Length(LCodeElem.GenericParams)>0 then LTypeMap.AddOrSetValue(LTypeKey+'<'+string.Join(',',LCodeElem.GenericParams)+'>',LTypeDoc);
           end;
 
           dekMethod, dekProperty, dekField:

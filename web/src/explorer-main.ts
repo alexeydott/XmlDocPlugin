@@ -10,8 +10,7 @@ let selectedElement: TreeElementInfo | null = null;
 
 function handleTreeSelect(element: TreeElementInfo): void {
   selectedElement = element;
-  bridge.setContext(element);
-  loadDocument(element, element.doc);
+  bridge.receive({type:'loadDoc',data:{element,doc:element.doc}});
 }
 
 function handleTreeDblClick(element: TreeElementInfo): void {

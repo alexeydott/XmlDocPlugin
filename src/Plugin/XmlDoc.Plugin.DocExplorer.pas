@@ -60,7 +60,7 @@ type
     function BuildLoadTreeScript: string;
     procedure FilePollTimerFired(Sender: TObject);
     function FindElementByFullName(const AFullName: string): TCodeElementInfo;
-    function HandleDocUpdated(const AJsonStr, AFullName: string):Boolean;
+    function HandleDocUpdated(const AJsonStr, AFullName: string;const AEditId:string):Boolean;
     procedure HandleJumpToLine(ALine: Integer);
     procedure InitTimerFired(Sender: TObject);
     procedure LoadBounds;
@@ -220,7 +220,7 @@ begin
     Exit;
   end;
   try
-    var ResourceProject:=GetActiveProject;
+    var ResourceProject:=DocumentationProjectForFile(FCurrentFileName);
     if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
     FBrowser.LoadEditorResource(FindClassHInstance(TDocInspectorForm), CExplorerResourceName);
   except
@@ -247,8 +247,8 @@ end;
 function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
 begin
   try
-    if (Source<>FDocParser.SourceText) or (FEditSessionId='') then FEditSessionId:=TGUID.NewGuid.ToString;
-    ConfigureDeclarationContext(FDocParser);
+    ConfigureDeclarationContext(FDocParser,nil,FCurrentFileName);
+    if not FDocParser.IsUpToDate(Source) or (FEditSessionId='') then FEditSessionId:=TGUID.NewGuid.ToString;
     FDocParser.ParseSource(Source,FCurrentFileName);
     FParseError:='';
     if Assigned(FBrowserError) then FBrowserError.Visible:=False;
@@ -312,7 +312,7 @@ begin
       if Assigned(LDocObj) and (LFullName <> '') then
         if SourceEditProtection(FCurrentFileName)<>'' then FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),SourceEditProtection(FCurrentFileName))) else
         if ValidateEdit(LMsg,FindElementByFullName(LFullName),FCurrentFileName,FEditSessionId,FDocParser.SourceText) then begin
-          if HandleDocUpdated(LDocObj.ToJSON,LFullName) then FProjectDocs.Acknowledge(LMsg);end
+          if HandleDocUpdated(LDocObj.ToJSON,LFullName,LMsg.GetValue<string>('editId','')) then FProjectDocs.Acknowledge(LMsg);end
         else FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),'Source changed — reload before applying'));
     end
     else if LMsgType = 'jumpToLine' then
@@ -375,7 +375,7 @@ begin
       LObj.AddPair('genericParams', LGenericParams);
     end;
 
-    var ResourceProject:=GetActiveProject;
+    var ResourceProject:=DocumentationProjectForFile(FCurrentFileName);
     if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
     LObj.AddPair('resourceBase','https://xmldoc.resources/');
     AddEditContext(LObj,AElement,FCurrentFileName,FEditSessionId,FDocParser.SourceText);
@@ -483,7 +483,7 @@ begin
   end;
 end;
 
-function TDocExplorerForm.HandleDocUpdated(const AJsonStr, AFullName: string):Boolean;
+function TDocExplorerForm.HandleDocUpdated(const AJsonStr, AFullName: string;const AEditId:string):Boolean;
 var
   LEditor: IOTASourceEditor;
   LElement: TCodeElementInfo;
@@ -510,7 +510,7 @@ begin
     FUpdatingSource := True;
     try
       if not TDocOTAWriter.ApplyToEditor(LEditor, LElement, LModel) then Exit;
-      Result:=True;FBrowser.ExecuteScript(EditResult(FEditSessionId,'Applied'));
+      Result:=True;FBrowser.ExecuteScript(EditResult(FEditSessionId,'Applied',AEditId));
 
       // 소스 재파싱 + 트리 재전송
       LSource := ReadEditorSource(LEditor);
@@ -563,7 +563,8 @@ begin
     Exit;
 
   // 소스가 동일하면 무시
-  if SameText(AFileName, FCurrentFileName) and (FLastSource = ASource) then
+  ConfigureDeclarationContext(FDocParser,nil,FCurrentFileName);
+  if SameText(AFileName, FCurrentFileName) and (FLastSource = ASource) and FDocParser.IsUpToDate(ASource) then
     Exit;
 
   FCurrentFileName := AFileName;

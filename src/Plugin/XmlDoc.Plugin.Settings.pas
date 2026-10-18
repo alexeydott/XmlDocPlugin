@@ -97,6 +97,7 @@ type
     FProjectDir: string;
 
     procedure LoadFromRegistry;
+    procedure LoadProjectDefaults;
     procedure LoadProjectSettings(const AProjectDir: string);
     procedure SaveToRegistry;
 
@@ -195,15 +196,7 @@ begin
   FGlobal.General.LogLevel := llInfo;
   FGlobal.General.LogPath := '';
 
-  // Project defaults
-  FProject.HelpGen.DefaultFormats := TArray<string>.Create('html', 'md');
-  FProject.HelpGen.OutputDir := 'docs';
-  FProject.HelpGen.Title := '';
-  FProject.HelpGen.ExcludePatterns := nil;
-  FProject.HelpGen.IncludePrivate := False;
-  FProject.HelpGen.InterfaceOnly := True;
-  FProject.HelpGen.HTMLTheme := 'default';
-  FProject.HelpGen.CoverageMinPercent := 0;
+  LoadProjectDefaults;
 end;
 
 procedure TPluginSettings.Load;
@@ -365,8 +358,22 @@ begin
   end;
 end;
 
+procedure TPluginSettings.LoadProjectDefaults;
+begin
+  // Project defaults
+  FProject.HelpGen.DefaultFormats := TArray<string>.Create('html', 'md');
+  FProject.HelpGen.OutputDir := 'docs';
+  FProject.HelpGen.Title := '';
+  FProject.HelpGen.ExcludePatterns := nil;
+  FProject.HelpGen.IncludePrivate := False;
+  FProject.HelpGen.InterfaceOnly := True;
+  FProject.HelpGen.HTMLTheme := 'default';
+  FProject.HelpGen.CoverageMinPercent := 0;
+end;
+
 procedure TPluginSettings.LoadProject(const AProjectDir: string);
 begin
+  LoadProjectDefaults;
   FProjectDir := AProjectDir;
   LoadProjectSettings(AProjectDir);
 end;

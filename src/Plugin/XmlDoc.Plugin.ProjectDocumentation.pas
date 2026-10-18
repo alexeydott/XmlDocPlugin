@@ -6,6 +6,7 @@ type
  private
   FElements:TDictionary<string,TCodeElementInfo>;
   FQuickPreview:TQuickDocPreview;
+  FCacheKey,FCacheCatalog:string;
   FEffective:TDictionary<string,string>;
   FSources,FSessions:TDictionary<string,string>;
   function Key(const FileName,SymbolId:string):string;
@@ -40,8 +41,13 @@ begin
  Result:=TPath.Combine(DraftDirectory,THashSHA2.GetHashString(Identity)+'.json');
 end;
 procedure TProjectDocumentation.Acknowledge(Message:TJSONObject);
-var FileName:string;
-begin FileName:=DraftPath(Message);if TFile.Exists(FileName) then TFile.Delete(FileName);end;
+var FileName:string;Saved:TJSONObject;
+begin FileName:=DraftPath(Message);if not TFile.Exists(FileName) then Exit;
+ Saved:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName)) as TJSONObject;
+ try if Assigned(Saved) and Assigned(Saved.GetValue('doc')) and Assigned(Message.GetValue('doc')) and
+  (Saved.GetValue('doc').ToJSON=Message.GetValue('doc').ToJSON) then TFile.Delete(FileName);
+ finally Saved.Free;end;
+end;
 procedure TProjectDocumentation.Draft(Message:TJSONObject;Browser:TXmlDocBrowser);
 var FileName,RootPath:string;Project:IOTAProject;Json,Reply:TJSONObject;Drafts:TJSONArray;
 begin
@@ -50,7 +56,7 @@ begin
   if (Message.GetValue<string>('fileName','')='') or (Message.GetValue<string>('symbolId','')='') then Exit;
   ForceDirectories(DraftDirectory);FileName:=DraftPath(Message);
   TFile.WriteAllText(FileName+'.tmp',Message.ToJSON,TEncoding.UTF8);
-  if TFile.Exists(FileName) then TFile.Replace(FileName+'.tmp',FileName,'') else TFile.Move(FileName+'.tmp',FileName);
+  if not MoveFileEx(PChar(FileName+'.tmp'),PChar(FileName),MOVEFILE_REPLACE_EXISTING or MOVEFILE_WRITE_THROUGH) then RaiseLastOSError;
  end else begin
   Reply:=TJSONObject.Create;Drafts:=TJSONArray.Create;Reply.AddPair('drafts',Drafts);
   try
@@ -68,7 +74,7 @@ end;
 procedure TProjectDocumentation.Catalog(const Scope:string;Browser:TXmlDocBrowser);
 var Files:TList<string>;Services:IOTAModuleServices;Project:IOTAProject;Group:IOTAProjectGroup;
  I,J:Integer;EditorServices:IOTAEditorServices;FileName,Source,Session:string;Parser:TDocParser;Model:TXmlDocModel;E:TCodeElementInfo;
- Root,Json,Param:TJSONObject;Elements,Errors,Params,Generics,Interfaces:TJSONArray;P:TParamInfo;G:string;Editor:IOTASourceEditor;Batch:TBatchParser;Context:TDocParser;FileProjects:TDictionary<string,IOTAProject>;
+ Root,Json,Param:TJSONObject;Elements,Errors,Params,Generics,Interfaces:TJSONArray;P:TParamInfo;G:string;Editor:IOTASourceEditor;Batch:TBatchParser;Context:TDocParser;FileProjects:TDictionary<string,IOTAProject>;SourceTexts:TDictionary<string,string>;CacheBuilder:TStringBuilder;CacheKey:string;
  procedure AddProject(AProject:IOTAProject);
  var K:Integer;F:string;
  begin
@@ -80,6 +86,7 @@ var Files:TList<string>;Services:IOTAModuleServices;Project:IOTAProject;Group:IO
   end;
  end;
 begin
+ SourceTexts:=TDictionary<string,string>.Create;CacheBuilder:=TStringBuilder.Create;
  FileProjects:=TDictionary<string,IOTAProject>.Create;Files:=TList<string>.Create;Root:=TJSONObject.Create;Elements:=TJSONArray.Create;Errors:=TJSONArray.Create;
  Root.AddPair('elements',Elements);Root.AddPair('errors',Errors);
  try
@@ -91,20 +98,35 @@ begin
    if Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) and Assigned(EditorServices.TopView) and Assigned(EditorServices.TopView.Buffer) then
      Files.Add(EditorServices.TopView.Buffer.FileName);
   end;
+  CacheBuilder.Append(Scope);
+  for FileName in Files do begin
+   Editor:=SourceEditorForFile(FileName);if Assigned(Editor) then Source:=EditorSource(Editor) else Source:=ReadSourceFile(FileName);
+   SourceTexts.AddOrSetValue(LowerCase(FileName),Source);CacheBuilder.Append(FileName).Append(SourceRevision(Source)).Append(SourceEditProtection(FileName));
+   var ProjectContext:=ActiveDocumentationContext;
+   try
+    if FileProjects.ContainsKey(LowerCase(FileName)) then begin ProjectContext.Free;ProjectContext:=nil;ProjectContext:=ActiveDocumentationContext(FileProjects[LowerCase(FileName)]);end;
+    if Assigned(ProjectContext) then CacheBuilder.Append(ProjectContext.ProjectFile).Append(ProjectContext.Configuration).Append(ProjectContext.Platform).Append(string.Join(';',ProjectContext.Defines)).Append(string.Join(';',ProjectContext.SearchPaths)).Append(string.Join(';',ProjectContext.IncludePaths));
+   finally ProjectContext.Free;end;
+  end;
+  for var Snapshot in CurrentSourceSnapshots do CacheBuilder.Append(Snapshot.FileName).Append(SourceRevision(Snapshot.Source));
+  CacheKey:=THashSHA2.GetHashString(CacheBuilder.ToString);
+  if (FCacheCatalog<>'') and (CacheKey=FCacheKey) then begin Browser.ExecuteScript('window.xmlDocWorkbench?.receiveCatalog('+FCacheCatalog+');');Exit;end;
   FElements.Clear;FSources.Clear;FSessions.Clear;FEffective.Clear;
   for FileName in Files do begin
    Parser:=TDocParser.Create;Model:=TXmlDocModel.Create;
    try
     try
-     Editor:=SourceEditorForFile(FileName);if Assigned(Editor) then Source:=EditorSource(Editor) else Source:=ReadSourceFile(FileName);
+     Source:=SourceTexts[LowerCase(FileName)];
      Session:=TGUID.NewGuid.ToString;FSources.AddOrSetValue(LowerCase(FileName),Source);FSessions.AddOrSetValue(LowerCase(FileName),Session);
      if FileProjects.ContainsKey(LowerCase(FileName)) then ConfigureDeclarationContext(Parser,FileProjects[LowerCase(FileName)]) else ConfigureDeclarationContext(Parser);
      Parser.SourceFiles:=Files.ToArray;Parser.ParseSource(Source,FileName);
      for E in Parser.GetAllElements do begin
       if (E.Name='') or FElements.ContainsKey(Key(FileName,E.SymbolId)) then Continue;
       FElements.Add(Key(FileName,E.SymbolId),E);Json:=TJSONObject.Create;
+      if FileProjects.ContainsKey(LowerCase(FileName)) then Json.AddPair('projectFile',FileProjects[LowerCase(FileName)].FileName);
       Json.AddPair('kind',E.Kind.ToString);Json.AddPair('name',E.Name);Json.AddPair('fullName',E.FullName);
       Json.AddPair('qualifiedParent',E.QualifiedParent);Json.AddPair('visibility',E.Visibility);
+ Json.AddPair('methodBinding',E.MethodBinding);Json.AddPair('isReintroduce',TJSONBool.Create(E.IsReintroduce));
       Json.AddPair('returnType',E.ReturnType);Json.AddPair('lineNumber',TJSONNumber.Create(E.LineNumber));
       AddEditContext(Json,E,FileName,Session,Source);
       Params:=TJSONArray.Create;for P in E.Params do begin Param:=TJSONObject.Create;Param.AddPair('name',P.Name);Param.AddPair('type',P.TypeName);Param.AddPair('isVar',TJSONBool.Create(P.IsVar));Param.AddPair('isConst',TJSONBool.Create(P.IsConst));Param.AddPair('isOut',TJSONBool.Create(P.IsOut));Params.AddElement(Param);end;Json.AddPair('params',Params);
@@ -132,8 +154,9 @@ begin
     end;
    except on Ex:Exception do Errors.Add('Inherited documentation: '+Ex.Message);end;
   finally Context.Free;Batch.Free;end;
+  if Errors.Count=0 then begin FCacheKey:=CacheKey;FCacheCatalog:=Root.ToJSON;end else FCacheCatalog:='';
   Browser.ExecuteScript('window.xmlDocWorkbench?.receiveCatalog('+Root.ToJSON+');');
- finally Root.Free;Files.Free;FileProjects.Free;end;
+ finally Root.Free;Files.Free;FileProjects.Free;CacheBuilder.Free;SourceTexts.Free;end;
 end;
 procedure TProjectDocumentation.Authoring(Message:TJSONObject;Browser:TXmlDocBrowser);
 var Project:IOTAProject;FileName,Scope,Text:string;Root,Payload,Reply,Global:TJSONObject;
@@ -246,7 +269,7 @@ begin
  finally Seen.Free;Model.Free;Plans.Free;Sorted.Free;end;
 end;
 function TProjectDocumentation.Handle(Message:TJSONObject;Browser:TXmlDocBrowser):Boolean;
-var Kind,FileName,SymbolId,Selection:string;Actions:IOTAActionServices;Editor:IOTASourceEditor;View:IOTAEditView;
+var Kind,FileName,SymbolId,Selection,ProjectFile:string;Project:IOTAProject;Group:IOTAProjectGroup;Actions:IOTAActionServices;Editor:IOTASourceEditor;View:IOTAEditView;
  Pos:TOTAEditPos;Elide:IOTAElideActions;Utf8Selection:UTF8String;E:TCodeElementInfo;Parser:TDocParser;Found:Boolean;J:TJSONString;
 begin
  Kind:=Message.GetValue<string>('type','');Result:=(Kind='requestCatalog') or (Kind='openSymbol') or (Kind='batchUpdated') or (Kind='copySelection') or (Kind='requestQuickDoc') or (Kind='foldDocumentation') or (Kind='loadAuthoring') or (Kind='saveAuthoring') or (Kind='draftUpdated') or (Kind='listDrafts');if not Result then Exit;
@@ -276,7 +299,14 @@ begin
    Actions:=BorlandIDEServices as IOTAActionServices;if not Actions.OpenFile(FileName) then Exit;
    Editor:=SourceEditorForFile(FileName);if not Assigned(Editor) then Exit;
    Parser:=TDocParser.Create;
-   try ConfigureDeclarationContext(Parser);Parser.ParseSource(EditorSource(Editor),FileName);Found:=False;
+   try
+    Project:=nil;ProjectFile:=Message.GetValue<string>('projectFile','');
+    if ProjectFile<>'' then begin
+     Group:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;
+     if Assigned(Group) then for var I:=0 to Group.ProjectCount-1 do if SameText(Group.Projects[I].FileName,ProjectFile) then begin Project:=Group.Projects[I];Break;end;
+     if not Assigned(Project) then raise Exception.Create('Project context is unavailable: '+ProjectFile);
+    end;
+    ConfigureDeclarationContext(Parser,Project);Parser.ParseSource(EditorSource(Editor),FileName);Found:=False;
     for E in Parser.GetAllElements do if E.SymbolId=SymbolId then begin Found:=True;Break;end;
     if not Found then raise Exception.Create('Declaration changed — refresh the workspace');
     View:=Editor.EditViews[0];Pos.Line:=E.LineNumber;Pos.Col:=1;View.SetCursorPos(Pos);View.MoveViewToCursor;View.Paint;

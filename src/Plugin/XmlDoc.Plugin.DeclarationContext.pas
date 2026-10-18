@@ -1,30 +1,39 @@
-unit XmlDoc.Plugin.DeclarationContext;
+﻿unit XmlDoc.Plugin.DeclarationContext;
 interface
 uses XmlDoc.Parser,XmlDoc.ProjectContext,ToolsAPI;
+function DocumentationProjectForFile(const FileName:string):IOTAProject;
 function ActiveDocumentationContext(Project:IOTAProject=nil):TProjectContext;
-procedure ConfigureDeclarationContext(Parser:TDocParser;Project:IOTAProject=nil);
+procedure ConfigureDeclarationContext(Parser:TDocParser;Project:IOTAProject=nil;const SourceFileName:string='');
 implementation
 uses System.SysUtils,System.IOUtils,System.Generics.Collections,XmlDoc.Plugin.EditSession,XmlDoc.Plugin.Settings;
+function DocumentationProjectForFile(const FileName:string):IOTAProject;
+var Group:IOTAProjectGroup;
+begin
+ Result:=nil;Group:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;
+ if Assigned(Group) and (FileName<>'') then Result:=Group.FindProject(FileName);
+ if not Assigned(Result) then Result:=GetActiveProject;
+end;
 function ActiveDocumentationContext(Project:IOTAProject):TProjectContext;
 var Configs:IOTAProjectOptionsConfigurations;Config,Platform:string;
 begin
  Result:=nil;if not Assigned(Project) then Project:=GetActiveProject;if not Assigned(Project) then Exit;
  Config:='Debug';Platform:='Win32';
  if Supports(Project.ProjectOptions,IOTAProjectOptionsConfigurations,Configs) and Assigned(Configs.ActiveConfiguration) then begin
-  Config:=Configs.ActiveConfiguration.Name;Platform:=Configs.ActiveConfiguration.Platform;
+  Config:=Configs.ActiveConfiguration.Name;Platform:=Configs.ActivePlatformName;
  end;
  Result:=TProjectContext.Create(Project.FileName,Config,Platform);
  if Project=GetActiveProject then TPluginSettings.Instance.LoadProject(ExtractFilePath(Project.FileName));
 end;
-procedure ConfigureDeclarationContext(Parser:TDocParser;Project:IOTAProject);
+procedure ConfigureDeclarationContext(Parser:TDocParser;Project:IOTAProject;const SourceFileName:string);
 var Context:TProjectContext;Files,Paths:TList<string>;I:Integer;FileName,Path,Search:string;
 begin
  Files:=TList<string>.Create;Paths:=TList<string>.Create;
  try
   Parser.SourceSnapshots:=CurrentSourceSnapshots;
-  if not Assigned(Project) then Project:=GetActiveProject;
+  if not Assigned(Project) then begin if SourceFileName<>'' then Project:=DocumentationProjectForFile(SourceFileName) else Project:=DocumentationProjectForFile(Parser.SourceFileName);end;
   Context:=ActiveDocumentationContext(Project);
   try
+   if not Assigned(Context) then begin Parser.Platform:='';Parser.Defines:=nil;end;
    if Assigned(Context) then begin Parser.Platform:=Context.Platform;Parser.Defines:=Context.Defines;
     Paths.AddRange(Context.SearchPaths);Paths.AddRange(Context.IncludePaths);Files.AddRange(Context.SourceFiles);end;
   finally Context.Free;end;

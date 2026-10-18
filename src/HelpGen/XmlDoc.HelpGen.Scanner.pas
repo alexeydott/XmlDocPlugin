@@ -34,10 +34,9 @@ type
   TProjectScanner = class
   private
     FSearchPaths,FDefines:TArray<string>;
-    FPlatform:string;
+    FPlatform,FMainSource:string;
     function IsExcluded(const AFilePath: string; const APatterns: TArray<string>): Boolean;
     function ParseProjectUses(const AProjectPath: string): TArray<string>;
-    function ResolveMainSource(const ADprojPath: string): string;
     function ResolveUnitPath(const AUnitName, AProjectDir: string;
       const ASearchPaths: TArray<string>): string;
     function ScanDirectory(const ADirPath: string): TArray<string>;
@@ -89,52 +88,13 @@ begin
   end;
 end;
 
-function TProjectScanner.ResolveMainSource(const ADprojPath: string): string;
-var
-  LSource: TStringList;
-  LText: string;
-  LStartPos: Integer;
-  LEndPos: Integer;
-  LMainSource: string;
-  LProjectDir: string;
-begin
-  Result := '';
-  LProjectDir := ExtractFilePath(ADprojPath);
-
-  LSource := TStringList.Create;
-  try
-    LSource.Text := TFile.ReadAllText(ADprojPath);
-    LText := LSource.Text;
-  finally
-    LSource.Free;
-  end;
-
-  // <MainSource>FileName.dpk</MainSource> 추출
-  LStartPos := Pos('<MainSource>', LText);
-  if LStartPos = 0 then
-    Exit;
-
-  LStartPos := LStartPos + Length('<MainSource>');
-  LEndPos := Pos('</MainSource>', LText);
-  if LEndPos <= LStartPos then
-    Exit;
-
-  LMainSource := Trim(Copy(LText, LStartPos, LEndPos - LStartPos));
-  if LMainSource = '' then
-    Exit;
-
-  Result := TPath.GetFullPath(TPath.Combine(LProjectDir, LMainSource));
-  if not TFile.Exists(Result) then
-    Result := '';
-end;
-
 function TProjectScanner.ParseProjectUses(const AProjectPath:string):TArray<string>;
 var Lex:TmwPasLex;List:TList<string>;SourcePath,Dir,Name,Path,Define:string;
  procedure Next;
  begin repeat Lex.Next;until not Lex.IsJunk or (Lex.TokenID=ptNull);end;
 begin
- SourcePath:=AProjectPath;if SameText(ExtractFileExt(SourcePath),'.dproj') then SourcePath:=ResolveMainSource(SourcePath);
- if SourcePath='' then Exit(nil);Dir:=ExtractFilePath(SourcePath);Lex:=TmwPasLex.Create;List:=TList<string>.Create;
+ SourcePath:=AProjectPath;if SameText(ExtractFileExt(SourcePath),'.dproj') then SourcePath:=FMainSource;
+ if (SourcePath='') or not TFile.Exists(SourcePath) then Exit(nil);Dir:=ExtractFilePath(SourcePath);Lex:=TmwPasLex.Create;List:=TList<string>.Create;
  try
   Lex.InitDefinesDefinedByCompiler;
   if FPlatform<>'' then begin
@@ -221,11 +181,12 @@ var
   Context:TProjectContext;
   Manifest:TArray<string>;
 begin
+  FMainSource:=AOptions.ProjectPath;
   FPlatform:=AOptions.Platform;
   FSearchPaths:=Copy(AOptions.SearchPaths);FDefines:=Copy(AOptions.Defines);
   if (AOptions.Source=ssProjectFile) and SameText(ExtractFileExt(AOptions.ProjectPath),'.dproj') then begin
     Context:=TProjectContext.Create(AOptions.ProjectPath,AOptions.Configuration,AOptions.Platform);
-    try FPlatform:=Context.Platform;FSearchPaths:=Context.SearchPaths+Context.IncludePaths+FSearchPaths;FDefines:=Context.Defines+FDefines;Manifest:=Context.SourceFiles;
+    try FMainSource:=Context.MainSource;FPlatform:=Context.Platform;FSearchPaths:=Context.SearchPaths+Context.IncludePaths+FSearchPaths;FDefines:=Context.Defines+FDefines;Manifest:=Context.SourceFiles;
     finally Context.Free;end;
   end;
   case AOptions.Source of

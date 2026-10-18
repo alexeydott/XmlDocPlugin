@@ -577,18 +577,19 @@ begin
 end;
 
 procedure TDocParser.SetPlatform(const Value:string);
-begin FPlatform:=Value;FCachedHash:='';end;
+begin if FPlatform=Value then Exit;FPlatform:=Value;FCachedHash:='';end;
 
 procedure TDocParser.SetSnapshots(const Value:TArray<TSourceSnapshot>);
-begin FSnapshots:=Copy(Value);FCachedHash:='';end;
+var I:Integer;Equal:Boolean;
+begin Equal:=Length(Value)=Length(FSnapshots);if Equal then for I:=0 to High(Value) do if (Value[I].FileName<>FSnapshots[I].FileName) or (Value[I].Source<>FSnapshots[I].Source) then begin Equal:=False;Break;end;if Equal then Exit;FSnapshots:=Copy(Value);FCachedHash:='';end;
 
 procedure TDocParser.SetDefines(const Value:TArray<string>);
-begin FDefines:=Copy(Value);FCachedHash:='';end;
+begin if string.Join(#0,FDefines)=string.Join(#0,Value) then Exit;FDefines:=Copy(Value);FCachedHash:='';end;
 
 procedure TDocParser.SetSearchPaths(const Value:TArray<string>);
-begin FSearchPaths:=Copy(Value);FCachedHash:='';end;
+begin if string.Join(#0,FSearchPaths)=string.Join(#0,Value) then Exit;FSearchPaths:=Copy(Value);FCachedHash:='';end;
 procedure TDocParser.SetSourceFiles(const Value:TArray<string>);
-begin FSourceFiles:=Copy(Value);FCachedHash:='';end;
+begin if string.Join(#0,FSourceFiles)=string.Join(#0,Value) then Exit;FSourceFiles:=Copy(Value);FCachedHash:='';end;
 
 procedure TDocParser.SetResolveDeclaration(const Value:TResolveDeclarationEvent);
 begin
@@ -630,6 +631,38 @@ begin
   ));
 end;
 
+function SyntaxTypeName(Node:TSyntaxNode):string;
+var Child,Args:TSyntaxNode;Parts:TArray<string>;
+begin
+ Result:='';if not Assigned(Node) then Exit;
+ Result:=Node.GetAttribute(anName);Args:=Node.FindNode(ntTypeArgs);
+ if Assigned(Args) then begin
+  Parts:=nil;for Child in Args.ChildNodes do Parts:=Parts+[SyntaxTypeName(Child)];
+  if Length(Parts)>0 then Result:=Result+'<'+string.Join(',',Parts)+'>';
+ end;
+ if Result='' then begin
+  var Kind:=Node.GetAttribute(anType);
+  Child:=Node.FindNode(ntType);
+  if Kind='array' then Result:='array of '+SyntaxTypeName(Child)
+  else if Kind='pointer' then Result:='^'+SyntaxTypeName(Child)
+  else if Assigned(Child) then Result:=SyntaxTypeName(Child)
+  else Result:=Kind;
+ end;
+end;
+function SyntaxVisibility(Node:TSyntaxNode):string;
+begin
+ Result:='';Node:=Node.ParentNode;
+ while Assigned(Node) do begin
+  case Node.Typ of
+   ntPrivate,ntStrictPrivate:Exit('private');
+   ntProtected,ntStrictProtected:Exit('protected');
+   ntPublic:Exit('public');ntPublished:Exit('published');ntAutomated:Exit('published');
+  end;
+  if (Node.Typ=ntType) and (Node.GetAttribute(anType)<>'') then Exit('public');
+  Node:=Node.ParentNode;
+ end;
+end;
+
 function TDocParser.BuildParentPath(ANode: TSyntaxNode): string;
 var
   LCurrent: TSyntaxNode;
@@ -642,6 +675,7 @@ begin
     if LCurrent.Typ = ntTypeDecl then
     begin
       LName := LCurrent.GetAttribute(anName);
+      var Generics:=ExtractGenericParams(LCurrent);if Length(Generics)>0 then LName:=LName+'<'+string.Join(',',Generics)+'>';
       if LName <> '' then
       begin
         if Result = '' then
@@ -792,7 +826,7 @@ begin
         // 타입: ntType 자식 노드에서 추출
         LTypeNode := LChild.FindNode(ntType);
         if Assigned(LTypeNode) then
-          LParam.TypeName := LTypeNode.GetAttribute(anName);
+          LParam.TypeName := SyntaxTypeName(LTypeNode);
 
         // const/var/out
         LKind := LowerCase(LChild.GetAttribute(anKind));
@@ -822,7 +856,7 @@ begin
   // ntReturnType의 자식 ntType에서 타입 이름 추출
   LTypeNode := LRetNode.FindNode(ntType);
   if Assigned(LTypeNode) then
-    Result := LTypeNode.GetAttribute(anName)
+    Result := SyntaxTypeName(LTypeNode)
   else
     Result := LRetNode.GetAttribute(anName);
 end;
@@ -1065,18 +1099,20 @@ begin
       I := Pos('<', Result.Name);
       if I > 0 then Result.Name := Copy(Result.Name, 1, I - 1);
       Result.MethodKind := ANode.GetAttribute(anKind);
+      Result.MethodBinding:=ANode.GetAttribute(anMethodBinding);Result.IsReintroduce:=SameText(ANode.GetAttribute(anReintroduce),'true');
       Result.IsOverload:=SameText(ANode.GetAttribute(anOverload),'true');
       Result.Params := ExtractParams(ANode);
       Result.ReturnType := ExtractReturnType(ANode);
       Result.GenericParams := ExtractGenericParams(ANode);
-      Result.Visibility := ANode.GetAttribute(anVisibility);
+      Result.Visibility := SyntaxVisibility(ANode);
     end;
 
     ntProperty:
     begin
       Result.Kind := dekProperty;
       Result.Name := ANode.GetAttribute(anName);
-      Result.Visibility := ANode.GetAttribute(anVisibility);
+      Result.Params:=ExtractParams(ANode);Result.ReturnType:=SyntaxTypeName(ANode.FindNode(ntType));
+      Result.Visibility := SyntaxVisibility(ANode);
     end;
 
     ntTypeDecl:
@@ -1128,10 +1164,12 @@ begin
           Result.Name := TValuedSyntaxNode(LTypeNode).Value
         else if Assigned(LTypeNode) then Result.Name := LTypeNode.GetAttribute(anName);
       end;
-      Result.Visibility := ANode.GetAttribute(anVisibility);
+      Result.Visibility := SyntaxVisibility(ANode);
     end;
   end;
 
+  if Result.Visibility='' then Result.Visibility:=SyntaxVisibility(ANode);
+  if Result.Kind=dekField then Result.ReturnType:=SyntaxTypeName(ANode.FindNode(ntType));
   // 부모 경로
   if Result.QualifiedParent = '' then
     Result.QualifiedParent := BuildParentPath(ANode);
@@ -1143,7 +1181,7 @@ begin
   Result.FileName:=FSourceFileName;
   Result.Signature:=Result.FullName;
   if Length(Result.GenericParams)>0 then Result.Signature:=Result.Signature+'`'+IntToStr(Length(Result.GenericParams));
-  if Result.Kind=dekMethod then begin
+  if Result.Kind in [dekMethod,dekProperty] then begin
     Result.Signature:=Result.Signature+'(';
     for I:=0 to High(Result.Params) do begin
       if I>0 then Result.Signature:=Result.Signature+';';
@@ -1154,6 +1192,7 @@ begin
     end;
     Result.Signature:=Result.Signature+'):'+Result.ReturnType;
   end;
+  if Result.Kind=dekField then Result.Signature:=Result.Signature+':'+Result.ReturnType;
   Result.UnitName:=FRootNode.GetAttribute(anName);
   if Result.Kind=dekUnit then Result.CanonicalName:=Result.UnitName
   else Result.CanonicalName:=Result.UnitName+'.'+Result.FullName;
@@ -1163,8 +1202,8 @@ begin
     if Assigned(LTypeNode) then
       for I:=0 to High(LTypeNode.ChildNodes) do
         if (LTypeNode.ChildNodes[I].Typ=ntType) and (LTypeNode.ChildNodes[I].GetAttribute(anName)<>'') then begin
-          if Result.Ancestor='' then Result.Ancestor:=LTypeNode.ChildNodes[I].GetAttribute(anName)
-          else Result.Implements:=Result.Implements+[LTypeNode.ChildNodes[I].GetAttribute(anName)];
+          if Result.Ancestor='' then Result.Ancestor:=SyntaxTypeName(LTypeNode.ChildNodes[I])
+          else Result.Implements:=Result.Implements+[SyntaxTypeName(LTypeNode.ChildNodes[I])];
         end;
   end;
 

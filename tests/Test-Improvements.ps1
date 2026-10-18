@@ -1,4 +1,4 @@
-param(
+﻿param(
  [string]$EvidenceDir="$env:LOCALAPPDATA\XmlDocPlugin\WorkbenchTests\$([guid]::NewGuid())",
  [string]$Rad12='D:\Embarcadero RAD Studio\23.0',
  [string]$Rad13='D:\Embarcadero RAD Studio\37.0',
@@ -35,6 +35,13 @@ try {
  if($LASTEXITCODE -ne 3){throw 'Changed public API was not rejected'}
  $diagnostics=Get-Content "$EvidenceDir\changed-documentation\diagnostics.json" -Raw | ConvertFrom-Json
  if(!($diagnostics.issues | Where-Object code -eq XD011)){throw 'Public API change diagnostic is missing'}
+ $missing=Join-Path $EvidenceDir 'missing-resource'
+ New-Item -ItemType Directory -Force $missing | Out-Null
+ [IO.File]::WriteAllText((Join-Path $missing 'Missing.pas'),"unit Missing;`r`ninterface`r`n/// <summary><image src=`"absent.png`"/></summary>`r`ntype TMissing=class end;`r`nimplementation`r`nend.",[Text.UTF8Encoding]::new($true))
+ & $cli --directory $missing -o "$EvidenceDir\missing-output" -f html --check *> "$EvidenceDir\missing-resource.log"
+ if($LASTEXITCODE -eq 0){throw 'Missing resource was accepted'}
+ $missingDiagnostics=Get-Content "$EvidenceDir\missing-output\diagnostics.json" -Raw | ConvertFrom-Json
+ if(!($missingDiagnostics.issues | Where-Object code -eq XD013)){throw 'Resource diagnostic was not saved before rendering failed'}
  if(!$SkipIDE){& tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -EvidenceDir "$EvidenceDir\ide"}
  Write-Host "PASS. Evidence: $EvidenceDir"
 } finally {Pop-Location}

@@ -345,6 +345,16 @@ begin
       LRenderOpts.IncludeSearchIndex := True;
       LRenderOpts.CSSTheme := FOptions.Theme;
 
+      if FOptions.CheckDocumentation or (FOptions.WriteBaselineFile<>'') or (FOptions.BaselineFile<>'') then begin
+        Diagnostics:=TDocumentationReport.Create;
+        try Diagnostics.Analyze(LParser.Units,LRenderOpts.ProjectDir);
+          NewIssues:=Diagnostics.NewIssueCount(FOptions.BaselineFile);
+          Diagnostics.Save(TPath.Combine(FOptions.OutputDir,'diagnostics.json'));
+          if FOptions.WriteBaselineFile<>'' then Diagnostics.SaveBaseline(FOptions.WriteBaselineFile);
+          WriteLn(Format('Documentation: %d issues, %d new.',[Diagnostics.Issues.Count,NewIssues]));
+          if (NewIssues>0) and FOptions.CheckDocumentation and (FOptions.WriteBaselineFile='') then Result:=3;
+        finally Diagnostics.Free;end;
+      end;
       // 형식별 렌더링
       for LFormat in FOptions.Formats do
       begin
@@ -370,16 +380,6 @@ begin
         end;
       end;
 
-      if FOptions.CheckDocumentation or (FOptions.WriteBaselineFile<>'') or (FOptions.BaselineFile<>'') then begin
-        Diagnostics:=TDocumentationReport.Create;
-        try Diagnostics.Analyze(LParser.Units);
-          NewIssues:=Diagnostics.NewIssueCount(FOptions.BaselineFile);
-          Diagnostics.Save(TPath.Combine(FOptions.OutputDir,'diagnostics.json'));
-          if FOptions.WriteBaselineFile<>'' then Diagnostics.SaveBaseline(FOptions.WriteBaselineFile);
-          WriteLn(Format('Documentation: %d issues, %d new.',[Diagnostics.Issues.Count,NewIssues]));
-          if (NewIssues>0) and FOptions.CheckDocumentation and (FOptions.WriteBaselineFile='') then Result:=3;
-        finally Diagnostics.Free;end;
-      end;
       // 커버리지
       if FOptions.CoverageEnabled then
       begin

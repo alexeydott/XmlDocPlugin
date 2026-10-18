@@ -50,3 +50,6 @@ Desktop.ini
 /installer/intermediate/
 /installer/InstallerTests/
 !/XmlDocPlugin-Setup.exe
+
+# Per-user Delphi language-server state
+*.delphilsp.json

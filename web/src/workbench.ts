@@ -27,15 +27,15 @@ export function initWorkbench(hooks:Hooks):void {
  const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
  const xml=$<HTMLTextAreaElement>('xml-source');
  xml.oninput=()=>{const error=parseXml(xml.value).querySelector('parsererror');$('xml-error').textContent=error?.textContent??'XML is valid';const e=hooks.get().element;if(e)bridge.saveDraft({...hooks.get().doc,rawXml:xml.value,xmlEdited:true});};
- let applyPreview:(()=>void)|null=null;let preview:DocModel|null=null;let baseline=new Set<string>();let publicBaseline: {symbolId:string;name:string;file:string;line:number}[]=[];let history:{fileName?:string;symbolId?:string;line?:number}[]=[];let index=-1;let navigating=false;
+ let applyPreview:(()=>void)|null=null;let preview:DocModel|null=null;let baseline=new Set<string>();let publicBaseline: {symbolId:string;name:string;file:string;line:number}[]=[];let history:{projectFile?:string;fileName?:string;symbolId?:string;line?:number}[]=[];let index=-1;let navigating=false;
  const current=()=>hooks.get();
  const open=(element:ElementInfo)=>{
   if(!element.fileName || !element.symbolId)return;
-  bridge.sendToHost({type:'openSymbol',fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber??1});
+  bridge.sendToHost({type:'openSymbol',projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber??1});
  };
- const viewXml=()=>{
+ const viewXml=(focus=true)=>{
   $('doc-design').classList.add('hidden');$('doc-preview').classList.add('hidden');raw.classList.remove('hidden');
-  xml.value=editableXml(current().doc);xml.focus();
+  xml.value=editableXml(current().doc);if(focus)xml.focus();
  };
  const review=(doc:DocModel)=>{
   preview=doc;const target=current().element;applyPreview=()=>{if(current().element?.declarationId!==target?.declarationId || current().element?.sourceRevision!==target?.sourceRevision){bridge.setStatus('Source changed — review again');return;}hooks.apply(doc);};$('xml-before').textContent=editableXml(current().doc);$('xml-after').textContent=modelXml(doc);$('operation-preview').hidden=false;
@@ -63,7 +63,7 @@ export function initWorkbench(hooks:Hooks):void {
   $('documentation-problems').replaceChildren(panel);if(!old.length)next.click();
  };
  $('quick-documentation').onclick=()=>bridge.sendToHost({type:'requestQuickDoc'} as any);
- $('sync-document').onclick=sync;$('show-problems').onclick=showProblems;$('open-xml').onclick=viewXml;
+ $('sync-document').onclick=sync;$('show-problems').onclick=showProblems;$('open-xml').onclick=()=>viewXml();
  $('apply-operation').onclick=()=>{applyPreview?.();applyPreview=null;preview=null;$('operation-preview').hidden=true;};
  $('cancel-operation').onclick=()=>{applyPreview=null;preview=null;$('operation-preview').hidden=true;};
  $('fold-documentation').onclick=()=>bridge.sendToHost({type:'foldDocumentation'} as any);
@@ -79,7 +79,7 @@ export function initWorkbench(hooks:Hooks):void {
  $('focus-source').onclick=()=>{const e=current().element;if(e)open(e);};
  $('recover-drafts').onclick=()=>bridge.sendToHost({type:'listDrafts'} as any);
  $('reload-document').onclick=()=>{bridge.cancelPending();bridge.drafts.clear();bridge.setPinned(false);bridge.sendToHost({type:'requestRefresh'});};
- const move=(delta:number)=>{const next=index+delta;if(next>=0 && next<history.length){index=next;navigating=true;const e=history[index];if(e.fileName && e.symbolId)bridge.sendToHost({type:'openSymbol',fileName:e.fileName,symbolId:e.symbolId,line:e.line??1});}};
+ const move=(delta:number)=>{const next=index+delta;if(next>=0 && next<history.length){index=next;navigating=true;const e=history[index];if(e.fileName && e.symbolId)bridge.sendToHost({type:'openSymbol',projectFile:e.projectFile,fileName:e.fileName,symbolId:e.symbolId,line:e.line??1});}};
  $('history-back').onclick=()=>move(-1);$('history-forward').onclick=()=>move(1);
  document.addEventListener('keydown',event=>{
   if(event.altKey && ['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();move(event.key==='ArrowLeft'?-1:1);}
@@ -123,7 +123,7 @@ export function initWorkbench(hooks:Hooks):void {
   for(const element of filtered().filter(e=>e.qualifiedParent===owner && e.fileName===current().element?.fileName)){
    const row=document.createElement('label');const selected=document.createElement('input');selected.type='checkbox';selected.dataset.id=element.symbolId;selected.disabled=!!element.readOnly;selected.dataset.sourceLocked=String(!!element.readOnly);
    const name=document.createElement('span');name.textContent=element.signature??element.name;
-   const input=document.createElement('textarea');input.value=element.doc.summary;input.dataset.id=element.symbolId;input.readOnly=!!element.readOnly;input.dataset.sourceLocked=String(!!element.readOnly);input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);members.append(row);
+   const input=document.createElement('textarea');input.value=element.doc.summary;input.title='Summary XML fragment';input.dataset.id=element.symbolId;input.readOnly=!!element.readOnly;input.dataset.sourceLocked=String(!!element.readOnly);input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);members.append(row);
   }
  };
  $('catalog-query').oninput=renderCatalog;$('catalog-filter').onchange=renderCatalog;$('catalog-kind').onchange=renderCatalog;
@@ -131,7 +131,7 @@ export function initWorkbench(hooks:Hooks):void {
  $('refresh-catalog').onclick=refresh;$('next-problem').onclick=()=>{const list=filtered().filter(e=>!ready(e,e.doc,catalog));if(list.length)open(list[(++queueIndex)%list.length]);};
  $('apply-summaries').onclick=()=>{
   const changes=Array.from($('member-summaries').querySelectorAll<HTMLInputElement>('input:checked')).map(check=>{
-   const e=catalog.find(e=>e.symbolId===check.dataset.id)!;const input=Array.from($('member-summaries').querySelectorAll<HTMLTextAreaElement>('textarea')).find(t=>t.dataset.id===check.dataset.id)!;return {element:e,doc:{...e.doc,summary:escapeXml(input.value)}};
+   const e=catalog.find(e=>e.symbolId===check.dataset.id)!;const input=Array.from($('member-summaries').querySelectorAll<HTMLTextAreaElement>('textarea')).find(t=>t.dataset.id===check.dataset.id)!;if(parseXml('<summary>'+input.value+'</summary>').querySelector('parsererror'))throw Error('Invalid summary XML');return {element:e,doc:{...e.doc,summary:input.value}};
   });
   if(!changes.length)return;
   $('xml-before').textContent=changes.map(c=>c.element.signature+'\n'+modelXml(c.element.doc)).join('\n');$('xml-after').textContent=changes.map(c=>c.element.signature+'\n'+modelXml(c.doc)).join('\n');$('operation-preview').hidden=false;
@@ -202,8 +202,8 @@ export function initWorkbench(hooks:Hooks):void {
   },receiveSelection(code:string){const doc=current().doc;review({...doc,examples:[...(doc.examples??[]),{title:'Selected source',description:'',code}]});}};
  window.addEventListener('documentationLoaded',(event)=>{
   const {element,doc}=(event as CustomEvent).detail;
-  if(element){const last=history[index];if(!navigating && (last?.symbolId!==element.symbolId || last?.fileName!==element.fileName)){history=history.slice(0,index+1);history.push({fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber});index=history.length-1;}navigating=false;}
-  xml.value=editableXml(doc);$('xml-error').textContent=doc.parseError??'';if(doc.parseError || doc.xmlEdited)viewXml();showProblems();inheritance();showWording();spell();
+  if(element){const last=history[index];if(!navigating && (last?.symbolId!==element.symbolId || last?.fileName!==element.fileName)){history=history.slice(0,index+1);history.push({projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber});index=history.length-1;}navigating=false;}
+  xml.value=editableXml(doc);$('xml-error').textContent=doc.parseError??'';if(doc.parseError || doc.xmlEdited)viewXml(false);showProblems();inheritance();showWording();spell();
   bridge.sendToHost({type:'loadAuthoring'} as any);
   const revision=element?.fileName+'|'+element?.sourceRevision;if(revision!==catalogRevision){catalogRevision=revision;refresh();}
  });

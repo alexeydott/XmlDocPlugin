@@ -1,4 +1,4 @@
-unit XmlDoc.HelpGen.Inheritance;
+﻿unit XmlDoc.HelpGen.Inheritance;
 interface
 uses System.SysUtils,System.Generics.Collections,XmlDoc.HelpGen.Types;
 type
@@ -46,32 +46,40 @@ end;
 procedure TInheritanceResolver.Resolve(Typ:TTypeDocInfo);
 var Bases:TList<TTypeDocInfo>;Base:TTypeDocInfo;Member,Source,Matched:TElementDocInfo;
  Name,Explicit,Xml,Ancestor:string;Sources:TList<TElementDocInfo>;CopyModel:TXmlDocModel;I,Count:Integer;Match:TMatch;Mappings:TArray<string>;
- function Compatible(A,B:TElementDocInfo;Parent:TTypeDocInfo):Boolean;
+ function Compatible(A,B:TElementDocInfo;Parent:TTypeDocInfo;const Constructed:string):Boolean;
  var J,K:Integer;L,R:string;Args:TArray<string>;Start:Integer;
  begin
   Result:=False;if not SameText(A.Name,B.Name) or (A.Kind<>B.Kind) then Exit;
   if Length(A.CodeElement.Params)<>Length(B.CodeElement.Params) then Exit;
-  Args:=nil;
-  Ancestor:=Typ.Ancestor;for var Implemented in Typ.Implements do if SameText(BareType(Implemented),Parent.Name) or SameText(BareType(Implemented),Parent.FullName) then Ancestor:=Implemented;
-  Args:=GenericArguments(Ancestor);
+  if (Parent.Kind<>dekInterface) and (A.Kind=dekMethod) and (A.CodeElement.Name<>'') and
+   (Explicit='') and (A.CodeElement.IsReintroduce or not SameText(A.CodeElement.MethodBinding,'override')) then Exit;
+  Args:=GenericArguments(Constructed);
+  L:=A.CodeElement.ReturnType;R:=B.CodeElement.ReturnType;
+  for K:=0 to High(Parent.CodeElement.GenericParams) do if K<Length(Args) then
+   R:=TRegEx.Replace(R,'\b'+TRegEx.Escape(Parent.CodeElement.GenericParams[K])+'\b',Trim(Args[K]),[roIgnoreCase]);
+  if not SameText(L,R) then Exit;
   for J:=0 to High(A.CodeElement.Params) do begin
    L:=A.CodeElement.Params[J].TypeName;R:=B.CodeElement.Params[J].TypeName;
    for K:=0 to High(Parent.CodeElement.GenericParams) do if K<Length(Args) then
-    R:=TRegEx.Replace(R,'\b'+TRegEx.Escape(Parent.CodeElement.GenericParams[K])+'\b',Trim(Args[K]));
+    R:=TRegEx.Replace(R,'\b'+TRegEx.Escape(Parent.CodeElement.GenericParams[K])+'\b',Trim(Args[K]),[roIgnoreCase]);
    if not SameText(L,R) or (A.CodeElement.Params[J].IsVar<>B.CodeElement.Params[J].IsVar) or (A.CodeElement.Params[J].IsOut<>B.CodeElement.Params[J].IsOut) or (A.CodeElement.Params[J].IsConst<>B.CodeElement.Params[J].IsConst) then Exit;
   end;
   Result:=Length(A.CodeElement.GenericParams)=Length(B.CodeElement.GenericParams);
  end;
- procedure FindSources(Parent:TTypeDocInfo;Visited:TList<TTypeDocInfo>);
- var Candidate:TElementDocInfo;Found:Boolean;ParentName:string;AncestorType:TTypeDocInfo;
+ procedure FindSources(Parent:TTypeDocInfo;const Constructed:string;Visited:TList<string>);
+ var Candidate:TElementDocInfo;Found:Boolean;ParentName,VisitKey,NextName:string;AncestorType:TTypeDocInfo;Args:TArray<string>;
  begin
-  if Visited.Contains(Parent) then Exit;Visited.Add(Parent);Found:=False;
-  for Candidate in Parent.Members do if Compatible(Member,Candidate,Parent) then begin
+  VisitKey:=Parent.FullName+'|'+Constructed;if Visited.Contains(VisitKey) then Exit;Visited.Add(VisitKey);Found:=False;
+  for Candidate in Parent.Members do if Compatible(Member,Candidate,Parent,Constructed) then begin
    Found:=True;
    if ((Explicit='') or SameText(Explicit,Candidate.CodeElement.SymbolId) or SameText(Explicit,Candidate.FullName) or SameText(Explicit,Parent.Name)) and not Candidate.Doc.IsEmpty and not Sources.Contains(Candidate) then Sources.Add(Candidate);
   end;
   if not Found then for ParentName in TArray<string>.Create(Parent.Ancestor)+Parent.Implements do if ParentName<>'' then begin
-   AncestorType:=FindType(ParentName,Parent.CodeElement.UnitName);if Assigned(AncestorType) then FindSources(AncestorType,Visited);
+   AncestorType:=FindType(ParentName,Parent.CodeElement.UnitName);if Assigned(AncestorType) then begin
+    NextName:=ParentName;Args:=GenericArguments(Constructed);
+    for var K:=0 to High(Parent.CodeElement.GenericParams) do if K<Length(Args) then NextName:=TRegEx.Replace(NextName,'\b'+TRegEx.Escape(Parent.CodeElement.GenericParams[K])+'\b',Trim(Args[K]),[roIgnoreCase]);
+    FindSources(AncestorType,NextName,Visited);
+   end;
   end;
  end;
 begin
@@ -82,11 +90,28 @@ begin
   for Name in TArray<string>.Create(Typ.Ancestor)+Typ.Implements do if Name<>'' then begin
    Base:=FindType(Name,Typ.CodeElement.UnitName);if Assigned(Base) and not Bases.Contains(Base) then begin Resolve(Base);Bases.Add(Base);end;
   end;
+  Explicit:='';Match:=TRegEx.Match(Typ.Doc.ToXml,'(?i)<inheritdoc\b[^>]*\bcref=["'']([^"'']+)["'']');if Match.Success then Explicit:=Match.Groups[1].Value;
+  var TypeSources:=TList<TTypeDocInfo>.Create;
+  try
+   for Base in Bases do if not Base.Doc.IsEmpty and ((Explicit='') or SameText(Explicit,Base.Name) or SameText(Explicit,Base.FullName)) then TypeSources.Add(Base);
+   if TypeSources.Count=1 then begin
+    CopyModel:=TXmlDocModel.Create;
+    try CopyModel.Assign(TypeSources[0].Doc);
+     for var J:=CopyModel.TypeParams.Count-1 downto 0 do begin
+      var Keep:=False;for var G in Typ.CodeElement.GenericParams do if SameText(G,CopyModel.TypeParams[J].Name) then Keep:=True;
+      if not Keep then CopyModel.TypeParams.Delete(J);
+     end;
+     Typ.Doc.MergeMissing(CopyModel,TypeSources[0].FullName);
+    finally CopyModel.Free;end;
+   end else if TypeSources.Count>1 then Typ.Doc.InheritedFrom:='Ambiguous inheritance: choose a source with inheritdoc cref';
+  finally TypeSources.Free;end;
   for Member in Typ.Members do begin
    Sources.Clear;Explicit:='';Match:=TRegEx.Match(Member.Doc.ToXml,'(?i)<inheritdoc\b[^>]*\bcref=["'']([^"'']+)["'']');
    if Match.Success then Explicit:=Match.Groups[1].Value;
-   var Visited:=TList<TTypeDocInfo>.Create;
-   try for Base in Bases do FindSources(Base,Visited);finally Visited.Free;end;
+   var Visited:=TList<string>.Create;
+   try for Name in TArray<string>.Create(Typ.Ancestor)+Typ.Implements do begin
+    Base:=FindType(Name,Typ.CodeElement.UnitName);if Assigned(Base) then FindSources(Base,Name,Visited);
+   end;finally Visited.Free;end;
    if Sources.Count=1 then begin
     Source:=Sources[0];CopyModel:=TXmlDocModel.Create;
     try

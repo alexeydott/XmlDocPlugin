@@ -1,4 +1,4 @@
-unit XmlDoc.HelpGen.Diagnostics;
+﻿unit XmlDoc.HelpGen.Diagnostics;
 interface
 uses System.SysUtils,System.Generics.Collections,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.HelpGen.Types;
 type
@@ -9,7 +9,7 @@ type
  public
   constructor Create;
   destructor Destroy;override;
-  procedure Analyze(Units:TObjectList<TUnitDocInfo>);
+  procedure Analyze(Units:TObjectList<TUnitDocInfo>;const ProjectDir:string='');
   procedure Save(const FileName:string);
   procedure SaveBaseline(const FileName:string);
   function NewIssueCount(const BaselineFile:string):Integer;
@@ -24,13 +24,13 @@ constructor TDocumentationReport.Create;
 begin inherited;FIssues:=TList<TDocIssue>.Create;FSymbols:=TList<TCodeElementInfo>.Create;end;
 destructor TDocumentationReport.Destroy;
 begin FSymbols.Free;FIssues.Free;inherited;end;
-procedure TDocumentationReport.Analyze(Units:TObjectList<TUnitDocInfo>);
+procedure TDocumentationReport.Analyze(Units:TObjectList<TUnitDocInfo>;const ProjectDir:string);
 var U:TUnitDocInfo;T:TTypeDocInfo;E:TElementDocInfo;
  procedure AddType(Typ:TTypeDocInfo);
  var M:TElementDocInfo;N:TTypeDocInfo;
  begin FSymbols.Add(Typ.CodeElement);for M in Typ.Members do FSymbols.Add(M.CodeElement);for N in Typ.NestedTypes do AddType(N);end;
  procedure Check(const Code:TCodeElementInfo;Model:TXmlDocModel);
- begin FIssues.AddRange(TDocumentation.Analyze(Code,Model,FSymbols.ToArray));end;
+ begin FIssues.AddRange(TDocumentation.Analyze(Code,Model,FSymbols.ToArray,ProjectDir));end;
  procedure CheckType(Typ:TTypeDocInfo);
  var M:TElementDocInfo;N:TTypeDocInfo;
  begin Check(Typ.CodeElement,Typ.Doc);for M in Typ.Members do Check(M.CodeElement,M.Doc);for N in Typ.NestedTypes do CheckType(N);end;

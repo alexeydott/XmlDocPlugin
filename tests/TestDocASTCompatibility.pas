@@ -1,4 +1,4 @@
-unit TestDocASTCompatibility;
+﻿unit TestDocASTCompatibility;
 interface
 uses DUnitX.TestFramework;
 type
@@ -20,7 +20,7 @@ begin
       'class function Convert<U>(const Value:U):U; static;'+sLineBreak+
       'end;'+sLineBreak+'implementation'+sLineBreak+'end.');
     E:=P.GetElementAtLine(4);
-    Assert.AreEqual('Convert',E.Name);Assert.AreEqual('TBox',E.QualifiedParent);
+    Assert.AreEqual('Convert',E.Name);Assert.AreEqual('TBox<T>',E.QualifiedParent);
     Assert.AreEqual<NativeInt>(1,Length(E.GenericParams));Assert.AreEqual('U',E.GenericParams[0]);
     Assert.AreEqual<NativeInt>(1,Length(E.Params));Assert.AreEqual('Value',E.Params[0].Name);
     Assert.IsTrue(E.Params[0].IsConst);Assert.AreEqual('U',E.ReturnType);

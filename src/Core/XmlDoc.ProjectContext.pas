@@ -109,6 +109,7 @@ begin
  try
   for I:=0 to Doc.DocumentElement.ChildNodes.Count-1 do begin Group:=Doc.DocumentElement.ChildNodes[I];if Group.NodeType<>ntElement then Continue;
    if Group.HasAttribute('Condition') and not Condition(Group.Attributes['Condition']) then Continue;
+   if Group.NodeName='MainSource' then FProperties.AddOrSetValue('MainSource',Expand(Group.Text));
    if Group.NodeName='PropertyGroup' then for J:=0 to Group.ChildNodes.Count-1 do begin
     Node:=Group.ChildNodes[J];if Node.NodeType<>ntElement then Continue;
     if Node.HasAttribute('Condition') and not Condition(Node.Attributes['Condition']) then Continue;

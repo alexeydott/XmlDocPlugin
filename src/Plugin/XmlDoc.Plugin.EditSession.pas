@@ -9,7 +9,7 @@ function SourceEditProtection(const FileName:string):string;
 function SourceRevision(const Source:string):string;
 procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string);
 function ValidateEdit(Message:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string):Boolean;
-function EditResult(const SessionId,Status:string):string;
+function EditResult(const SessionId,Status:string;const EditId:string=''):string;
 implementation
 uses XmlDoc.SourceAccess,System.Classes,System.Hash,System.Generics.Collections,XmlDoc.SourceText;
 function ParseHostMessage(const Text:string):TJSONObject;
@@ -79,6 +79,7 @@ begin
  Json.AddPair('symbolId',Element.SymbolId);Json.AddPair('signature',Element.Signature);
  Json.AddPair('sessionId',SessionId);Json.AddPair('sourceRevision',SourceRevision(Source));
  Json.RemovePair('fileName').Free;Json.AddPair('fileName',FileName);
+ Json.AddPair('methodBinding',Element.MethodBinding);Json.AddPair('isReintroduce',TJSONBool.Create(Element.IsReintroduce));
  Json.AddPair('ancestor',Element.Ancestor);Json.AddPair('commentStartLine',TJSONNumber.Create(Element.CommentStartLine));
 end;
 function ValidateEdit(Message:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string):Boolean;
@@ -95,10 +96,10 @@ begin
  if not Assigned(Editor) then Exit;
  Result:=SourceRevision(EditorSource(Editor))=SourceRevision(Source);
 end;
-function EditResult(const SessionId,Status:string):string;
+function EditResult(const SessionId,Status,EditId:string):string;
 var Json:TJSONObject;
 begin
  Json:=TJSONObject.Create;try Json.AddPair('type','editResult');Json.AddPair('sessionId',SessionId);
- Json.AddPair('status',Status);Result:='window.bridge.receive('+Json.ToJSON+');';finally Json.Free;end;
+ Json.AddPair('status',Status);Json.AddPair('editId',EditId);Result:='window.bridge.receive('+Json.ToJSON+');';finally Json.Free;end;
 end;
 end.

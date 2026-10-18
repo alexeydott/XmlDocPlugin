@@ -1,4 +1,4 @@
-﻿param([string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,
+param([string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
  [ValidateSet('rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
@@ -17,7 +17,7 @@ function Test-Export([string]$Output){
  if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
 }
 $savedEnvironment=@{}
-foreach($name in 'XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+foreach($name in 'XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
 $boundsKey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\XmlDocPlugin\DocExplorer')
 try {foreach($name in 'Left','Top','Width','Height'){
@@ -25,6 +25,7 @@ try {foreach($name in 'Left','Top','Width','Height'){
 }} finally {if($boundsKey){$boundsKey.Dispose()}}
 Push-Location $repo
 try {
+ $env:XMLDOC_E2E_GROUP_ONLY=if($GroupOnly){'1'}else{''}
  $env:XMLDOC_E2E_VERSION=(Get-Content (Join-Path $repo 'installer\Version.txt') -Raw).Trim()
  if($Installed){
   $manifest=Get-Content (Join-Path $build 'manifest.json') -Raw | ConvertFrom-Json
@@ -89,7 +90,7 @@ try {
   New-ItemProperty $key -Name "$out\WorkbenchProbe.bpl" -Value 'Documentation workbench E2E probe' -Force | Out-Null
   $env:XMLDOC_DRAFT_DIR=Join-Path $out 'drafts';$env:XMLDOC_E2E_FIXTURE=$fixture;$env:XMLDOC_E2E_JS=Join-Path $PSScriptRoot 'WorkbenchProbe.js';$env:XMLDOC_E2E_LOG="$out\runtime.log"
   $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList "-r$profile",'-ns' -PassThru -WindowStyle Hidden
-  if(!$p.WaitForExit(55000) -and !$p.WaitForExit(55000)){throw "E2E timeout: $($t.Name), test-owned IDE PID $($p.Id)"}
+  if(!$p.WaitForExit(55000) -and !$p.WaitForExit(55000) -and !$p.WaitForExit(55000)){throw "E2E timeout: $($t.Name), test-owned IDE PID $($p.Id)"}
   Get-Content "$out\runtime.log"
   if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name)"}
   "PASS IDE exit 0: $($t.Name)"

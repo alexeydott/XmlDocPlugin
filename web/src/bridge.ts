@@ -14,10 +14,14 @@ export class DelphiBridge {
   pinned = false;
   readOnly = false;
   readOnlyReason = '';
+  private serial=0;
+  private readonly instanceId=globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`;
+  private inFlight: {id:string;key:string;context:EditContext;doc:DocModel;applied:boolean}|null=null;
   private held: InboundMessage | null = null;
   readonly drafts = new Map<string, {doc:DocModel;revision?:string}>();
   private key(c: EditContext): string { return `${c.fileName}|${c.declarationId??c.symbolId}`; }
   setContext(element: ElementInfo): void {
+    if(this.inFlight && this.key(this.inFlight.context)!==this.key(element))this.inFlight=null;
     this.cancelPending();
     this.readOnly = !!element.readOnly;this.readOnlyReason = element.readOnlyReason || 'Read-only source';
     this.context = { fileName: element.fileName, symbolId: element.symbolId, declarationId:element.declarationId,
@@ -35,16 +39,38 @@ export class DelphiBridge {
   }
   receive(message: InboundMessage): void {
     if (message.type === 'editResult') {
+
+      const flight=this.inFlight;
+      if(message.editId && flight?.id!==message.editId)return;
       if (message.sessionId === this.context.sessionId) {
         if(message.status.startsWith('Read-only')){this.readOnly=true;this.readOnlyReason=message.status;this.cancelPending();window.dispatchEvent(new CustomEvent('sourceReadOnlyChanged'));}
         this.setStatus(message.status);
-        if(message.status==='Applied')this.drafts.delete(this.key(this.context));
+        if(message.status==='Applied' && flight && message.editId===flight.id){
+          flight.applied=true;
+          const draft=this.drafts.get(flight.key);
+          if(draft && JSON.stringify(draft.doc)===JSON.stringify(flight.doc))this.drafts.delete(flight.key);
+        } else if(message.status!=='Applied'){this.inFlight=null;}
+
       }
       return;
     }
     if (message.type === 'loadDoc') {
-      if (this.pinned) { this.held = message; return; }
-      this.setContext(message.data.element);
+      const element=message.data.element;
+      const sameTarget=element.fileName===this.context.fileName && element.symbolId===this.context.symbolId;
+      if (this.pinned && !sameTarget) { this.held = message; return; }
+      const pending=this.pending?.type==='docUpdated' && this.key(this.pending)===this.key(element) && this.pending.sourceRevision===element.sourceRevision ? this.pending : null;
+      const flight=this.inFlight;
+      const rebase=!!(sameTarget && flight?.applied && flight.context.fileName===element.fileName && flight.context.symbolId===element.symbolId);
+      const newer=rebase?this.drafts.get(flight!.key):undefined;
+      if(rebase){this.inFlight=null;this.drafts.delete(flight!.key);}
+      this.setContext(element);
+      if(pending && !rebase && !this.readOnly)this.notifyDocChanged(pending.doc);
+      if(newer && !this.readOnly){
+        this.drafts.set(this.key(this.context),{doc:newer.doc,revision:element.sourceRevision});
+        this.context.sourceRevision=element.sourceRevision;
+        this.notifyDocChanged(newer.doc);
+      }
+
       const draft = this.drafts.get(this.key(this.context));
       this.setStatus(this.readOnly ? this.readOnlyReason : draft ? 'Unsaved draft — source may have changed' : 'Applied');
       if(draft && draft.revision!==this.context.sourceRevision) this.context.sourceRevision=draft.revision;
@@ -60,7 +86,13 @@ export class DelphiBridge {
   }
   flush(): void {
     if (!this.pending) return;
-    const pending = this.pending; this.cancelPending(); this.sendToHost(pending);
+    if(this.inFlight)return;
+    const pending = this.pending; this.cancelPending();
+    if(pending.type==='docUpdated'){
+      pending.editId=`${this.instanceId}:${++this.serial}`;
+      this.inFlight={id:pending.editId,key:this.key(pending),context:{...pending},doc:pending.doc,applied:false};
+    }
+    this.sendToHost(pending);
   }
   saveDraft(doc:DocModel):void {
     if(this.readOnly){this.setStatus(this.readOnlyReason);return;}

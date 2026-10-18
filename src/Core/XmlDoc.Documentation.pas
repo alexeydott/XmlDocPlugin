@@ -8,7 +8,7 @@ type
  end;
  TDocumentation=class
  public
-  class function Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>):TArray<TDocIssue>;static;
+  class function Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>;const ProjectDir:string=''):TArray<TDocIssue>;static;
   class procedure Synchronize(const Element:TCodeElementInfo;Model:TXmlDocModel;const Renames:TArray<string>);static;
   class function Meaningful(const Text:string):Boolean;static;
  end;
@@ -16,7 +16,7 @@ implementation
 uses XmlDoc.XmlFragments,System.Generics.Collections,System.RegularExpressions,Xml.XMLIntf,Xml.XMLDoc,System.IOUtils,XmlDoc.SourceText;
 class function TDocumentation.Meaningful(const Text:string):Boolean;
 begin Result:=(Trim(Text)<>'') and not TRegEx.IsMatch(Text,'(?i)\bTODO\b');end;
-class function TDocumentation.Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>):TArray<TDocIssue>;
+class function TDocumentation.Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>;const ProjectDir:string):TArray<TDocIssue>;
 var Issues:TList<TDocIssue>;Names,Seen:TDictionary<string,Boolean>;D:IXMLDocument;
  P:TParamInfo;G:string;I:Integer;PD:TParamDoc;TP:TTypeParamDoc;
  procedure Add(const Code,Message,Fix:string;const Token:string='');
@@ -48,19 +48,14 @@ var Issues:TList<TDocIssue>;Names,Seen:TDictionary<string,Boolean>;D:IXMLDocumen
    end;
    if ((N.NodeName='example') and N.HasAttribute('source')) or (((N.NodeName='image') or (N.NodeName='img')) and N.HasAttribute('src')) then begin
     if N.NodeName='example' then Target:=N.Attributes['source'] else Target:=N.Attributes['src'];
-    FileName:='';Root:=ExtractFilePath(Element.FileName);
-    if TPath.IsPathRooted(Target) or Target.Contains(':') or Target.Replace('\','/').Contains('../') then Add('XD013','Resource must use a relative project path: '+Target,'edit-xml')
-    else if Root<>'' then begin
-     while Root<>'' do begin
-      FileName:=TPath.Combine(Root,Target.Replace('/',PathDelim));if TFile.Exists(FileName) then Break;
-      if TFile.Exists(TPath.Combine(Root,'.xmldocplugin.json')) or (Length(TDirectory.GetFiles(Root,'*.dproj',TSearchOption.soTopDirectoryOnly))>0) then Break;
-      var Parent:=ExtractFileDir(ExcludeTrailingPathDelimiter(Root));if SameText(Parent,ExcludeTrailingPathDelimiter(Root)) then Break;Root:=Parent;
-     end;
-     if not TFile.Exists(FileName) then Add('XD013','Linked documentation resource does not exist: '+Target,'edit-xml')
-     else if N.HasAttribute('region') then begin
-      Region:=N.Attributes['region'];var Text:=ReadSourceFile(FileName);
-      if not TRegEx.IsMatch(Text,'(?im)\{\$REGION\s+[''" ]*'+TRegEx.Escape(Region)+'[''" ]*\}') then Add('XD013','Linked example region does not exist: '+Region,'edit-xml');
-     end;
+    if Element.FileName<>'' then begin
+     try FileName:=ResolveDocumentationResource(Target,Element.FileName,ProjectDir);
+      if not TFile.Exists(FileName) then Add('XD013','Linked documentation resource does not exist: '+Target,'edit-xml')
+      else if N.HasAttribute('region') then begin
+       Region:=N.Attributes['region'];var Text:=ReadSourceFile(FileName);
+       if not TRegEx.IsMatch(Text,'(?im)\{\$REGION\s+[''" ]*'+TRegEx.Escape(Region)+'[''" ]*\}') then Add('XD013','Linked example region does not exist: '+Region,'edit-xml');
+      end;
+     except on Ex:Exception do Add('XD013',Ex.Message,'edit-xml');end;
     end;
    end;
    if N.HasAttribute('cref') and (Length(Symbols)>0) then begin
@@ -84,9 +79,11 @@ begin
    for PD in Model.Params do begin
     if not Names.ContainsKey(LowerCase(PD.Name)) then Add('XD002','Unknown param '+PD.Name,'map-name',PD.Name);
     if Seen.ContainsKey(LowerCase(PD.Name)) then Add('XD003','Duplicate param '+PD.Name,'edit-xml');
+    if not Meaningful(PD.Description) then Add('XD004','Missing param description '+PD.Name,'edit-description',PD.Name);
     Seen.AddOrSetValue(LowerCase(PD.Name),True);
    end;
    for P in Element.Params do if not Seen.ContainsKey(LowerCase(P.Name)) then Add('XD004','Missing param '+P.Name,'synchronize');
+   for TP in Model.TypeParams do if not Meaningful(TP.Description) then Add('XD004','Missing typeparam description '+TP.Name,'edit-description',TP.Name);
    for G in Element.GenericParams do begin
     I:=0;for TP in Model.TypeParams do if SameText(TP.Name,G) then Inc(I);
     if I=0 then Add('XD004','Missing typeparam '+G,'synchronize');
@@ -122,18 +119,34 @@ begin
    if not Found or Seen.ContainsKey(LowerCase(NewName)) then raise Exception.Create('Invalid or ambiguous rename mapping');
    Seen.Add(LowerCase(NewName),True);
   end;
+  var Map:=TDictionary<string,string>.Create;var Counts:=TDictionary<string,Integer>.Create;var Changed:=TDictionary<string,Boolean>.Create;
+  try
+   for Pair in Renames do begin Parts:=Pair.Split(['=']);Map.Add(LowerCase(Trim(Parts[0])),Trim(Parts[1]));end;
+   for var Kind in ['param','typeparam'] do begin
+    Counts.Clear;Changed.Clear;
+    var Entries:TArray<string>:=nil;
+    if Kind='param' then begin for PD in Model.Params do Entries:=Entries+[PD.Name];end
+    else for TP in Model.TypeParams do Entries:=Entries+[TP.Name];
+    for OldName in Entries do begin
+     if not Map.TryGetValue(LowerCase(OldName),NewName) then NewName:=OldName;
+     var N:=0;Counts.TryGetValue(LowerCase(NewName),N);Counts.AddOrSetValue(LowerCase(NewName),N+1);
+     if not SameText(OldName,NewName) then Changed.AddOrSetValue(LowerCase(NewName),True);
+    end;
+    for NewName in Changed.Keys do if Counts[NewName]>1 then raise Exception.Create('Rename conflicts with an existing description; resolve in XML');
+   end;
+  finally Changed.Free;Counts.Free;Map.Free;end;
   if Length(Renames)>0 then Model.LoadFromXml(RenameDocNames(Xml,Renames));
  finally Seen.Free;end;
  Ordered:=TList<TParamDoc>.Create;OrderedTypes:=TList<TTypeParamDoc>.Create;
  try
   for P in Element.Params do begin
-   Found:=False;for PD in Model.Params do if SameText(PD.Name,P.Name) then begin Ordered.Add(PD);Found:=True;Break;end;
+   Found:=False;for PD in Model.Params do if SameText(PD.Name,P.Name) then begin Ordered.Add(PD);Found:=True;end;
    if not Found then begin PD.Name:=P.Name;PD.Description:='';Ordered.Add(PD);end;
   end;
   for PD in Model.Params do begin Found:=False;for P in Element.Params do if SameText(P.Name,PD.Name) then Found:=True;
    if not Found then Ordered.Add(PD);end;
   for G in Element.GenericParams do begin
-   Found:=False;for TP in Model.TypeParams do if SameText(TP.Name,G) then begin OrderedTypes.Add(TP);Found:=True;Break;end;
+   Found:=False;for TP in Model.TypeParams do if SameText(TP.Name,G) then begin OrderedTypes.Add(TP);Found:=True;end;
    if not Found then begin TP.Name:=G;TP.Description:='';OrderedTypes.Add(TP);end;
   end;
   for TP in Model.TypeParams do begin Found:=False;for G in Element.GenericParams do if SameText(G,TP.Name) then Found:=True;

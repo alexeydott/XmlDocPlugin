@@ -20,6 +20,7 @@ export const DocumentationTable=TipTapNode.create({name:'docTable',group:'block'
 export const DocumentationTableRow=TipTapNode.create({name:'docTableRow',content:'docTableCell+',addAttributes(){return {header:{default:false}};},parseHTML(){return [{tag:'tr',getAttrs:el=>({header:(el as HTMLElement).dataset.header==='true'})}];},renderHTML({node}){return ['tr',{'data-header':String(node.attrs.header)},0];}});
 export const DocumentationTableCell=TipTapNode.create({name:'docTableCell',content:'paragraph+',parseHTML(){return [{tag:'td'},{tag:'th'}];},renderHTML(){return ['td',0];}});
 export function serializeNode(node: any): string {
+ const paragraphs=()=>{let s='';node.forEach((child:any)=>{const xml=serializeNode(child);s+=node.childCount>1 && child.type.name==='paragraph'?`<para>${xml}</para>`:xml;});return s;};
  const content = () => { let s=''; node.forEach((child: any) => s+=serializeNode(child)); return s; };
  if (node.isText) {
    let text=escapeXml(node.text ?? '');
@@ -40,11 +41,11 @@ export function serializeNode(node: any): string {
    case 'paragraph': return content();
    case 'docTable':return `<list type="table">${content()}</list>`;
    case 'docTableRow':{let cells='';node.forEach((cell:any,index:number)=>{const tag=index===0?'term':'description';cells+=`<${tag}>${serializeNode(cell)}</${tag}>`;});const tag=node.attrs.header?'listheader':'item';return `<${tag}>${cells}</${tag}>`;}
-   case 'docTableCell':return content();
+   case 'docTableCell':return paragraphs();
    case 'hardBreak': return '<br/>';
    case 'bulletList': return `<list type="bullet">${content()}</list>`;
    case 'orderedList': return `<list type="number">${content()}</list>`;
-   case 'listItem': return `<item><description>${content()}</description></item>`;
+   case 'listItem': return `<item><description>${paragraphs()}</description></item>`;
    case 'codeBlock': return `<code>${escapeXml(node.textContent)}</code>`;
    case 'heading': return `<b>${content()}</b>`;
    case 'blockquote': return `<para>${content()}</para>`;
@@ -56,18 +57,21 @@ export function textToHtml(text:string):string {
  if (!text) return '';
  const xml=new DOMParser().parseFromString('<doc>'+text+'</doc>','application/xml');
  if (xml.querySelector('parsererror')) return '<p>'+escapeXml(text)+'</p>';
+ const asBlocks=(html:string)=>/<(?:p|pre|table|ul|ol)\b/.test(html)?html:`<p>${html}</p>`;
  const opaque=(n:globalThis.Node)=>`<span data-xml="${escapeXml(new XMLSerializer().serializeToString(n))}">XML</span>`;
  const convert=(node:globalThis.Node):string=>{
    if(node.nodeType===3 || node.nodeType===4) return escapeXml(node.textContent ?? '').replace(/\r?\n/g,'<br>');
    if(node.nodeType!==1) return opaque(node);
    const e=node as Element;
+   const supported:Record<string,string[]>={para:[],b:[],strong:[],i:[],em:[],br:[],c:[],code:[],see:['cref'],paramref:['name'],typeparamref:['name'],list:['type']};
+   if(supported[e.tagName] && Array.from(e.attributes).some(a=>!supported[e.tagName].includes(a.name)))return opaque(node);
    const children=()=>Array.from(e.childNodes).map(convert).join('');
    switch(e.tagName){
     case 'para': return `<p>${children()}</p>`;
     case 'list':{
       const type=e.getAttribute('type');
-      if(type==='table')return `<table data-doc-table><tbody>${Array.from(e.children).map(row=>`<tr data-header="${row.tagName==='listheader'}">${Array.from(row.children).map(cell=>`<td><p>${Array.from(cell.childNodes).map(convert).join('')}</p></td>`).join('')}</tr>`).join('')}</tbody></table>`;
-      if(!e.querySelector('term') && ['bullet','number'].includes(type??'')) {const tag=type==='number'?'ol':'ul';return `<${tag}>${Array.from(e.children).map(row=>`<li><p>${Array.from(row.querySelector('description')?.childNodes??row.childNodes).map(convert).join('')}</p></li>`).join('')}</${tag}>`;}
+      if(type==='table')return `<table data-doc-table><tbody>${Array.from(e.children).map(row=>`<tr data-header="${row.tagName==='listheader'}">${Array.from(row.children).map(cell=>`<td>${asBlocks(Array.from(cell.childNodes).map(convert).join(''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      if(!e.querySelector('term') && ['bullet','number'].includes(type??'')) {const tag=type==='number'?'ol':'ul';return `<${tag}>${Array.from(e.children).map(row=>`<li>${asBlocks(Array.from(row.querySelector('description')?.childNodes??row.childNodes).map(convert).join(''))}</li>`).join('')}</${tag}>`;}
       return opaque(node);
     }
     case 'b': case 'strong': return `<strong>${children()}</strong>`;
@@ -82,5 +86,5 @@ export function textToHtml(text:string):string {
    }
  };
  const html=Array.from(xml.documentElement.childNodes).map(convert).join('');
- return /^(<p>|<pre>)/.test(html)?html:`<p>${html}</p>`;
+ return asBlocks(html);
 }

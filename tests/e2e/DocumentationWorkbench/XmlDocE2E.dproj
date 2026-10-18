@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
  <PropertyGroup>
   <ProjectGuid>{3A72602E-67CF-469D-A733-BC75247CC365}</ProjectGuid>
   <MainSource>XmlDocE2E.dpr</MainSource><ProjectVersion>20.3</ProjectVersion><FrameworkType>None</FrameworkType>
@@ -15,9 +15,12 @@
  <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
   <Base_Win64>true</Base_Win64>
  </PropertyGroup>
+ <PropertyGroup Condition="'$(Config)'=='Debug'"><DCC_Define>DEBUG;$(DCC_Define)</DCC_Define></PropertyGroup>
+ <ItemGroup><BuildConfiguration Include="Debug"><Key>Cfg_1</Key><CfgParent>Base</CfgParent></BuildConfiguration><BuildConfiguration Include="Release"><Key>Cfg_2</Key><CfgParent>Base</CfgParent></BuildConfiguration></ItemGroup>
  <ItemGroup><DelphiCompile Include="XmlDocE2E.dpr"><MainSource>MainSource</MainSource></DelphiCompile>
  <DCCReference Include="Units\Workbench.Contracts.pas"/><DCCReference Include="Units\Workbench.Sample.pas"/>
  <DCCReference Include="Units\Workbench.Second.pas"/><DCCReference Include="Examples\Workbench.Examples.pas"/>
  </ItemGroup>
+<ProjectExtensions><Borland.Personality>Delphi.Personality.12</Borland.Personality><Borland.ProjectType>Application</Borland.ProjectType><BorlandProject><Delphi.Personality><Source><Source Name="MainSource">XmlDocE2E.dpr</Source></Source></Delphi.Personality></BorlandProject><ProjectFileVersion>12</ProjectFileVersion></ProjectExtensions>
  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
 </Project>

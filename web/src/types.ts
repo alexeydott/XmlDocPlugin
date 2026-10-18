@@ -15,6 +15,7 @@ export interface ParamInfo {
 
 /** 코드 요소 정보 (Delphi → WebView) */
 export interface ElementInfo {
+  projectFile?:string;
   readOnly?: boolean;
   readOnlyReason?: string;
   kind: DocElementKind;
@@ -32,6 +33,8 @@ export interface ElementInfo {
   implements?: string[];
   qualifiedParent?: string;
   methodKind?: string;
+  methodBinding?:string;
+  isReintroduce?:boolean;
   params: ParamInfo[];
   returnType?: string;
   genericParams?: string[];
@@ -103,7 +106,7 @@ export interface TreeElementInfo extends ElementInfo {
 
 /** Delphi → WebView 메시지 */
 export type InboundMessage =
-  | { type: 'editResult'; sessionId: string; status: string }
+  | { type: 'editResult'; sessionId: string; status: string; editId?:string }
   | { type: 'loadDoc'; data: { element: ElementInfo; doc: DocModel } }
   | { type: 'elementChanged'; data: { element: ElementInfo } }
   | { type: 'loadTree'; data: { fileName: string; elements: TreeElementInfo[] } };
@@ -113,9 +116,9 @@ export type OutboundMessage =
   | { type: 'pin'; pinned:boolean }
   | { type:'requestRefresh' }
   | { type:'requestCatalog'; scope:'module'|'project'|'group' }
-  | { type:'openSymbol'; fileName:string; symbolId:string; line:number }
+  | { type:'openSymbol'; fileName:string; symbolId:string; line:number;projectFile?:string }
   | { type:'copySelection' }
   | { type: 'sectionStateChanged'; sections: Record<string, boolean> }
-  | ({ type: 'docUpdated'; doc: DocModel } & Pick<ElementInfo, 'fileName' | 'symbolId' | 'declarationId' | 'sessionId' | 'sourceRevision'>)
+  | ({ type: 'docUpdated'; doc: DocModel; editId?:string } & Pick<ElementInfo, 'fileName' | 'symbolId' | 'declarationId' | 'sessionId' | 'sourceRevision'>)
   | { type: 'jumpToLine'; line: number }
   | { type: 'requestAutoComplete'; prefix: string; context: string };

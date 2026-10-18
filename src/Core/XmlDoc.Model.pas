@@ -510,6 +510,9 @@ begin
       LCodeNode := LNode.ChildNodes.FindNode('code');
       if Assigned(LCodeNode) then
         LExample.Code := LCodeNode.Text;
+      var CodeCount:=0;
+      for var J:=0 to LNode.ChildNodes.Count-1 do if LNode.ChildNodes[J].NodeName='code' then Inc(CodeCount);
+      if CodeCount>1 then begin LExample.Code:='';LExample.Description:=TrimDocText(ExtractInlineContent(LNode));end;
       FExamples.Add(LExample);
     end
 
@@ -788,6 +791,20 @@ var OldDoc,BaseDoc,NewDoc,AttributeDoc,BaseAttributeDoc:IXMLDocument;N,B,O:IXMLN
   function InnerXml(Node:IXMLNode):string;
   var K:Integer;
   begin Result:='';for K:=0 to Node.ChildNodes.Count-1 do Result:=Result+Node.ChildNodes[K].XML;end;
+  procedure PreserveAttributes(Source,Target:IXMLNode);
+  var A,C,S:IXMLNode;X,Y,Ordinal,Seen:Integer;
+  begin
+   if (Source.NodeType<>ntElement) or (Target.NodeType<>ntElement) then Exit;
+   for X:=0 to Source.AttributeNodes.Count-1 do begin A:=Source.AttributeNodes[X];if not Target.HasAttribute(A.NodeName) then Target.Attributes[A.NodeName]:=A.NodeValue;end;
+   for X:=0 to Target.ChildNodes.Count-1 do begin
+    C:=Target.ChildNodes[X];if C.NodeType<>ntElement then Continue;Ordinal:=0;
+    for Y:=0 to X-1 do if Target.ChildNodes[Y].NodeName=C.NodeName then Inc(Ordinal);
+    Seen:=0;
+    for Y:=0 to Source.ChildNodes.Count-1 do begin S:=Source.ChildNodes[Y];
+     if (S.NodeType=ntElement) and (S.NodeName=C.NodeName) then begin if Seen=Ordinal then begin PreserveAttributes(S,C);Break;end;Inc(Seen);end;
+    end;
+   end;
+  end;
   function Known(const Name:string):Boolean;
   begin Result:=(Name='summary') or (Name='remarks') or (Name='param') or
     (Name='typeparam') or (Name='returns') or (Name='value') or
@@ -831,9 +848,7 @@ begin
               SB.AppendLine(O.XML);Continue;
             end;
           end;
-          for J:=0 to O.AttributeNodes.Count-1 do begin Attr:=O.AttributeNodes[J];
-            if not N.HasAttribute(Attr.NodeName) then N.Attributes[Attr.NodeName]:=Attr.NodeValue;
-          end;
+          PreserveAttributes(O,N);
         end;
         SB.AppendLine(N.XML);
       end;
