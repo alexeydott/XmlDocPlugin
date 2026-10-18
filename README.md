@@ -23,6 +23,16 @@ Installation is per user and does not require administrator privileges. To
 update, close RAD Studio and run the latest installer. To uninstall, close RAD
 Studio and remove **XmlDoc Plugin** from Windows Installed apps.
 
+## User guide
+
+Read the [illustrated user guide](docs/user-guide.md) for a walkthrough using
+[XmlDocE2E.dproj](tests/e2e/DocumentationWorkbench/XmlDocE2E.dproj): editing and
+reviewing comments, draft recovery, signature synchronization, references,
+member summaries, inherited documentation, reusable wording and terminology,
+examples, prose replacement, coverage, and all IDE/CLI export formats.
+A [project authoring configuration example](docs/examples/XmlDocE2E.authoring.json)
+is included; merge its `authoring` object into your existing project settings.
+
 ## Documentation workbench
 
 The latest installer includes the documentation workbench described below.

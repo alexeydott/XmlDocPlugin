@@ -1,0 +1,21 @@
+{
+  "authoring": {
+    "templates": [
+      {
+        "kind": "method",
+        "section": "param",
+        "name": "Options",
+        "type": "Integer",
+        "text": "Controls how the operation is performed.",
+        "language": "en"
+      },
+      {
+        "kind": "method",
+        "section": "returns",
+        "text": "True when the operation succeeds; otherwise, False.",
+        "language": "en"
+      }
+    ],
+    "terminology": ["XmlDocE2E", "WebView2", "TDocumented", "RenameScenario"]
+  }
+}
