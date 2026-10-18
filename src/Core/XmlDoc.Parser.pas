@@ -26,6 +26,11 @@ type
     FRootNode: TSyntaxNode;
     FSourceLines: TArray<string>;
     FOnResolveDeclaration: TResolveDeclarationEvent;
+    FSourceFileName:string;
+    FSearchPaths,FSourceFiles:TArray<string>;
+    FHasDeclared:Boolean;
+    procedure SetSearchPaths(const Value:TArray<string>);
+    procedure SetSourceFiles(const Value:TArray<string>);
     procedure SetResolveDeclaration(const Value: TResolveDeclarationEvent);
 
     function BuildParentPath(ANode: TSyntaxNode): string;
@@ -46,7 +51,7 @@ type
 
     /// <summary>소스 텍스트를 받아 AST를 (재)구축합니다.</summary>
     /// <param name="ASource">파싱할 소스 코드 전체</param>
-    procedure ParseSource(const ASource: string);
+    procedure ParseSource(const ASource: string; const AFileName:string = '');
 
     /// <summary>지정 행에서 문서화 대상 요소 정보를 반환합니다.</summary>
     /// <param name="ALine">커서 행 번호 (1-based)</param>
@@ -65,6 +70,9 @@ type
     /// <summary>파싱된 AST 루트 노드</summary>
     /// <summary>Returns known visibility, or False when external scope information is unavailable.</summary>
     property OnResolveDeclaration: TResolveDeclarationEvent read FOnResolveDeclaration write SetResolveDeclaration;
+    property SourceFileName:string read FSourceFileName;
+    property SearchPaths:TArray<string> read FSearchPaths write SetSearchPaths;
+    property SourceFiles:TArray<string> read FSourceFiles write SetSourceFiles;
     property RootNode: TSyntaxNode read FRootNode;
 
     /// <summary>마지막으로 파싱한 소스 텍스트</summary>
@@ -73,11 +81,45 @@ type
 
 implementation
 
+uses System.IOUtils,System.Win.Registry,Winapi.Windows,SimpleParser.Lexer.Types,System.RegularExpressions;
+
+{$I XmlDoc.SystemDeclarations.inc}
+
+function SystemNames:string;
+begin
+{$IF CompilerVersion >= 37}
+ {$IFDEF CPU64} Result:=CRad13Win64Globals; {$ELSE} Result:=CRad13Win32Globals; {$ENDIF}
+{$ELSE}
+ {$IFDEF CPU64} Result:=CRad12Win64Globals; {$ELSE} Result:=CRad12Win32Globals; {$ENDIF}
+{$IFEND}
+end;
+function SystemClasses:string;
+begin
+{$IF CompilerVersion >= 37}
+ {$IFDEF CPU64} Result:=CRad13Win64Classes; {$ELSE} Result:=CRad13Win32Classes; {$ENDIF}
+{$ELSE}
+ {$IFDEF CPU64} Result:=CRad12Win64Classes; {$ELSE} Result:=CRad12Win32Classes; {$ENDIF}
+{$IFEND}
+end;
+function SystemMembers:string;
+begin
+{$IF CompilerVersion >= 37}
+ {$IFDEF CPU64} Result:=CRad13Win64Members; {$ELSE} Result:=CRad13Win32Members; {$ENDIF}
+{$ELSE}
+ {$IFDEF CPU64} Result:=CRad12Win64Members; {$ELSE} Result:=CRad12Win32Members; {$ENDIF}
+{$IFEND}
+end;
+
 type
+  TDeclarationSession = class;
   TScopeAwareBuilder = class(TPasSyntaxTreeBuilder)
   private
     FExternalResolver: TResolveDeclarationEvent;
     FDeclarationScope:TSyntaxNode;
+    FSession:TDeclarationSession;
+    FModuleRoot:TSyntaxNode;
+    FSourceFile:string;
+    procedure UnitFile; override;
     function ResolveDeclaration(Sender:TmwBasePasLex; const Identifier:string;
       out Declared:Boolean):Boolean;
   protected
@@ -85,6 +127,45 @@ type
   public
     constructor Create; override;
   end;
+
+  TDeclarationSession = class
+  private
+    FLoaded:TObjectDictionary<string,TSyntaxNode>;
+    FLoading:TDictionary<string,Boolean>;
+    FLocated:TDictionary<string,string>;
+    FPaths,FFiles:TArray<string>;
+    FRTLRoot:string;
+    function NativeRTLSize(const Match:TMatch):string;
+    function RTLConditional(const Match:TMatch):string;
+    function LocateUnit(const Name,ExplicitPath,FromFile:string):string;
+    function LoadUnit(const Name,ExplicitPath,FromFile:string;out FileName:string):TSyntaxNode;
+    function FindSymbol(Root:TSyntaxNode;const FileName,Name:string;
+      out Symbol,SymbolRoot:TSyntaxNode;out SymbolFile:string):Boolean;
+    function MemberExists(TypeNode,Root,AccessType:TSyntaxNode;
+      const FileName,AccessFile,Name:string;Visited:TList<TSyntaxNode>):Boolean;
+    function OwnerType(Builder:TScopeAwareBuilder):TSyntaxNode;
+    function Resolve(Builder:TScopeAwareBuilder;const Name:string;out Declared:Boolean):Boolean;
+  public
+    constructor Create(const Paths,Files:TArray<string>);
+    destructor Destroy;override;
+  end;
+  TResolutionIncludes=class(TInterfacedObject,IIncludeHandler)
+  private
+    FSession:TDeclarationSession;
+    FBaseFile:string;
+    FParents:TDictionary<string,string>;
+  public
+    constructor Create(Session:TDeclarationSession;const FileName:string);
+    destructor Destroy;override;
+    function GetIncludeFileContent(const ParentFileName,IncludeName:string;
+      out Content,FileName:string):Boolean;
+  end;
+
+procedure TScopeAwareBuilder.UnitFile;
+begin
+  FModuleRoot:=FStack.Peek;
+  inherited;
+end;
 
 constructor TScopeAwareBuilder.Create;
 begin
@@ -111,12 +192,20 @@ begin
 end;
 
 function FindDeclaration(Scope:TSyntaxNode; const Name:string):TSyntaxNode;
-var Child:TSyntaxNode;
+var Child,EnumType,EnumValue:TSyntaxNode;
 begin
   Result:=nil;
+  if not Assigned(Scope) then Exit;
   for Child in Scope.ChildNodes do begin
     if Child.Typ in [ntTypeDecl,ntMethod,ntField,ntVariable,ntConstant,ntParameter,ntProperty,ntTypeParam] then begin
       if SameText(DeclarationName(Child),Name) then Exit(Child);
+      if Child.Typ=ntTypeDecl then begin
+        EnumType:=Child.FindNode(ntType);
+        if Assigned(EnumType) and (EnumType.GetAttribute(anType)='enum') and
+          (EnumType.GetAttribute(anVisibility)<>'scoped') then
+          for EnumValue in EnumType.ChildNodes do
+            if (EnumValue.Typ=ntIdentifier) and SameText(DeclarationName(EnumValue),Name) then Exit(EnumValue);
+      end;
       Continue;
     end;
     if (Child.Typ=ntName) and (Scope.Typ in [ntVariables,ntFields,ntParameter]) and
@@ -162,16 +251,293 @@ begin
       end;
     end;
   end;
-  Name:=LowerCase(Identifier);
-  if Name.StartsWith('system.') then Delete(Name,1,7);
-  Known:='|integer|byte|word|cardinal|longword|fixedint|fixeduint|pfixedint|pfixeduint|utf8char|putf8char|longint|shortint|smallint|int64|uint64|nativeint|nativeuint|boolean|bytebool|wordbool|longbool|char|widechar|ansichar|string|unicodestring|ansistring|widestring|shortstring|pointer|pchar|pwidechar|pansichar|single|double|extended|real|currency|comp|variant|olevariant|tobject|iinterface|iunknown|';
+  Name:=UpperCase(Identifier);
+  Known:=SystemNames;
   if Pos('|'+Name+'|',Known)>0 then begin Declared:=True;Exit(True);end;
   if Assigned(FExternalResolver) and FExternalResolver(Sender,Identifier,Declared) then Exit(True);
-  // Absence from a partial AST is not proof of absence from implicit System,
-  // imports, inherited members or lookahead scopes. Require a known answer.
-  Result:=False;
+  if Assigned(FSession) then Result:=FSession.Resolve(Self,Identifier,Declared);
 
 end;
+
+function PathKey(const FileName:string):string;
+begin Result:=LowerCase(TPath.GetFullPath(FileName));end;
+
+constructor TDeclarationSession.Create(const Paths,Files:TArray<string>);
+var Registry:TRegistry;
+begin
+  inherited Create;
+  FPaths:=Copy(Paths);FFiles:=Copy(Files);
+  FLoaded:=TObjectDictionary<string,TSyntaxNode>.Create([doOwnsValues]);
+  FLoading:=TDictionary<string,Boolean>.Create;
+  FLocated:=TDictionary<string,string>.Create;
+  Registry:=TRegistry.Create(KEY_READ);
+  try
+    Registry.RootKey:=HKEY_CURRENT_USER;
+{$IF CompilerVersion >= 37}
+    if Registry.OpenKeyReadOnly('Software\Embarcadero\BDS\37.0') then
+{$ELSE}
+    if Registry.OpenKeyReadOnly('Software\Embarcadero\BDS\23.0') then
+{$IFEND}
+      if Registry.ValueExists('RootDir') then
+        FRTLRoot:=TPath.Combine(Registry.ReadString('RootDir'),'source');
+  finally Registry.Free;end;
+end;
+
+destructor TDeclarationSession.Destroy;
+begin FLocated.Free;FLoading.Free;FLoaded.Free;inherited;end;
+
+function TDeclarationSession.LocateUnit(const Name,ExplicitPath,FromFile:string):string;
+var Candidate,Dir,FileName,Scope:string;Matches:TArray<string>;
+begin
+  Result:='';
+  Dir:=ExtractFilePath(FromFile);
+  if ExplicitPath<>'' then begin
+    Candidate:=ExplicitPath;
+    if not TPath.IsPathRooted(Candidate) then Candidate:=TPath.Combine(Dir,Candidate);
+    if TFile.Exists(Candidate) then Exit(TPath.GetFullPath(Candidate));
+    raise Exception.CreateFmt('Cannot resolve DECLARED: unit %s specifies missing source %s',[Name,Candidate]);
+  end;
+  FileName:=Name+'.pas';
+  if Dir<>'' then begin
+    Candidate:=TPath.Combine(Dir,FileName);
+    if TFile.Exists(Candidate) then Exit(TPath.GetFullPath(Candidate));
+  end;
+  for Candidate in FFiles do
+    if SameText(TPath.GetFileName(Candidate),FileName) and TFile.Exists(Candidate) then begin
+      if (Result<>'') and not SameText(Result,TPath.GetFullPath(Candidate)) then
+        raise Exception.CreateFmt('Cannot resolve DECLARED: ambiguous project unit %s',[Name]);
+      Result:=TPath.GetFullPath(Candidate);
+    end;
+  if Result<>'' then Exit;
+  for Dir in FPaths do begin
+    Candidate:=TPath.Combine(Dir,FileName);
+    if TFile.Exists(Candidate) then Exit(TPath.GetFullPath(Candidate));
+  end;
+  if (FRTLRoot<>'') and TDirectory.Exists(FRTLRoot) then begin
+    Matches:=TDirectory.GetFiles(FRTLRoot,FileName,TSearchOption.soAllDirectories);
+    if Length(Matches)=1 then Exit(Matches[0]);
+    if Length(Matches)>1 then raise Exception.CreateFmt('Cannot resolve DECLARED: ambiguous RTL unit %s',[Name]);
+    if Pos('.',Name)=0 then
+      for Scope in ['System','Winapi','Vcl','Data','Xml','FMX'] do begin
+        Matches:=TDirectory.GetFiles(FRTLRoot,Scope+'.'+FileName,TSearchOption.soAllDirectories);
+        if Length(Matches)=1 then Exit(Matches[0]);
+      end;
+  end;
+  raise Exception.CreateFmt('Cannot resolve DECLARED: source for imported unit %s is unavailable (from %s)',[Name,FromFile]);
+end;
+
+constructor TResolutionIncludes.Create(Session:TDeclarationSession;const FileName:string);
+begin inherited Create;FSession:=Session;FBaseFile:=FileName;FParents:=TDictionary<string,string>.Create;end;
+destructor TResolutionIncludes.Destroy;
+begin FParents.Free;inherited;end;
+function TResolutionIncludes.GetIncludeFileContent(const ParentFileName,IncludeName:string;
+  out Content,FileName:string):Boolean;
+var Parent,Current,Dir:string;Count:Integer;
+begin
+  Parent:=ParentFileName;if Parent='' then Parent:=FBaseFile;
+  if TPath.IsPathRooted(IncludeName) then FileName:=IncludeName
+  else FileName:=TPath.Combine(ExtractFilePath(Parent),IncludeName);
+  if not TFile.Exists(FileName) then
+    for Dir in FSession.FPaths do begin
+      FileName:=TPath.Combine(Dir,IncludeName);if TFile.Exists(FileName) then Break;
+    end;
+  if not TFile.Exists(FileName) then raise Exception.CreateFmt('Cannot load include %s from %s',[IncludeName,Parent]);
+  FileName:=TPath.GetFullPath(FileName);Current:=Parent;Count:=0;
+  while Current<>'' do begin
+    if SameText(TPath.GetFullPath(Current),FileName) then raise Exception.CreateFmt('Cyclic include: %s',[FileName]);
+    Inc(Count);if Count>64 then raise Exception.Create('Include nesting exceeds 64 files');
+    if not FParents.TryGetValue(PathKey(Current),Current) then Break;
+  end;
+  if Parent<>'' then FParents.AddOrSetValue(PathKey(FileName),Parent);
+  Content:=TFile.ReadAllText(FileName);Result:=True;
+end;
+
+function TDeclarationSession.NativeRTLSize(const Match:TMatch):string;
+var Name:string;Value:Integer;
+begin
+ Name:=UpperCase(Match.Groups[1].Value);Value:=-1;
+ if Name='EXTENDED' then Value:=SizeOf(Extended)
+ else if Name='LONGWORD' then Value:=SizeOf(LongWord)
+ else if Name='POINTER' then Value:=SizeOf(Pointer)
+ else if Name='INTEGER' then Value:=SizeOf(Integer)
+ else if Name='NATIVEINT' then Value:=SizeOf(NativeInt)
+ else if Name='CHAR' then Value:=SizeOf(Char);
+ if Value<0 then Result:=Match.Value else Result:=IntToStr(Value);
+end;
+
+function TDeclarationSession.RTLConditional(const Match:TMatch):string;
+begin
+ Result:=TRegEx.Replace(Match.Value,'(?i)\bSizeOf\s*\(\s*(Extended|LongWord|Pointer|Integer|NativeInt|Char)\s*\)',NativeRTLSize);
+end;
+
+function TDeclarationSession.LoadUnit(const Name,ExplicitPath,FromFile:string;out FileName:string):TSyntaxNode;
+var Key,LookupKey,Source:string;Builder:TScopeAwareBuilder;Stream:TStringStream;
+begin
+  LookupKey:=LowerCase(FromFile+'|'+Name+'|'+ExplicitPath);
+  if not FLocated.TryGetValue(LookupKey,FileName) then begin
+    FileName:=LocateUnit(Name,ExplicitPath,FromFile);
+    FLocated.Add(LookupKey,FileName);
+  end;
+  Key:=PathKey(FileName);
+  if FLoaded.TryGetValue(Key,Result) then Exit;
+  if FLoading.ContainsKey(Key) then raise Exception.CreateFmt('Circular interface dependency while resolving DECLARED: %s',[FileName]);
+  if FLoading.Count>=64 then raise Exception.Create('Declaration dependency nesting exceeds 64 units');
+  FLoading.Add(Key,True);
+  Builder:=TScopeAwareBuilder.Create;Stream:=nil;
+  try
+    Builder.FSession:=Self;Builder.FSourceFile:=FileName;
+    Builder.InterfaceOnly:=True;Builder.InitDefinesDefinedByCompiler;
+    Builder.Lexer.Lexer.IncludeHandler:=TResolutionIncludes.Create(Self,FileName);
+    Source:=TFile.ReadAllText(FileName);
+    // RTL uses target-native built-in sizes in conditionals. Keep unsupported
+    // expressions intact so the lexer reports them instead of guessing a branch.
+    if (FRTLRoot<>'') and FileName.StartsWith(IncludeTrailingPathDelimiter(FRTLRoot),True) then
+      Source:=TRegEx.Replace(Source,'(?is)\{\$\s*(?:IF|ELSEIF)\b[^}]*\}',RTLConditional);
+    Stream:=TStringStream.Create(Source,TEncoding.UTF8);
+    try Result:=Builder.Run(Stream);
+    except on E:Exception do raise Exception.CreateFmt('Cannot resolve DECLARED in %s: %s',[FileName,E.Message]);end;
+    FLoaded.Add(Key,Result);
+  finally Stream.Free;Builder.Free;FLoading.Remove(Key);end;
+end;
+
+procedure ImportedUnits(Root:TSyntaxNode;List:TList<TSyntaxNode>);
+var Child,Item:TSyntaxNode;
+begin
+  if not Assigned(Root) then Exit;
+  for Child in Root.ChildNodes do
+    if Child.Typ=ntUses then begin
+      for Item in Child.ChildNodes do if Item.Typ=ntUnit then List.Add(Item);
+    end else if Child.Typ in [ntInterface,ntImplementation] then ImportedUnits(Child,List);
+end;
+
+function QualifiedDeclaration(Root:TSyntaxNode;const Name:string):TSyntaxNode;
+var Parts:TArray<string>;I:Integer;Scope:TSyntaxNode;LocalName:string;
+begin
+  Result:=nil;if not Assigned(Root) then Exit;
+  LocalName:=Name;
+  if (Root.GetAttribute(anName)<>'') and LocalName.StartsWith(Root.GetAttribute(anName)+'.',True) then
+    Delete(LocalName,1,Length(Root.GetAttribute(anName))+1);
+  Parts:=LocalName.Split(['.']);Scope:=Root;
+  for I:=0 to High(Parts) do begin
+    Result:=FindDeclaration(Scope,Parts[I]);if not Assigned(Result) then Exit;
+    if I<High(Parts) then begin Scope:=Result.FindNode(ntType);if not Assigned(Scope) then Exit(nil);end;
+  end;
+end;
+
+function TDeclarationSession.FindSymbol(Root:TSyntaxNode;const FileName,Name:string;
+  out Symbol,SymbolRoot:TSyntaxNode;out SymbolFile:string):Boolean;
+var Units:TList<TSyntaxNode>;I:Integer;ImportRoot:TSyntaxNode;ImportFile,UnitName,LocalName:string;
+begin
+  Symbol:=nil;SymbolRoot:=Root;SymbolFile:=FileName;
+  if Assigned(Root) then Symbol:=QualifiedDeclaration(Root,Name);
+  if Assigned(Symbol) then Exit(True);
+  Units:=TList<TSyntaxNode>.Create;
+  try
+    ImportedUnits(Root,Units);
+    for I:=Units.Count-1 downto 0 do begin
+      UnitName:=Units[I].GetAttribute(anName);
+      if SameText(UnitName,'System') then Continue;
+      LocalName:=Name;
+      if Pos('.',Name)>0 then begin
+        if not Name.StartsWith(UnitName+'.',True) then Continue;
+        Delete(LocalName,1,Length(UnitName)+1);
+      end;
+      ImportRoot:=LoadUnit(UnitName,Units[I].GetAttribute(anPath),FileName,ImportFile);
+      Symbol:=QualifiedDeclaration(ImportRoot.FindNode(ntInterface),LocalName);
+      if Assigned(Symbol) then begin SymbolRoot:=ImportRoot;SymbolFile:=ImportFile;Exit(True);end;
+    end;
+  finally Units.Free;end;
+  Result:=False;
+end;
+
+function TypeBody(Node:TSyntaxNode):TSyntaxNode;
+begin
+  Result:=Node;
+  if Assigned(Node) and (Node.Typ=ntTypeDecl) then Result:=Node.FindNode(ntType);
+end;
+
+function MemberVisible(Member,Owner,AccessType:TSyntaxNode;const OwnerFile,AccessFile:string):Boolean;
+var Scope:TSyntaxNode;
+begin
+  Scope:=Member.ParentNode;Result:=True;
+  while Assigned(Scope) and (Scope<>Owner) do begin
+    if Scope.Typ=ntStrictPrivate then Exit(Owner=AccessType);
+    if Scope.Typ=ntPrivate then Exit(SameText(OwnerFile,AccessFile));
+    Scope:=Scope.ParentNode;
+  end;
+end;
+
+function TDeclarationSession.MemberExists(TypeNode,Root,AccessType:TSyntaxNode;
+  const FileName,AccessFile,Name:string;Visited:TList<TSyntaxNode>):Boolean;
+var Body,Member,Child,BaseDecl,BaseRoot:TSyntaxNode;BaseFile:string;
+  function FromBase(const Base:string):Boolean;
+  var Canonical:string;
+  begin
+    Canonical:=Base;
+    if Canonical.StartsWith('System.',True) then Delete(Canonical,1,7);
+    if not Base.StartsWith('System.',True) and FindSymbol(Root,FileName,Base,BaseDecl,BaseRoot,BaseFile) then
+      Exit(MemberExists(BaseDecl,BaseRoot,AccessType,BaseFile,AccessFile,Name,Visited));
+    if Pos('|'+UpperCase(Canonical)+'|',SystemClasses)>0 then
+      Exit(Pos('|'+UpperCase(Canonical)+'.'+UpperCase(Name)+'|',SystemMembers)>0);
+    raise Exception.CreateFmt('Cannot resolve DECLARED: ancestor %s is unavailable in %s',[Base,FileName]);
+  end;
+begin
+  if Visited.Contains(TypeNode) then raise Exception.Create('Cyclic ancestor chain while resolving DECLARED');
+  if Visited.Count>=64 then raise Exception.Create('Ancestor chain exceeds 64 types');
+  Visited.Add(TypeNode);
+  try
+    Body:=TypeBody(TypeNode);if not Assigned(Body) then raise Exception.Create('Incomplete ancestor declaration');
+    Member:=FindDeclaration(Body,Name);
+    if Assigned(Member) then Exit(MemberVisible(Member,Body,TypeBody(AccessType),FileName,AccessFile));
+    if Body.GetAttribute(anName)<>'' then Exit(FromBase(Body.GetAttribute(anName)));
+    if Body.GetAttribute(anType)='class' then begin
+      for Child in Body.ChildNodes do if (Child.Typ=ntType) and (Child.GetAttribute(anName)<>'') then
+        Exit(FromBase(Child.GetAttribute(anName)));
+      Exit(FromBase('System.TObject'));
+    end;
+    Result:=False;
+  finally Visited.Delete(Visited.Count-1);end;
+end;
+
+function TDeclarationSession.OwnerType(Builder:TScopeAwareBuilder):TSyntaxNode;
+var Scope,Root,Symbol,OwnerRoot,N:TSyntaxNode;Name,OwnerFile:string;Dot:Integer;UsedSaved:Boolean;
+begin
+  Result:=nil;Root:=Builder.FModuleRoot;
+  if Builder.FStack.Count=0 then Exit;
+  Scope:=Builder.FStack.Peek;UsedSaved:=False;
+  while Assigned(Scope) do begin
+    if (Scope.Typ=ntType) and (Scope.GetAttribute(anType)='class') then Exit(Scope);
+    if Scope.Typ=ntMethod then begin
+      N:=Scope.FindNode(ntName);Name:='';if Assigned(N) then Name:=N.GetAttribute(anName);
+      Dot:=LastDelimiter('.',Name);
+      if Dot>0 then begin
+        Name:=Copy(Name,1,Dot-1);
+        if FindSymbol(Root,Builder.FSourceFile,Name,Symbol,OwnerRoot,OwnerFile) then Exit(Symbol);
+      end;
+    end;
+    Scope:=Scope.ParentNode;
+    if not Assigned(Scope) and not UsedSaved then begin Scope:=Builder.FDeclarationScope;UsedSaved:=True;end;
+  end;
+end;
+
+function TDeclarationSession.Resolve(Builder:TScopeAwareBuilder;const Name:string;out Declared:Boolean):Boolean;
+var Owner,Symbol,SymbolRoot:TSyntaxNode;SymbolFile:string;Visited:TList<TSyntaxNode>;
+begin
+  Owner:=OwnerType(Builder);
+  if Assigned(Owner) then begin
+    Visited:=TList<TSyntaxNode>.Create;
+    try Declared:=MemberExists(Owner,Builder.FModuleRoot,Owner,Builder.FSourceFile,Builder.FSourceFile,Name,Visited);
+    finally Visited.Free;end;
+    if Declared then Exit(True);
+  end;
+  Declared:=FindSymbol(Builder.FModuleRoot,Builder.FSourceFile,Name,Symbol,SymbolRoot,SymbolFile);
+  Result:=True;
+end;
+
+procedure TDocParser.SetSearchPaths(const Value:TArray<string>);
+begin FSearchPaths:=Copy(Value);FCachedHash:='';end;
+procedure TDocParser.SetSourceFiles(const Value:TArray<string>);
+begin FSourceFiles:=Copy(Value);FCachedHash:='';end;
 
 procedure TDocParser.SetResolveDeclaration(const Value:TResolveDeclarationEvent);
 begin
@@ -242,6 +608,7 @@ var
   I: Integer;
   LChild: TSyntaxNode;
 begin
+  if (ANode.FileName<>'') and not SameText(ANode.FileName,FSourceFileName) then Exit;
   if IsDocTargetNode(ANode) then
     FFlatIndex.Add(ANode);
 
@@ -601,7 +968,7 @@ end;
 
 function TDocParser.IsUpToDate(const ASource: string): Boolean;
 begin
-  Result := not Assigned(FOnResolveDeclaration) and
+  Result := not FHasDeclared and not Assigned(FOnResolveDeclaration) and
     (FCachedHash <> '') and (FCachedHash = HashSource(ASource));
 end;
 
@@ -736,13 +1103,18 @@ begin
   end;
 end;
 
-procedure TDocParser.ParseSource(const ASource: string);
+procedure TDocParser.ParseSource(const ASource: string; const AFileName:string);
 var
   LStream: TStringStream;
   LHash: string;
+  Session:TDeclarationSession;
 begin
+  if not SameText(FSourceFileName,AFileName) then FCachedHash:='';
+  FSourceFileName:=AFileName;
+  FHasDeclared:=(Pos('DECLARED',UpperCase(ASource))>0) or
+    TRegEx.IsMatch(ASource,'(?i)\{\$\s*(?:I|INCLUDE)\s');
   LHash := HashSource(ASource);
-  if not Assigned(FOnResolveDeclaration) and (LHash = FCachedHash) then
+  if not FHasDeclared and not Assigned(FOnResolveDeclaration) and (LHash = FCachedHash) then
     Exit;
 
   // 이전 AST 해제
@@ -757,10 +1129,16 @@ begin
   // Split([#10])은 #13#10에서 #13을 남김
   // 별도 정리 불필요: Trim으로 처리됨 (ExtractDocComment에서)
 
-  LStream := TStringStream.Create(ASource, TEncoding.UTF8);
+  Session:=TDeclarationSession.Create(FSearchPaths,FSourceFiles);
+  LStream := nil;
   try
+    LStream := TStringStream.Create(ASource, TEncoding.UTF8);
     FBuilder := TScopeAwareBuilder.Create;
     TScopeAwareBuilder(FBuilder).FExternalResolver := FOnResolveDeclaration;
+    TScopeAwareBuilder(FBuilder).FSession:=Session;
+    TScopeAwareBuilder(FBuilder).FSourceFile:=AFileName;
+    FBuilder.InitDefinesDefinedByCompiler;
+    FBuilder.Lexer.Lexer.IncludeHandler:=TResolutionIncludes.Create(Session,AFileName);
     try
       try
         FRootNode := FBuilder.Run(LStream);
@@ -776,6 +1154,7 @@ begin
     end;
   finally
     LStream.Free;
+    Session.Free;
   end;
 
   if Assigned(FRootNode) then

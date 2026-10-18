@@ -23,6 +23,7 @@ uses
   XmlDoc.Consts,
   XmlDoc.Model,
   XmlDoc.Parser,
+  XmlDoc.Plugin.DeclarationContext,
   XmlDoc.CodeGen,
   XmlDoc.CodeGen.OTA,
   XmlDoc.ParamDict,
@@ -268,7 +269,8 @@ end;
 function TDocInspectorForm.ParseEditorSource(const Source:string):Boolean;
 begin
   try
-    FDocParser.ParseSource(Source);
+    ConfigureDeclarationContext(FDocParser);
+    FDocParser.ParseSource(Source,FLastFileName);
     FParseError:='';
     if Assigned(FBrowserError) then FBrowserError.Visible:=False;
     if Assigned(FBrowser) then FBrowser.Visible:=True;
@@ -533,7 +535,7 @@ begin
 
   FLastFileName := AFileName;
   // 소스 변경 시 재파싱
-  if not FDocParser.IsUpToDate(ASource) then
+  if not SameText(FDocParser.SourceFileName,AFileName) or not FDocParser.IsUpToDate(ASource) then
     if not ParseEditorSource(ASource) then Exit;
 
   //Caption := Format('Doc Inspector - %s / %d', [ExtractFileName(AFileName), ALine]);

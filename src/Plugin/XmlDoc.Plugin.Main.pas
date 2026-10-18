@@ -65,6 +65,7 @@ uses
   XmlDoc.Plugin.Settings,
   XmlDoc.Plugin.SettingsDialog,
   XmlDoc.Parser,
+  XmlDoc.Plugin.DeclarationContext,
   XmlDoc.StubGen,
   XmlDoc.CodeGen.OTA,
   XmlDoc.Consts,
@@ -250,7 +251,8 @@ begin
   // 현재 커서 위치의 요소 찾기
   LParser := XmlDoc.Parser.TDocParser.Create;
   try
-    LParser.ParseSource(LSource);
+    ConfigureDeclarationContext(LParser);
+    LParser.ParseSource(LSource,LEditor.FileName);
     LView := LEditor.GetEditView(0);
     if not Assigned(LView) then
       Exit;

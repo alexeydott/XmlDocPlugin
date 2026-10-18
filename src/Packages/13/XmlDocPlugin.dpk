@@ -77,6 +77,7 @@ contains
   XmlDoc.Plugin.SettingsDialog in '..\..\PlugIn\XmlDoc.Plugin.SettingsDialog.pas',
   XmlDoc.Plugin.UpdateChecker in '..\..\PlugIn\XmlDoc.Plugin.UpdateChecker.pas',
   XmlDoc.Plugin.AboutDialog in '..\..\Plugin\XmlDoc.Plugin.AboutDialog.pas',
+  XmlDoc.Plugin.DeclarationContext in '..\..\Plugin\XmlDoc.Plugin.DeclarationContext.pas',
   XmlDoc.Plugin.DocExplorer in '..\..\Plugin\XmlDoc.Plugin.DocExplorer.pas',
   XmlDoc.Plugin.Utils in '..\..\Plugin\XmlDoc.Plugin.Utils.pas';
 

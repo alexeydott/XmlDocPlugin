@@ -17,6 +17,7 @@ type
   private
     FSymbolIndex: TDictionary<string, TElementDocInfo>;
     FUnits: TObjectList<TUnitDocInfo>;
+    FSourceFiles:TArray<string>;
 
     FOnProgress: TProgressCallback;
 
@@ -131,7 +132,8 @@ begin
   LDocParser := TDocParser.Create;
   try
     try
-      LDocParser.ParseSource(LSource);
+      LDocParser.SourceFiles:=FSourceFiles;
+      LDocParser.ParseSource(LSource,AFilePath);
     except
       on E:Exception do raise Exception.CreateFmt('Cannot parse %s: %s', [AFilePath,E.Message]);
     end;
@@ -255,6 +257,7 @@ var
 begin
   FUnits.Clear;
   FSymbolIndex.Clear;
+  FSourceFiles:=Copy(AFiles);
 
   for I := 0 to Length(AFiles) - 1 do
   begin

@@ -23,6 +23,7 @@ uses
   XmlDoc.Consts,
   XmlDoc.Model,
   XmlDoc.Parser,
+  XmlDoc.Plugin.DeclarationContext,
   XmlDoc.CodeGen.OTA,
   XmlDoc.StubGen;
 
@@ -212,7 +213,8 @@ end;
 function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
 begin
   try
-    FDocParser.ParseSource(Source);
+    ConfigureDeclarationContext(FDocParser);
+    FDocParser.ParseSource(Source,FCurrentFileName);
     FParseError:='';
     if Assigned(FBrowserError) then FBrowserError.Visible:=False;
     if Assigned(FBrowser) then FBrowser.Visible:=True;

@@ -38,6 +38,8 @@ type
 
 implementation
 
+uses XmlDoc.Plugin.DeclarationContext;
+
 { TUndocNavigator }
 
 constructor TUndocNavigator.Create;
@@ -115,7 +117,8 @@ begin
   if LSource = '' then
     Exit;
 
-  FParser.ParseSource(LSource);
+  ConfigureDeclarationContext(FParser);
+  FParser.ParseSource(LSource,LEditor.FileName);
   LAllElements := FParser.GetAllElements;
 
   // public/published 요소 중 미문서화된 것만 필터링

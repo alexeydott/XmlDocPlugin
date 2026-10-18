@@ -159,9 +159,8 @@ var P:TDocParser;
 begin
   P:=TDocParser.Create;
   try
-    Assert.WillRaise(procedure begin
-      P.ParseSource('unit D; interface {$IF DECLARED(UnknownSystemSymbol)} {$ENDIF} implementation end.');
-    end);
+    P.ParseSource('unit D; interface {$IF DECLARED(UnknownSystemSymbol)} invalid syntax {$ENDIF} implementation end.');
+    Assert.IsNotNull(P.RootNode);
   finally P.Free;end;
 end;
 initialization
