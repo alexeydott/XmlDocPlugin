@@ -371,6 +371,7 @@ begin
     begin
       LDocObj := LMsg.GetValue<TJSONObject>('doc');
       if Assigned(LDocObj) then
+        if SourceEditProtection(FLastFileName)<>'' then FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),SourceEditProtection(FLastFileName))) else
         if ValidateEdit(LMsg,FCurrentElement,FLastFileName,FEditSessionId,FDocParser.SourceText) then begin
           if HandleDocUpdated(LDocObj.ToJSON) then FProjectDocs.Acknowledge(LMsg);
         end else FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),'Source changed — reload before applying'));

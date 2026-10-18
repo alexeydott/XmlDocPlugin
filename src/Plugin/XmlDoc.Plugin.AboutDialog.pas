@@ -52,7 +52,7 @@ var
 begin
   LVersion := GetModuleVersion;
   if LVersion = '' then
-    LVersion := '0.5.0';
+    LVersion := 'unavailable';
 
   lblVersion.Caption := 'Version ' + LVersion;
 end;

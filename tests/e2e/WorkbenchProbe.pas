@@ -4,9 +4,10 @@ procedure Register;
 implementation
 uses System.SysUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Forms,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
- XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics;
+ XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TProbe=class
  Timer:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
+ ProtectedBefore,SystemFile:string;
  Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
  procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
  procedure ExplorerMessage(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
@@ -59,6 +60,11 @@ begin
 end;
 procedure TProbe.MessageReceived(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
 var Buffer:PWideChar;Text,Action,Source:string;Json:TJSONObject;Editor:IOTASourceEditor;EditBuffer:IOTAEditBuffer;Writer:IOTAEditWriter;Offset,UndoMarkers:Integer;Utf8:UTF8String;
+ procedure AssertParsed(Form:TForm);
+ begin
+  for var I:=0 to Form.ComponentCount-1 do if Form.Components[I] is TLabel then
+   AssertTrue(not (TLabel(Form.Components[I]).Visible and (System.Pos('Cannot parse',TLabel(Form.Components[I]).Caption)=1)),'System.pas parse error: '+TLabel(Form.Components[I]).Caption);
+ end;
 begin
  Buffer:=nil;Args.ArgsInterface.TryGetWebMessageAsString(Buffer);if Buffer=nil then Exit;
  try Text:=string(Buffer);finally CoTaskMemFree(Buffer);end;
@@ -104,6 +110,31 @@ begin
    else if Action='assert-sync' then begin Source:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(Source.Contains('<param name="NewName">Description to map explicitly.</param>'),'Mapped description lost');AssertTrue(Source.Contains('<param name="Options">'),'New parameter not added');AssertTrue(Source.Contains('<paramref name="NewName"'),'Inline reference not renamed');Log('PASS synchronization preview and explicit rename');end
    else if Action='assert-resources' then Log('PASS project image resource and narrow controls')
    else if Action='assert-project' then Log('PASS project catalog, search and diagnostics')
+   else if Action='lock-source' then begin
+    ProtectedBefore:=EditorSource(SourceEditorForFile(SampleFile));
+    if Json.GetValue<string>('mode','')='buffer' then begin
+     AssertTrue(Supports(SourceEditorForFile(SampleFile),IOTAEditBuffer,EditBuffer),'Read-only buffer unavailable');EditBuffer.IsReadOnly:=True;
+    end else if Json.GetValue<string>('mode','')='system' then FileSetAttr(SampleFile,FileGetAttr(SampleFile) or faSysFile)
+    else FileSetAttr(SampleFile,FileGetAttr(SampleFile) or faReadOnly);
+    Select(SampleFile,'Run','string');Inspector.RefreshFromCurrentEditor;
+   end
+   else if Action='assert-protected' then begin
+    AssertTrue(EditorSource(SourceEditorForFile(SampleFile))=ProtectedBefore,'Read-only source was modified');Log('PASS read-only file rejects forged browser write');
+    FileSetAttr(SampleFile,FileGetAttr(SampleFile) and not (faReadOnly or faSysFile));
+    if Supports(SourceEditorForFile(SampleFile),IOTAEditBuffer,EditBuffer) then EditBuffer.IsReadOnly:=False;
+    Inspector.RefreshFromCurrentEditor;
+   end
+   else if Action='view-system' then begin
+    SystemFile:=TPath.Combine(ExtractFileDir(ExcludeTrailingPathDelimiter(ExtractFilePath(GetModuleName(0)))),'source\rtl\sys\System.pas');
+    ProtectedBefore:=TFile.ReadAllText(SystemFile);(BorlandIDEServices as IOTAActionServices).OpenFile(SystemFile);
+    Inspector.RefreshFromCurrentEditor;Explorer.HandleFileChanged(SystemFile,EditorSource(SourceEditorForFile(SystemFile)));
+   end
+   else if Action='assert-system' then begin
+    AssertTrue(TFile.ReadAllText(SystemFile)=ProtectedBefore,'System.pas disk content changed');
+    AssertTrue(not EditorSource(SourceEditorForFile(SystemFile)).Contains('FORBIDDEN READONLY WRITE'),'System buffer was modified');
+    AssertParsed(Inspector);AssertParsed(Explorer);
+    AssertTrue(SourceEditProtection(SystemFile)<>'','Compiler source is writable');Log('PASS System.pas parsed and protected in Inspector and Explorer');
+   end
    else if Action='finish' then begin Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;end
    else if Action='fail' then raise Exception.Create(Json.GetValue<string>('message','Unknown browser failure')+' '+Json.GetValue<string>('stack',''));
   except on E:Exception do begin Log('FAIL '+E.Message);ExitProcess(1);end;end;
@@ -177,6 +208,17 @@ begin
     var Actions:=(BorlandIDEServices as INTAServices).ActionList;var Found:=False;
     for var ActionIndex:=0 to Actions.ActionCount-1 do if Actions.Actions[ActionIndex].Name='XmlDocActionsyncdocument' then Found:=True;
     AssertTrue(Found,'Documentation actions are not registered in the IDE action catalog');Log('PASS IDE action registration');
+    var Shortcuts:=TPluginSettings.Instance.Global.Shortcuts;
+    var Conflicts:=DocumentationShortcutConflicts([Shortcuts.ToggleInspector,Shortcuts.GenerateStub,Shortcuts.CoverageReport,Shortcuts.NextUndocumented],['Inspector','Stub','Coverage','Next'],Actions,(BorlandIDEServices as INTAServices).MainMenu.Items);
+    for var Conflict in Conflicts do begin
+      Log('SHORTCUT '+Conflict);
+      AssertTrue(not Conflict.Contains('Doc Inspector') and not Conflict.Contains('Generate Doc Stub') and not Conflict.Contains('Coverage Report') and not Conflict.Contains('Next Undocumented'),'Own IDE menu wrapper reported as shortcut conflict');
+    end;
+    Log('PASS IDE shortcut ownership validation');
+    AssertTrue(GetModuleVersion=GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'Loaded BPL version differs from the shared version');
+    var About:=TAboutDialog.Create(nil);
+    try AssertTrue(About.lblVersion.Caption='Version '+GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'About dialog version mismatch');finally About.Free;end;
+    Log('PASS loaded BPL and About dialog shared version');
     Root:=GetEnvironmentVariable('XMLDOC_E2E_FIXTURE');SampleFile:=TPath.Combine(Root,'Units\Workbench.Sample.pas');SecondFile:=TPath.Combine(Root,'Units\Workbench.Second.pas');
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
   1:begin ExportAll;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;

@@ -825,6 +825,7 @@ code.xml-c {
 #workbench { flex:none; padding:6px 10px; border-bottom:1px solid var(--border-color,#bbb); max-height:45vh; overflow:auto; }
 #workbench summary {cursor:pointer;font-weight:600;}
 #edit-status {font-weight:400;font-size:12px;margin-left:10px;}
+#source-access-status {padding:6px 10px;background:var(--accent-light);color:var(--text);border-bottom:1px solid var(--border);}
 .workbench-actions {display:flex;flex-wrap:wrap;gap:5px;margin:6px 0;align-items:center;}
 .workbench-icon {display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;height:30px;padding:5px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text);cursor:pointer;}
 .workbench-icon svg {display:block;flex:none;pointer-events:none;}
@@ -837,6 +838,7 @@ code.xml-c {
 #catalog-results {max-height:220px;overflow:auto;}
 .catalog-row {display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid #aaa;padding:4px;}
 .catalog-row span {width:100%;overflow-wrap:anywhere;}
+.catalog-row .symbol-caption {width:auto;flex:1 1 160px;align-self:center;}
 #member-summaries label {display:flex;gap:6px;flex-wrap:wrap;}
 #member-summaries label textarea {width:100%;}
 .documentation-issue {display:flex;justify-content:space-between;gap:8px;align-items:center;overflow-wrap:anywhere;}

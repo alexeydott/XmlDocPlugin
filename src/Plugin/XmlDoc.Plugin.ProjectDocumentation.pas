@@ -46,6 +46,7 @@ procedure TProjectDocumentation.Draft(Message:TJSONObject;Browser:TXmlDocBrowser
 var FileName,RootPath:string;Project:IOTAProject;Json,Reply:TJSONObject;Drafts:TJSONArray;
 begin
  if Message.GetValue<string>('type','')='draftUpdated' then begin
+  if SourceEditProtection(Message.GetValue<string>('fileName',''))<>'' then Exit;
   if (Message.GetValue<string>('fileName','')='') or (Message.GetValue<string>('symbolId','')='') then Exit;
   ForceDirectories(DraftDirectory);FileName:=DraftPath(Message);
   TFile.WriteAllText(FileName+'.tmp',Message.ToJSON,TEncoding.UTF8);
@@ -198,6 +199,7 @@ end;
 procedure ReplaceSource(Editor:IOTASourceEditor;const Source:string);
 var Reader:IOTAEditReader;Writer:IOTAEditWriter;Chunk:TBytes;Offset,N:Integer;Utf8:UTF8String;BOM:Boolean;
 begin
+ if SourceEditProtection(Editor.FileName)<>'' then raise Exception.Create(SourceEditProtection(Editor.FileName));
  Reader:=Editor.CreateReader;SetLength(Chunk,32768);Offset:=0;BOM:=False;
  repeat N:=Reader.GetText(Offset,PAnsiChar(Chunk),Length(Chunk));
  if Offset=0 then BOM:=(N>=3) and (Chunk[0]=$EF) and (Chunk[1]=$BB) and (Chunk[2]=$BF);
@@ -220,6 +222,7 @@ begin
   for Change in Sorted do begin
    ElementJson:=Change.GetValue<TJSONObject>('element');DocJson:=Change.GetValue<TJSONObject>('doc');
    FileName:=ElementJson.GetValue<string>('fileName','');
+   if SourceEditProtection(FileName)<>'' then raise Exception.Create(SourceEditProtection(FileName)+': '+FileName);
    var ChangeKey:=Key(FileName,ElementJson.GetValue<string>('symbolId',''));
    if Seen.ContainsKey(ChangeKey) then raise Exception.Create('Duplicate declaration in batch');Seen.Add(ChangeKey,True);
    if not FElements.TryGetValue(Key(FileName,ElementJson.GetValue<string>('symbolId','')),E) then raise Exception.Create('Refresh the project workspace before applying summaries');

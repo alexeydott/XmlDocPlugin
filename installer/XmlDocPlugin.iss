@@ -5,7 +5,7 @@
   #define OutputDir ".\output"
 #endif
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #error AppVersion must be supplied by build-installer.ps1 from installer/Version.txt
 #endif
 
 [Setup]

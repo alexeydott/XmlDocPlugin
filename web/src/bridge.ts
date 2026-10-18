@@ -12,11 +12,14 @@ export class DelphiBridge {
   saveDebounceMs = 500;
   status = 'Applied';
   pinned = false;
+  readOnly = false;
+  readOnlyReason = '';
   private held: InboundMessage | null = null;
   readonly drafts = new Map<string, {doc:DocModel;revision?:string}>();
   private key(c: EditContext): string { return `${c.fileName}|${c.declarationId??c.symbolId}`; }
   setContext(element: ElementInfo): void {
     this.cancelPending();
+    this.readOnly = !!element.readOnly;this.readOnlyReason = element.readOnlyReason || 'Read-only source';
     this.context = { fileName: element.fileName, symbolId: element.symbolId, declarationId:element.declarationId,
       sessionId: element.sessionId, sourceRevision: element.sourceRevision };
     const draft=this.drafts.get(this.key(this.context));
@@ -33,6 +36,7 @@ export class DelphiBridge {
   receive(message: InboundMessage): void {
     if (message.type === 'editResult') {
       if (message.sessionId === this.context.sessionId) {
+        if(message.status.startsWith('Read-only')){this.readOnly=true;this.readOnlyReason=message.status;this.cancelPending();window.dispatchEvent(new CustomEvent('sourceReadOnlyChanged'));}
         this.setStatus(message.status);
         if(message.status==='Applied')this.drafts.delete(this.key(this.context));
       }
@@ -42,9 +46,9 @@ export class DelphiBridge {
       if (this.pinned) { this.held = message; return; }
       this.setContext(message.data.element);
       const draft = this.drafts.get(this.key(this.context));
-      this.setStatus(draft ? 'Unsaved draft — source may have changed' : 'Applied');
+      this.setStatus(this.readOnly ? this.readOnlyReason : draft ? 'Unsaved draft — source may have changed' : 'Applied');
       if(draft && draft.revision!==this.context.sourceRevision) this.context.sourceRevision=draft.revision;
-      this.onElementLoadedListeners.forEach(cb => cb(message.data.element, draft?.doc ?? message.data.doc));
+      this.onElementLoadedListeners.forEach(cb => cb(message.data.element, (!this.readOnly && draft?.doc) || message.data.doc));
     }
   }
   sendToHost(message: OutboundMessage): void {
@@ -59,12 +63,14 @@ export class DelphiBridge {
     const pending = this.pending; this.cancelPending(); this.sendToHost(pending);
   }
   saveDraft(doc:DocModel):void {
+    if(this.readOnly){this.setStatus(this.readOnlyReason);return;}
     const snapshot=JSON.parse(JSON.stringify(doc));const context={...this.context};
     this.drafts.set(this.key(context),{doc:snapshot,revision:context.sourceRevision});
     this.sendToHost({type:'draftUpdated',doc:snapshot,...context} as any);
     this.setStatus('Modified');
   }
   notifyDocChanged(doc: DocModel): void {
+    if(this.readOnly){this.cancelPending();this.setStatus(this.readOnlyReason);return;}
     this.cancelPending();
     const snapshot = JSON.parse(JSON.stringify(doc));
     const context = { ...this.context };

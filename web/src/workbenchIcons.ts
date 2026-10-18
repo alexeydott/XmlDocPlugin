@@ -1,5 +1,22 @@
 /** Local vector icons: no fonts, external requests or raster assets. */
+const save = '<path d="M4 3h13l3 3v15H4V3ZM8 3v6h8V3M8 21v-8h8v8"/>';
+const preview = '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
 const paths: Record<string, string> = {
+ 'save-template': save,
+ 'save-terms': save,
+ 'apply-template': '<path d="M4 4h16v16H4V4ZM8 8h8M8 12h4m3 3h6m-3-3v6"/>',
+ 'insert-selection': '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 10l-2 2 2 2m8-4 2 2-2 2m-3-6-2 12"/>',
+ 'link-example': '<path d="m10 14 4-4m-5 7-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2-2 2-2a4 4 0 1 1 6 6l-4 4a4 4 0 0 1-6 0"/>',
+ 'replace-all': '<circle cx="9" cy="8" r="5"/><path d="m13 12 3 3M3 20h18m-4-4 4 4-4 4"/>',
+ 'apply-summaries': preview,
+ 'preview-change': preview,
+ 'review-draft': preview,
+ 'apply-operation': '<path d="m4 12 5 5L20 6"/>',
+ 'apply-xml': '<path d="m5 4-3 4 3 4m8-8 3 4-3 4m-4 3 4 4L22 9"/>',
+ 'cancel-operation': '<path d="m6 6 12 12M18 6 6 18"/>',
+ 'reference': '<path d="m10 14 4-4M9 17l-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2-2 2-2a4 4 0 1 1 6 6l-4 4a4 4 0 0 1-6 0"/>',
+ 'copy-documentation': '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
+ 'open-source': '<path d="M14 3H3v18h18V10M12 12 21 3m-7 0h7v7"/>',
  'history-back': '<path d="m14 6-6 6 6 6M8 12h12"/>',
  'history-forward': '<path d="m10 6 6 6-6 6M4 12h12"/>',
  'pin-document': '<path d="m9 3 12 12-4 1-3 3-2-5-5-2 3-3-1-6ZM3 21l6-6"/>',
@@ -27,13 +44,18 @@ export function iconMarkup(id: string): string | undefined {
 
 export function initWorkbenchIcons(root: HTMLElement): void {
  for (const button of root.querySelectorAll<HTMLButtonElement>('button[id]')) {
-  const svg = iconMarkup(button.id);
-  if (!svg) continue;
-  const label = button.textContent?.trim() ?? '';
+  setWorkbenchIcon(button, button.id);
+ }
+}
+
+export function setWorkbenchIcon(button: HTMLButtonElement, icon: string): void {
+  const svg = iconMarkup(icon);
+  if (!svg) return;
+  const label = button.getAttribute('aria-label') || button.textContent?.trim() || button.title;
   button.title = button.title || label;
   button.setAttribute('aria-label', label);
   button.type = 'button';
   button.classList.add('workbench-icon');
+  button.dataset.workbenchIcon = icon;
   button.innerHTML = svg;
- }
 }

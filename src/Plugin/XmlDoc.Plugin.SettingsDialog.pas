@@ -94,10 +94,11 @@ begin
 end;
 
 procedure TSettingsDialog.btnOKClick(Sender: TObject);
-var Services:INTAServices;Actions:TCustomActionList;Conflicts:TArray<string>;
+var Services:INTAServices;Actions:TCustomActionList;Conflicts:TArray<string>;RootMenu:TMenuItem;Previous:TShortcutSettings;
 begin
-  Actions:=nil;if Supports(BorlandIDEServices,INTAServices,Services) then Actions:=Services.ActionList;
-  Conflicts:=DocumentationShortcutConflicts([hotToggleInspector.HotKey,hotGenerateStub.HotKey,hotGenerateHelp.HotKey,hotCoverageReport.HotKey,hotNextUndocumented.HotKey,hotPreviousUndocumented.HotKey],['Inspector','Generate stub','Generate help','Coverage','Next undocumented','Previous undocumented'],Actions);
+  Actions:=nil;RootMenu:=nil;Previous:=TPluginSettings.Instance.Global.Shortcuts;
+  if Supports(BorlandIDEServices,INTAServices,Services) then begin Actions:=Services.ActionList;if Assigned(Services.MainMenu) then RootMenu:=Services.MainMenu.Items;end;
+  Conflicts:=DocumentationShortcutConflicts([hotToggleInspector.HotKey,hotGenerateStub.HotKey,hotGenerateHelp.HotKey,hotCoverageReport.HotKey,hotNextUndocumented.HotKey,hotPreviousUndocumented.HotKey],['Inspector','Generate stub','Generate help','Coverage','Next undocumented','Previous undocumented'],Actions,RootMenu,[Previous.ToggleInspector,Previous.GenerateStub,Previous.GenerateHelp,Previous.CoverageReport,Previous.NextUndocumented,Previous.PreviousUndocumented]);
   if Length(Conflicts)>0 then begin ModalResult:=mrNone;ShowMessage(string.Join(sLineBreak,Conflicts));Exit;end;
   SaveSettings;
 end;

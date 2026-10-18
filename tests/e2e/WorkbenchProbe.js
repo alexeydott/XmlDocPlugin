@@ -7,8 +7,8 @@
  try{
   await pause(300);
   assert(document.querySelector('#workbench'),'Documentation tools missing');
-  const iconButtons=document.querySelectorAll('#workbench .workbench-icon');
-  assert(iconButtons.length===17,'Documentation tool icons are missing');
+  const iconButtons=document.querySelectorAll('#workbench button[id].workbench-icon');
+  assert(iconButtons.length===26,'Documentation tool icons are missing');
   for(const button of iconButtons){
    assert(button.querySelector('svg[aria-hidden="true"]'),'Tool must use an inline SVG: '+button.id);
    assert(button.title && button.getAttribute('aria-label'),'Tool needs a hint and accessible name: '+button.id);
@@ -51,6 +51,11 @@
   document.querySelector('#refresh-catalog').click();await pause(600);
   assert(document.querySelectorAll('.catalog-row').length>12,'Project catalog missing');
   const query=document.querySelector('#catalog-query');query.value='TSecond';query.dispatchEvent(new Event('input'));assert(document.querySelectorAll('.catalog-row').length>0,'Project search failed');query.value='';query.dispatchEvent(new Event('input'));
+  for(const button of document.querySelectorAll('#workbench button')){
+   assert(button.querySelector('svg') && button.title && button.getAttribute('aria-label'),'Remaining textual/dynamic action: '+button.id+' '+button.textContent);
+   assert(!button.textContent.trim(),'Remaining action description must be a hint');
+  }
+  assert(document.querySelector('.catalog-row .symbol-caption')?.textContent.trim(),'Symbol identity must remain readable');
   send('assert-project');
   const first=document.querySelector('#member-summaries input[data-id*="undocumentedfirst"]');
   const second=document.querySelector('#member-summaries input[data-id*="undocumentedsecond"]');
@@ -58,6 +63,21 @@
   document.querySelector('#member-summaries textarea[data-id*="undocumentedfirst"]').value='E2E grid first';
   document.querySelector('#member-summaries textarea[data-id*="undocumentedsecond"]').value='E2E grid second';
   document.querySelector('#apply-summaries').click();assert(!document.querySelector('#operation-preview').hidden,'Batch edit needs a preview');document.querySelector('#apply-operation').click();await pause(650);send('assert-grid');
+  const checkReadOnly=()=>{
+   const current=window.xmlDocEditor.get();assert(current.element.readOnly,'Source is not marked read-only');
+   assert(document.querySelector('#summary-editor .tiptap')?.contentEditable==='false','Rich editor remains editable');
+   assert(document.querySelector('#xml-source').readOnly,'XML source remains editable');
+   assert(document.querySelector('#apply-xml').disabled,'Apply XML remains enabled');
+   for(const editor of document.querySelectorAll('#doc-design [contenteditable]'))assert(editor.contentEditable==='false','Description remains editable');
+   assert(!document.querySelector('#focus-source').disabled,'Source navigation was disabled');
+   window.chrome.webview.postMessage(JSON.stringify({type:'docUpdated',...current.element,doc:{...current.doc,summary:'FORBIDDEN READONLY WRITE'}}));
+   window.chrome.webview.postMessage(JSON.stringify({type:'batchUpdated',changes:[{element:current.element,doc:{...current.doc,summary:'FORBIDDEN READONLY WRITE'}}]}));
+  };
+  for(const mode of ['file','buffer','system']){
+   send('lock-source',{mode});await pause(600);checkReadOnly();await pause(200);send('assert-protected');await pause(300);
+   assert(!window.xmlDocEditor.get().element.readOnly,'Writable source did not unlock: '+mode);
+  }
+  send('view-system');await pause(2500);checkReadOnly();await pause(250);send('assert-system');await pause(100);
   send('finish');
  }catch(error){send('fail',{message:error.message,stack:error.stack});}
 })();

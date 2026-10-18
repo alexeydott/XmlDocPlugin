@@ -5,12 +5,13 @@ function ParseHostMessage(const Text:string):TJSONObject;
 function CurrentSourceSnapshots:TArray<TSourceSnapshot>;
 function EditorSource(const Editor:IOTASourceEditor):string;
 function SourceEditorForFile(const FileName:string):IOTASourceEditor;
+function SourceEditProtection(const FileName:string):string;
 function SourceRevision(const Source:string):string;
 procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string);
 function ValidateEdit(Message:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string):Boolean;
 function EditResult(const SessionId,Status:string):string;
 implementation
-uses System.Classes,System.Hash,System.Generics.Collections,XmlDoc.SourceText;
+uses XmlDoc.SourceAccess,System.Classes,System.Hash,System.Generics.Collections,XmlDoc.SourceText;
 function ParseHostMessage(const Text:string):TJSONObject;
 var Value:TJSONValue;
 begin
@@ -60,10 +61,19 @@ begin
   if Supports(Module.ModuleFileEditors[I],IOTASourceEditor,Result) and SameText(Result.FileName,FileName) then Exit;
  Result:=nil;
 end;
+function SourceEditProtection(const FileName:string):string;
+var Editor:IOTASourceEditor;Buffer:IOTAEditBuffer;
+begin
+ Result:=SourceReadOnlyReason(FileName);if Result<>'' then Exit;
+ Editor:=SourceEditorForFile(FileName);
+ if Assigned(Editor) and Supports(Editor,IOTAEditBuffer,Buffer) and Buffer.IsReadOnly then Result:='Read-only: IDE source buffer';
+end;
 function SourceRevision(const Source:string):string;
 begin Result:=THashSHA2.GetHashString(Source);end;
 procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string);
 begin
+ Json.AddPair('readOnly',TJSONBool.Create(SourceEditProtection(FileName)<>''));
+ Json.AddPair('readOnlyReason',SourceEditProtection(FileName));
  Json.AddPair('declarationId',Element.SymbolId+'@'+IntToStr(Element.LineNumber));
  Json.AddPair('canonicalName',Element.CanonicalName);Json.AddPair('unitName',Element.UnitName);
  Json.AddPair('symbolId',Element.SymbolId);Json.AddPair('signature',Element.Signature);
@@ -75,6 +85,7 @@ function ValidateEdit(Message:TJSONObject;const Element:TCodeElementInfo;const F
 var Editor:IOTASourceEditor;Services:IOTAEditorServices;
 begin
  Result:=False;
+ if SourceEditProtection(FileName)<>'' then Exit;
  if (Message.GetValue<string>('sessionId','')<>SessionId) or
   (SessionId='') or (Message.GetValue<string>('symbolId','')<>Element.SymbolId) or
   (Message.GetValue<string>('declarationId','')<>Element.SymbolId+'@'+IntToStr(Element.LineNumber)) or

@@ -1,6 +1,7 @@
 ﻿program XmlDocGen;
 
 {$APPTYPE CONSOLE}
+{$R XmlDoc.Version.res}
 
 
 uses

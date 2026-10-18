@@ -2,7 +2,7 @@ import { bridge } from './bridge';
 import { analyze, synchronize, modelXml, parseXml, inheritDoc, ready, issueKey, replaceProse, compatibleInheritedMember, wordingMatches, editableXml } from './docTools';
 import type { DocModel, ElementInfo, TreeElementInfo } from './types';
 import { escapeXml } from './xmlCodec';
-import { initWorkbenchIcons } from './workbenchIcons';
+import { initWorkbenchIcons, setWorkbenchIcon } from './workbenchIcons';
 interface Hooks { get:()=>{element:ElementInfo|null;doc:DocModel}; apply:(doc:DocModel)=>void; }
 let catalog:TreeElementInfo[]=[];
 export function initWorkbench(hooks:Hooks):void {
@@ -23,7 +23,7 @@ export function initWorkbench(hooks:Hooks):void {
  initWorkbenchIcons(box);
  document.getElementById('doc-toolbar')?.before(box);
  const raw=document.createElement('section');raw.id='doc-xml';raw.className='hidden';raw.innerHTML='<label for="xml-source">Documentation XML</label><textarea id="xml-source" spellcheck="false" aria-label="Documentation XML"></textarea><button id="apply-xml">Validate and apply XML</button><output id="xml-error" aria-live="polite"></output>';
- document.getElementById('doc-preview')?.after(raw);
+ initWorkbenchIcons(raw);document.getElementById('doc-preview')?.after(raw);
  const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
  const xml=$<HTMLTextAreaElement>('xml-source');
  xml.oninput=()=>{const error=parseXml(xml.value).querySelector('parsererror');$('xml-error').textContent=error?.textContent??'XML is valid';const e=hooks.get().element;if(e)bridge.saveDraft({...hooks.get().doc,rawXml:xml.value,xmlEdited:true});};
@@ -46,7 +46,7 @@ export function initWorkbench(hooks:Hooks):void {
   for(const issue of issues()){
    const row=document.createElement('div');row.className='documentation-issue';
    const text=document.createElement('span');text.textContent=`${issue.code} (${issue.line}:${issue.column}) ${issue.message}`;row.append(text);
-   const button=document.createElement('button');button.textContent=issue.fix;button.onclick=()=>{
+   const button=document.createElement('button');button.textContent=issue.fix;setWorkbenchIcon(button,issue.fix==='Choose reference'?'reference':(issue.fix==='Synchronize'||issue.fix==='Map name')?'sync-document':'open-xml');button.onclick=()=>{
     if(issue.fix==='Synchronize')sync();else if(issue.fix==='Choose reference'){$('catalog-query').focus();refresh();}
     else if(issue.fix==='Map name')sync();else viewXml();
    };row.append(button);container.append(row);
@@ -59,7 +59,7 @@ export function initWorkbench(hooks:Hooks):void {
   const mappings:Record<string,string>={};
   const panel=document.createElement('div');panel.id='rename-mapping';
   for(const param of old){const label=document.createElement('label');label.textContent=`Map ${param.name}: `;const select=document.createElement('select');select.innerHTML='<option value="">Keep unmatched description</option>'+expected.map(n=>`<option>${escapeXml(n)}</option>`).join('');select.onchange=()=>{if(select.value)mappings[param.name]=select.value;else delete mappings[param.name];};label.append(select);panel.append(label);}
-  const next=document.createElement('button');next.textContent='Preview synchronization';next.onclick=()=>{try{review(synchronize(c.element!,c.doc,mappings));panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);
+  const next=document.createElement('button');next.textContent='Preview synchronization';setWorkbenchIcon(next,'preview-change');next.onclick=()=>{try{review(synchronize(c.element!,c.doc,mappings));panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);
   $('documentation-problems').replaceChildren(panel);if(!old.length)next.click();
  };
  $('quick-documentation').onclick=()=>bridge.sendToHost({type:'requestQuickDoc'} as any);
@@ -101,9 +101,9 @@ export function initWorkbench(hooks:Hooks):void {
   for(const old of publicBaseline)if(!catalog.some(e=>e.symbolId===old.symbolId)){const row=document.createElement('div');row.className='documentation-issue';row.textContent=`XD011 Public declaration removed or signature changed: ${old.name}`;results.append(row);}
   for(const element of filtered()){
    const row=document.createElement('div');row.className='catalog-row';row.tabIndex=0;row.setAttribute('role','option');
-   const button=document.createElement('button');button.textContent=`${element.fileName?.split(/[\\/]/).pop()} · ${element.signature??element.fullName??element.name}`;button.onclick=()=>open(element);row.append(button);
-   const insert=document.createElement('button');insert.textContent='Reference';insert.title='Insert a reference to this exact overload';insert.onclick=()=>window.dispatchEvent(new CustomEvent('insertReference',{detail:{cref:element.symbolId,text:$<HTMLInputElement>('reference-label').value||element.name}}));row.append(insert);
-   const copy=document.createElement('button');copy.textContent='Copy documentation';copy.onclick=()=>{
+   const button=document.createElement('button');button.textContent=`${element.fileName?.split(/[\\/]/).pop()} · ${element.signature??element.fullName??element.name}`;const caption=document.createElement('span');caption.className='symbol-caption';caption.textContent=button.textContent;row.append(caption);button.title='Open source: '+button.textContent;button.textContent='Open source';setWorkbenchIcon(button,'open-source');button.onclick=()=>open(element);row.append(button);
+   const insert=document.createElement('button');insert.textContent='Reference';insert.title='Insert a reference to this exact overload';setWorkbenchIcon(insert,'reference');insert.onclick=()=>window.dispatchEvent(new CustomEvent('insertReference',{detail:{cref:element.symbolId,text:$<HTMLInputElement>('reference-label').value||element.name}}));row.append(insert);
+   const copy=document.createElement('button');copy.textContent='Copy documentation';setWorkbenchIcon(copy,'copy-documentation');copy.onclick=()=>{
     const target=current().element;if(!target)return;const mapping:Record<string,string>={};const panel=document.createElement('div');
     const expected=[...target.params.map(p=>p.name),...(target.genericParams??[])];
     for(const parameter of [...element.params.map(p=>p.name),...(element.genericParams??[])]){const label=document.createElement('label');label.textContent=parameter+' → ';const select=document.createElement('select');
@@ -111,7 +111,7 @@ export function initWorkbench(hooks:Hooks):void {
      for(const name of expected){const option=document.createElement('option');option.value=name;option.textContent=name;select.append(option);}const exact=expected.find(n=>n.toLowerCase()===parameter.toLowerCase());if(exact)select.value=exact;
      select.onchange=()=>{if(select.value && select.value!==parameter)mapping[parameter]=select.value;else delete mapping[parameter];};label.append(select);panel.append(label);
     }
-    const next=document.createElement('button');next.textContent='Preview copy';next.onclick=()=>{try{const source=element.effectiveDoc??element.doc;const independent=synchronize(target,source,mapping);independent.inheritedFrom=undefined;
+    const next=document.createElement('button');next.textContent='Preview copy';setWorkbenchIcon(next,'preview-change');next.onclick=()=>{try{const source=element.effectiveDoc??element.doc;const independent=synchronize(target,source,mapping);independent.inheritedFrom=undefined;
      if(independent.sourceXml){const parsed=parseXml(independent.sourceXml);parsed.querySelectorAll('inheritdoc').forEach(n=>n.remove());independent.sourceXml=Array.from(parsed.documentElement.childNodes).map(n=>new XMLSerializer().serializeToString(n)).join('');}
      review(independent);panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);$('documentation-problems').replaceChildren(panel);
    };row.append(copy);
@@ -121,9 +121,9 @@ export function initWorkbench(hooks:Hooks):void {
   const members=$('member-summaries');members.replaceChildren();
   const owner=current().element?.qualifiedParent || current().element?.name;
   for(const element of filtered().filter(e=>e.qualifiedParent===owner && e.fileName===current().element?.fileName)){
-   const row=document.createElement('label');const selected=document.createElement('input');selected.type='checkbox';selected.dataset.id=element.symbolId;
+   const row=document.createElement('label');const selected=document.createElement('input');selected.type='checkbox';selected.dataset.id=element.symbolId;selected.disabled=!!element.readOnly;selected.dataset.sourceLocked=String(!!element.readOnly);
    const name=document.createElement('span');name.textContent=element.signature??element.name;
-   const input=document.createElement('textarea');input.value=element.doc.summary;input.dataset.id=element.symbolId;input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);members.append(row);
+   const input=document.createElement('textarea');input.value=element.doc.summary;input.dataset.id=element.symbolId;input.readOnly=!!element.readOnly;input.dataset.sourceLocked=String(!!element.readOnly);input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);members.append(row);
   }
  };
  $('catalog-query').oninput=renderCatalog;$('catalog-filter').onchange=renderCatalog;$('catalog-kind').onchange=renderCatalog;
@@ -183,13 +183,13 @@ export function initWorkbench(hooks:Hooks):void {
   for(const ancestor of ancestors){const name=ancestor.replace(/<.*>/,'').split('.').pop();
    const parents=catalog.filter(e=>e.name===name && ['class','interface'].includes(e.kind));const sameUnit=parents.filter(e=>e.unitName===c.element!.unitName);const candidatesOfType=sameUnit.length?sameUnit:parents;
    const candidates=catalog.filter(e=>e.qualifiedParent===name && candidatesOfType.some(parent=>parent.fileName===e.fileName && compatibleInheritedMember(c.element!,e,parent,ancestor)));
-   for(const source of candidates){const row=document.createElement('div');row.textContent=`Source: ${source.fileName} · ${source.signature}`;const copy=document.createElement('button');copy.textContent='Copy missing sections';copy.onclick=()=>review(inheritDoc(c.doc,source.doc));const jump=document.createElement('button');jump.textContent='Open source';jump.onclick=()=>open(source);row.append(copy,jump);container.append(row);}
+   for(const source of candidates){const row=document.createElement('div');row.textContent=`Source: ${source.fileName} · ${source.signature}`;const copy=document.createElement('button');copy.textContent='Copy missing sections';setWorkbenchIcon(copy,'copy-documentation');copy.onclick=()=>review(inheritDoc(c.doc,source.doc));const jump=document.createElement('button');jump.textContent='Open source';setWorkbenchIcon(jump,'open-source');jump.onclick=()=>open(source);row.append(copy,jump);container.append(row);}
   }
  };
  (window as any).xmlDocWorkbench={receiveDrafts(data:{drafts:any[]}){
     const panel=$('documentation-problems');panel.replaceChildren();
     for(const draft of data.drafts){const row=document.createElement('div');const label=document.createElement('span');label.textContent=`${draft.fileName} · ${draft.symbolId} · saved draft`;
-      const recover=document.createElement('button');recover.textContent='Review against current documentation';recover.onclick=()=>review(draft.doc);row.append(label,recover);panel.append(row);}
+      const recover=document.createElement('button');recover.textContent='Review against current documentation';setWorkbenchIcon(recover,'review-draft');recover.onclick=()=>review(draft.doc);row.append(label,recover);panel.append(row);}
     if(!data.drafts.length)panel.textContent='No recoverable drafts for this project.';
    },receiveAuthoring(data:any){
     authoring={project:data.project??{},global:data.global??{}};showWording();$<HTMLTextAreaElement>('project-terms').value=(authoring.project.terminology??[]).join('\n');
@@ -197,7 +197,7 @@ export function initWorkbench(hooks:Hooks):void {
    },receiveCatalog(data:{elements:TreeElementInfo[];errors?:string[]}){catalog=data.elements.sort((a,b)=>`${a.unitName}.${a.qualifiedParent}.${a.kind}.${a.signature}`.localeCompare(`${b.unitName}.${b.qualifiedParent}.${b.kind}.${b.signature}`));renderCatalog();inheritance();if(data.errors?.length)bridge.setStatus(data.errors.join('; '));},receiveQuickDoc(data:{query:string;matches:TreeElementInfo[];resolved:boolean}){
    const panel=$('documentation-problems');panel.replaceChildren();
    const heading=document.createElement('strong');heading.textContent=data.resolved?'Quick documentation':`Choose a declaration for ${data.query}`;panel.append(heading);
-   for(const e of data.matches){const row=document.createElement('div');const title=document.createElement('button');title.textContent=e.signature??e.name;title.onclick=()=>open(e);const prose=document.createElement('pre');prose.textContent=e.doc.summary+'\n'+(e.doc.params??[]).map(p=>p.name+': '+p.description).join('\n')+'\n'+(e.doc.returns??'');row.append(title,prose);panel.append(row);}
+   for(const e of data.matches){const row=document.createElement('div');const title=document.createElement('button');title.textContent=e.signature??e.name;const caption=document.createElement('span');caption.textContent=title.textContent;row.append(caption);title.title='Open source: '+title.textContent;title.textContent='Open source';setWorkbenchIcon(title,'open-source');title.onclick=()=>open(e);const prose=document.createElement('pre');prose.textContent=e.doc.summary+'\n'+(e.doc.params??[]).map(p=>p.name+': '+p.description).join('\n')+'\n'+(e.doc.returns??'');row.append(title,prose);panel.append(row);}
    if(!data.matches.length)panel.append(document.createTextNode('The symbol at the cursor could not be resolved. Use the project symbol picker.'));
   },receiveSelection(code:string){const doc=current().doc;review({...doc,examples:[...(doc.examples??[]),{title:'Selected source',description:'',code}]});}};
  window.addEventListener('documentationLoaded',(event)=>{

@@ -124,7 +124,7 @@ above the declaration. Batch exports include this documentation on the module
 page in every format, and Coverage Report includes the unit itself.
 
 CHM and Help & Manual exports use the source project name, such as
-`skia_vcl_canvas.chm` and `skia_vcl_canvas.hmxp`. The project name is also the
+`Project1.chm` and `Project1.hmxp`. The project name is also the
 default documentation title; a custom title entered in the generation dialog
 applies to all three static site formats.
 
@@ -357,15 +357,23 @@ the Microsoft signature of the Evergreen Runtime bootstrapper. The output is
 through the executable ignore rule; staging files, intermediate binaries and
 checksums stay under `%LOCALAPPDATA%\XmlDocPlugin\Installer`.
 
-The four-part file/product version is stored in `installer\Version.txt`.
-Use `-IncrementVersion` to increment its last component, or `-Version 1.2.0.0`
-to set a release version. The version file is updated only after a successful
-build and verification of the EXE's embedded FileVersion. The filename stays
-`XmlDocPlugin-Setup.exe`. Use `-OutputDir` to change its destination.
+The single source of the four-part product version is `installer\Version.txt`.
+`build-version.ps1` validates it and handles explicit version changes and
+increments. Both BPL projects import `XmlDoc.Version.props`, including when
+built directly in the IDE. The CLI build generates its Windows version resource
+outside Git. About displays all four components from the loaded BPL metadata.
+
+Use `-IncrementVersion` to increment the last component, or `-Version 1.2.0.0`
+to set a release version. An explicit change is persisted before compilation so
+all builds consume the same value. The installer build rejects mismatched
+FileVersion or ProductVersion in any BPL, CLI or Setup executable. The filename
+stays `XmlDocPlugin-Setup.exe`. Use `-OutputDir` to change its destination.
 
 ```powershell
 .\build-installer.ps1 -IncrementVersion
 .\build-installer.ps1 -Version 1.2.0.0
+# Set the shared version without building:
+.\build-version.ps1 -Version 1.2.0.0
 ```
 
 Setup detects installed IDEs using their registry configuration and checks that
@@ -407,3 +415,16 @@ keys and a deterministic Runtime fixture; they do not change real IDE or
 WebView2 registrations. Installer source is `installer\XmlDocPlugin.iss`.
 The [InnoSetupScripts RAD Studio helpers](https://github.com/civilian7/InnoSetupScripts/tree/main/Source)
 were consulted for RAD Studio version and registration conventions.
+
+### Protected source files
+
+Documentation in read-only IDE buffers, files with read-only or system attributes,
+and RAD Studio compiler source directories is available for viewing and navigation.
+Documentation editing, stub generation and batch changes are blocked for these files,
+including requests sent directly to the native plugin. Existing drafts are retained
+but are not applied while viewing a protected source file.
+
+The parser evaluates supported RTL `SizeOf` conditionals for the selected target
+platform when opening compiler sources directly or through imports and includes.
+It also resolves the literal bounds of `RegisteredTypeInfoTable` used by System.pas.
+Unsupported conditional expressions continue to report errors.

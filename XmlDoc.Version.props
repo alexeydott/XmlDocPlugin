@@ -1,0 +1,13 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+ <PropertyGroup>
+  <XmlDocVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)installer\Version.txt').Trim())</XmlDocVersion>
+  <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+  <VerInfo_AutoIncVersion>false</VerInfo_AutoIncVersion>
+  <VerInfo_MajorVer>$([System.Version]::Parse('$(XmlDocVersion)').Major)</VerInfo_MajorVer>
+  <VerInfo_MinorVer>$([System.Version]::Parse('$(XmlDocVersion)').Minor)</VerInfo_MinorVer>
+  <VerInfo_Release>$([System.Version]::Parse('$(XmlDocVersion)').Build)</VerInfo_Release>
+  <VerInfo_Build>$([System.Version]::Parse('$(XmlDocVersion)').Revision)</VerInfo_Build>
+  <VerInfo_Locale>1033</VerInfo_Locale>
+  <VerInfo_Keys>CompanyName=alexeydott;FileDescription=XmlDoc Plugin;FileVersion=$(XmlDocVersion);ProductName=XmlDoc Plugin;ProductVersion=$(XmlDocVersion)</VerInfo_Keys>
+ </PropertyGroup>
+</Project>

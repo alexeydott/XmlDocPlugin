@@ -5,6 +5,8 @@ type [TestFixture] TImprovementsTests=class
 public
  [Test] procedure ScannerTargetPlatform;
  [Test] procedure ShortcutConflicts;
+ [Test] procedure SystemSourceParsing;
+ [Test] procedure SourceProtection;
  [Test] procedure PublicApiBaseline;
  [Test] procedure ImageResources;
  [Test] procedure LinkedExampleValidation;
@@ -32,7 +34,7 @@ public
  [Test] procedure DeterministicXmlFuzz;
 end;
 implementation
-uses System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+uses XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
 procedure TImprovementsTests.ScannerTargetPlatform;
 var Root:string;Options:TScanOptions;Scanner:TProjectScanner;Files:TArray<string>;
 begin
@@ -45,13 +47,65 @@ begin
   Options.Platform:='Win64';Files:=Scanner.Scan(Options);Assert.AreEqual<NativeInt>(1,Length(Files));Assert.IsTrue(Files[0].EndsWith('U64.pas'));
  finally Scanner.Free;TDirectory.Delete(Root,True);end;
 end;
+procedure TImprovementsTests.SystemSourceParsing;
+var P:TDocParser;Root,FileName,Platform,Source:string;Count:Integer;
+begin
+ Count:=0;
+ for Root in CompilerSourceRoots do begin
+  FileName:=TPath.Combine(Root,'rtl\sys\System.pas');if not TFile.Exists(FileName) then Continue;
+  Inc(Count);Source:=XmlDoc.SourceText.ReadSourceFile(FileName);
+  for Platform in ['Win32','Win64'] do begin
+   P:=TDocParser.Create;
+   try P.Platform:=Platform;P.ParseSource(Source,FileName);Assert.IsNotNull(P.RootNode);
+    Assert.IsTrue(Length(P.GetAllElements)>1000);Assert.AreEqual(Source,P.SourceText,'Compiler condition normalization must not change the original source');
+   finally P.Free;end;
+  end;
+ end;
+ Assert.IsTrue(Count>0,'RAD Studio System.pas fixture is required');
+end;
+procedure TImprovementsTests.SourceProtection;
+var Dir,FileName,Root:string;
+begin
+ Dir:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(Dir);FileName:=TPath.Combine(Dir,'System.pas');
+ try
+  TFile.WriteAllText(FileName,'unit System; interface implementation end.');
+  Assert.IsFalse(IsCompilerSource(FileName),'A user file named System.pas is not an RTL file');Assert.AreEqual('',SourceReadOnlyReason(FileName));
+  FileSetAttr(FileName,faReadOnly);Assert.IsTrue(SourceReadOnlyReason(FileName)<>'');
+  FileSetAttr(FileName,0);Assert.AreEqual('',SourceReadOnlyReason(FileName));
+  FileSetAttr(FileName,faSysFile);Assert.IsTrue(SourceReadOnlyReason(FileName)<>'');FileSetAttr(FileName,0);
+  for Root in CompilerSourceRoots do begin
+   Assert.IsTrue(IsCompilerSource(TPath.Combine(Root,'rtl\sys\System.pas')));
+   Assert.IsTrue(SourceReadOnlyReason(TPath.Combine(Root,'vcl\Vcl.Forms.pas'))<>'');
+   Assert.IsFalse(IsCompilerSource(ExcludeTrailingPathDelimiter(Root)+'-user\Unit1.pas'),'Protection must respect path boundaries');
+  end;
+ finally FileSetAttr(FileName,0);TDirectory.Delete(Dir,True);end;
+end;
 procedure TImprovementsTests.ShortcutConflicts;
-var Actions:TActionList;Action:TAction;Conflicts:TArray<string>;
+var Actions:TActionList;Action,Proxy,Foreign:TAction;Conflicts:TArray<string>;Root,DocMenu,Item:TMenuItem;
 begin
  Actions:=TActionList.Create(nil);
  try Action:=TAction.Create(Actions);Action.ActionList:=Actions;Action.Name:='ForeignAction';Action.Caption:='Existing IDE command';Action.ShortCut:=TextToShortCut('Ctrl+Alt+Q');
   Conflicts:=DocumentationShortcutConflicts([Action.ShortCut,Action.ShortCut,0],['Quick doc','Inspector','Disabled'],Actions);Assert.AreEqual<NativeInt>(3,Length(Conflicts));
   Action.Name:='XmlDocOwnAction';Conflicts:=DocumentationShortcutConflicts([Action.ShortCut,0],['Quick doc','Disabled'],Actions);Assert.AreEqual<NativeInt>(0,Length(Conflicts));
+  Root:=TMenuItem.Create(nil);
+  try
+   DocMenu:=TMenuItem.Create(Root);DocMenu.Name:='XmlDocDocumentMenu';Root.Add(DocMenu);
+   Proxy:=TAction.Create(Actions);Proxy.Caption:='&Generate Help...';Proxy.ShortCut:=TextToShortCut('Ctrl+Shift+H');Proxy.ActionList:=Actions;
+   Item:=TMenuItem.Create(Root);Item.Action:=Proxy;DocMenu.Add(Item);
+   Conflicts:=DocumentationShortcutConflicts([Proxy.ShortCut],['Generate help'],Actions,Root);
+   Assert.AreEqual<NativeInt>(0,Length(Conflicts),'IDE wrapper for our menu is not a foreign command');
+   Foreign:=TAction.Create(Actions);Foreign.Caption:=Proxy.Caption;Foreign.ShortCut:=Proxy.ShortCut;Foreign.ActionList:=Actions;
+   Conflicts:=DocumentationShortcutConflicts([Proxy.ShortCut],['Generate help'],Actions,Root);
+   Assert.AreEqual<NativeInt>(1,Length(Conflicts),'Identical foreign caption must not be excluded');
+   Conflicts:=DocumentationShortcutConflicts([Proxy.ShortCut],['Generate help'],Actions,Root,[Proxy.ShortCut]);
+   Assert.AreEqual<NativeInt>(0,Length(Conflicts),'Existing assignments must not block unrelated settings');
+   Conflicts:=DocumentationShortcutConflicts([Proxy.ShortCut],['Generate help'],Actions,Root,[0]);
+   Assert.AreEqual<NativeInt>(1,Length(Conflicts),'New conflicting assignment must be rejected');
+   Conflicts:=DocumentationShortcutConflicts([Proxy.ShortCut,Proxy.ShortCut],['Help','Coverage'],Actions,Root,[Proxy.ShortCut,0]);
+   Assert.AreEqual<NativeInt>(2,Length(Conflicts),'New internal duplicate and foreign conflict must both be reported');
+   Conflicts:=DocumentationShortcutConflicts([0],['Generate help'],Actions,Root,[Proxy.ShortCut]);
+   Assert.AreEqual<NativeInt>(0,Length(Conflicts),'Clearing a shortcut must be allowed');
+  finally Root.Free;end;
  finally Actions.Free;end;
 end;
 procedure TImprovementsTests.PublicApiBaseline;

@@ -29,6 +29,7 @@ type
   end;
 
 implementation
+uses XmlDoc.SourceAccess;
 
 { TDocOTAWriter }
 
@@ -45,6 +46,7 @@ begin
   if not Assigned(AEditor) then
     Exit;
 
+  if SourceReadOnlyReason(AEditor.FileName)<>'' then Exit;
   if Supports(AEditor,IOTAEditBuffer,Buffer) and Buffer.IsReadOnly then Exit;
   if AModel.ParseError<>'' then Exit;
   if (AModel.SourceXml<>'') and (AModel.ToXml=AElement.ExistingDocXml) then Exit(True);

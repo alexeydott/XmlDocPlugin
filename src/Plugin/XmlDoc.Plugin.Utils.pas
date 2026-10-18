@@ -3,7 +3,7 @@
 interface
 
 /// <summary>BPL의 파일 버전 정보를 읽어 문자열로 반환합니다.</summary>
-/// <returns>Major.Minor.Release 형식의 버전 문자열. 읽기 실패 시 빈 문자열.</returns>
+/// <returns>Major.Minor.Release.Build, or an empty string if metadata is unavailable.</returns>
 function GetModuleVersion: string;
 
 implementation
@@ -32,10 +32,11 @@ begin
 
   if VerQueryValue(@LBuffer[0], '\', Pointer(LInfo), LInfoLen) then
   begin
-    Result := Format('%d.%d.%d', [
+    Result := Format('%d.%d.%d.%d', [
       HiWord(LInfo.dwFileVersionMS),
       LoWord(LInfo.dwFileVersionMS),
-      HiWord(LInfo.dwFileVersionLS)
+      HiWord(LInfo.dwFileVersionLS),
+      LoWord(LInfo.dwFileVersionLS)
     ]);
   end;
 end;

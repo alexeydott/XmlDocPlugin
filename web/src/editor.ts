@@ -1,3 +1,4 @@
+import { applySourceAccess } from './sourceAccess';
 import { Editor,Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration,DecorationSet } from '@tiptap/pm/view';
@@ -160,7 +161,7 @@ export function collectDoc(): DocModel {
 }
 
 function notifyChanged(): void {
-  if(loading)return;
+  if(loading || bridge.readOnly)return;
   const rendered=collectDoc();
   const next:DocModel={...original};
   for(const key of Object.keys(rendered) as (keyof DocModel)[]){
@@ -487,6 +488,8 @@ export function loadDocument(element: ElementInfo, doc: DocModel): void {
   renderExceptions(doc.exceptions);
   renderSeeAlso(doc.seeAlso);
   updateToolbarState(element);
+  editors().forEach(e=>e.setEditable(!bridge.readOnly));
+  applySourceAccess(bridge.readOnly,bridge.readOnlyReason);
   baseline=collectDoc();loading=false;
   const position=positions.get(`${element.fileName}|${element.symbolId}`);
   if(position){
@@ -527,13 +530,18 @@ export function init(): void {
   setupTabs();
   (window as any).xmlDocEditor={
     get:()=>({element:currentElement,doc:currentDoc}),
-    apply:(doc:DocModel)=>{if(currentElement){loadDocument(currentElement,doc);bridge.notifyDocChanged(doc);}},
+    apply:(doc:DocModel)=>{if(currentElement && !bridge.readOnly){loadDocument(currentElement,doc);bridge.notifyDocChanged(doc);}},
   };
   initWorkbench({get:()=>({element:currentElement,doc:currentDoc}),apply:(doc)=>{
-    if(!currentElement)return;
+    if(!currentElement || bridge.readOnly)return;
     const element=currentElement;loadDocument(element,doc);bridge.notifyDocChanged(doc);
   }});
 
+  const access=document.createElement('div');access.id='source-access-status';access.setAttribute('role','status');access.hidden=true;document.getElementById('doc-toolbar')?.before(access);
+  const refreshAccess=()=>{editors().forEach(e=>{if(e.isEditable===bridge.readOnly)e.setEditable(!bridge.readOnly);});applySourceAccess(bridge.readOnly,bridge.readOnlyReason);};
+  window.addEventListener('sourceReadOnlyChanged',refreshAccess);
+  const accessObserver=new MutationObserver(refreshAccess);
+  for(const id of ['doc-design','workbench','doc-xml']){const root=document.getElementById(id);if(root)accessObserver.observe(root,{childList:true,subtree:true});}
   bridge.onElementLoaded((element, doc) => {
     loadDocument(element, doc);
   });

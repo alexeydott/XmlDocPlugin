@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$Rad12 = 'D:\Embarcadero RAD Studio\23.0',
     [string]$Rad13 = 'D:\Embarcadero RAD Studio\37.0',
     [string]$ISCC = 'D:\tools\InnoSetup\6\ISCC.exe',
@@ -8,14 +8,7 @@
 )
 $ErrorActionPreference = 'Stop'
 $OutputDir = [IO.Path]::GetFullPath($OutputDir)
-$versionFile = Join-Path $PSScriptRoot 'installer\Version.txt'
-if (!$Version) { $Version = (Get-Content -LiteralPath $versionFile -Raw).Trim() }
-if ($Version -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$') { throw 'Version must contain three or four numeric components.' }
-$parts = @($Version.Split('.') | ForEach-Object { [int]$_ })
-if ($parts.Count -eq 3) { $parts += 0 }
-if ($IncrementVersion) { $parts[3]++ }
-if (@($parts | Where-Object { $_ -gt 65535 }).Count) { throw 'Version components must be between 0 and 65535.' }
-$Version = $parts -join '.'
+$Version = & (Join-Path $PSScriptRoot 'build-version.ps1') -Version $Version -IncrementVersion:$IncrementVersion
 # Only the final EXE goes into OutputDir. All staging, DCPs and hashes stay outside Git.
 $workDir = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Installer'
 $stage = Join-Path $workDir 'payload'
@@ -56,6 +49,12 @@ try {
     $cliBytes = [IO.File]::ReadAllBytes((Join-Path $cliDir 'XmlDocGen.exe'))
     $cliPE = [BitConverter]::ToInt32($cliBytes, 60)
     if ([BitConverter]::ToUInt16($cliBytes, $cliPE + 4) -ne 0x8664) { throw 'Command-line generator must be an x64 executable' }
+    foreach ($binary in @('rad12-x86\XmlDocPlugin290.bpl','rad13-x86\XmlDocPlugin370.bpl','rad13-x64\XmlDocPlugin370.bpl','bin\XmlDocGen.exe')) {
+        $binaryInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $stage $binary))
+        $fv = '{0}.{1}.{2}.{3}' -f $binaryInfo.FileMajorPart,$binaryInfo.FileMinorPart,$binaryInfo.FileBuildPart,$binaryInfo.FilePrivatePart
+        $pv = '{0}.{1}.{2}.{3}' -f $binaryInfo.ProductMajorPart,$binaryInfo.ProductMinorPart,$binaryInfo.ProductBuildPart,$binaryInfo.ProductPrivatePart
+        if ($fv -ne $Version -or $pv -ne $Version) { throw "Binary version mismatch: $binary ($fv / $pv), expected $Version" }
+    }
     $cache = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\InstallerCache'
     New-Item -ItemType Directory -Force $cache | Out-Null
     $bootstrap = Join-Path $cache 'MicrosoftEdgeWebview2Setup.exe'
@@ -77,7 +76,9 @@ try {
     $info = [Diagnostics.FileVersionInfo]::GetVersionInfo($installer)
     $fileVersion = '{0}.{1}.{2}.{3}' -f $info.FileMajorPart, $info.FileMinorPart, $info.FileBuildPart, $info.FilePrivatePart
     if ($fileVersion -ne $Version) { throw "Installer file version mismatch: $fileVersion instead of $Version" }
+    $productVersion = '{0}.{1}.{2}.{3}' -f $info.ProductMajorPart,$info.ProductMinorPart,$info.ProductBuildPart,$info.ProductPrivatePart
+    if ($productVersion -ne $Version) { throw "Installer product version mismatch: $productVersion instead of $Version" }
     (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash | Set-Content (Join-Path $workDir 'XmlDocPlugin-Setup.exe.sha256') -Encoding ASCII
-    $Version | Set-Content -LiteralPath $versionFile -Encoding ASCII
+
     Write-Host "Installer: $installer (FileVersion $fileVersion)"
 } finally { Pop-Location }

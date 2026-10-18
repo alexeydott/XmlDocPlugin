@@ -38,7 +38,8 @@ $source = $source.Replace('..\LICENSE', (Join-Path $repo 'LICENSE'))
 $source = $source.Replace('OutputBaseFilename=XmlDocPlugin-Setup', 'OutputBaseFilename=InstallerTest-Setup')
 $iss = Join-Path $dir 'Test.iss'
 [IO.File]::WriteAllText($iss, $source)
-& $ISCC "/DStageDir=$testPayload" "/DOutputDir=$dir" $iss *> (Join-Path $dir 'compile.log')
+$version = & (Join-Path $repo 'build-version.ps1')
+& $ISCC "/DStageDir=$testPayload" "/DOutputDir=$dir" "/DAppVersion=$version" $iss *> (Join-Path $dir 'compile.log')
 if ($LASTEXITCODE) { throw "Test installer compilation failed: $dir\compile.log" }
 $exe = Join-Path $dir 'InstallerTest-Setup.exe'
 $app = Join-Path $dir 'installed'

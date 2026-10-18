@@ -46,3 +46,38 @@ test('unapplied XML draft is persisted without scheduling a source write',()=>{
  b.saveDraft({summary:'',rawXml:'<summary>Broken',xmlEdited:true});b.flush();
  assert.equal(sent.length,1);assert.equal(sent[0].type,'draftUpdated');assert.equal(sent[0].sourceRevision,'1');
 });
+
+test('read-only source cancels pending edits and refuses drafts',async()=>{
+ const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);b.saveDebounceMs=5;
+ b.setContext(element('A'));b.notifyDocChanged({summary:'pending'});sent.length=0;
+ b.setContext({...element('B'),readOnly:true,readOnlyReason:'Read-only source'});
+ b.notifyDocChanged({summary:'forbidden'});b.saveDraft({summary:'forbidden'});b.flush();await sleep(15);
+ assert.equal(sent.length,0);assert.equal(b.drafts.has('A.pas|B'),false);
+ b.setContext(element('C'));b.notifyDocChanged({summary:'allowed'});b.flush();
+ assert.ok(sent.some(m=>m.type==='docUpdated'&&m.doc.summary==='allowed'));
+});
+test('native read-only rejection locks source and cancels pending edit',async()=>{
+ const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);b.saveDebounceMs=5;
+ b.setContext(element('A'));b.notifyDocChanged({summary:'pending'});sent.length=0;
+ b.receive({type:'editResult',sessionId:'session',status:'Read-only: IDE buffer'});
+ b.notifyDocChanged({summary:'forbidden'});await sleep(15);b.flush();
+ assert.equal(b.readOnly,true);assert.equal(sent.length,0);
+});
+
+test('read-only viewing uses source rather than a recovered draft',()=>{
+ const b=new DelphiBridge();b.sendToHost=()=>{};b.setContext(element('A'));b.saveDraft({summary:'draft'});
+ let shown;b.onElementLoaded((e,doc)=>shown=doc);
+ b.receive({type:'loadDoc',data:{element:{...element('A'),readOnly:true},doc:{summary:'source'}}});
+ assert.equal(shown.summary,'source');
+});
+
+test('seeded protection/navigation fuzz never schedules protected writes',()=>{
+ let seed=0xa61c3;const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);
+ for(let i=0;i<5000;i++){
+  seed=(Math.imul(seed,1664525)+1013904223)>>>0;const locked=!!(seed&1);
+  b.setContext({...element('node'+i),readOnly:locked});
+  b.saveDraft({summary:'draft'});b.notifyDocChanged({summary:'edit'});b.flush();
+  if(locked)assert.equal(sent.length,0);else assert.ok(sent.some(m=>m.type==='docUpdated'));
+  sent.length=0;
+ }
+});

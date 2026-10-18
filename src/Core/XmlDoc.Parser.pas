@@ -88,7 +88,7 @@ type
 
 implementation
 
-uses System.IOUtils,System.Win.Registry,Winapi.Windows,SimpleParser.Lexer.Types,System.RegularExpressions,XmlDoc.SourceText;
+uses XmlDoc.SourceAccess,System.IOUtils,System.Win.Registry,Winapi.Windows,SimpleParser.Lexer.Types,System.RegularExpressions,XmlDoc.SourceText;
 
 {$I XmlDoc.SystemDeclarations.inc}
 
@@ -148,9 +148,11 @@ type
     FPaths,FFiles,FDefines:TArray<string>;
     FSnapshots:TDictionary<string,string>;
     FRTLRoot,FPlatform:string;
+    FRTLArrayLength:Integer;
     procedure ConfigureTarget(Builder:TPasSyntaxTreeBuilder);
     function NativeRTLSize(const Match:TMatch):string;
     function RTLConditional(const Match:TMatch):string;
+    function PrepareSource(const Source,FileName:string):string;
     function LocateUnit(const Name,ExplicitPath,FromFile:string):string;
     function LoadUnit(const Name,ExplicitPath,FromFile:string;out FileName:string):TSyntaxNode;
     function FindSymbol(Root:TSyntaxNode;const FileName,Name:string;
@@ -376,7 +378,7 @@ begin
     if not FParents.TryGetValue(PathKey(Current),Current) then Break;
   end;
   if Parent<>'' then FParents.AddOrSetValue(PathKey(FileName),Parent);
-  if not FSession.FSnapshots.TryGetValue(PathKey(FileName),Content) then Content:=ReadSourceFile(FileName);Result:=True;
+  if not FSession.FSnapshots.TryGetValue(PathKey(FileName),Content) then Content:=ReadSourceFile(FileName);Content:=FSession.PrepareSource(Content,FileName);Result:=True;
 end;
 
 function TDeclarationSession.NativeRTLSize(const Match:TMatch):string;
@@ -388,15 +390,28 @@ begin
  else if Name='POINTER' then begin if Target64(FPlatform) then Value:=8 else Value:=4;end
  else if Name='INTEGER' then Value:=SizeOf(Integer)
  else if Name='NATIVEINT' then begin if Target64(FPlatform) then Value:=8 else Value:=4;end
+ else if Name='LONGINT' then Value:=4
+ else if Name='TEXTENDED80REC' then Value:=10
  else if Name='CHAR' then Value:=SizeOf(Char);
  if Value<0 then Result:=Match.Value else Result:=IntToStr(Value);
 end;
 
 function TDeclarationSession.RTLConditional(const Match:TMatch):string;
 begin
- Result:=TRegEx.Replace(Match.Value,'(?i)\bSizeOf\s*\(\s*(Extended|LongWord|Pointer|Integer|NativeInt|Char)\s*\)',NativeRTLSize);
+ Result:=TRegEx.Replace(Match.Value,'(?i)\bSizeOf\s*\(\s*(Extended|LongWord|Pointer|Integer|NativeInt|LongInt|TExtended80Rec|Char)\s*\)',NativeRTLSize);
+ if FRTLArrayLength>=0 then Result:=TRegEx.Replace(Result,'(?i)\bLength\s*\(\s*RegisteredTypeInfoTable\s*\)',IntToStr(FRTLArrayLength));
 end;
 
+function TDeclarationSession.PrepareSource(const Source,FileName:string):string;
+var Bounds:TMatch;
+begin
+ Result:=Source;
+ if IsCompilerSource(FileName) then begin
+  FRTLArrayLength:=-1;Bounds:=TRegEx.Match(Source,'(?i)\bRegisteredTypeInfoTable\s*:\s*array\s*\[\s*(\d+)\s*\.\.\s*(\d+)\s*\]');
+  if Bounds.Success then FRTLArrayLength:=StrToInt(Bounds.Groups[2].Value)-StrToInt(Bounds.Groups[1].Value)+1;
+  Result:=TRegEx.Replace(Result,'(?is)\{\$\s*(?:IF|ELSEIF)\b[^}]*\}|\(\*\$\s*(?:IF|ELSEIF)\b.*?\*\)',RTLConditional);
+ end;
+end;
 function TDeclarationSession.LoadUnit(const Name,ExplicitPath,FromFile:string;out FileName:string):TSyntaxNode;
 var Key,LookupKey,Source,Define:string;Builder:TScopeAwareBuilder;Stream:TStringStream;
 begin
@@ -419,8 +434,7 @@ begin
     if not FSnapshots.TryGetValue(PathKey(FileName),Source) then Source:=ReadSourceFile(FileName);
     // RTL uses target-native built-in sizes in conditionals. Keep unsupported
     // expressions intact so the lexer reports them instead of guessing a branch.
-    if (FRTLRoot<>'') and FileName.StartsWith(IncludeTrailingPathDelimiter(FRTLRoot),True) then
-      Source:=TRegEx.Replace(Source,'(?is)\{\$\s*(?:IF|ELSEIF)\b[^}]*\}',RTLConditional);
+    Source:=PrepareSource(Source,FileName);
     Stream:=TStringStream.Create(Source,TEncoding.UTF8);
     try Result:=Builder.Run(Stream);
     except on E:Exception do raise Exception.CreateFmt('Cannot resolve DECLARED in %s: %s',[FileName,E.Message]);end;
@@ -1201,7 +1215,7 @@ begin
   Session:=TDeclarationSession.Create(FSearchPaths,FSourceFiles,FDefines,FSnapshots,FPlatform);
   LStream := nil;
   try
-    LStream := TStringStream.Create(ASource, TEncoding.UTF8);
+    LStream := TStringStream.Create(Session.PrepareSource(ASource,AFileName), TEncoding.UTF8);
     FBuilder := TScopeAwareBuilder.Create;
     TScopeAwareBuilder(FBuilder).FExternalResolver := FOnResolveDeclaration;
     TScopeAwareBuilder(FBuilder).FSession:=Session;

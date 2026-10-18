@@ -10,6 +10,7 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 New-Item -ItemType Directory -Force $EvidenceDir | Out-Null
 Push-Location $repo
 try {
+ & tests/Test-Version.ps1
  & npm test --prefix web *> "$EvidenceDir\web-tests.log"
  if($LASTEXITCODE){throw 'Browser unit and fuzz tests failed'}
  & .\test-delphi12.ps1 -Bds $Rad12 *> "$EvidenceDir\rad12-tests.log"

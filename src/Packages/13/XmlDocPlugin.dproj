@@ -118,7 +118,7 @@
         <DesignOnlyPackage>true</DesignOnlyPackage>
         <DCC_Namespace>Winapi;System.Win;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DUnitX.Loggers.GUI;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>1042</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.5.0.0;InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProductName=XmlDoc Plugin;ProductVersion=0.5.0;Comments=;CFBundleName=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=$(XmlDocVersion);InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProductName=XmlDoc Plugin;ProductVersion=$(XmlDocVersion);Comments=;CFBundleName=</VerInfo_Keys>
         <DCC_UnitSearchPath>..\..\..\vendor\DelphiAST\Source;..\..\..\vendor\DelphiAST\Source\SimpleParser;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_IncludePath>..\..\..\vendor\DelphiAST\Source\SimpleParser;$(DCC_IncludePath)</DCC_IncludePath>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
@@ -155,7 +155,7 @@
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=0.5.0.0;InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=XmlDoc Plugin;ProductVersion=0.5.0;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=$(XmlDocVersion);InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=XmlDoc Plugin;ProductVersion=$(XmlDocVersion);Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_UsePackage>vcl;rtl;xmlrtl;vclwinx;vcledge;RESTComponents;VclSmp;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
@@ -193,7 +193,7 @@
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=0.5.0.0;InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=XmlDoc Plugin;ProductVersion=0.5.0;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=$(XmlDocVersion);InternalName=;LegalCopyright=(c) 2026 Fullbit Computing;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=XmlDoc Plugin;ProductVersion=$(XmlDocVersion);Comments=</VerInfo_Keys>
         <DllSuffix>$(Auto)</DllSuffix>
     </PropertyGroup>
     <ItemGroup>
@@ -1138,7 +1138,8 @@
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>
-    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+    <Import Project="..\..\..\XmlDoc.Version.props" />
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
 </Project>

@@ -4,6 +4,7 @@
 
 import type { Editor } from '@tiptap/core';
 import type { ElementInfo } from './types';
+import { bridge } from './bridge';
 import { showPopover, hidePopover } from './popover';
 import { showHelpModal } from './helpModal';
 
@@ -19,7 +20,7 @@ export function initToolbar(): void {
   renderToolbar();
   window.addEventListener('insertReference',event=>{
     const detail=(event as CustomEvent).detail;
-    if(activeEditor)applyMark(activeEditor,'seeRef',{cref:detail.cref},detail.text);
+    if(activeEditor && !bridge.readOnly)applyMark(activeEditor,'seeRef',{cref:detail.cref},detail.text);
   });
 }
 
@@ -138,7 +139,7 @@ function refreshActiveStates(): void {
 // ── Actions ──
 
 function handleAction(action: string, btn: HTMLElement): void {
-  if (!activeEditor) return;
+  if (!activeEditor || bridge.readOnly) return;
 
   switch (action) {
     case 'bold':

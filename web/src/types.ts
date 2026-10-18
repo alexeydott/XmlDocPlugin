@@ -15,6 +15,8 @@ export interface ParamInfo {
 
 /** 코드 요소 정보 (Delphi → WebView) */
 export interface ElementInfo {
+  readOnly?: boolean;
+  readOnlyReason?: string;
   kind: DocElementKind;
   name: string;
   fullName?: string;
