@@ -12,13 +12,19 @@ type
     FLoadTimer: TTimer;
     FHtml: string;
     FResourceName: string;
+    FResourceRoot:string;
+    FResourceStatus:string;
     procedure LoadTimer(Sender: TObject);
+  protected
+    procedure DestroyWnd;override;
   public
     constructor Create(AOwner: TComponent); override;
     procedure LoadEditorResource(AInstance: THandle; const AName: string);
     procedure RestoreSections;
     procedure SaveSections(const AJson: string);
     procedure ApplySettings;
+    procedure MapResources(const Root:string);
+    property ResourceStatus:string read FResourceStatus;
   end;
 
 procedure ConfigureWebViewLoader;
@@ -27,7 +33,7 @@ implementation
 
 uses
   System.IOUtils, System.JSON, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils,
-  XmlDoc.Plugin.Settings;
+  XmlDoc.Plugin.Settings,WebView2;
 
 procedure ConfigureWebViewLoader;
 var
@@ -92,6 +98,20 @@ begin
   end;
 end;
 
+procedure TXmlDocBrowser.MapResources(const Root:string);
+var View:ICoreWebView2_3;Status:HRESULT;Folder:string;
+begin
+ Folder:=ExcludeTrailingPathDelimiter(TPath.GetFullPath(Root));
+ if SameText(Folder,FResourceRoot) then Exit;
+ if not TDirectory.Exists(Folder) then begin FResourceStatus:='Missing resource directory: '+Folder;Exit;end;
+ // A VCL handle recreation creates a new WebView controller. Reapply the map
+ // even when the project path is unchanged.
+ if not Supports(DefaultInterface,ICoreWebView2_3,View) then begin FResourceStatus:='WebView2 resource mapping is unavailable';Exit;end;
+ Status:=View.SetVirtualHostNameToFolderMapping('xmldoc.resources',PChar(Folder),COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
+ FResourceStatus:=Folder+' HRESULT='+IntToHex(Status,8);
+ if Status=S_OK then begin FResourceRoot:=Folder;FLoadTimer.Enabled:=True;end;
+end;
+
 procedure TXmlDocBrowser.ApplySettings;
 var
   LJson: TJSONObject;
@@ -100,6 +120,7 @@ begin
   LSettings := TPluginSettings.Instance.Global.Editor;
   LJson := TJSONObject.Create;
   try
+    LJson.AddPair('saveDebounceMs',TJSONNumber.Create(LSettings.SaveDebounceMs));
     LJson.AddPair('theme', LSettings.Theme);
     LJson.AddPair('fontSize', TJSONNumber.Create(LSettings.FontSize));
     LJson.AddPair('showSignatureHeader', TJSONBool.Create(LSettings.ShowSignatureHeader));
@@ -109,10 +130,17 @@ begin
   end;
 end;
 
-procedure TXmlDocBrowser.LoadTimer(Sender: TObject);
+procedure TXmlDocBrowser.DestroyWnd;
 begin
-  FLoadTimer.Enabled := False;
-  NavigateToString(FHtml);
+ FResourceRoot:='';inherited;
+end;
+
+procedure TXmlDocBrowser.LoadTimer(Sender:TObject);
+begin
+ FLoadTimer.Enabled:=False;
+ // Resource loaders are created at navigation time. Mapping after a page has
+ // loaded requires a new navigation (WebView2 host mapping contract).
+ FLoadTimer.Enabled:=False;NavigateToString(FHtml);
 end;
 
 end.

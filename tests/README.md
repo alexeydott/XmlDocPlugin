@@ -23,3 +23,42 @@ For IDE integration, open Doc Inspector, dock it in an IDE tab group, and check
 that its content and selected documentation remain visible. Save the desktop
 layout, close the IDE, and reopen that layout. Verify that Inspector is recreated
 in the same tab group and its section choices and editor theme are preserved.
+
+## Workbench regression and E2E suite
+
+`e2e/DocumentationWorkbench/XmlDocE2E.dproj` is the permanent acceptance project.
+Use it instead of external Skia projects. It contains interfaces, inheritance,
+overloads, renamed and undocumented parameters, malformed and extension XML,
+Unicode examples, mixed markup and a project image.
+
+Run the complete suite from the repository root:
+
+```powershell
+.\tests\Test-Improvements.ps1
+```
+
+Use `-SkipIDE` for core/browser/fuzz/export checks only. The runner tests Delphi
+12 and 13 on Win32/Win64, the TypeScript bridge and real ProseMirror serializer,
+all eight export formats, local references, HMXP XSD/resources, unchanged
+baselines and changed public signatures. The fuzz suites use reproducible seeds:
+2,000 XML mutations, 3,000 rich-text trees and 5,000 navigation/debounce sequences.
+
+The IDE runner builds the fixture and plugin, then launches RAD 12 x86 and RAD 13
+x86/x64 with generated `XmlDocE2E...` registry profiles. It copies the fixture and
+writes binaries, drafts and evidence outside Git. User IDE instances and source
+files are not used. The stock Welcome Page is excluded from these profiles to avoid its online
+components and asynchronous shutdown activity. Test profiles are retained
+for diagnosis; no installed plugin or user IDE profile is replaced.
+
+E2E exercises the production Inspector/Explorer WebView callbacks and actual OTA
+buffers: delayed A-to-B/file switches, simultaneous editors, stale revisions,
+Unicode, unknown markup/metadata, native source Undo/Redo, malformed XML,
+explicit parameter renaming, project search, selected member-summary edits,
+project image loading and narrow controls. It requires a normal IDE exit code 0.
+A browser PASS marker alone is insufficient. Closing forms is deferred until the WebView callback has returned. The runner
+then invokes the actual IDE File > Exit menu command from the deferred callback, rather than terminating
+a message loop or closing an unrelated hidden VCL form.
+
+Quick Documentation is deliberately conservative. Full Delphi overload binding,
+arbitrary MSBuild target execution and compilation of free-form example snippets
+are not substitutes for the Delphi compiler and are not claimed by this suite.

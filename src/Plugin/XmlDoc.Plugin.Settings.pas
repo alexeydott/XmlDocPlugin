@@ -441,8 +441,11 @@ begin
   if FProjectDir = '' then
     Exit;
 
-  LObj := TJSONObject.Create;
+  LPath := TPath.Combine(FProjectDir, CProjectFileName);
+  LObj:=nil;if TFile.Exists(LPath) then LObj:=TJSONObject.ParseJSONValue(TFile.ReadAllText(LPath)) as TJSONObject;
+  if not Assigned(LObj) then LObj:=TJSONObject.Create;
   try
+    LObj.RemovePair('$schema').Free;LObj.RemovePair('version').Free;LObj.RemovePair('helpGen').Free;
     LObj.AddPair('$schema', 'https://xmldocplugin.dev/schema/v1/project-settings.json');
     LObj.AddPair('version', TJSONNumber.Create(1));
 

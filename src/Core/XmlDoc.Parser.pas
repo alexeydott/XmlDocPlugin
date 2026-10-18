@@ -26,9 +26,13 @@ type
     FRootNode: TSyntaxNode;
     FSourceLines: TArray<string>;
     FOnResolveDeclaration: TResolveDeclarationEvent;
-    FSourceFileName:string;
-    FSearchPaths,FSourceFiles:TArray<string>;
+    FSourceFileName,FPlatform:string;
+    FSearchPaths,FSourceFiles,FDefines:TArray<string>;
+    FSnapshots:TArray<TSourceSnapshot>;
     FHasDeclared:Boolean;
+    procedure SetPlatform(const Value:string);
+    procedure SetSnapshots(const Value:TArray<TSourceSnapshot>);
+    procedure SetDefines(const Value:TArray<string>);
     procedure SetSearchPaths(const Value:TArray<string>);
     procedure SetSourceFiles(const Value:TArray<string>);
     procedure SetResolveDeclaration(const Value: TResolveDeclarationEvent);
@@ -71,6 +75,9 @@ type
     /// <summary>Returns known visibility, or False when external scope information is unavailable.</summary>
     property OnResolveDeclaration: TResolveDeclarationEvent read FOnResolveDeclaration write SetResolveDeclaration;
     property SourceFileName:string read FSourceFileName;
+    property Platform:string read FPlatform write SetPlatform;
+    property SourceSnapshots:TArray<TSourceSnapshot> read FSnapshots write SetSnapshots;
+    property Defines:TArray<string> read FDefines write SetDefines;
     property SearchPaths:TArray<string> read FSearchPaths write SetSearchPaths;
     property SourceFiles:TArray<string> read FSourceFiles write SetSourceFiles;
     property RootNode: TSyntaxNode read FRootNode;
@@ -81,32 +88,37 @@ type
 
 implementation
 
-uses System.IOUtils,System.Win.Registry,Winapi.Windows,SimpleParser.Lexer.Types,System.RegularExpressions;
+uses System.IOUtils,System.Win.Registry,Winapi.Windows,SimpleParser.Lexer.Types,System.RegularExpressions,XmlDoc.SourceText;
 
 {$I XmlDoc.SystemDeclarations.inc}
 
-function SystemNames:string;
+function Target64(const Platform:string):Boolean;
+begin
+ if SameText(Platform,'Win64') then Exit(True);if SameText(Platform,'Win32') then Exit(False);
+{$IFDEF CPU64} Result:=True; {$ELSE} Result:=False; {$ENDIF}
+end;
+function SystemNames(const Platform:string):string;
 begin
 {$IF CompilerVersion >= 37}
- {$IFDEF CPU64} Result:=CRad13Win64Globals; {$ELSE} Result:=CRad13Win32Globals; {$ENDIF}
+ if Target64(Platform) then Result:=CRad13Win64Globals else Result:=CRad13Win32Globals;
 {$ELSE}
- {$IFDEF CPU64} Result:=CRad12Win64Globals; {$ELSE} Result:=CRad12Win32Globals; {$ENDIF}
+ if Target64(Platform) then Result:=CRad12Win64Globals else Result:=CRad12Win32Globals;
 {$IFEND}
 end;
-function SystemClasses:string;
+function SystemClasses(const Platform:string):string;
 begin
 {$IF CompilerVersion >= 37}
- {$IFDEF CPU64} Result:=CRad13Win64Classes; {$ELSE} Result:=CRad13Win32Classes; {$ENDIF}
+ if Target64(Platform) then Result:=CRad13Win64Classes else Result:=CRad13Win32Classes;
 {$ELSE}
- {$IFDEF CPU64} Result:=CRad12Win64Classes; {$ELSE} Result:=CRad12Win32Classes; {$ENDIF}
+ if Target64(Platform) then Result:=CRad12Win64Classes else Result:=CRad12Win32Classes;
 {$IFEND}
 end;
-function SystemMembers:string;
+function SystemMembers(const Platform:string):string;
 begin
 {$IF CompilerVersion >= 37}
- {$IFDEF CPU64} Result:=CRad13Win64Members; {$ELSE} Result:=CRad13Win32Members; {$ENDIF}
+ if Target64(Platform) then Result:=CRad13Win64Members else Result:=CRad13Win32Members;
 {$ELSE}
- {$IFDEF CPU64} Result:=CRad12Win64Members; {$ELSE} Result:=CRad12Win32Members; {$ENDIF}
+ if Target64(Platform) then Result:=CRad12Win64Members else Result:=CRad12Win32Members;
 {$IFEND}
 end;
 
@@ -133,8 +145,10 @@ type
     FLoaded:TObjectDictionary<string,TSyntaxNode>;
     FLoading:TDictionary<string,Boolean>;
     FLocated:TDictionary<string,string>;
-    FPaths,FFiles:TArray<string>;
-    FRTLRoot:string;
+    FPaths,FFiles,FDefines:TArray<string>;
+    FSnapshots:TDictionary<string,string>;
+    FRTLRoot,FPlatform:string;
+    procedure ConfigureTarget(Builder:TPasSyntaxTreeBuilder);
     function NativeRTLSize(const Match:TMatch):string;
     function RTLConditional(const Match:TMatch):string;
     function LocateUnit(const Name,ExplicitPath,FromFile:string):string;
@@ -146,7 +160,7 @@ type
     function OwnerType(Builder:TScopeAwareBuilder):TSyntaxNode;
     function Resolve(Builder:TScopeAwareBuilder;const Name:string;out Declared:Boolean):Boolean;
   public
-    constructor Create(const Paths,Files:TArray<string>);
+    constructor Create(const Paths,Files,Defines:TArray<string>;const Snapshots:TArray<TSourceSnapshot>;const Platform:string);
     destructor Destroy;override;
   end;
   TResolutionIncludes=class(TInterfacedObject,IIncludeHandler)
@@ -252,7 +266,7 @@ begin
     end;
   end;
   Name:=UpperCase(Identifier);
-  Known:=SystemNames;
+  if Assigned(FSession) then Known:=SystemNames(FSession.FPlatform) else Known:=SystemNames('');
   if Pos('|'+Name+'|',Known)>0 then begin Declared:=True;Exit(True);end;
   if Assigned(FExternalResolver) and FExternalResolver(Sender,Identifier,Declared) then Exit(True);
   if Assigned(FSession) then Result:=FSession.Resolve(Self,Identifier,Declared);
@@ -262,14 +276,17 @@ end;
 function PathKey(const FileName:string):string;
 begin Result:=LowerCase(TPath.GetFullPath(FileName));end;
 
-constructor TDeclarationSession.Create(const Paths,Files:TArray<string>);
-var Registry:TRegistry;
+constructor TDeclarationSession.Create(const Paths,Files,Defines:TArray<string>;const Snapshots:TArray<TSourceSnapshot>;const Platform:string);
+var Registry:TRegistry;Snapshot:TSourceSnapshot;
 begin
   inherited Create;
-  FPaths:=Copy(Paths);FFiles:=Copy(Files);
+  FPlatform:=Platform;
+  FPaths:=Copy(Paths);FFiles:=Copy(Files);FDefines:=Copy(Defines);
   FLoaded:=TObjectDictionary<string,TSyntaxNode>.Create([doOwnsValues]);
   FLoading:=TDictionary<string,Boolean>.Create;
   FLocated:=TDictionary<string,string>.Create;
+  FSnapshots:=TDictionary<string,string>.Create;
+  for Snapshot in Snapshots do FSnapshots.AddOrSetValue(PathKey(Snapshot.FileName),Snapshot.Source);
   Registry:=TRegistry.Create(KEY_READ);
   try
     Registry.RootKey:=HKEY_CURRENT_USER;
@@ -283,8 +300,18 @@ begin
   finally Registry.Free;end;
 end;
 
+procedure TDeclarationSession.ConfigureTarget(Builder:TPasSyntaxTreeBuilder);
+var Define:string;
+begin
+ if FPlatform='' then Exit;
+ if not SameText(FPlatform,'Win32') and not SameText(FPlatform,'Win64') then raise Exception.Create('Unsupported documentation platform: '+FPlatform);
+ for Define in ['WIN32','WIN64','CPU32BITS','CPU64BITS','CPU386','CPUX86','CPUX64'] do Builder.Lexer.Lexer.RemoveDefine(Define);
+ if Target64(FPlatform) then begin Builder.Lexer.Lexer.AddDefine('WIN64');Builder.Lexer.Lexer.AddDefine('CPUX64');Builder.Lexer.Lexer.AddDefine('CPU64BITS');end
+ else begin Builder.Lexer.Lexer.AddDefine('WIN32');Builder.Lexer.Lexer.AddDefine('CPU386');Builder.Lexer.Lexer.AddDefine('CPUX86');Builder.Lexer.Lexer.AddDefine('CPU32BITS');end;
+end;
+
 destructor TDeclarationSession.Destroy;
-begin FLocated.Free;FLoading.Free;FLoaded.Free;inherited;end;
+begin FSnapshots.Free;FLocated.Free;FLoading.Free;FLoaded.Free;inherited;end;
 
 function TDeclarationSession.LocateUnit(const Name,ExplicitPath,FromFile:string):string;
 var Candidate,Dir,FileName,Scope:string;Matches:TArray<string>;
@@ -349,18 +376,18 @@ begin
     if not FParents.TryGetValue(PathKey(Current),Current) then Break;
   end;
   if Parent<>'' then FParents.AddOrSetValue(PathKey(FileName),Parent);
-  Content:=TFile.ReadAllText(FileName);Result:=True;
+  if not FSession.FSnapshots.TryGetValue(PathKey(FileName),Content) then Content:=ReadSourceFile(FileName);Result:=True;
 end;
 
 function TDeclarationSession.NativeRTLSize(const Match:TMatch):string;
 var Name:string;Value:Integer;
 begin
  Name:=UpperCase(Match.Groups[1].Value);Value:=-1;
- if Name='EXTENDED' then Value:=SizeOf(Extended)
+ if Name='EXTENDED' then begin if Target64(FPlatform) then Value:=8 else Value:=10;end
  else if Name='LONGWORD' then Value:=SizeOf(LongWord)
- else if Name='POINTER' then Value:=SizeOf(Pointer)
+ else if Name='POINTER' then begin if Target64(FPlatform) then Value:=8 else Value:=4;end
  else if Name='INTEGER' then Value:=SizeOf(Integer)
- else if Name='NATIVEINT' then Value:=SizeOf(NativeInt)
+ else if Name='NATIVEINT' then begin if Target64(FPlatform) then Value:=8 else Value:=4;end
  else if Name='CHAR' then Value:=SizeOf(Char);
  if Value<0 then Result:=Match.Value else Result:=IntToStr(Value);
 end;
@@ -371,7 +398,7 @@ begin
 end;
 
 function TDeclarationSession.LoadUnit(const Name,ExplicitPath,FromFile:string;out FileName:string):TSyntaxNode;
-var Key,LookupKey,Source:string;Builder:TScopeAwareBuilder;Stream:TStringStream;
+var Key,LookupKey,Source,Define:string;Builder:TScopeAwareBuilder;Stream:TStringStream;
 begin
   LookupKey:=LowerCase(FromFile+'|'+Name+'|'+ExplicitPath);
   if not FLocated.TryGetValue(LookupKey,FileName) then begin
@@ -386,9 +413,10 @@ begin
   Builder:=TScopeAwareBuilder.Create;Stream:=nil;
   try
     Builder.FSession:=Self;Builder.FSourceFile:=FileName;
-    Builder.InterfaceOnly:=True;Builder.InitDefinesDefinedByCompiler;
+    Builder.InterfaceOnly:=True;Builder.InitDefinesDefinedByCompiler;ConfigureTarget(Builder);
+    for Define in FDefines do Builder.Lexer.Lexer.AddDefine(Define);
     Builder.Lexer.Lexer.IncludeHandler:=TResolutionIncludes.Create(Self,FileName);
-    Source:=TFile.ReadAllText(FileName);
+    if not FSnapshots.TryGetValue(PathKey(FileName),Source) then Source:=ReadSourceFile(FileName);
     // RTL uses target-native built-in sizes in conditionals. Keep unsupported
     // expressions intact so the lexer reports them instead of guessing a branch.
     if (FRTLRoot<>'') and FileName.StartsWith(IncludeTrailingPathDelimiter(FRTLRoot),True) then
@@ -477,8 +505,8 @@ var Body,Member,Child,BaseDecl,BaseRoot:TSyntaxNode;BaseFile:string;
     if Canonical.StartsWith('System.',True) then Delete(Canonical,1,7);
     if not Base.StartsWith('System.',True) and FindSymbol(Root,FileName,Base,BaseDecl,BaseRoot,BaseFile) then
       Exit(MemberExists(BaseDecl,BaseRoot,AccessType,BaseFile,AccessFile,Name,Visited));
-    if Pos('|'+UpperCase(Canonical)+'|',SystemClasses)>0 then
-      Exit(Pos('|'+UpperCase(Canonical)+'.'+UpperCase(Name)+'|',SystemMembers)>0);
+    if Pos('|'+UpperCase(Canonical)+'|',SystemClasses(FPlatform))>0 then
+      Exit(Pos('|'+UpperCase(Canonical)+'.'+UpperCase(Name)+'|',SystemMembers(FPlatform))>0);
     raise Exception.CreateFmt('Cannot resolve DECLARED: ancestor %s is unavailable in %s',[Base,FileName]);
   end;
 begin
@@ -533,6 +561,15 @@ begin
   Declared:=FindSymbol(Builder.FModuleRoot,Builder.FSourceFile,Name,Symbol,SymbolRoot,SymbolFile);
   Result:=True;
 end;
+
+procedure TDocParser.SetPlatform(const Value:string);
+begin FPlatform:=Value;FCachedHash:='';end;
+
+procedure TDocParser.SetSnapshots(const Value:TArray<TSourceSnapshot>);
+begin FSnapshots:=Copy(Value);FCachedHash:='';end;
+
+procedure TDocParser.SetDefines(const Value:TArray<string>);
+begin FDefines:=Copy(Value);FCachedHash:='';end;
 
 procedure TDocParser.SetSearchPaths(const Value:TArray<string>);
 begin FSearchPaths:=Copy(Value);FCachedHash:='';end;
@@ -638,9 +675,12 @@ begin
     // 코드 요소 바로 윗줄부터 역순 탐색 (0-based index)
     for I := LTargetLine - 2 downto 0 do
     begin
-      LLine := Trim(FSourceLines[I]);
-      if LLine.StartsWith('///') then
-        LComments.Insert(0, Copy(LLine, 4, MaxInt))
+      LLine := FSourceLines[I].TrimLeft;
+      if LLine.EndsWith(#13) then SetLength(LLine,Length(LLine)-1);
+      if LLine.StartsWith('///') then begin
+        LLine:=Copy(LLine,4,MaxInt);if LLine.StartsWith(' ') then Delete(LLine,1,1);
+        LComments.Insert(0,LLine);
+      end
       else
         Break;
     end;
@@ -648,7 +688,7 @@ begin
     if LComments.Count > 0 then
     begin
       FLastCommentStart := LTargetLine - LComments.Count;  // 1-based
-      Result := '<doc>' + LComments.Text + '</doc>';
+      Result := Copy(LComments.Text,1,Length(LComments.Text)-Length(LComments.LineBreak));
     end;
   finally
     LComments.Free;
@@ -1011,6 +1051,7 @@ begin
       I := Pos('<', Result.Name);
       if I > 0 then Result.Name := Copy(Result.Name, 1, I - 1);
       Result.MethodKind := ANode.GetAttribute(anKind);
+      Result.IsOverload:=SameText(ANode.GetAttribute(anOverload),'true');
       Result.Params := ExtractParams(ANode);
       Result.ReturnType := ExtractReturnType(ANode);
       Result.GenericParams := ExtractGenericParams(ANode);
@@ -1085,6 +1126,34 @@ begin
   else
     Result.FullName := Result.Name;
 
+  Result.FileName:=FSourceFileName;
+  Result.Signature:=Result.FullName;
+  if Length(Result.GenericParams)>0 then Result.Signature:=Result.Signature+'`'+IntToStr(Length(Result.GenericParams));
+  if Result.Kind=dekMethod then begin
+    Result.Signature:=Result.Signature+'(';
+    for I:=0 to High(Result.Params) do begin
+      if I>0 then Result.Signature:=Result.Signature+';';
+      if Result.Params[I].IsVar then Result.Signature:=Result.Signature+'var '
+      else if Result.Params[I].IsOut then Result.Signature:=Result.Signature+'out '
+      else if Result.Params[I].IsConst then Result.Signature:=Result.Signature+'const ';
+      Result.Signature:=Result.Signature+Result.Params[I].TypeName;
+    end;
+    Result.Signature:=Result.Signature+'):'+Result.ReturnType;
+  end;
+  Result.UnitName:=FRootNode.GetAttribute(anName);
+  if Result.Kind=dekUnit then Result.CanonicalName:=Result.UnitName
+  else Result.CanonicalName:=Result.UnitName+'.'+Result.FullName;
+  Result.SymbolId:=LowerCase(FRootNode.GetAttribute(anName)+':'+Result.Kind.ToString+':'+Result.Signature);
+  if Result.Kind in [dekClass,dekInterface,dekRecord] then begin
+    LTypeNode:=ANode.FindNode(ntType);
+    if Assigned(LTypeNode) then
+      for I:=0 to High(LTypeNode.ChildNodes) do
+        if (LTypeNode.ChildNodes[I].Typ=ntType) and (LTypeNode.ChildNodes[I].GetAttribute(anName)<>'') then begin
+          if Result.Ancestor='' then Result.Ancestor:=LTypeNode.ChildNodes[I].GetAttribute(anName)
+          else Result.Implements:=Result.Implements+[LTypeNode.ChildNodes[I].GetAttribute(anName)];
+        end;
+  end;
+
   // 들여쓰기
   Result.IndentLevel := ANode.Col - 1;
 
@@ -1106,7 +1175,7 @@ end;
 procedure TDocParser.ParseSource(const ASource: string; const AFileName:string);
 var
   LStream: TStringStream;
-  LHash: string;
+  LHash,Define: string;
   Session:TDeclarationSession;
 begin
   if not SameText(FSourceFileName,AFileName) then FCachedHash:='';
@@ -1129,7 +1198,7 @@ begin
   // Split([#10])은 #13#10에서 #13을 남김
   // 별도 정리 불필요: Trim으로 처리됨 (ExtractDocComment에서)
 
-  Session:=TDeclarationSession.Create(FSearchPaths,FSourceFiles);
+  Session:=TDeclarationSession.Create(FSearchPaths,FSourceFiles,FDefines,FSnapshots,FPlatform);
   LStream := nil;
   try
     LStream := TStringStream.Create(ASource, TEncoding.UTF8);
@@ -1137,7 +1206,8 @@ begin
     TScopeAwareBuilder(FBuilder).FExternalResolver := FOnResolveDeclaration;
     TScopeAwareBuilder(FBuilder).FSession:=Session;
     TScopeAwareBuilder(FBuilder).FSourceFile:=AFileName;
-    FBuilder.InitDefinesDefinedByCompiler;
+    FBuilder.InitDefinesDefinedByCompiler;Session.ConfigureTarget(FBuilder);
+    for Define in FDefines do FBuilder.Lexer.Lexer.AddDefine(Define);
     FBuilder.Lexer.Lexer.IncludeHandler:=TResolutionIncludes.Create(Session,AFileName);
     try
       try

@@ -18,6 +18,16 @@ export interface ElementInfo {
   kind: DocElementKind;
   name: string;
   fullName?: string;
+  symbolId?: string;
+  canonicalName?:string;
+  unitName?:string;
+  declarationId?:string;
+  sessionId?: string;
+  sourceRevision?: string;
+  signature?: string;
+  resourceBase?:string;
+  ancestor?: string;
+  implements?: string[];
   qualifiedParent?: string;
   methodKind?: string;
   params: ParamInfo[];
@@ -25,6 +35,7 @@ export interface ElementInfo {
   genericParams?: string[];
   visibility?: string;
   lineNumber?: number;
+  commentStartLine?:number;
   fileName?: string;
 }
 
@@ -48,6 +59,8 @@ export interface ExceptionDoc {
 
 /** 예제 문서 */
 export interface ExampleDoc {
+  source?:string;
+  region?:string;
   title?: string;
   code?: string;
   description: string;
@@ -62,6 +75,14 @@ export interface SeeAlsoDoc {
 /** 문서 모델 (Delphi ↔ WebView JSON 프로토콜) */
 export interface DocModel {
   summary: string;
+  inheritedFrom?: string;
+  sourceXml?: string;
+  parseError?: string;
+  parseErrorLine?:number;
+  parseErrorColumn?:number;
+  rawXml?: string;
+  xmlEdited?: boolean;
+  renameMappings?:Record<string,string>;
   remarks?: string;
   returns?: string;
   value?: string;
@@ -75,18 +96,24 @@ export interface DocModel {
 /** 트리용 요소 정보 (요소 + 문서 데이터 포함) */
 export interface TreeElementInfo extends ElementInfo {
   doc: DocModel;
+  effectiveDoc?:DocModel;
 }
 
 /** Delphi → WebView 메시지 */
 export type InboundMessage =
+  | { type: 'editResult'; sessionId: string; status: string }
   | { type: 'loadDoc'; data: { element: ElementInfo; doc: DocModel } }
   | { type: 'elementChanged'; data: { element: ElementInfo } }
   | { type: 'loadTree'; data: { fileName: string; elements: TreeElementInfo[] } };
 
 /** WebView → Delphi 메시지 */
 export type OutboundMessage =
+  | { type: 'pin'; pinned:boolean }
+  | { type:'requestRefresh' }
+  | { type:'requestCatalog'; scope:'module'|'project'|'group' }
+  | { type:'openSymbol'; fileName:string; symbolId:string; line:number }
+  | { type:'copySelection' }
   | { type: 'sectionStateChanged'; sections: Record<string, boolean> }
-  | { type: 'docUpdated'; doc: DocModel }
-  | { type: 'docUpdated'; doc: DocModel; elementFullName: string }
+  | ({ type: 'docUpdated'; doc: DocModel } & Pick<ElementInfo, 'fileName' | 'symbolId' | 'declarationId' | 'sessionId' | 'sourceRevision'>)
   | { type: 'jumpToLine'; line: number }
   | { type: 'requestAutoComplete'; prefix: string; context: string };

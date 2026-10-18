@@ -43,6 +43,8 @@ type
 
 implementation
 
+uses XmlDoc.HelpGen.Resources,XmlDoc.Markup;
+
 
 { TMarkdownDocRenderer }
 
@@ -85,12 +87,14 @@ function TMarkdownDocRenderer.FormatDocToMD(const ADoc: TXmlDocModel;
 var
   LSB: TStringBuilder;
   I: Integer;
+  function RenderProse(const Text:string):string;
+  begin Result:=MarkupMarkdown(Text,function(Cref:string):string begin Result:=MakeMDLink(Cref,AUnitName);end,function(Source:string):string begin Result:='../assets/'+CopyDocumentationImage(Source,AUnitName,FOptions.ProjectDir,FOptions.OutputDir,'assets',FUnits);end);end;
 begin
   LSB := TStringBuilder.Create;
   try
     if ADoc.Summary <> '' then
     begin
-      LSB.AppendLine(ADoc.Summary);
+      LSB.AppendLine(RenderProse(ADoc.Summary));
       LSB.AppendLine;
     end;
 
@@ -98,7 +102,7 @@ begin
     begin
       LSB.AppendLine('## Remarks');
       LSB.AppendLine;
-      LSB.AppendLine(ADoc.Remarks);
+      LSB.AppendLine(RenderProse(ADoc.Remarks));
       LSB.AppendLine;
     end;
 
@@ -107,13 +111,13 @@ begin
       LSB.AppendLine('**Parameters:**');
       LSB.AppendLine;
       for I := 0 to ADoc.Params.Count - 1 do
-        LSB.AppendLine('- **' + ADoc.Params[I].Name + '** — ' + ADoc.Params[I].Description);
+        LSB.AppendLine('- **' + ADoc.Params[I].Name + '** — ' + RenderProse(ADoc.Params[I].Description));
       LSB.AppendLine;
     end;
 
     if ADoc.Returns <> '' then
     begin
-      LSB.AppendLine('**Returns:** ' + ADoc.Returns);
+      LSB.AppendLine('**Returns:** ' + RenderProse(ADoc.Returns));
       LSB.AppendLine;
     end;
 
@@ -124,24 +128,25 @@ begin
       for I := 0 to ADoc.Exceptions.Count - 1 do
       begin
         LSB.AppendLine('- `' + ADoc.Exceptions[I].TypeRef + '` — ' +
-          ADoc.Exceptions[I].Description);
+          RenderProse(ADoc.Exceptions[I].Description));
       end;
       LSB.AppendLine;
     end;
 
     if ADoc.Value <> '' then
-      LSB.AppendLine('**Value:** ' + ADoc.Value + sLineBreak);
+      LSB.AppendLine('**Value:** ' + RenderProse(ADoc.Value) + sLineBreak);
     if ADoc.TypeParams.Count > 0 then
     begin
       LSB.AppendLine('**Type Parameters:**');
       for I := 0 to ADoc.TypeParams.Count - 1 do
-        LSB.AppendLine('- **' + ADoc.TypeParams[I].Name + '**: ' + ADoc.TypeParams[I].Description);
+        LSB.AppendLine('- **' + ADoc.TypeParams[I].Name + '**: ' + RenderProse(ADoc.TypeParams[I].Description));
       LSB.AppendLine;
     end;
     for I := 0 to ADoc.Examples.Count - 1 do
     begin
       LSB.AppendLine('## Example ' + ADoc.Examples[I].Title);
-      LSB.AppendLine(ADoc.Examples[I].Description + sLineBreak);
+      if ADoc.Examples[I].SourceFile<>'' then LSB.AppendLine('Source: ['+ADoc.Examples[I].SourceFile+'](../assets/'+CopyDocumentationSource(ADoc.Examples[I].SourceFile,AUnitName,FOptions.ProjectDir,FOptions.OutputDir,'assets',FUnits)+') '+ADoc.Examples[I].Region+sLineBreak);
+      LSB.AppendLine(RenderProse(ADoc.Examples[I].Description) + sLineBreak);
       LSB.AppendLine('```pascal');
       LSB.AppendLine(ADoc.Examples[I].Code);
       LSB.AppendLine('```' + sLineBreak);
@@ -151,7 +156,7 @@ begin
       LSB.AppendLine('**See Also:**');
       LSB.AppendLine;
       for I := 0 to ADoc.SeeAlso.Count - 1 do
-        LSB.AppendLine('- ' + MakeMDLink(ADoc.SeeAlso[I].Cref, AUnitName) + ' ' + ADoc.SeeAlso[I].Description);
+        LSB.AppendLine('- ' + MakeMDLink(ADoc.SeeAlso[I].Cref, AUnitName) + ' ' + RenderProse(ADoc.SeeAlso[I].Description));
       LSB.AppendLine;
     end;
 
@@ -166,16 +171,17 @@ var
   U: TUnitDocInfo;
   T: TTypeDocInfo;
   E: TElementDocInfo;
-  Href: string;
+  Href,Resolved:string;
   function Matches(const FullName, Name: string): Boolean;
   begin
-    Result := SameText(ACref, FullName) or
-      (SameText(U.UnitName, AUnitName) and SameText(ACref, Name));
+    Result := SameText(Resolved, FullName) or
+      (SameText(U.UnitName, AUnitName) and SameText(Resolved, Name));
   end;
 begin
   // All documentation references are rendered inside units/. Only link to
   // pages/anchors actually emitted by this renderer; external symbols are text.
-  Href := '';
+  Href := '';Resolved:=ACref;
+  if Assigned(FResolver) then Resolved:=FResolver.ResolveReference(ACref,AUnitName);
   for U in FUnits do
   begin
     if SameText(ACref, U.UnitName) then Href := FNames.FileName(U.UnitName, '.md');
@@ -183,13 +189,13 @@ begin
     begin
       if Matches(T.FullName, T.Name) then Href := FNames.FileName(T.FullName, '.md');
       for E in T.Members do
-        if Matches(E.FullName, T.Name + '.' + E.Name) then
-          Href := FNames.FileName(T.FullName, '.md') + '#' + LowerCase(E.Name);
+        if SameText(Resolved,E.CodeElement.SymbolId) or Matches(E.FullName, T.Name + '.' + E.Name) then
+          Href := FNames.FileName(T.FullName, '.md') + '#' + LowerCase(MemberAnchor(E.CodeElement,E.Name));
     end;
     for E in U.StandaloneMethods do
-      if Matches(E.FullName, E.Name) then Href := FNames.FileName(U.UnitName, '.md') + '#' + LowerCase(E.Name);
+      if SameText(Resolved,E.CodeElement.SymbolId) or Matches(E.FullName, E.Name) then Href := FNames.FileName(U.UnitName, '.md') + '#' + LowerCase(MemberAnchor(E.CodeElement,E.Name));
     for E in U.Constants do
-      if Matches(E.FullName, E.Name) then Href := FNames.FileName(U.UnitName, '.md') + '#' + LowerCase(E.Name);
+      if SameText(Resolved,E.CodeElement.SymbolId) or Matches(E.FullName, E.Name) then Href := FNames.FileName(U.UnitName, '.md') + '#' + LowerCase(MemberAnchor(E.CodeElement,E.Name));
   end;
   Result := '`' + ACref + '`';
   if Href <> '' then Result := '[' + Result + '](' + Href + ')';
@@ -300,6 +306,7 @@ begin
       LSB.AppendLine;
       for I := 0 to AUnit.StandaloneMethods.Count - 1 do
       begin
+        if AUnit.StandaloneMethods[I].CodeElement.IsOverload then LSB.AppendLine('<a id="'+LowerCase(MemberAnchor(AUnit.StandaloneMethods[I].CodeElement,AUnit.StandaloneMethods[I].Name))+'"></a>');
         LSB.AppendLine('### ' + AUnit.StandaloneMethods[I].Name);
         LSB.AppendLine;
         LSB.Append(FormatDocToMD(AUnit.StandaloneMethods[I].Doc, AUnit.UnitName));
@@ -313,6 +320,7 @@ begin
       LSB.AppendLine;
       for I := 0 to AUnit.Constants.Count - 1 do
       begin
+        if AUnit.Constants[I].CodeElement.IsOverload then LSB.AppendLine('<a id="'+LowerCase(MemberAnchor(AUnit.Constants[I].CodeElement,AUnit.Constants[I].Name))+'"></a>');
         LSB.AppendLine('### `' + AUnit.Constants[I].Name + '`');
         LSB.AppendLine;
         LSB.Append(FormatDocToMD(AUnit.Constants[I].Doc, AUnit.UnitName));
@@ -322,6 +330,7 @@ begin
     if AUnit.Variables.Count > 0 then begin
       LSB.AppendLine('## Variables');
       for I := 0 to AUnit.Variables.Count - 1 do begin
+        if AUnit.Variables[I].CodeElement.IsOverload then LSB.AppendLine('<a id="'+LowerCase(MemberAnchor(AUnit.Variables[I].CodeElement,AUnit.Variables[I].Name))+'"></a>');
         LSB.AppendLine('### ' + AUnit.Variables[I].Name);
         LSB.Append(FormatDocToMD(AUnit.Variables[I].Doc, AUnit.UnitName));
       end;
@@ -375,6 +384,7 @@ begin
       // Detailed member sections
       for I := 0 to AType.Members.Count - 1 do
       begin
+        if AType.Members[I].CodeElement.IsOverload then LSB.AppendLine('<a id="'+LowerCase(MemberAnchor(AType.Members[I].CodeElement,AType.Members[I].Name))+'"></a>');
         LSB.AppendLine('### ' + AType.Members[I].Name);
         LSB.AppendLine;
         LSB.Append(FormatDocToMD(AType.Members[I].Doc, AUnitName));

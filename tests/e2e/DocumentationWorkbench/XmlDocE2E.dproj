@@ -1,0 +1,17 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+ <PropertyGroup>
+  <ProjectGuid>{3A72602E-67CF-469D-A733-BC75247CC365}</ProjectGuid>
+  <MainSource>XmlDocE2E.dpr</MainSource><ProjectVersion>20.3</ProjectVersion><FrameworkType>None</FrameworkType>
+  <Base>true</Base><Config Condition="'$(Config)'==''">Debug</Config><Platform Condition="'$(Platform)'==''">Win32</Platform>
+  <AppType>Console</AppType><TargetedPlatforms>3</TargetedPlatforms>
+  <DCC_Namespace>System;System.Win;Winapi</DCC_Namespace><DCC_UnitSearchPath>Units;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+  <DCC_ExeOutput Condition="'$(XMLDOC_E2E_OUT)'!=''">$(XMLDOC_E2E_OUT)</DCC_ExeOutput>
+  <DCC_DcuOutput Condition="'$(XMLDOC_E2E_OUT)'!=''">$(XMLDOC_E2E_OUT)</DCC_DcuOutput>
+  <DCC_Define>XMLDOC_E2E;$(DCC_Define)</DCC_Define>
+ </PropertyGroup>
+ <ItemGroup><DelphiCompile Include="XmlDocE2E.dpr"><MainSource>MainSource</MainSource></DelphiCompile>
+ <DCCReference Include="Units\Workbench.Contracts.pas"/><DCCReference Include="Units\Workbench.Sample.pas"/>
+ <DCCReference Include="Units\Workbench.Second.pas"/><DCCReference Include="Examples\Workbench.Examples.pas"/>
+ </ItemGroup>
+ <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
+</Project>

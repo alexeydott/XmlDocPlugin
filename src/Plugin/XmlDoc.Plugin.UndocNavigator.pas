@@ -14,6 +14,7 @@ type
   TUndocNavigator = class
   private
     FCurrentIndex: Integer;
+    FLastSource,FLastFileName:string;
     FParser: TDocParser;
     FUndocElements: TArray<TCodeElementInfo>;
 
@@ -38,7 +39,7 @@ type
 
 implementation
 
-uses XmlDoc.Plugin.DeclarationContext;
+uses XmlDoc.Plugin.DeclarationContext,XmlDoc.Plugin.EditSession;
 
 { TUndocNavigator }
 
@@ -76,26 +77,8 @@ begin
   Result := nil;
 end;
 
-function TUndocNavigator.GetCurrentSource(const AEditor: IOTASourceEditor): string;
-var
-  LReader: IOTAEditReader;
-  LBuf: TBytes;
-  LBufLen: Integer;
-begin
-  Result := '';
-  if not Assigned(AEditor) then
-    Exit;
-
-  LReader := AEditor.CreateReader;
-  SetLength(LBuf, AEditor.GetLinesInBuffer * 256);
-  LBufLen := LReader.GetText(0, PAnsiChar(LBuf), Length(LBuf));
-
-  // UTF-8 BOM 감지 후 적절한 인코딩으로 디코딩
-  if (LBufLen >= 3) and (LBuf[0] = $EF) and (LBuf[1] = $BB) and (LBuf[2] = $BF) then
-    Result := TEncoding.UTF8.GetString(LBuf, 3, LBufLen - 3)
-  else
-    Result := TEncoding.UTF8.GetString(LBuf, 0, LBufLen);
-end;
+function TUndocNavigator.GetCurrentSource(const AEditor:IOTASourceEditor):string;
+begin Result:=EditorSource(AEditor);end;
 
 procedure TUndocNavigator.RebuildList;
 var
@@ -106,9 +89,6 @@ var
   I: Integer;
   LCount: Integer;
 begin
-  FUndocElements := nil;
-  FCurrentIndex := -1;
-
   LEditor := GetCurrentEditor;
   if not Assigned(LEditor) then
     Exit;
@@ -117,6 +97,9 @@ begin
   if LSource = '' then
     Exit;
 
+  if SameText(FLastFileName,LEditor.FileName) and (FLastSource=LSource) then Exit;
+  FLastFileName:=LEditor.FileName;FLastSource:=LSource;
+  FCurrentIndex:=-1;
   ConfigureDeclarationContext(FParser);
   FParser.ParseSource(LSource,LEditor.FileName);
   LAllElements := FParser.GetAllElements;

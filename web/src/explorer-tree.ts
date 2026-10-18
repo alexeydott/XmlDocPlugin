@@ -14,6 +14,8 @@ export type TreeSelectionCallback = (element: TreeElementInfo) => void;
 export type TreeDblClickCallback = (element: TreeElementInfo) => void;
 
 let selectedLi: HTMLElement | null = null;
+let selectedId:string|undefined;
+const expandedState=new Map<string,boolean>();
 let onSelect: TreeSelectionCallback | null = null;
 let onDblClick: TreeDblClickCallback | null = null;
 let treeContainer: HTMLElement | null = null;
@@ -46,15 +48,16 @@ function buildTree(fileName: string, elements: TreeElementInfo[]): TreeNode {
     }
 
     const node: TreeNode = {
-      label: el.name,
+      label: el.kind==='method'?(el.signature??el.name):el.name,
       element: el,
       children: [],
       expanded: true,
     };
 
     if (TYPE_KINDS.includes(el.kind)) {
-      root.children.push(node);
-      typeMap.set(el.name, node);
+      const owner=el.qualifiedParent?typeMap.get(el.qualifiedParent):null;
+      if(owner)owner.children.push(node);else root.children.push(node);
+      typeMap.set(el.fullName??el.name,node);typeMap.set(el.name,node);
     } else if (MEMBER_KINDS.includes(el.kind) && el.qualifiedParent) {
       const parent = typeMap.get(el.qualifiedParent);
       if (parent) {
@@ -136,19 +139,20 @@ function setExpandedSubtree(node: TreeNode, expanded: boolean): void {
 function refreshTreeDOM(container: HTMLElement): void {
   if (!rootNode) return;
   // 선택 상태 기억
-  const prevSelected = selectedLi?.querySelector('.tree-label')?.textContent ?? null;
+  const prevSelected = selectedId;
+  const scroll=container.scrollTop;
   container.innerHTML = '';
   const ul = document.createElement('ul');
   ul.className = 'tree-root';
   ul.appendChild(renderNode(rootNode));
   container.appendChild(ul);
 
+  container.scrollTop=scroll;
   // 선택 복원
   if (prevSelected) {
     const rows = container.querySelectorAll<HTMLElement>('.tree-row');
     for (const row of rows) {
-      const lbl = row.querySelector('.tree-label');
-      if (lbl && lbl.textContent === prevSelected) {
+      if (row.dataset.symbolId === prevSelected) {
         row.classList.add('tree-selected');
         selectedLi = row;
         break;
@@ -244,6 +248,10 @@ function renderNode(node: TreeNode): HTMLLIElement {
 
   const row = document.createElement('div');
   row.className = 'tree-row';
+  row.tabIndex=0;row.dataset.symbolId=node.element?.symbolId??node.label;row.setAttribute('role','treeitem');
+  if(node.element?.symbolId===selectedId){row.classList.add('tree-selected');selectedLi=row;}
+  const key=node.element?.symbolId??node.label;
+  if(expandedState.has(key))node.expanded=expandedState.get(key)!;
 
   const isContainer = node.children.length > 0;
 
@@ -291,7 +299,8 @@ function renderNode(node: TreeNode): HTMLLIElement {
     // Toggle expand
     arrow.addEventListener('click', (e) => {
       e.stopPropagation();
-      node.expanded = !node.expanded;
+      node.expanded = !node.expanded;expandedState.set(key,node.expanded);
+      row.setAttribute('aria-expanded',String(node.expanded));
       arrow.textContent = node.expanded ? '▾' : '▸';
       ul.style.display = node.expanded ? '' : 'none';
     });
@@ -301,7 +310,7 @@ function renderNode(node: TreeNode): HTMLLIElement {
   row.addEventListener('click', () => {
     if (selectedLi) selectedLi.classList.remove('tree-selected');
     row.classList.add('tree-selected');
-    selectedLi = row;
+    selectedLi = row;selectedId=node.element?.symbolId;
 
     if (node.element && onSelect) {
       onSelect(node.element);
@@ -315,6 +324,14 @@ function renderNode(node: TreeNode): HTMLLIElement {
     }
   });
 
+  row.addEventListener('keydown',event=>{
+    if(event.key==='Enter'){event.preventDefault();row.dispatchEvent(new MouseEvent('dblclick'));}
+    else if(event.key==='ArrowRight' && isContainer && !node.expanded)arrow.click();
+    else if(event.key==='ArrowLeft' && isContainer && node.expanded)arrow.click();
+    else if(['ArrowUp','ArrowDown'].includes(event.key)){
+      event.preventDefault();const rows=Array.from(treeContainer!.querySelectorAll<HTMLElement>('.tree-row')).filter(r=>r.getClientRects().length>0);const index=rows.indexOf(row)+(event.key==='ArrowUp'?-1:1);rows[index]?.focus();rows[index]?.click();
+    }
+  });
   // Context menu
   row.addEventListener('contextmenu', (e) => showContextMenu(e, node));
 
@@ -340,6 +357,7 @@ export function populateTree(
   fileName: string,
   elements: TreeElementInfo[],
 ): void {
+  const scroll=container.scrollTop;
   const tree = buildTree(fileName, elements);
   rootNode = tree;
   treeContainer = container;
@@ -348,7 +366,7 @@ export function populateTree(
   const ul = document.createElement('ul');
   ul.className = 'tree-root';
   ul.appendChild(renderNode(tree));
-  container.appendChild(ul);
+  container.appendChild(ul);container.scrollTop=scroll;
 }
 
 export function expandAll(): void {

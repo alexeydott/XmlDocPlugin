@@ -22,6 +22,7 @@ type
     LogoPath: string;
     OutputDir: string;
     ProjectName: string;
+    ProjectDir:string;
     Title: string;
   end;
 

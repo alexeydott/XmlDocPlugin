@@ -17,7 +17,11 @@ type
   private
     FSymbolIndex: TDictionary<string, TElementDocInfo>;
     FUnits: TObjectList<TUnitDocInfo>;
-    FSourceFiles:TArray<string>;
+    FSourceFiles,FSearchPaths,FDefines:TArray<string>;
+    FSnapshots:TArray<TSourceSnapshot>;
+    FPlatform:string;
+    FConfigure:TProc<TDocParser,string>;
+    FIndexOwners:TObjectList<TElementDocInfo>;
 
     FOnProgress: TProgressCallback;
 
@@ -31,6 +35,11 @@ type
     /// <param name="AFiles">절대 경로 .pas 파일 배열</param>
     procedure ParseAll(const AFiles: TArray<string>);
 
+    property OnConfigureParser:TProc<TDocParser,string> read FConfigure write FConfigure;
+    property Platform:string read FPlatform write FPlatform;
+    property SourceSnapshots:TArray<TSourceSnapshot> read FSnapshots write FSnapshots;
+    property SearchPaths:TArray<string> read FSearchPaths write FSearchPaths;
+    property Defines:TArray<string> read FDefines write FDefines;
     property SymbolIndex: TDictionary<string, TElementDocInfo> read FSymbolIndex;
     property Units: TObjectList<TUnitDocInfo> read FUnits;
 
@@ -40,7 +49,7 @@ type
 implementation
 
 uses
-  System.IOUtils;
+  System.IOUtils,XmlDoc.HelpGen.Inheritance,XmlDoc.SourceText;
 
 { TBatchParser }
 
@@ -49,11 +58,13 @@ begin
   inherited Create;
 
   FUnits := TObjectList<TUnitDocInfo>.Create(True);
+  FIndexOwners:=TObjectList<TElementDocInfo>.Create(True);
   FSymbolIndex := TDictionary<string, TElementDocInfo>.Create;
 end;
 
 destructor TBatchParser.Destroy;
 begin
+  FIndexOwners.Free;
   FSymbolIndex.Free;
   FUnits.Free;
 
@@ -61,41 +72,32 @@ begin
 end;
 
 procedure TBatchParser.BuildSymbolIndex;
-var
-  LUnit: TUnitDocInfo;
-  LElem: TElementDocInfo;
-  I, J: Integer;
-  procedure IndexType(AType: TTypeDocInfo);
-  var Member: TElementDocInfo; Nested: TTypeDocInfo;
-  begin
-    for Member in AType.Members do
-      if Member.FullName <> '' then FSymbolIndex.AddOrSetValue(Member.FullName, Member);
-    for Nested in AType.NestedTypes do IndexType(Nested);
-  end;
+var U:TUnitDocInfo;T:TTypeDocInfo;E,IndexItem:TElementDocInfo;Ambiguous:TDictionary<string,Boolean>;
+ procedure Add(Element:TElementDocInfo);
+ begin
+  if Element.CodeElement.SymbolId<>'' then FSymbolIndex.AddOrSetValue(Element.CodeElement.SymbolId,Element);
+  if Element.FullName='' then Exit;
+  if FSymbolIndex.ContainsKey(Element.FullName) then begin FSymbolIndex.Remove(Element.FullName);Ambiguous.AddOrSetValue(Element.FullName,True);end
+  else if not Ambiguous.ContainsKey(Element.FullName) then FSymbolIndex.Add(Element.FullName,Element);
+ end;
+ procedure IndexType(Typ:TTypeDocInfo);
+ var M:TElementDocInfo;N:TTypeDocInfo;
+ begin
+  M:=TElementDocInfo.Create;FIndexOwners.Add(M);M.FullName:=Typ.FullName;M.Name:=Typ.Name;M.Kind:=Typ.Kind;
+  M.CodeElement:=Typ.CodeElement;M.Doc.Assign(Typ.Doc);Add(M);
+  for M in Typ.Members do Add(M);
+  for N in Typ.NestedTypes do IndexType(N);
+ end;
 begin
-  FSymbolIndex.Clear;
-
-  for I := 0 to FUnits.Count - 1 do
-  begin
-    LUnit := FUnits[I];
-
-    for J := 0 to LUnit.StandaloneMethods.Count - 1 do
-    begin
-      LElem := LUnit.StandaloneMethods[J];
-      if LElem.FullName <> '' then
-        FSymbolIndex.AddOrSetValue(LElem.FullName, LElem);
-    end;
-
-    for J := 0 to LUnit.Constants.Count - 1 do
-    begin
-      LElem := LUnit.Constants[J];
-      if LElem.FullName <> '' then
-        FSymbolIndex.AddOrSetValue(LElem.FullName, LElem);
-    end;
-
-    for J := 0 to LUnit.Types.Count - 1 do
-      IndexType(LUnit.Types[J]);
+ FSymbolIndex.Clear;FIndexOwners.Clear;Ambiguous:=TDictionary<string,Boolean>.Create;
+ try
+  for U in FUnits do begin
+   IndexItem:=TElementDocInfo.Create;FIndexOwners.Add(IndexItem);IndexItem.FullName:=U.UnitName;
+   IndexItem.Name:=U.UnitName;IndexItem.Kind:=dekUnit;IndexItem.CodeElement:=U.UnitElement;IndexItem.Doc.Assign(U.UnitDoc);Add(IndexItem);
+   for E in U.StandaloneMethods do Add(E);for E in U.Constants do Add(E);for E in U.Variables do Add(E);
+   for T in U.Types do IndexType(T);
   end;
+ finally Ambiguous.Free;end;
 end;
 
 procedure TBatchParser.ParseUnit(const AFilePath: string);
@@ -113,7 +115,8 @@ var
   LCodeElem: TCodeElementInfo;
   LLine, LTypeKey: string;
 begin
-  LSource := TFile.ReadAllText(AFilePath);
+  LSource := ReadSourceFile(AFilePath);
+  for var Snapshot in FSnapshots do if SameText(Snapshot.FileName,AFilePath) then begin LSource:=Snapshot.Source;Break;end;
 
   // implementation 섹션 시작 행 찾기 (interface 요소만 처리하기 위함)
   LLines := LSource.Split([#10]);
@@ -132,7 +135,8 @@ begin
   LDocParser := TDocParser.Create;
   try
     try
-      LDocParser.SourceFiles:=FSourceFiles;
+      LDocParser.Platform:=FPlatform;LDocParser.SourceSnapshots:=FSnapshots;LDocParser.SourceFiles:=FSourceFiles;LDocParser.SearchPaths:=FSearchPaths;LDocParser.Defines:=FDefines;
+      if Assigned(FConfigure) then FConfigure(LDocParser,AFilePath);
       LDocParser.ParseSource(LSource,AFilePath);
     except
       on E:Exception do raise Exception.CreateFmt('Cannot parse %s: %s', [AFilePath,E.Message]);
@@ -173,6 +177,8 @@ begin
           dekClass, dekRecord, dekInterface:
           begin
             LTypeDoc := TTypeDocInfo.Create;
+            LTypeDoc.CodeElement:=LCodeElem;LTypeDoc.Visibility:=LCodeElem.Visibility;
+            LTypeDoc.Ancestor:=LCodeElem.Ancestor;LTypeDoc.Implements:=Copy(LCodeElem.Implements);
             LTypeDoc.Name := LCodeElem.Name;
             LTypeKey := LCodeElem.Name;
             if LCodeElem.QualifiedParent <> '' then
@@ -195,7 +201,7 @@ begin
             LElem.Name := LCodeElem.Name;
             LElem.Kind := LCodeElem.Kind;
             LElem.Visibility := LCodeElem.Visibility;
-            LElem.CodeElement := LCodeElem;
+            LElem.CodeElement := LCodeElem;LElem.Signature:=LCodeElem.Signature;
 
             if LCodeElem.ExistingDocXml <> '' then
               LElem.Doc.LoadFromXml(LCodeElem.ExistingDocXml);
@@ -221,7 +227,7 @@ begin
             LElem.Name := LCodeElem.Name;
             LElem.Kind := dekConstant;
             LElem.Visibility := LCodeElem.Visibility;
-            LElem.CodeElement := LCodeElem;
+            LElem.CodeElement := LCodeElem;LElem.Signature:=LCodeElem.Signature;
 
             if LCodeElem.ExistingDocXml <> '' then
               LElem.Doc.LoadFromXml(LCodeElem.ExistingDocXml);
@@ -267,6 +273,8 @@ begin
     ParseUnit(AFiles[I]);
   end;
 
+  var Inheritance:=TInheritanceResolver.Create;
+  try Inheritance.Apply(FUnits);finally Inheritance.Free;end;
   BuildSymbolIndex;
 end;
 

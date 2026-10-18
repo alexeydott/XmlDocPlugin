@@ -84,6 +84,7 @@ var
   LEntry: TJSONObject;
 begin
   Result := TJSONObject.Create;
+  Result.AddPair('xml',ADoc.ToXml);Result.AddPair('parseError',ADoc.ParseError);Result.AddPair('inheritedFrom',ADoc.InheritedFrom);
   Result.AddPair('summary', ADoc.Summary);
 
   if ADoc.Remarks <> '' then
@@ -157,7 +158,7 @@ function TJSONDocRenderer.ElementToJson(const AElem: TElementDocInfo): TJSONObje
 begin
   Result := TJSONObject.Create;
   Result.AddPair('name', AElem.Name);
-  Result.AddPair('fullName', AElem.FullName);
+  Result.AddPair('fullName', AElem.FullName);Result.AddPair('symbolId',AElem.CodeElement.SymbolId);
   Result.AddPair('kind', AElem.Kind.ToString);
   Result.AddPair('visibility', AElem.Visibility);
   if AElem.Signature <> '' then

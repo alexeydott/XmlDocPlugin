@@ -10,6 +10,7 @@ let selectedElement: TreeElementInfo | null = null;
 
 function handleTreeSelect(element: TreeElementInfo): void {
   selectedElement = element;
+  bridge.setContext(element);
   loadDocument(element, element.doc);
 }
 
@@ -26,7 +27,7 @@ function handleLoadTree(data: { fileName: string; elements: TreeElementInfo[] })
 
   // 첫 번째 요소 자동 선택
   if (data.elements.length > 0) {
-    handleTreeSelect(data.elements[0]);
+    handleTreeSelect(data.elements.find(e => e.symbolId === selectedElement?.symbolId && e.fileName === selectedElement?.fileName) ?? data.elements[0]);
   }
 }
 
@@ -45,18 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       originalReceive(message);
     }
-  };
-
-  // docUpdated 가로채기: elementFullName 추가
-  const originalSendToHost = bridge.sendToHost.bind(bridge);
-  bridge.sendToHost = (message: any) => {
-    if (message.type === 'docUpdated' && selectedElement) {
-      message.elementFullName = selectedElement.fullName;
-
-      // 로컬 캐시도 갱신
-      selectedElement.doc = message.doc;
-    }
-    originalSendToHost(message);
   };
 
   // 헤더 펼치기/접기 버튼

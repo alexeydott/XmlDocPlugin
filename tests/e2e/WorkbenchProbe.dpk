@@ -1,0 +1,5 @@
+package WorkbenchProbe;
+{$DESIGNONLY}
+requires rtl,vcl,designide,XmlDocPlugin;
+contains WorkbenchProbe in 'WorkbenchProbe.pas';
+end.

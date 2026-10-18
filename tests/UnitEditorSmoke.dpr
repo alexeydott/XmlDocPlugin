@@ -60,7 +60,7 @@ begin
       Inc(JumpCount);
     end;
     if (J<>nil) and (J.GetValue<string>('type','')='docUpdated') then begin
-      Passed:=(JumpCount=1) and (J.GetValue<string>('elementFullName','')=UnitName) and
+      Passed:=(JumpCount=1) and (J.GetValue<string>('symbolId','')=UnitName) and
         J.GetValue<TJSONObject>('doc').GetValue<string>('summary','').Contains('Edited unit documentation smoke');
       Done:=True;
     end;
@@ -76,7 +76,7 @@ begin
     E:=Parser.GetElementAtLine(1);
     if E.Kind<>dekUnit then raise Exception.Create('Header must select the unit');
     Model.LoadFromXml(E.ExistingDocXml);Probe.UnitName:=E.Name;Probe.Summary:=Model.Summary;
-    Probe.ElementJSON:='{"kind":"unit","name":"'+E.Name+'","fullName":"'+E.FullName+'","params":[]}';
+    Probe.ElementJSON:='{"kind":"unit","name":"'+E.Name+'","fullName":"'+E.FullName+'","symbolId":"'+E.Name+'","params":[]}';
     Probe.DocJSON:=Model.ToJSON;
     Probe.SetBounds(100,100,900,700);Probe.Browser:=TXmlDocBrowser.Create(Probe);
     Probe.Browser.Parent:=Probe;Probe.Browser.Align:=alClient;

@@ -30,6 +30,7 @@ type
     procedure DestroyDocExplorer;
     procedure DestroyDocInspector;
     procedure GenerateStubForCurrentElement;
+    procedure GenerateForPrefix(ALine:Integer;const Source,FileName:string);
     procedure SetupCallbacks;
 
   public
@@ -66,6 +67,7 @@ uses
   XmlDoc.Plugin.SettingsDialog,
   XmlDoc.Parser,
   XmlDoc.Plugin.DeclarationContext,
+  XmlDoc.Plugin.EditSession,
   XmlDoc.StubGen,
   XmlDoc.CodeGen.OTA,
   XmlDoc.Consts,
@@ -99,6 +101,7 @@ begin
       TXmlDocEditorNotifier.Create(
         procedure(ALine: Integer; const ASource, AFileName: string)
         begin
+          GenerateForPrefix(ALine,ASource,AFileName);
           if Assigned(FDocInspector) then
             FDocInspector.HandleCursorChanged(ALine, ASource, AFileName);
           if Assigned(FDocExplorer) then
@@ -128,6 +131,10 @@ var
   LEditorServices: IOTAEditorServices;
   LKeyServices: IOTAKeyboardServices;
 begin
+  SetDocumentationCommandCallback(nil);
+  SetToggleInspectorCallback(nil);SetGenerateStubCallback(nil);SetGenerateHelpCallback(nil);
+  SetCoverageReportCallback(nil);SetNextUndocumentedCallback(nil);SetPreviousUndocumentedCallback(nil);
+  SetToggleDocExplorerCallback(nil);SetIsInspectorVisibleFunc(nil);SetIsDocExplorerVisibleFunc(nil);SetSettingsCallback(nil);
   FreeAndNil(FMenuIntegration);
 
   // 키보드 바인딩 해제
@@ -223,6 +230,21 @@ begin
   CreateDocInspector;
 end;
 
+procedure TXmlDocWizard.GenerateForPrefix(ALine:Integer;const Source,FileName:string);
+var Lines:TArray<string>;Parser:TDocParser;Element:TCodeElementInfo;Model:TXmlDocModel;Editor:IOTASourceEditor;
+begin
+ if not TPluginSettings.Instance.Global.Stub.AutoGenerate then Exit;
+ Lines:=Source.Split([#10]);if (ALine<1) or (ALine>Length(Lines)) or (Trim(Lines[ALine-1])<>'///') then Exit;
+ Editor:=XmlDoc.Plugin.EditSession.SourceEditorForFile(FileName);if not Assigned(Editor) or (EditorSource(Editor)<>Source) then Exit;
+ Parser:=TDocParser.Create;
+ try
+  try ConfigureDeclarationContext(Parser);Parser.ParseSource(Source,FileName);except Exit;end;
+  Element:=Parser.GetElementAtLine(ALine);if (Element.Name='') or (Trim(Element.ExistingDocXml)<>'') then Exit;
+  Model:=TDocStubGenerator.GenerateStub(Element);
+  try TDocOTAWriter.ApplyToEditor(Editor,Element,Model);finally Model.Free;end;
+ finally Parser.Free;end;
+end;
+
 procedure TXmlDocWizard.GenerateStubForCurrentElement;
 var
   LEditor: IOTASourceEditor;
@@ -239,14 +261,7 @@ begin
   if not Assigned(LEditor) then
     Exit;
 
-  // 소스 읽기 (UTF-8 BOM 처리)
-  LReader := LEditor.CreateReader;
-  SetLength(LBuf, LEditor.GetLinesInBuffer * 256);
-  LBufLen := LReader.GetText(0, PAnsiChar(LBuf), Length(LBuf));
-  if (LBufLen >= 3) and (LBuf[0] = $EF) and (LBuf[1] = $BB) and (LBuf[2] = $BF) then
-    LSource := TEncoding.UTF8.GetString(LBuf, 3, LBufLen - 3)
-  else
-    LSource := TEncoding.UTF8.GetString(LBuf, 0, LBufLen);
+  LSource:=EditorSource(LEditor);
 
   // 현재 커서 위치의 요소 찾기
   LParser := XmlDoc.Parser.TDocParser.Create;
@@ -303,6 +318,12 @@ end;
 
 procedure TXmlDocWizard.SetupCallbacks;
 begin
+  SetDocumentationCommandCallback(procedure(Command:string)
+  begin
+    if not Assigned(FDocInspector) then FDocInspector:=TDocInspectorForm.Create(nil);
+    FDocInspector.Show;FDocInspector.RefreshFromCurrentEditor;FDocInspector.ExecuteCommand(Command);
+  end);
+
   SetToggleInspectorCallback(
     function: Boolean
     begin

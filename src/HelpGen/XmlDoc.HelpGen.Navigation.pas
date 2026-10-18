@@ -182,7 +182,7 @@ var Names: TTopicNameMap; U: TUnitDocInfo; UnitNode, Leaf: TDocNavNode; T: TType
     N.SymbolName := FullName;
     Group(Parent, TypeGroup(AType.Kind)).Children.Add(N);
     for M in AType.Members do begin
-      MemberNode := TDocNavNode.Create(M.Name, N.Target + '#' + Anchor(M.Name));
+      MemberNode := TDocNavNode.Create(M.Name, N.Target + '#' + Anchor(MemberAnchor(M.CodeElement,M.Name)));
       MemberNode.SymbolName := FullName + '.' + M.Name;
       Group(N, MemberGroup(M)).Children.Add(MemberNode);
     end;
@@ -207,15 +207,15 @@ begin
       Result.Children.Add(UnitNode);
       for T in U.Types do AddType(UnitNode, T, U.UnitName);
       for E in U.StandaloneMethods do begin
-        Leaf := TDocNavNode.Create(E.Name, UnitNode.Target+'#'+Anchor(E.Name));
+        Leaf := TDocNavNode.Create(E.Name, UnitNode.Target+'#'+Anchor(MemberAnchor(E.CodeElement,E.Name)));
         Leaf.SymbolName := U.UnitName + '.' + E.Name;
         if E.Kind = dekField then Group(UnitNode, 'Variables').Children.Add(Leaf)
         else Group(UnitNode, 'Routines').Children.Add(Leaf);
       end;
       for E in U.Constants do
-        Group(UnitNode, 'Constants').Children.Add(TDocNavNode.Create(E.Name, UnitNode.Target+'#'+Anchor(E.Name)));
+        Group(UnitNode, 'Constants').Children.Add(TDocNavNode.Create(E.Name, UnitNode.Target+'#'+Anchor(MemberAnchor(E.CodeElement,E.Name))));
       for E in U.Variables do
-        Group(UnitNode, 'Variables').Children.Add(TDocNavNode.Create(E.Name, UnitNode.Target+'#'+Anchor(E.Name)));
+        Group(UnitNode, 'Variables').Children.Add(TDocNavNode.Create(E.Name, UnitNode.Target+'#'+Anchor(MemberAnchor(E.CodeElement,E.Name))));
     end;
     SortNodes(Result);
     except Result.Free; raise; end;

@@ -24,6 +24,9 @@ uses
   XmlDoc.Model,
   XmlDoc.Parser,
   XmlDoc.Plugin.DeclarationContext,
+  XmlDoc.Plugin.EditSession,
+  XmlDoc.SourceText,
+  XmlDoc.Plugin.ProjectDocumentation,
   XmlDoc.CodeGen,
   XmlDoc.CodeGen.OTA,
   XmlDoc.ParamDict,
@@ -36,7 +39,11 @@ type
     FBrowser: TXmlDocBrowser;
     FBrowserError: TLabel;
     FBrowserReady: Boolean;
+    FPendingCommand:string;
     FParseError:string;
+    FProjectDocs:TProjectDocumentation;
+    FEditSessionId:string;
+    FPinned:Boolean;
     FCursorPollTimer: TTimer;
     FCurrentElement: TCodeElementInfo;
     FDocModel: TXmlDocModel;
@@ -46,6 +53,7 @@ type
     FLastElementName: string;
     FLastFileName: string;
     FLastPolledLine: Integer;
+    FLastPolledRevision:string;
     FPendingLoad: Boolean;
     FUpdatingSource: Boolean;
     FParamDictLoaded: Boolean;
@@ -60,7 +68,7 @@ type
     procedure CursorPollTimerFired(Sender: TObject);
     procedure EnsureParamDictLoaded;
     function GetParamDictPath: string;
-    procedure HandleDocUpdated(const AJsonStr: string);
+    function HandleDocUpdated(const AJsonStr: string):Boolean;
     procedure HandleJumpToLine(ALine: Integer);
     procedure InitTimerFired(Sender: TObject);
     function IsSameElement(const AElement: TCodeElementInfo): Boolean;
@@ -80,6 +88,7 @@ type
 
     /// <summary>현재 에디터의 커서 위치에서 즉시 새로고침합니다.</summary>
     procedure RefreshFromCurrentEditor;
+    procedure ExecuteCommand(const Command:string);
   end;
 
 implementation
@@ -94,6 +103,7 @@ const
 constructor TDocInspectorForm.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  FProjectDocs:=TProjectDocumentation.Create;
 
   Caption := 'Doc Inspector';
   Name := 'XmlDocDocInspector';
@@ -138,11 +148,18 @@ end;
 
 destructor TDocInspectorForm.Destroy;
 begin
+  if Assigned(FInitTimer) then FInitTimer.Enabled:=False;
+  if Assigned(FCursorPollTimer) then FCursorPollTimer.Enabled:=False;
+  if Assigned(FBrowser) then begin
+    FBrowser.OnWebMessageReceived:=nil;FBrowser.OnNavigationCompleted:=nil;
+    FBrowser.OnCreateWebViewCompleted:=nil;FBrowser.CloseWebView;FreeAndNil(FBrowser);
+  end;
   SaveStateNecessary := True;
   TParamDictionary.Instance.SaveToFile;
   FDocParser.Free;
   FDocModel.Free;
 
+  FProjectDocs.Free;
   inherited;
 end;
 
@@ -163,7 +180,7 @@ var
   LServices: IOTAEditorServices;
   LEditView: IOTAEditView;
   LLine: Integer;
-  LFileName: string;
+  LFileName,LSource,LRevision: string;
 begin
   // 폼이 보이지 않거나 업데이트 중이면 무시
   if not Visible then
@@ -189,11 +206,12 @@ begin
   LLine := LEditView.CursorPos.Line;
 
   // 행이 바뀌지 않았으면 무시
-  if (LLine = FLastPolledLine) and (LFileName = FLastFileName) then
+  LSource:=EditorSource(LEditView.Buffer);LRevision:=SourceRevision(LSource);
+  if (LLine = FLastPolledLine) and (LFileName = FLastFileName) and (LRevision=FLastPolledRevision) then
     Exit;
 
-  FLastPolledLine := LLine;
-  RefreshFromCurrentEditor;
+  FLastPolledLine := LLine;FLastPolledRevision:=LRevision;
+  HandleCursorChanged(LLine,LSource,LFileName);
 end;
 
 procedure TDocInspectorForm.InitTimerFired(Sender: TObject);
@@ -245,6 +263,8 @@ begin
     Exit;
   end;
   try
+    var ResourceProject:=GetActiveProject;
+    if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
     FBrowser.LoadEditorResource(FindClassHInstance(TDocInspectorForm), CEditorResourceName);
   except
     on E: Exception do
@@ -264,11 +284,15 @@ begin
   FBrowser.RestoreSections;
   FPendingLoad := False;
   RefreshFromCurrentEditor;
+  if FPendingCommand<>'' then begin
+    var Command:=FPendingCommand;FPendingCommand:='';ExecuteCommand(Command);
+  end;
 end;
 
 function TDocInspectorForm.ParseEditorSource(const Source:string):Boolean;
 begin
   try
+    if (Source<>FDocParser.SourceText) or (FEditSessionId='') then FEditSessionId:=TGUID.NewGuid.ToString;
     ConfigureDeclarationContext(FDocParser);
     FDocParser.ParseSource(Source,FLastFileName);
     FParseError:='';
@@ -302,7 +326,7 @@ begin
     Exit;
 
   try
-    LMsg := TJSONObject.ParseJSONValue(string(LJson)) as TJSONObject;
+    LMsg := ParseHostMessage(string(LJson));
   finally
     CoTaskMemFree(LJson);
   end;
@@ -310,8 +334,14 @@ begin
     Exit;
 
   try
-    LMsgType := LMsg.GetValue<string>('type');
+   try
+    LMsgType := LMsg.GetValue<string>('type','');
+    if FProjectDocs.Handle(LMsg,FBrowser) then begin
+      if LMsgType='openSymbol' then RefreshFromCurrentEditor;
+      Exit;end;
 
+    if LMsgType='pin' then begin FPinned:=LMsg.GetValue<Boolean>('pinned',False);Exit;end;
+    if LMsgType='requestRefresh' then begin FPinned:=False;RefreshFromCurrentEditor;Exit;end;
     if LMsgType = 'sectionStateChanged' then
     begin
       LDocObj := LMsg.GetValue<TJSONObject>('sections');
@@ -324,8 +354,11 @@ begin
     begin
       LDocObj := LMsg.GetValue<TJSONObject>('doc');
       if Assigned(LDocObj) then
-        HandleDocUpdated(LDocObj.ToJSON);
+        if ValidateEdit(LMsg,FCurrentElement,FLastFileName,FEditSessionId,FDocParser.SourceText) then begin
+          if HandleDocUpdated(LDocObj.ToJSON) then FProjectDocs.Acknowledge(LMsg);
+        end else FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),'Source changed — reload before applying'));
     end;
+   except on E:Exception do FBrowser.ExecuteScript(EditResult(FEditSessionId,'Invalid editor message: '+E.Message));end;
   finally
     LMsg.Free;
   end;
@@ -352,7 +385,7 @@ begin
   View.Paint;
 end;
 
-procedure TDocInspectorForm.HandleDocUpdated(const AJsonStr: string);
+function TDocInspectorForm.HandleDocUpdated(const AJsonStr: string):Boolean;
 var
   LEditor: IOTASourceEditor;
   LView: IOTAEditView;
@@ -365,24 +398,27 @@ var
   LSource: string;
   LElement: TCodeElementInfo;
 begin
+  Result:=False;
   // 자체 업데이트 중이면 무시 (순환 방지)
   if FUpdatingSource then
     Exit;
 
   FDocModel.FromJson(AJsonStr);
+  if FDocModel.ParseError<>'' then begin FBrowser.ExecuteScript(EditResult(FEditSessionId,'Invalid XML — edit the XML source'));Exit;end;
   CaptureParamDescriptions;
 
   // 현재 요소가 없으면 쓰기 불가
   if FCurrentElement.Name = '' then
     Exit;
 
-  LEditor := TDocOTAWriter.GetCurrentSourceEditor;
+  LEditor := SourceEditorForFile(FLastFileName);
   if not Assigned(LEditor) then
     Exit;
 
   FUpdatingSource := True;
   try
-    TDocOTAWriter.ApplyToEditor(LEditor, FCurrentElement, FDocModel);
+    if not TDocOTAWriter.ApplyToEditor(LEditor, FCurrentElement, FDocModel) then Exit;
+    Result:=True;FBrowser.ExecuteScript(EditResult(FEditSessionId,'Applied'));
 
     // 쓰기 후 소스를 다시 읽어 AST 재구축 및 FCurrentElement 위치 갱신
     // (주석 삽입/수정으로 줄 번호가 바뀌므로 반드시 갱신 필요)
@@ -412,22 +448,26 @@ begin
 
           if (Length(LBuffer) >= 3) and
              (LBuffer[0] = $EF) and (LBuffer[1] = $BB) and (LBuffer[2] = $BF) then
-            LSource := TEncoding.UTF8.GetString(LBuffer, 3, Length(LBuffer) - 3)
+            LSource := DecodeSource(LBuffer, 3, Length(LBuffer) - 3)
           else
-            LSource := TEncoding.UTF8.GetString(LBuffer);
+            LSource := DecodeSource(LBuffer,0,Length(LBuffer));
         finally
           LStream.Free;
         end;
 
         if not ParseEditorSource(LSource) then Exit;
 
-        LElement := FDocParser.GetElementAtLine(LView.CursorPos.Line);
+        LElement:=Default(TCodeElementInfo);
+        for LElement in FDocParser.GetAllElements do
+          if LElement.SymbolId=FCurrentElement.SymbolId then Break;
         if LElement.Name <> '' then
         begin
           FCurrentElement := LElement;
           FLastElementName := LElement.Name;
           FLastElementLine := LElement.LineNumber;
         end;
+        FDocModel.LoadFromXml(FCurrentElement.ExistingDocXml);
+        UpdateFromCursor;
       end;
     end;
   finally
@@ -483,6 +523,10 @@ begin
       LObj.AddPair('genericParams', LGenericParams);
     end;
 
+    var ResourceProject:=GetActiveProject;
+    if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
+    LObj.AddPair('resourceBase','https://xmldoc.resources/');
+    AddEditContext(LObj,FCurrentElement,FLastFileName,FEditSessionId,FDocParser.SourceText);
     Result := LObj.ToJSON;
   finally
     LObj.Free;
@@ -529,10 +573,12 @@ procedure TDocInspectorForm.HandleCursorChanged(ALine: Integer;
 var
   LElement: TCodeElementInfo;
 begin
+  if FPinned then Exit;
   // 자체 업데이트 중이면 무시 (순환 방지)
   if FUpdatingSource then
     Exit;
 
+  if FDocParser.SourceText<>ASource then FLastElementName:='';
   FLastFileName := AFileName;
   // 소스 변경 시 재파싱
   if not SameText(FDocParser.SourceFileName,AFileName) or not FDocParser.IsUpToDate(ASource) then
@@ -628,9 +674,9 @@ begin
 
     if (Length(LBuffer) >= 3) and
        (LBuffer[0] = $EF) and (LBuffer[1] = $BB) and (LBuffer[2] = $BF) then
-      LSource := TEncoding.UTF8.GetString(LBuffer, 3, Length(LBuffer) - 3)
+      LSource := DecodeSource(LBuffer, 3, Length(LBuffer) - 3)
     else
-      LSource := TEncoding.UTF8.GetString(LBuffer);
+      LSource := DecodeSource(LBuffer,0,Length(LBuffer));
   finally
     LStream.Free;
   end;
@@ -640,6 +686,14 @@ begin
   FLastElementLine := -1;
 
   HandleCursorChanged(LLine, LSource, LFileName);
+end;
+
+procedure TDocInspectorForm.ExecuteCommand(const Command:string);
+var Json:TJSONString;
+begin
+ if not Assigned(FBrowser) or not FBrowserReady then begin FPendingCommand:=Command;Exit;end;
+ Json:=TJSONString.Create(Command);
+ try FBrowser.ExecuteScript('document.getElementById('+Json.ToJSON+')?.click();');finally Json.Free;end;
 end;
 
 procedure TDocInspectorForm.CaptureParamDescriptions;

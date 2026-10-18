@@ -76,6 +76,8 @@ type
 
 implementation
 
+uses System.SysUtils;
+
 { TTestDocStubGenerator }
 
 function TTestDocStubGenerator.MakeElement(AKind: TDocElementKind;
@@ -158,7 +160,7 @@ begin
   LElement.ReturnType := 'Boolean';
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
-    Assert.AreEqual('True on success', LModel.Returns);
+    Assert.IsTrue(LModel.Returns.StartsWith('TODO:'));
   finally
     LModel.Free;
   end;
@@ -208,7 +210,7 @@ begin
   LElement.Params[0].TypeName := 'Integer';
   LModel := TDocStubGenerator.GenerateStub(LElement);
   try
-    Assert.AreEqual('Index (zero-based)', LModel.Params[0].Description);
+    Assert.IsTrue(LModel.Params[0].Description.StartsWith('TODO:'));
   finally
     LModel.Free;
   end;

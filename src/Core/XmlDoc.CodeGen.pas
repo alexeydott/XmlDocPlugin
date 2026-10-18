@@ -84,133 +84,17 @@ begin
   end;
 end;
 
-class function TDocCodeGenerator.ModelToCommentBlock(const AModel: TXmlDocModel; AIndent: Integer): string;
-var
-  LSB: TStringBuilder;
-  LPrefix: string;
-  I: Integer;
-
-  procedure AddLine(const AText: string);
-  begin
-    LSB.AppendLine(LPrefix + AText);
-  end;
-
-  procedure AddMultiLineTag(const ATagOpen, AContent, ATagClose: string);
-  var
-    LLines: TArray<string>;
-    J: Integer;
-  begin
-    // 한 줄이면 한 줄로
-    if not AContent.Contains(#10) and not AContent.Contains(#13) then
-    begin
-      if Length(LPrefix + ATagOpen + AContent + ATagClose) <= 120 then
-      begin
-        AddLine(ATagOpen + AContent + ATagClose);
-        Exit;
-      end;
-    end;
-
-    // 여러 줄: 각 라인을 <para>로 감싸기
-    AddLine(ATagOpen);
-    LLines := AContent.Split([#13#10, #10, #13]);
-    for J := 0 to High(LLines) do
-    begin
-      if Trim(LLines[J]) <> '' then
-        AddLine('<para>' + Trim(LLines[J]) + '</para>');
-    end;
-
-    AddLine(ATagClose);
-  end;
-
+class function TDocCodeGenerator.ModelToCommentBlock(const AModel:TXmlDocModel; AIndent:Integer):string;
+var Line:string;SB:TStringBuilder;
 begin
-  if AModel.IsEmpty then
-  begin
-    Result := '';
-    Exit;
-  end;
-
-  LSB := TStringBuilder.Create;
+  if AModel.IsEmpty then Exit('');
+  SB:=TStringBuilder.Create;
   try
-    LPrefix := BuildIndent(AIndent) + '/// ';
-
-    // summary
-    if AModel.Summary <> '' then
-      AddMultiLineTag('<summary>', AModel.Summary, '</summary>');
-
-    // remarks
-    if AModel.Remarks <> '' then
-      AddMultiLineTag('<remarks>', AModel.Remarks, '</remarks>');
-
-    // param
-    for I := 0 to AModel.Params.Count - 1 do
-      AddLine(Format('<param name="%s">%s</param>', [
-        AModel.Params[I].Name, AModel.Params[I].Description]));
-
-    // typeparam
-    for I := 0 to AModel.TypeParams.Count - 1 do
-      AddLine(Format('<typeparam name="%s">%s</typeparam>', [
-        AModel.TypeParams[I].Name, AModel.TypeParams[I].Description]));
-
-    // returns
-    if AModel.Returns <> '' then
-      AddLine(Format('<returns>%s</returns>', [AModel.Returns]));
-
-    // value
-    if AModel.Value <> '' then
-      AddLine(Format('<value>%s</value>', [AModel.Value]));
-
-    // exception
-    for I := 0 to AModel.Exceptions.Count - 1 do
-    begin
-      if AModel.Exceptions[I].Description <> '' then
-      begin
-        AddMultiLineTag(
-          Format('<exception cref="%s">', [AModel.Exceptions[I].TypeRef]),
-          AModel.Exceptions[I].Description,
-          '</exception>'
-        );
-      end
-      else
-      begin
-        AddLine(Format('<exception cref="%s"/>', [AModel.Exceptions[I].TypeRef]));
-      end;
-    end;
-
-    // example
-    for I := 0 to AModel.Examples.Count - 1 do
-    begin
-      if AModel.Examples[I].Title <> '' then
-        AddLine(Format('<example title="%s">', [AModel.Examples[I].Title]))
-      else
-        AddLine('<example>');
-
-      if AModel.Examples[I].Description <> '' then
-        AddLine(AModel.Examples[I].Description);
-
-      if AModel.Examples[I].Code <> '' then
-      begin
-        AddLine('<code>');
-        AddLine(AModel.Examples[I].Code);
-        AddLine('</code>');
-      end;
-
-      AddLine('</example>');
-    end;
-
-    // seealso
-    for I := 0 to AModel.SeeAlso.Count - 1 do
-    begin
-      if AModel.SeeAlso[I].Description <> '' then
-        AddLine(Format('<seealso cref="%s">%s</seealso>', [
-          AModel.SeeAlso[I].Cref, AModel.SeeAlso[I].Description]))
-      else
-        AddLine(Format('<seealso cref="%s"/>', [AModel.SeeAlso[I].Cref]));
-    end;
-
-    Result := LSB.ToString;
-  finally
-    LSB.Free;
-  end;
+    for Line in AModel.ToXml.Replace(#13#10,#10).Replace(#13,#10).Split([#10]) do
+      if Line='' then SB.AppendLine(BuildIndent(AIndent)+'///')
+      else SB.AppendLine(BuildIndent(AIndent)+'/// '+Line);
+    Result:=SB.ToString;
+  finally SB.Free;end;
 end;
 
 class function TDocCodeGenerator.ApplyToSourceText(const ASource: string; const AElement: TCodeElementInfo; const AModel: TXmlDocModel): string;
@@ -221,6 +105,7 @@ var
   LInsertLine: Integer;
   I: Integer;
 begin
+  if (AModel.SourceXml<>'') and (AModel.ToXml=AElement.ExistingDocXml) then Exit(ASource);
   LLines := TStringList.Create;
   try
     LLines.Text := ASource;

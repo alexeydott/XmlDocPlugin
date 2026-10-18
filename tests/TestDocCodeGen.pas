@@ -75,7 +75,7 @@ begin
   begin
     if Trim(LLine) = '' then Continue;
     LTrimmed := LLine.TrimLeft;
-    Assert.IsTrue(LTrimmed.StartsWith('/// '), 'Every comment line must have the documentation prefix');
+    Assert.IsTrue(LTrimmed.StartsWith('/// ') or (LTrimmed='///'), 'Every comment line must have the documentation prefix');
     Result := Result + Copy(LTrimmed, 5, MaxInt) + sLineBreak;
   end;
 end;

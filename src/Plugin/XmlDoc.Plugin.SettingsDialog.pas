@@ -67,6 +67,8 @@ function ShowSettingsDialog: Boolean;
 
 implementation
 
+uses ToolsAPI,Vcl.ActnList,XmlDoc.ShortcutValidation,Vcl.Dialogs;
+
 {$R *.dfm}
 
 function ShowSettingsDialog: Boolean;
@@ -92,7 +94,11 @@ begin
 end;
 
 procedure TSettingsDialog.btnOKClick(Sender: TObject);
+var Services:INTAServices;Actions:TCustomActionList;Conflicts:TArray<string>;
 begin
+  Actions:=nil;if Supports(BorlandIDEServices,INTAServices,Services) then Actions:=Services.ActionList;
+  Conflicts:=DocumentationShortcutConflicts([hotToggleInspector.HotKey,hotGenerateStub.HotKey,hotGenerateHelp.HotKey,hotCoverageReport.HotKey,hotNextUndocumented.HotKey,hotPreviousUndocumented.HotKey],['Inspector','Generate stub','Generate help','Coverage','Next undocumented','Previous undocumented'],Actions);
+  if Length(Conflicts)>0 then begin ModalResult:=mrNone;ShowMessage(string.Join(sLineBreak,Conflicts));Exit;end;
   SaveSettings;
 end;
 

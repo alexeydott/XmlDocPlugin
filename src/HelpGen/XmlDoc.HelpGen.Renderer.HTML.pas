@@ -46,7 +46,7 @@ type
 
 implementation
 
-uses
+uses XmlDoc.HelpGen.Resources,XmlDoc.Markup,
   System.JSON, System.Hash;
 
 { THTMLDocRenderer }
@@ -152,16 +152,18 @@ function THTMLDocRenderer.FormatDocToHtml(const ADoc: TXmlDocModel;
 var
   LSB: TStringBuilder;
   I: Integer;
+  function RenderProse(const Text:string):string;
+  begin Result:=MarkupHTML(Text,function(Cref:string):string begin Result:=MakeCrefLink(Cref,AUnitName);end,function(Source:string):string begin Result:='../assets/'+CopyDocumentationImage(Source,AUnitName,FOptions.ProjectDir,FOptions.OutputDir,'assets',FUnits);end);end;
 begin
   LSB := TStringBuilder.Create;
   try
     if ADoc.Summary <> '' then
-      LSB.AppendLine('<p>' + EscapeHtml(ADoc.Summary) + '</p>');
+      LSB.AppendLine('<p>' + RenderProse(ADoc.Summary) + '</p>');
 
     if ADoc.Remarks <> '' then
     begin
       LSB.AppendLine('<h3>Remarks</h3>');
-      LSB.AppendLine('<p>' + EscapeHtml(ADoc.Remarks) + '</p>');
+      LSB.AppendLine('<p>' + RenderProse(ADoc.Remarks) + '</p>');
     end;
 
     if ADoc.Params.Count > 0 then
@@ -171,7 +173,7 @@ begin
       for I := 0 to ADoc.Params.Count - 1 do
       begin
         LSB.AppendFormat('<tr><td><code>%s</code></td><td>%s</td></tr>',
-          [EscapeHtml(ADoc.Params[I].Name), EscapeHtml(ADoc.Params[I].Description)]);
+          [EscapeHtml(ADoc.Params[I].Name), RenderProse(ADoc.Params[I].Description)]);
         LSB.AppendLine;
       end;
       LSB.AppendLine('</table>');
@@ -180,7 +182,7 @@ begin
     if ADoc.Returns <> '' then
     begin
       LSB.AppendLine('<h3>Returns</h3>');
-      LSB.AppendLine('<p>' + EscapeHtml(ADoc.Returns) + '</p>');
+      LSB.AppendLine('<p>' + RenderProse(ADoc.Returns) + '</p>');
     end;
 
     if ADoc.Exceptions.Count > 0 then
@@ -191,25 +193,26 @@ begin
       begin
         LSB.AppendFormat('<tr><td><code>%s</code></td><td>%s</td></tr>',
           [MakeCrefLink(ADoc.Exceptions[I].TypeRef, AUnitName),
-           EscapeHtml(ADoc.Exceptions[I].Description)]);
+           RenderProse(ADoc.Exceptions[I].Description)]);
         LSB.AppendLine;
       end;
       LSB.AppendLine('</table>');
     end;
 
     if ADoc.Value <> '' then
-      LSB.AppendLine('<h3>Value</h3><p>' + EscapeHtml(ADoc.Value) + '</p>');
+      LSB.AppendLine('<h3>Value</h3><p>' + RenderProse(ADoc.Value) + '</p>');
     if ADoc.TypeParams.Count > 0 then
     begin
       LSB.AppendLine('<h3>Type Parameters</h3><ul>');
       for I := 0 to ADoc.TypeParams.Count - 1 do
-        LSB.AppendLine('<li><code>' + EscapeHtml(ADoc.TypeParams[I].Name) + '</code>: ' + EscapeHtml(ADoc.TypeParams[I].Description) + '</li>');
+        LSB.AppendLine('<li><code>' + EscapeHtml(ADoc.TypeParams[I].Name) + '</code>: ' + RenderProse(ADoc.TypeParams[I].Description) + '</li>');
       LSB.AppendLine('</ul>');
     end;
     for I := 0 to ADoc.Examples.Count - 1 do
     begin
       LSB.AppendLine('<h3>Example ' + EscapeHtml(ADoc.Examples[I].Title) + '</h3>');
-      LSB.AppendLine('<p>' + EscapeHtml(ADoc.Examples[I].Description) + '</p>');
+      if ADoc.Examples[I].SourceFile<>'' then LSB.AppendLine('<p>Source: <a href="../assets/'+CopyDocumentationSource(ADoc.Examples[I].SourceFile,AUnitName,FOptions.ProjectDir,FOptions.OutputDir,'assets',FUnits)+'">'+EscapeHtml(ADoc.Examples[I].SourceFile)+'</a> '+EscapeHtml(ADoc.Examples[I].Region)+'</p>');
+      LSB.AppendLine('<p>' + RenderProse(ADoc.Examples[I].Description) + '</p>');
       LSB.AppendLine('<pre><code>' + EscapeHtml(ADoc.Examples[I].Code) + '</code></pre>');
     end;
     if ADoc.SeeAlso.Count > 0 then
@@ -217,7 +220,7 @@ begin
       LSB.AppendLine('<h3>See Also</h3>');
       LSB.Append('<ul>');
       for I := 0 to ADoc.SeeAlso.Count - 1 do
-        LSB.AppendFormat('<li>%s %s</li>', [MakeCrefLink(ADoc.SeeAlso[I].Cref, AUnitName), EscapeHtml(ADoc.SeeAlso[I].Description)]);
+        LSB.AppendFormat('<li>%s %s</li>', [MakeCrefLink(ADoc.SeeAlso[I].Cref, AUnitName), RenderProse(ADoc.SeeAlso[I].Description)]);
       LSB.AppendLine('</ul>');
     end;
 
@@ -232,16 +235,17 @@ var
   U: TUnitDocInfo;
   T: TTypeDocInfo;
   E: TElementDocInfo;
-  Href: string;
+  Href,Resolved:string;
   function Matches(const FullName, Name: string): Boolean;
   begin
-    Result := SameText(ACref, FullName) or
-      (SameText(U.UnitName, AUnitName) and SameText(ACref, Name));
+    Result := SameText(Resolved, FullName) or
+      (SameText(U.UnitName, AUnitName) and SameText(Resolved, Name));
   end;
 begin
   // All documentation references are rendered inside units/. Only link to
   // pages/anchors actually emitted by this renderer; external symbols are text.
-  Href := '';
+  Href := '';Resolved:=ACref;
+  if Assigned(FResolver) then Resolved:=FResolver.ResolveReference(ACref,AUnitName);
   for U in FUnits do
   begin
     if SameText(ACref, U.UnitName) then Href := FileName(U.UnitName);
@@ -249,13 +253,13 @@ begin
     begin
       if Matches(T.FullName, T.Name) then Href := FileName(T.FullName);
       for E in T.Members do
-        if Matches(E.FullName, T.Name + '.' + E.Name) then
-          Href := FileName(T.FullName) + '#' + Anchor(E.Name);
+        if SameText(Resolved,E.CodeElement.SymbolId) or Matches(E.FullName, T.Name + '.' + E.Name) then
+          Href := FileName(T.FullName) + '#' + Anchor(MemberAnchor(E.CodeElement,E.Name));
     end;
     for E in U.StandaloneMethods do
-      if Matches(E.FullName, E.Name) then Href := FileName(U.UnitName) + '#' + Anchor(E.Name);
+      if SameText(Resolved,E.CodeElement.SymbolId) or Matches(E.FullName, E.Name) then Href := FileName(U.UnitName) + '#' + Anchor(MemberAnchor(E.CodeElement,E.Name));
     for E in U.Constants do
-      if Matches(E.FullName, E.Name) then Href := FileName(U.UnitName) + '#' + Anchor(E.Name);
+      if SameText(Resolved,E.CodeElement.SymbolId) or Matches(E.FullName, E.Name) then Href := FileName(U.UnitName) + '#' + Anchor(MemberAnchor(E.CodeElement,E.Name));
   end;
   Result := '<code>' + EscapeHtml(ACref) + '</code>';
   if Href <> '' then
@@ -444,7 +448,7 @@ begin
       for I := 0 to AType.Members.Count - 1 do
       begin
         LSB.AppendFormat('<tr><td><a href="#%s"><code>%s</code></a></td><td>%s</td><td>%s</td><td>%s</td></tr>',
-          [EscapeHtml(Anchor(AType.Members[I].Name)),
+          [EscapeHtml(Anchor(MemberAnchor(AType.Members[I].CodeElement,AType.Members[I].Name))),
            EscapeHtml(AType.Members[I].Name),
            EscapeHtml(AType.Members[I].Kind.ToString),
            EscapeHtml(AType.Members[I].Visibility),
@@ -473,7 +477,7 @@ procedure THTMLDocRenderer.RenderMemberSection(const ABuilder: TStringBuilder;
   const AElem: TElementDocInfo; const AUnitName: string);
 begin
   ABuilder.AppendFormat('<div class="member-card" id="%s">',
-    [EscapeHtml(Anchor(AElem.Name))]);
+    [EscapeHtml(Anchor(MemberAnchor(AElem.CodeElement,AElem.Name)))]);
   ABuilder.AppendLine;
   ABuilder.AppendFormat('<div class="member-sig"><span class="badge">%s</span> %s</div>',
     [EscapeHtml(AElem.Kind.ToString), EscapeHtml(AElem.Name)]);

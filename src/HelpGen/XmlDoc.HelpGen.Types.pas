@@ -30,6 +30,7 @@ type
   /// <summary>타입 문서 정보 (class, record, interface)</summary>
   TTypeDocInfo = class
   public
+    CodeElement:TCodeElementInfo;
     Ancestor: string;
     Doc: TXmlDocModel;
     FullName: string;

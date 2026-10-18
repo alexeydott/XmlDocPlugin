@@ -18,6 +18,9 @@ uses
   XmlDoc.Consts,
   XmlDoc.HelpGen.Types,
   XmlDoc.HelpGen.Scanner,
+  XmlDoc.Plugin.EditSession,
+  XmlDoc.Plugin.DeclarationContext,
+  XmlDoc.ProjectContext,
   XmlDoc.HelpGen.BatchParser,
   XmlDoc.HelpGen.Coverage;
 
@@ -261,7 +264,12 @@ begin
 
     LScanner := TProjectScanner.Create;
     try
+      var Context:=ActiveDocumentationContext;
+      try
+        if Assigned(Context) then begin LScanOpts.Configuration:=Context.Configuration;LScanOpts.Platform:=Context.Platform;end;
+      finally Context.Free;end;
       LFiles := LScanner.Scan(LScanOpts);
+      LScanOpts.Platform:=LScanner.Platform;LScanOpts.SearchPaths:=LScanner.SearchPaths;LScanOpts.Defines:=LScanner.Defines;
     finally
       LScanner.Free;
     end;
@@ -269,6 +277,7 @@ begin
     LParser := TBatchParser.Create;
     try
       LParser.OnProgress := UpdateProgress;
+      LParser.SourceSnapshots:=CurrentSourceSnapshots;LParser.Platform:=LScanOpts.Platform;LParser.SearchPaths:=LScanOpts.SearchPaths;LParser.Defines:=LScanOpts.Defines;
       LParser.ParseAll(LFiles);
 
       LCoverage := TDocCoverageReport.Create;
@@ -396,7 +405,12 @@ begin
 
     LScanner := TProjectScanner.Create;
     try
+      var Context:=ActiveDocumentationContext;
+      try
+        if Assigned(Context) then begin LScanOpts.Configuration:=Context.Configuration;LScanOpts.Platform:=Context.Platform;end;
+      finally Context.Free;end;
       LFiles := LScanner.Scan(LScanOpts);
+      LScanOpts.Platform:=LScanner.Platform;LScanOpts.SearchPaths:=LScanner.SearchPaths;LScanOpts.Defines:=LScanner.Defines;
     finally
       LScanner.Free;
     end;
@@ -413,6 +427,7 @@ begin
     LParser := TBatchParser.Create;
     try
       LParser.OnProgress := UpdateProgress;
+      LParser.SourceSnapshots:=CurrentSourceSnapshots;LParser.Platform:=LScanOpts.Platform;LParser.SearchPaths:=LScanOpts.SearchPaths;LParser.Defines:=LScanOpts.Defines;
       LParser.ParseAll(LFiles);
 
       if FCancelled then
@@ -427,7 +442,7 @@ begin
         try
           lblTotal.Caption := Format('Total: %d', [LStats.TotalElements]);
           lblDocumented.Caption := Format('Documented: %d (%.1f%%)', [LStats.Documented, LStats.CoveragePercent]);
-          lblComplete.Caption := Format('Complete: %d (%.1f%%)', [LStats.Complete, LStats.CompletePercent]);
+          lblComplete.Caption := Format('Complete: %d; ready: %d (%.1f%%)', [LStats.Complete,LStats.Ready,LStats.ReadyPercent]);
           pbCoverage.Position := Round(LStats.CoveragePercent);
           lblPercent.Caption := Format('%.1f%%', [LStats.CoveragePercent]);
 

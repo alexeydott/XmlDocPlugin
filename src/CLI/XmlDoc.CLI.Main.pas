@@ -22,6 +22,9 @@ uses
 type
   /// <summary>CLI 옵션</summary>
   TCLIOptions = record
+    CheckDocumentation:Boolean;
+    BaselineFile,WriteBaselineFile,Configuration,Platform:string;
+    SearchPaths,Defines:TArray<string>;
     CoverageEnabled: Boolean;
     CoverageMinPercent: Integer;
     Directory: string;
@@ -61,7 +64,7 @@ type
 implementation
 
 uses
-  System.IOUtils;
+  System.IOUtils,XmlDoc.HelpGen.Diagnostics;
 
 { TCLIMain }
 
@@ -129,6 +132,16 @@ begin
       if I <= ParamCount then
         FOptions.ExcludePatterns := ParamStr(I).Split([';']);
     end
+    else if LArg='--check' then FOptions.CheckDocumentation:=True
+    else if (LArg='--baseline') or (LArg='--write-baseline') or (LArg='--config') or (LArg='--platform') or (LArg='--search-path') or (LArg='--define') then begin
+      Inc(I);if I>ParamCount then raise Exception.Create('Missing value for '+LArg);
+      if LArg='--baseline' then FOptions.BaselineFile:=ParamStr(I)
+      else if LArg='--write-baseline' then FOptions.WriteBaselineFile:=ParamStr(I)
+      else if LArg='--config' then FOptions.Configuration:=ParamStr(I)
+      else if LArg='--platform' then FOptions.Platform:=ParamStr(I)
+      else if LArg='--search-path' then FOptions.SearchPaths:=FOptions.SearchPaths+ParamStr(I).Split([';'])
+      else FOptions.Defines:=FOptions.Defines+ParamStr(I).Split([';']);
+    end
     else if LArg = '--numeric-file-names' then
       FOptions.NumericFileNames := True
     else if LArg = '--include-private' then
@@ -190,6 +203,13 @@ begin
   WriteLn('  -f, --format <list>        Output formats: html,chm,md,json,hmxp,mkdocs,docusaurus,vitepress');
   WriteLn('  -t, --title <title>        Documentation title');
   WriteLn('  --exclude <patterns>       Semicolon-separated exclude patterns');
+  WriteLn('  --check                   Write diagnostics.json; exit 3 for new problems');
+  WriteLn('  --baseline <file>         Compare with an existing documentation baseline');
+  WriteLn('  --write-baseline <file>   Save the current problems as a baseline');
+  WriteLn('  --config <name>           Documentation build configuration');
+  WriteLn('  --platform <Win32|Win64>  Target platform, independent of CLI architecture');
+  WriteLn('  --define <names>          Additional semicolon-separated conditional defines');
+  WriteLn('  --search-path <paths>     Additional semicolon-separated source paths');
   WriteLn('  --numeric-file-names       Use short numeric topic filenames');
   WriteLn('  --include-private          Include private members');
   WriteLn('  --interface-only           Interface section only');
@@ -246,6 +266,8 @@ var
   LCoverage: TDocCoverageReport;
   LStats: TCoverageStats;
   LItems: TArray<TCoverageItem>;
+  Diagnostics:TDocumentationReport;
+  NewIssues:Integer;
 begin
   Result := 0;
   LRenderOpts := Default(TRenderOptions);
@@ -270,8 +292,11 @@ begin
       LScanOpts.ProjectPath := FOptions.Directory;
     end;
 
+    LScanOpts.Configuration:=FOptions.Configuration;LScanOpts.Platform:=FOptions.Platform;
+    LScanOpts.SearchPaths:=FOptions.SearchPaths;LScanOpts.Defines:=FOptions.Defines;
     LScanOpts.ExcludePatterns := FOptions.ExcludePatterns;
     LFiles := LScanner.Scan(LScanOpts);
+      LScanOpts.Platform:=LScanner.Platform;LScanOpts.SearchPaths:=LScanner.SearchPaths;LScanOpts.Defines:=LScanner.Defines;
   finally
     LScanner.Free;
   end;
@@ -290,7 +315,8 @@ begin
   LParser := TBatchParser.Create;
   try
     LParser.OnProgress := PrintProgress;
-    LParser.ParseAll(LFiles);
+    LParser.Platform:=LScanOpts.Platform;LParser.SearchPaths:=LScanOpts.SearchPaths;LParser.Defines:=LScanOpts.Defines;
+      LParser.ParseAll(LFiles);
 
     // 교차 참조 해석
     LResolver := TCrossRefResolver.Create(LParser.SymbolIndex);
@@ -304,7 +330,8 @@ begin
       // 렌더링 옵션
       LRenderOpts.NumericFileNames := FOptions.NumericFileNames;
       LRenderOpts.OutputDir := FOptions.OutputDir;
-      LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(FOptions.ProjectPath), '');
+      if TDirectory.Exists(FOptions.ProjectPath) then LRenderOpts.ProjectDir:=TPath.GetFullPath(FOptions.ProjectPath) else LRenderOpts.ProjectDir:=ExtractFilePath(TPath.GetFullPath(FOptions.ProjectPath));
+        LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(FOptions.ProjectPath), '');
       LRenderOpts.Title := FOptions.Title;
       LRenderOpts.IncludePrivate := FOptions.IncludePrivate;
       LRenderOpts.IncludeSearchIndex := True;
@@ -335,6 +362,16 @@ begin
         end;
       end;
 
+      if FOptions.CheckDocumentation or (FOptions.WriteBaselineFile<>'') or (FOptions.BaselineFile<>'') then begin
+        Diagnostics:=TDocumentationReport.Create;
+        try Diagnostics.Analyze(LParser.Units);
+          NewIssues:=Diagnostics.NewIssueCount(FOptions.BaselineFile);
+          Diagnostics.Save(TPath.Combine(FOptions.OutputDir,'diagnostics.json'));
+          if FOptions.WriteBaselineFile<>'' then Diagnostics.SaveBaseline(FOptions.WriteBaselineFile);
+          WriteLn(Format('Documentation: %d issues, %d new.',[Diagnostics.Issues.Count,NewIssues]));
+          if (NewIssues>0) and FOptions.CheckDocumentation and (FOptions.WriteBaselineFile='') then Result:=3;
+        finally Diagnostics.Free;end;
+      end;
       // 커버리지
       if FOptions.CoverageEnabled then
       begin

@@ -9,30 +9,46 @@ function esc(text: string): string {
 }
 
 /** inline XML 태그를 Preview용 HTML로 변환 */
-function inlineToPreviewHtml(text: string): string {
-  return text
-    .replace(/<c>(.*?)<\/c>/g, '<span class="preview-code-ref">$1</span>')
-    .replace(/<see\s+cref="([^"]*)">(.*?)<\/see>/g, '<span class="preview-see-ref">$2</span>')
-    .replace(/<see\s+cref="([^"]*)"\/?\s*>/g, '<span class="preview-see-ref">$1</span>')
-    .replace(/<paramref\s+name="([^"]*)"\/?\s*>/g, '<strong>$1</strong>')
-    .replace(/<typeparamref\s+name="([^"]*)"\/?\s*>/g, '<em>$1</em>');
+export function inlineToPreviewHtml(text:string):string {
+ const doc=new DOMParser().parseFromString('<doc>'+text+'</doc>','application/xml');
+ if(doc.querySelector('parsererror'))return esc(text);
+ const render=(node:Node):string=>{
+  if(node.nodeType===3 || node.nodeType===4)return esc(node.textContent??'');
+  if(node.nodeType!==1)return '';
+  const e=node as Element;const content=()=>Array.from(e.childNodes).map(render).join('');
+  switch(e.tagName){
+   case 'para':return `<p>${content()}</p>`;
+   case 'b':case 'strong':return `<strong>${content()}</strong>`;
+   case 'i':case 'em':return `<em>${content()}</em>`;
+   case 'c':return `<code>${content()}</code>`;
+   case 'code':return `<pre><code>${esc(e.textContent??'')}</code></pre>`;
+   case 'br':return '<br>';
+   case 'paramref':case 'typeparamref':return `<strong>${esc(e.getAttribute('name')??'')}</strong>`;
+   case 'see':return `<span class="preview-see-ref">${content()||esc(e.getAttribute('cref')??'')}</span>`;
+   case 'list':{
+    if(e.getAttribute('type')==='table')return `<table>${Array.from(e.children).map(row=>`<tr>${Array.from(row.children).map(cell=>`<${row.tagName==='listheader'?'th':'td'}>${Array.from(cell.childNodes).map(render).join('')}</${row.tagName==='listheader'?'th':'td'}>`).join('')}</tr>`).join('')}</table>`;
+    const tag=e.getAttribute('type')==='number'?'ol':'ul';return `<${tag}>${Array.from(e.children).map(row=>`<li>${Array.from(row.childNodes).map(render).join('')}</li>`).join('')}</${tag}>`;
+   }
+   case 'term':return `<strong>${content()}</strong> `;
+   case 'description':return content();
+   case 'img':case 'image':{
+    const src=e.getAttribute('src')??'';const base=(window as any).xmlDocResourceBase;
+    if(base && !/^(?:[a-z]+:|[\\/])|(?:^|[\\/])\.\.(?:[\\/]|$)/i.test(src))return `<img src="${esc(new URL(src.replace(/\\/g,'/'),base).href)}" alt="${esc(e.getAttribute('alt')??'')}" style="max-width:100%">`;
+    return `<span>${esc(e.getAttribute('alt')??src)}</span>`;
+   }
+   default:return content();
+  }
+ };
+ return Array.from(doc.documentElement.childNodes).map(render).join('');
 }
-
-function textToPreviewP(text: string): string {
-  if (!text) return '';
-  return text
-    .split('\n')
-    .filter(l => l.trim())
-    .map(l => `<p>${inlineToPreviewHtml(l)}</p>`)
-    .join('');
-}
+function textToPreviewP(text:string):string {return inlineToPreviewHtml(text).replace(/\r?\n/g,'<br>');}
 
 export function renderPreview(
   container: HTMLElement,
   doc: DocModel,
   element: ElementInfo | null,
 ): void {
-  let html = '';
+  let html = doc.inheritedFrom?`<p>Inherited from ${esc(doc.inheritedFrom)}</p>`:'';
 
   // Summary
   if (doc.summary) {
@@ -85,6 +101,8 @@ export function renderPreview(
   if (doc.examples?.length) {
     html += `<h2>Examples</h2>`;
     doc.examples.forEach(ex => {
+      if(ex.source)html+=`<p>Source: ${esc(ex.source)}${ex.region?' · '+esc(ex.region):''}</p>`;
+      if(ex.title)html+=`<h3>${esc(ex.title)}</h3>`;
       if (ex.description) {
         html += `<p>${inlineToPreviewHtml(ex.description)}</p>`;
       }
@@ -109,7 +127,7 @@ export function renderPreview(
     html += `<h2>See Also</h2>`;
     html += `<ul>`;
     doc.seeAlso.forEach(sa => {
-      html += `<li><span class="preview-see-ref">${esc(sa.cref)}</span></li>`;
+      html += `<li><span class="preview-see-ref">${esc(sa.cref)}</span> ${inlineToPreviewHtml(sa.description??'')}</li>`;
     });
     html += `</ul>`;
   }

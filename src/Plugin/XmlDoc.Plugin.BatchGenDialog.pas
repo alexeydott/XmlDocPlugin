@@ -20,6 +20,9 @@ uses
   ToolsAPI,
   XmlDoc.HelpGen.Types,
   XmlDoc.HelpGen.Scanner,
+  XmlDoc.Plugin.EditSession,
+  XmlDoc.Plugin.DeclarationContext,
+  XmlDoc.ProjectContext,
   XmlDoc.HelpGen.BatchParser,
   XmlDoc.HelpGen.CrossRef,
   XmlDoc.HelpGen.Renderer,
@@ -685,7 +688,12 @@ begin
       if FEdtExclude.Text <> '' then
         LScanOpts.ExcludePatterns := String(FEdtExclude.Text).Split([';']);
 
+      var Context:=ActiveDocumentationContext;
+      try
+        if Assigned(Context) then begin LScanOpts.Configuration:=Context.Configuration;LScanOpts.Platform:=Context.Platform;end;
+      finally Context.Free;end;
       LFiles := LScanner.Scan(LScanOpts);
+      LScanOpts.Platform:=LScanner.Platform;LScanOpts.SearchPaths:=LScanner.SearchPaths;LScanOpts.Defines:=LScanner.Defines;
     finally
       LScanner.Free;
     end;
@@ -706,6 +714,7 @@ begin
     LParser := TBatchParser.Create;
     try
       LParser.OnProgress := UpdateProgress;
+      LParser.SourceSnapshots:=CurrentSourceSnapshots;LParser.Platform:=LScanOpts.Platform;LParser.SearchPaths:=LScanOpts.SearchPaths;LParser.Defines:=LScanOpts.Defines;
       LParser.ParseAll(LFiles);
 
       if FCancelled then
@@ -726,6 +735,7 @@ begin
         // 렌더링 옵션
         LRenderOpts.NumericFileNames := FChkNumericFileNames.Checked;
         LRenderOpts.OutputDir := FEdtOutputDir.Text;
+        if TDirectory.Exists(LProjectPath) then LRenderOpts.ProjectDir:=LProjectPath else LRenderOpts.ProjectDir:=ExtractFilePath(LProjectPath);
         LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(LProjectPath), '');
         LRenderOpts.Title := FEdtTitle.Text;
         LRenderOpts.IncludePrivate := FChkIncludePrivate.Checked;

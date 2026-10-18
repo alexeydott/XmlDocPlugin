@@ -34,6 +34,7 @@ type
     /// <param name="ACref">원본 cref 값</param>
     /// <param name="AContext">참조가 포함된 요소</param>
     /// <returns>해석된 풀네임. 실패 시 원본 cref</returns>
+    function ResolveReference(const Cref,UnitName:string):string;
     function ResolveCref(const ACref: string; const AContext: TElementDocInfo): string;
 
     /// <summary>모든 유닛의 문서 모델에서 cref 참조를 일괄 해석합니다.</summary>
@@ -44,6 +45,8 @@ type
   end;
 
 implementation
+
+uses Xml.XMLIntf,XmlDoc.XmlFragments;
 
 { TCrossRefResolver }
 
@@ -62,38 +65,24 @@ begin
   inherited;
 end;
 
-function TCrossRefResolver.TryResolve(const ACref, AContextUnit: string): string;
-var
-  LKey: string;
-  LPair: TPair<string, TElementDocInfo>;
+function TCrossRefResolver.TryResolve(const ACref,AContextUnit:string):string;
+var Pair:TPair<string,TElementDocInfo>;Found:TElementDocInfo;Candidate:TElementDocInfo;
 begin
-  Result := '';
-
-  // 1. 정확한 매치
-  if FSymbolIndex.ContainsKey(ACref) then
-  begin
-    Result := ACref;
-    Exit;
+ Result:='';Found:=nil;
+ if FSymbolIndex.TryGetValue(ACref,Found) then begin
+  if Found.CodeElement.IsOverload then Exit(Found.CodeElement.SymbolId);Exit(Found.FullName);end;
+ for Pair in FSymbolIndex do begin
+  Candidate:=Pair.Value;
+  if SameText(Pair.Key,ACref) or SameText(Candidate.FullName,ACref) or SameText(Candidate.CodeElement.Signature,ACref) or
+   SameText(Candidate.FullName,AContextUnit+'.'+ACref) or Candidate.FullName.EndsWith('.'+ACref,True) then begin
+   if Assigned(Found) and (Found<>Candidate) then Exit('');Found:=Candidate;
   end;
-
-  // 2. 같은 유닛 내 검색
-  LKey := AContextUnit + '.' + ACref;
-  if FSymbolIndex.ContainsKey(LKey) then
-  begin
-    Result := LKey;
-    Exit;
-  end;
-
-  // 3. 부분 매치 (*.ACref)
-  for LPair in FSymbolIndex do
-  begin
-    if LPair.Key.EndsWith('.' + ACref) then
-    begin
-      Result := LPair.Key;
-      Exit;
-    end;
-  end;
+ end;
+ if Assigned(Found) then begin if Found.CodeElement.IsOverload then Result:=Found.CodeElement.SymbolId else Result:=Found.FullName;end;
 end;
+
+function TCrossRefResolver.ResolveReference(const Cref,UnitName:string):string;
+begin Result:=TryResolve(Cref,UnitName);end;
 
 function TCrossRefResolver.ResolveCref(const ACref: string; const AContext: TElementDocInfo): string;
 var
@@ -121,85 +110,52 @@ begin
 end;
 
 procedure TCrossRefResolver.ResolveAllRefs(const AUnits: TObjectList<TUnitDocInfo>);
-
-  procedure ResolveModelRefs(const ADoc: TXmlDocModel; const AElem: TElementDocInfo; const AUnitName, AFilePath: string);
-  var
-    I: Integer;
-    LResolved: string;
-    LRef: TUnresolvedRef;
-    LSeeAlso: TSeeAlsoDoc;
-    LException: TExceptionDoc;
-  begin
-    // SeeAlso cref 해석
-    for I := 0 to ADoc.SeeAlso.Count - 1 do
+  procedure Check(Model:TXmlDocModel;const Element:TCodeElementInfo;const Name,UnitName,FileName:string);
+  var Doc:IXMLDocument;Ref:TUnresolvedRef;I:Integer;See:TSeeAlsoDoc;Exc:TExceptionDoc;Resolved:string;
+    procedure Visit(Node:IXMLNode);
+    var J:Integer;Child:IXMLNode;Target:string;
     begin
-      LSeeAlso := ADoc.SeeAlso[I];
-      LResolved := TryResolve(LSeeAlso.Cref, AUnitName);
-      if LResolved <> '' then
-      begin
-        LSeeAlso.Cref := LResolved;
-        ADoc.SeeAlso[I] := LSeeAlso;
-      end
-      else
-      begin
-        LRef.Cref := LSeeAlso.Cref;
-        LRef.SourceElement := AElem.FullName;
-        LRef.SourceFile := AFilePath;
-        LRef.Line := 0;
-        FUnresolved.Add(LRef);
+      for J:=0 to Node.ChildNodes.Count-1 do begin
+        Child:=Node.ChildNodes[J];if Child.NodeType<>ntElement then Continue;
+        if Child.HasAttribute('cref') then begin
+          Target:=Child.Attributes['cref'];
+          if (Target<>'') and (TryResolve(Target,UnitName)='') then begin
+            Ref:=Default(TUnresolvedRef);Ref.Cref:=Target;Ref.SourceElement:=Name;Ref.SourceFile:=FileName;
+            Ref.Line:=Element.CommentStartLine;if Ref.Line<1 then Ref.Line:=Element.LineNumber;
+            FUnresolved.Add(Ref);
+          end;
+        end;
+        Visit(Child);
       end;
     end;
-
-    // Exception cref 해석
-    for I := 0 to ADoc.Exceptions.Count - 1 do
-    begin
-      LException := ADoc.Exceptions[I];
-      LResolved := TryResolve(LException.TypeRef, AUnitName);
-      if LResolved <> '' then
-      begin
-        LException.TypeRef := LResolved;
-        ADoc.Exceptions[I] := LException;
-      end;
-    end;
-  end;
-
-  procedure ResolveTypeRefs(const AType: TTypeDocInfo; const AUnitName, AFilePath: string);
-  var
-    I: Integer;
-    LDummy: TElementDocInfo;
   begin
-    LDummy := TElementDocInfo.Create;
-    try
-      LDummy.FullName := AType.FullName;
-      ResolveModelRefs(AType.Doc, LDummy, AUnitName, AFilePath);
-    finally
-      LDummy.Free;
+    if Model.ParseError<>'' then Exit;
+    Doc:=LoadDocXml('<doc>'+Model.ToXml+'</doc>');Visit(Doc.DocumentElement);
+    for I:=0 to Model.SeeAlso.Count-1 do begin
+      See:=Model.SeeAlso[I];Resolved:=TryResolve(See.Cref,UnitName);
+      if Resolved<>'' then begin See.Cref:=Resolved;Model.SeeAlso[I]:=See;end;
     end;
-
-    for I := 0 to AType.Members.Count - 1 do
-      ResolveModelRefs(AType.Members[I].Doc, AType.Members[I], AUnitName, AFilePath);
+    for I:=0 to Model.Exceptions.Count-1 do begin
+      Exc:=Model.Exceptions[I];Resolved:=TryResolve(Exc.TypeRef,UnitName);
+      if Resolved<>'' then begin Exc.TypeRef:=Resolved;Model.Exceptions[I]:=Exc;end;
+    end;
   end;
-
-var
-  I, J: Integer;
-  LUnit: TUnitDocInfo;
+  procedure CheckType(Typ:TTypeDocInfo;UnitDoc:TUnitDocInfo);
+  var Member:TElementDocInfo;Nested:TTypeDocInfo;
+  begin
+    Check(Typ.Doc,Typ.CodeElement,Typ.FullName,UnitDoc.UnitName,UnitDoc.FilePath);
+    for Member in Typ.Members do Check(Member.Doc,Member.CodeElement,Member.FullName,UnitDoc.UnitName,UnitDoc.FilePath);
+    for Nested in Typ.NestedTypes do CheckType(Nested,UnitDoc);
+  end;
+var UnitDoc:TUnitDocInfo;Typ:TTypeDocInfo;Element:TElementDocInfo;
 begin
   FUnresolved.Clear;
-
-  for I := 0 to AUnits.Count - 1 do
-  begin
-    LUnit := AUnits[I];
-
-    for J := 0 to LUnit.Types.Count - 1 do
-      ResolveTypeRefs(LUnit.Types[J], LUnit.UnitName, LUnit.FilePath);
-
-    for J := 0 to LUnit.StandaloneMethods.Count - 1 do
-      ResolveModelRefs(LUnit.StandaloneMethods[J].Doc,
-        LUnit.StandaloneMethods[J], LUnit.UnitName, LUnit.FilePath);
-
-    for J := 0 to LUnit.Constants.Count - 1 do
-      ResolveModelRefs(LUnit.Constants[J].Doc,
-        LUnit.Constants[J], LUnit.UnitName, LUnit.FilePath);
+  for UnitDoc in AUnits do begin
+    Check(UnitDoc.UnitDoc,UnitDoc.UnitElement,UnitDoc.UnitName,UnitDoc.UnitName,UnitDoc.FilePath);
+    for Typ in UnitDoc.Types do CheckType(Typ,UnitDoc);
+    for Element in UnitDoc.StandaloneMethods do Check(Element.Doc,Element.CodeElement,Element.FullName,UnitDoc.UnitName,UnitDoc.FilePath);
+    for Element in UnitDoc.Constants do Check(Element.Doc,Element.CodeElement,Element.FullName,UnitDoc.UnitName,UnitDoc.FilePath);
+    for Element in UnitDoc.Variables do Check(Element.Doc,Element.CodeElement,Element.FullName,UnitDoc.UnitName,UnitDoc.FilePath);
   end;
 end;
 

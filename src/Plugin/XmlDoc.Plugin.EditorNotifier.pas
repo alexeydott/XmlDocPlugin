@@ -22,6 +22,7 @@ type
     FDebounceTimer: TTimer;
     FLastNotifiedLine: Integer;
     FLastNotifiedFileName: string;
+    FLastNotifiedSource: string;
     FPendingFileName: string;
     FPendingLine: Integer;
     FPendingSource: string;
@@ -49,8 +50,7 @@ type
 
 implementation
 
-const
-  CDebounceMs = 300;
+uses XmlDoc.Plugin.Settings,XmlDoc.SourceText;
 
 { TXmlDocEditorNotifier }
 
@@ -64,7 +64,7 @@ begin
   FPendingLine := -1;
 
   FDebounceTimer := TTimer.Create(nil);
-  FDebounceTimer.Interval := CDebounceMs;
+  FDebounceTimer.Interval := TPluginSettings.Instance.Global.Editor.DebounceMs;
   FDebounceTimer.Enabled := False;
   FDebounceTimer.OnTimer := DebounceTimerFired;
 end;
@@ -79,10 +79,11 @@ end;
 procedure TXmlDocEditorNotifier.ScheduleNotify(ALine: Integer; const ASource, AFileName: string);
 begin
   // 같은 행/파일이면 무시
-  if (ALine = FLastNotifiedLine) and (AFileName = FLastNotifiedFileName) then
+  if (ALine = FLastNotifiedLine) and (AFileName = FLastNotifiedFileName) and (ASource = FLastNotifiedSource) then
     Exit;
 
   // 보류 데이터 저장 후 타이머 리셋
+  FDebounceTimer.Interval:=TPluginSettings.Instance.Global.Editor.DebounceMs;
   FPendingLine := ALine;
   FPendingSource := ASource;
   FPendingFileName := AFileName;
@@ -100,6 +101,7 @@ begin
 
   FLastNotifiedLine := FPendingLine;
   FLastNotifiedFileName := FPendingFileName;
+  FLastNotifiedSource := FPendingSource;
 
   if Assigned(FOnCursorChanged) then
     FOnCursorChanged(FPendingLine, FPendingSource, FPendingFileName);
@@ -153,9 +155,9 @@ begin
     // UTF-8 BOM(EF BB BF) 감지 후 적절한 인코딩으로 디코딩
     if (Length(LBuffer) >= 3) and
        (LBuffer[0] = $EF) and (LBuffer[1] = $BB) and (LBuffer[2] = $BF) then
-      Result := TEncoding.UTF8.GetString(LBuffer, 3, Length(LBuffer) - 3)
+      Result := DecodeSource(LBuffer, 3, Length(LBuffer) - 3)
     else
-      Result := TEncoding.UTF8.GetString(LBuffer);
+      Result := DecodeSource(LBuffer,0,Length(LBuffer));
   finally
     LStream.Free;
   end;

@@ -39,6 +39,7 @@ type
 
   /// <summary>예제 문서 정보</summary>
   TExampleDoc = record
+    SourceFile,Region:string;
     Title: string;
     Code: string;
     Description: string;
@@ -65,6 +66,13 @@ type
     Kind: TDocElementKind;
     Name: string;
     FullName: string;
+    SymbolId: string;
+    UnitName,CanonicalName:string;
+    IsOverload:Boolean;
+    FileName: string;
+    Signature: string;
+    Ancestor: string;
+    Implements: TArray<string>;
     QualifiedParent: string;
     Visibility: string;
     Params: TArray<TParamInfo>;
@@ -79,13 +87,26 @@ type
     ExistingDocXml: string;
   end;
 
+  TSourceSnapshot=record
+    FileName,Source:string;
+  end;
+
   /// <summary>TDocElementKind 유틸리티</summary>
   TDocElementKindHelper = record helper for TDocElementKind
     function ToString: string;
     class function FromString(const AValue: string): TDocElementKind; static;
   end;
 
+function MemberAnchor(const Element:TCodeElementInfo;const Name:string):string;
+
 implementation
+
+uses System.Hash;
+
+function MemberAnchor(const Element:TCodeElementInfo;const Name:string):string;
+begin
+ if Element.IsOverload and (Element.SymbolId<>'') then Result:='m'+Copy(THashSHA2.GetHashString(Element.SymbolId),1,20) else Result:=Name;
+end;
 
 { TDocElementKindHelper }
 

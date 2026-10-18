@@ -35,6 +35,7 @@ implementation
 class function TDocOTAWriter.ApplyToEditor(const AEditor: IOTASourceEditor; const AElement: TCodeElementInfo; const AModel: TXmlDocModel): Boolean;
 var
   LWriter: IOTAEditWriter;
+  Buffer:IOTAEditBuffer;
   LCommentBlock: string;
   LStartPos: Integer;
   LEndPos: Integer;
@@ -44,6 +45,9 @@ begin
   if not Assigned(AEditor) then
     Exit;
 
+  if Supports(AEditor,IOTAEditBuffer,Buffer) and Buffer.IsReadOnly then Exit;
+  if AModel.ParseError<>'' then Exit;
+  if (AModel.SourceXml<>'') and (AModel.ToXml=AElement.ExistingDocXml) then Exit(True);
   LCommentBlock := TDocCodeGenerator.ModelToCommentBlock(AModel, AElement.IndentLevel);
 
   LWriter := AEditor.CreateUndoableWriter;

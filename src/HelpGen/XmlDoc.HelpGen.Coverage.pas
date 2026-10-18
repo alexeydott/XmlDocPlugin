@@ -27,6 +27,7 @@ type
     Level: TCoverageLevel;
     MissingTags: TArray<string>;
     Visibility: string;
+    Ready:Boolean;
   end;
 
   /// <summary>커버리지 통계</summary>
@@ -34,6 +35,8 @@ type
     ByKind: TDictionary<TDocElementKind, Integer>;
     ByUnit: TDictionary<string, Double>;
     ByVisibility: TDictionary<string, Integer>;
+    Ready:Integer;
+    ReadyPercent:Double;
     Complete: Integer;
     CompletePercent: Double;
     CoveragePercent: Double;
@@ -44,6 +47,8 @@ type
   /// <summary>프로젝트 전체의 XML 문서 커버리지를 분석하고 리포트를 생성합니다.</summary>
   TDocCoverageReport = class
   private
+    FSymbols:TArray<TCodeElementInfo>;
+    procedure CollectSymbols(const Units:TObjectList<TUnitDocInfo>);
     function AnalyzeElement(const AElem: TElementDocInfo): TCoverageItem;
     function AnalyzeType(const AType: TTypeDocInfo): TCoverageItem;
     function AnalyzeUnit(const AUnit: TUnitDocInfo): TCoverageItem;
@@ -73,6 +78,8 @@ type
 
 implementation
 
+uses XmlDoc.Documentation;
+
 function HasParamDoc(const ADoc: TXmlDocModel; const AParamName: string): Boolean;
 var
   I: Integer;
@@ -82,7 +89,7 @@ begin
   begin
     if SameText(ADoc.Params[I].Name, AParamName) then
     begin
-      Result := ADoc.Params[I].Description <> '';
+      Result := TDocumentation.Meaningful(ADoc.Params[I].Description);
       Exit;
     end;
   end;
@@ -90,11 +97,24 @@ end;
 
 { TDocCoverageReport }
 
+procedure TDocCoverageReport.CollectSymbols(const Units:TObjectList<TUnitDocInfo>);
+var Items:TList<TCodeElementInfo>;U:TUnitDocInfo;T:TTypeDocInfo;E:TElementDocInfo;
+ procedure AddType(Typ:TTypeDocInfo);
+ var Member:TElementDocInfo;Nested:TTypeDocInfo;
+ begin Items.Add(Typ.CodeElement);for Member in Typ.Members do Items.Add(Member.CodeElement);for Nested in Typ.NestedTypes do AddType(Nested);end;
+begin
+ Items:=TList<TCodeElementInfo>.Create;
+ try for U in Units do begin Items.Add(U.UnitElement);for T in U.Types do AddType(T);
+  for E in U.StandaloneMethods do Items.Add(E.CodeElement);for E in U.Constants do Items.Add(E.CodeElement);for E in U.Variables do Items.Add(E.CodeElement);
+ end;FSymbols:=Items.ToArray;finally Items.Free;end;
+end;
+
 function TDocCoverageReport.AnalyzeElement(const AElem: TElementDocInfo): TCoverageItem;
 var
   LMissing: TList<string>;
   I: Integer;
 begin
+  Result:=Default(TCoverageItem);
   Result.ElementFullName := AElem.FullName;
   Result.Kind := AElem.Kind;
   Result.Visibility := AElem.Visibility;
@@ -108,7 +128,7 @@ begin
 
   LMissing := TList<string>.Create;
   try
-    if AElem.Doc.Summary = '' then
+    if not TDocumentation.Meaningful(AElem.Doc.Summary) then
       LMissing.Add('summary');
 
     // 메서드: 파라미터와 리턴값 체크
@@ -120,10 +140,18 @@ begin
           LMissing.Add('param:' + AElem.CodeElement.Params[I].Name);
       end;
 
-      if (AElem.CodeElement.ReturnType <> '') and (AElem.Doc.Returns = '') then
+      if (AElem.CodeElement.ReturnType <> '') and (not TDocumentation.Meaningful(AElem.Doc.Returns)) then
         LMissing.Add('returns');
     end;
 
+    for var Generic in AElem.CodeElement.GenericParams do begin
+      var Found:=False;for var Param in AElem.Doc.TypeParams do
+        if SameText(Param.Name,Generic) and TDocumentation.Meaningful(Param.Description) then Found:=True;
+      if not Found then LMissing.Add('typeparam:'+Generic);
+    end;
+    if (AElem.Kind=dekProperty) and not TDocumentation.Meaningful(AElem.Doc.Value) then LMissing.Add('value');
+    if AElem.Doc.ParseError<>'' then LMissing.Add('invalid-xml');
+    Result.Ready:=(LMissing.Count=0) and (Length(TDocumentation.Analyze(AElem.CodeElement,AElem.Doc,FSymbols))=0);
     Result.MissingTags := LMissing.ToArray;
 
     if LMissing.Count = 0 then
@@ -138,37 +166,20 @@ begin
   end;
 end;
 
-function TDocCoverageReport.AnalyzeType(const AType: TTypeDocInfo): TCoverageItem;
+function TDocCoverageReport.AnalyzeType(const AType:TTypeDocInfo):TCoverageItem;
+var E:TElementDocInfo;
 begin
-  Result.ElementFullName := AType.FullName;
-  Result.Kind := AType.Kind;
-  Result.Visibility := AType.Visibility;
-
-  if AType.Doc.IsEmpty then
-  begin
-    Result.Level := clNone;
-    Result.MissingTags := ['summary'];
-    Exit;
-  end;
-
-  if AType.Doc.Summary <> '' then
-    Result.Level := clComplete
-  else
-  begin
-    Result.Level := clSummaryOnly;
-    Result.MissingTags := ['summary'];
-  end;
+ E:=TElementDocInfo.Create;
+ try E.FullName:=AType.FullName;E.Kind:=AType.Kind;E.Visibility:=AType.Visibility;
+  E.CodeElement:=AType.CodeElement;E.Doc.Assign(AType.Doc);Result:=AnalyzeElement(E);
+ finally E.Free;end;
 end;
-
-function TDocCoverageReport.AnalyzeUnit(const AUnit: TUnitDocInfo): TCoverageItem;
+function TDocCoverageReport.AnalyzeUnit(const AUnit:TUnitDocInfo):TCoverageItem;
+var E:TElementDocInfo;
 begin
-  Result := Default(TCoverageItem);
-  Result.ElementFullName := AUnit.UnitName;
-  Result.Kind := dekUnit;
-  if AUnit.UnitDoc.IsEmpty then Result.Level := clNone
-  else if Trim(AUnit.UnitDoc.Summary) <> '' then Result.Level := clComplete
-  else Result.Level := clPartial;
-  if Result.Level <> clComplete then Result.MissingTags := ['summary'];
+ E:=TElementDocInfo.Create;
+ try E.FullName:=AUnit.UnitName;E.Kind:=dekUnit;E.CodeElement:=AUnit.UnitElement;E.Doc.Assign(AUnit.UnitDoc);Result:=AnalyzeElement(E);
+ finally E.Free;end;
 end;
 
 function TDocCoverageReport.CoverageLevelToString(ALevel: TCoverageLevel): string;
@@ -183,185 +194,55 @@ begin
   end;
 end;
 
-function TDocCoverageReport.Analyze(const AUnits: TObjectList<TUnitDocInfo>): TCoverageStats;
-var
-  I, J, K: Integer;
-  LUnit: TUnitDocInfo;
-  LType: TTypeDocInfo;
-  LElem: TElementDocInfo;
-  LItem: TCoverageItem;
-  LUnitTotal: Integer;
-  LUnitDoc: Integer;
+function TDocCoverageReport.Analyze(const AUnits:TObjectList<TUnitDocInfo>):TCoverageStats;
+var U:TUnitDocInfo;E:TElementDocInfo;T:TTypeDocInfo;UnitTotal,UnitDocumented,Count:Integer;Stats:TCoverageStats;
+ procedure Add(const Item:TCoverageItem);
+ var N:Integer;
+ begin
+  Inc(Stats.TotalElements);Inc(UnitTotal);
+  if Item.Level<>clNone then begin Inc(Stats.Documented);Inc(UnitDocumented);end;
+  if Item.Level=clComplete then Inc(Stats.Complete);
+  if Item.Ready then Inc(Stats.Ready);
+  if not Stats.ByKind.TryGetValue(Item.Kind,N) then N:=0;Stats.ByKind.AddOrSetValue(Item.Kind,N+1);
+  if not Stats.ByVisibility.TryGetValue(Item.Visibility,N) then N:=0;Stats.ByVisibility.AddOrSetValue(Item.Visibility,N+1);
+ end;
+ procedure VisitType(Typ:TTypeDocInfo);
+ var M:TElementDocInfo;N:TTypeDocInfo;
+ begin Add(AnalyzeType(Typ));for M in Typ.Members do Add(AnalyzeElement(M));for N in Typ.NestedTypes do VisitType(N);end;
 begin
-  Result.TotalElements := 0;
-  Result.Documented := 0;
-  Result.Complete := 0;
-  Result.ByKind := TDictionary<TDocElementKind, Integer>.Create;
-  Result.ByVisibility := TDictionary<string, Integer>.Create;
-  Result.ByUnit := TDictionary<string, Double>.Create;
-
-  for I := 0 to AUnits.Count - 1 do
-  begin
-    LUnit := AUnits[I];
-    LUnitTotal := 0;
-    LUnitDoc := 0;
-
-    LItem := AnalyzeUnit(LUnit);
-    Inc(Result.TotalElements);
-    Inc(LUnitTotal);
-    if LItem.Level <> clNone then begin Inc(Result.Documented); Inc(LUnitDoc); end;
-    if LItem.Level = clComplete then Inc(Result.Complete);
-    Result.ByKind.AddOrSetValue(dekUnit, I + 1);
-
-    // Types
-    for J := 0 to LUnit.Types.Count - 1 do
-    begin
-      LType := LUnit.Types[J];
-      LItem := AnalyzeType(LType);
-      Inc(Result.TotalElements);
-      Inc(LUnitTotal);
-      if LItem.Level <> clNone then
-      begin
-        Inc(Result.Documented);
-        Inc(LUnitDoc);
-      end;
-
-      if LItem.Level = clComplete then
-        Inc(Result.Complete);
-
-      // Members
-      for K := 0 to LType.Members.Count - 1 do
-      begin
-        LElem := LType.Members[K];
-        LItem := AnalyzeElement(LElem);
-        Inc(Result.TotalElements);
-        Inc(LUnitTotal);
-        if LItem.Level <> clNone then
-        begin
-          Inc(Result.Documented);
-          Inc(LUnitDoc);
-        end;
-
-        if LItem.Level = clComplete then
-          Inc(Result.Complete);
-      end;
-    end;
-
-    // Standalone methods
-    for J := 0 to LUnit.StandaloneMethods.Count - 1 do
-    begin
-      LElem := LUnit.StandaloneMethods[J];
-      LItem := AnalyzeElement(LElem);
-      Inc(Result.TotalElements);
-      Inc(LUnitTotal);
-      if LItem.Level <> clNone then
-      begin
-        Inc(Result.Documented);
-        Inc(LUnitDoc);
-      end;
-
-      if LItem.Level = clComplete then
-        Inc(Result.Complete);
-    end;
-
-    // Constants
-    for J := 0 to LUnit.Constants.Count - 1 do
-    begin
-      LElem := LUnit.Constants[J];
-      LItem := AnalyzeElement(LElem);
-      Inc(Result.TotalElements);
-      Inc(LUnitTotal);
-      if LItem.Level <> clNone then
-      begin
-        Inc(Result.Documented);
-        Inc(LUnitDoc);
-      end;
-
-      if LItem.Level = clComplete then
-        Inc(Result.Complete);
-    end;
-
-    if LUnitTotal > 0 then
-      Result.ByUnit.AddOrSetValue(LUnit.UnitName, (LUnitDoc / LUnitTotal) * 100)
-    else
-      Result.ByUnit.AddOrSetValue(LUnit.UnitName, 0);
-  end;
-
-  if Result.TotalElements > 0 then
-  begin
-    Result.CoveragePercent := (Result.Documented / Result.TotalElements) * 100;
-    Result.CompletePercent := (Result.Complete / Result.TotalElements) * 100;
-  end
-  else
-  begin
-    Result.CoveragePercent := 0;
-    Result.CompletePercent := 0;
-  end;
+ CollectSymbols(AUnits);
+ Stats:=Default(TCoverageStats);Stats.ByKind:=TDictionary<TDocElementKind,Integer>.Create;
+ Stats.ByUnit:=TDictionary<string,Double>.Create;Stats.ByVisibility:=TDictionary<string,Integer>.Create;
+ for U in AUnits do begin
+  UnitTotal:=0;UnitDocumented:=0;Add(AnalyzeUnit(U));
+  for T in U.Types do VisitType(T);for E in U.StandaloneMethods do Add(AnalyzeElement(E));
+  for E in U.Constants do Add(AnalyzeElement(E));for E in U.Variables do Add(AnalyzeElement(E));
+  if UnitTotal>0 then Stats.ByUnit.AddOrSetValue(U.UnitName,100*UnitDocumented/UnitTotal);
+ end;
+ if Stats.TotalElements>0 then begin Stats.CoveragePercent:=100*Stats.Documented/Stats.TotalElements;
+  Stats.CompletePercent:=100*Stats.Complete/Stats.TotalElements;Stats.ReadyPercent:=100*Stats.Ready/Stats.TotalElements;end;
+ Result:=Stats;
 end;
 
-function TDocCoverageReport.GetUndocumented(const AUnits: TObjectList<TUnitDocInfo>; const AMinVisibility: string): TArray<TCoverageItem>;
-var
-  LResults: TList<TCoverageItem>;
-  I, J, K: Integer;
-  LUnit: TUnitDocInfo;
-  LType: TTypeDocInfo;
-  LItem: TCoverageItem;
-
-  function PassesVisibility(const AVis: string): Boolean;
-  begin
-    if AMinVisibility = '' then
-    begin
-      Result := True;
-      Exit;
-    end;
-
-    if SameText(AMinVisibility, 'public') then
-      Result := SameText(AVis, 'public') or SameText(AVis, 'published') or (AVis = '')
-    else
-    if SameText(AMinVisibility, 'protected') then
-      Result := SameText(AVis, 'public') or SameText(AVis, 'published') or
-                SameText(AVis, 'protected') or (AVis = '')
-    else
-      Result := True;
-  end;
-
+function TDocCoverageReport.GetUndocumented(const AUnits:TObjectList<TUnitDocInfo>;const AMinVisibility:string):TArray<TCoverageItem>;
+var Results:TList<TCoverageItem>;U:TUnitDocInfo;T:TTypeDocInfo;E:TElementDocInfo;
+ procedure Add(const Item:TCoverageItem);
+ begin
+  if Item.Level<>clNone then Exit;
+  if SameText(AMinVisibility,'public') and (Item.Visibility<>'') and not SameText(Item.Visibility,'public') and not SameText(Item.Visibility,'published') then Exit;
+  if SameText(AMinVisibility,'protected') and (Item.Visibility<>'') and not SameText(Item.Visibility,'public') and not SameText(Item.Visibility,'published') and not SameText(Item.Visibility,'protected') then Exit;
+  Results.Add(Item);
+ end;
+ procedure VisitType(Typ:TTypeDocInfo);
+ var Member:TElementDocInfo;Nested:TTypeDocInfo;
+ begin Add(AnalyzeType(Typ));for Member in Typ.Members do Add(AnalyzeElement(Member));for Nested in Typ.NestedTypes do VisitType(Nested);end;
 begin
-  LResults := TList<TCoverageItem>.Create;
-  try
-    for I := 0 to AUnits.Count - 1 do
-    begin
-      LUnit := AUnits[I];
-
-      LItem := AnalyzeUnit(LUnit);
-      if LItem.Level = clNone then LResults.Add(LItem);
-
-      for J := 0 to LUnit.Types.Count - 1 do
-      begin
-        LType := LUnit.Types[J];
-        LItem := AnalyzeType(LType);
-        if (LItem.Level = clNone) and PassesVisibility(LItem.Visibility) then
-          LResults.Add(LItem);
-
-        for K := 0 to LType.Members.Count - 1 do
-        begin
-          LItem := AnalyzeElement(LType.Members[K]);
-          if (LItem.Level = clNone) and PassesVisibility(LItem.Visibility) then
-            LResults.Add(LItem);
-        end;
-      end;
-
-      for J := 0 to LUnit.StandaloneMethods.Count - 1 do
-      begin
-        LItem := AnalyzeElement(LUnit.StandaloneMethods[J]);
-        if (LItem.Level = clNone) and PassesVisibility(LItem.Visibility) then
-          LResults.Add(LItem);
-      end;
-    end;
-
-    Result := LResults.ToArray;
-  finally
-    LResults.Free;
-  end;
+ CollectSymbols(AUnits);Results:=TList<TCoverageItem>.Create;
+ try
+  for U in AUnits do begin Add(AnalyzeUnit(U));for T in U.Types do VisitType(T);
+   for E in U.StandaloneMethods do Add(AnalyzeElement(E));for E in U.Constants do Add(AnalyzeElement(E));for E in U.Variables do Add(AnalyzeElement(E));
+  end;Result:=Results.ToArray;
+ finally Results.Free;end;
 end;
 
 procedure TDocCoverageReport.RenderConsoleReport(const AStats: TCoverageStats);
@@ -370,6 +251,7 @@ begin
   WriteLn(Format('Total elements: %d', [AStats.TotalElements]));
   WriteLn(Format('Documented:     %d (%.1f%%)', [AStats.Documented, AStats.CoveragePercent]));
   WriteLn(Format('Complete:       %d (%.1f%%)', [AStats.Complete, AStats.CompletePercent]));
+  WriteLn(Format('Ready:          %d (%.1f%%)', [AStats.Ready, AStats.ReadyPercent]));
   WriteLn;
 end;
 
@@ -410,6 +292,7 @@ begin
       [AStats.CoveragePercent]);
     LSB.AppendFormat('<div class="stat"><div class="stat-val">%.1f%%</div><div class="stat-label">Complete</div></div>',
       [AStats.CompletePercent]);
+    LSB.AppendFormat('<div class="stat"><div class="stat-val">%.1f%%</div><div class="stat-label">Ready</div></div>',[AStats.ReadyPercent]);
     LSB.AppendLine('</div>');
 
     // Progress bar

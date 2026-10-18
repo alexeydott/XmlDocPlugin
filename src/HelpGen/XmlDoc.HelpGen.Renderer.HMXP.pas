@@ -23,6 +23,7 @@ type
     FTopicKeys: TDictionary<string, Integer>;
     FShortNames: TDictionary<string, THMTopic>;
     FOptions: TRenderOptions;
+    FUnits:TObjectList<TUnitDocInfo>;
     function AddTopic(const AName, AFullName, AUnitName, ASignature: string;
       ADoc: TXmlDocModel; AParent: THMTopic): THMTopic;
     procedure AddType(AType: TTypeDocInfo; const AUnitName: string; AParent: THMTopic);
@@ -47,7 +48,7 @@ implementation
 
 uses
   System.IOUtils, System.Hash, System.JSON, XmlDoc.HelpGen.Navigation, System.StrUtils, System.Generics.Defaults,
-  Winapi.Windows, Xml.XMLDoc, XmlDoc.Consts;
+  Winapi.Windows, Xml.XMLDoc, XmlDoc.Consts,XmlDoc.HelpGen.Resources;
 
 const
   CProjectFile = 'Documentation.hmxp';
@@ -135,7 +136,7 @@ begin
   else Result.ID := 'T' + THashSHA2.GetHashString(LKey).ToLower;
   if AParent = nil then Exit;
   AParent.Children.Add(Result);
-  if not FSymbols.ContainsKey(AFullName) then FSymbols.Add(AFullName, Result);
+  if not FSymbols.ContainsKey(AFullName) then FSymbols.Add(AFullName, Result) else FSymbols[AFullName]:=nil;
   if FShortNames.ContainsKey(AName) then FShortNames[AName] := nil
   else FShortNames.Add(AName, Result);
 end;
@@ -170,6 +171,7 @@ begin
       LSignature := LSignature + ': ' + AElement.CodeElement.ReturnType;
   end;
   LTopic := AddTopic(AElement.Name, AElement.FullName, AUnitName, Trim(LSignature), AElement.Doc, AParent);
+  if AElement.CodeElement.SymbolId<>'' then FSymbols.AddOrSetValue(AElement.CodeElement.SymbolId,LTopic);
   case AElement.Kind of
     dekProperty: LTopic.GroupName := 'Properties';
     dekField: LTopic.GroupName := 'Fields';
@@ -216,15 +218,15 @@ var
   P: Integer;
 begin
   Result := '';
-  if FSymbols.TryGetValue(ACref, LTopic) then Exit(LTopic.ID);
+  if FSymbols.TryGetValue(ACref, LTopic) and Assigned(LTopic) then Exit(LTopic.ID);
   LPrefix := AContext.FullName;
   repeat
-    if FSymbols.TryGetValue(LPrefix + '.' + ACref, LTopic) then Exit(LTopic.ID);
+    if FSymbols.TryGetValue(LPrefix + '.' + ACref, LTopic) and Assigned(LTopic) then Exit(LTopic.ID);
     P := LastDelimiter('.', LPrefix);
     if P = 0 then Break;
     LPrefix := Copy(LPrefix, 1, P - 1);
   until LPrefix = '';
-  if FSymbols.TryGetValue(AContext.UnitName + '.' + ACref, LTopic) then Exit(LTopic.ID);
+  if FSymbols.TryGetValue(AContext.UnitName + '.' + ACref, LTopic) and Assigned(LTopic) then Exit(LTopic.ID);
   if FShortNames.TryGetValue(ACref, LTopic) and Assigned(LTopic) then Result := LTopic.ID;
 end;
 
@@ -262,6 +264,7 @@ begin
         if LChild.NodeName = 'i' then LStyle := 'font-style:italic;';
         Result := Result + '<text style="' + LStyle + '">' + LInner + '</text>';
       end
+      else if (LChild.NodeName='image') or (LChild.NodeName='img') then Result:=Result+'<image src="'+Esc(CopyDocumentationImage(Attr(LChild,'src'),AContext.UnitName,FOptions.ProjectDir,TPath.Combine(FOptions.OutputDir,'hmxp'),'Images',FUnits))+'"/>'
       else if LChild.NodeName = 'br' then Result := Result + '<br/>'
       else Result := Result + LInner;
     end;
@@ -346,6 +349,7 @@ begin
     for E in D.Exceptions do Result := Result + Section('Exception: ' + E.TypeRef, E.Description, ATopic);
     for Ex in D.Examples do
     begin
+      if Ex.SourceFile<>'' then Result:=Result+Para('<link type="filelink" displaytype="text" href="../Baggage/'+Esc(CopyDocumentationSource(Ex.SourceFile,ATopic.UnitName,FOptions.ProjectDir,TPath.Combine(FOptions.OutputDir,'hmxp'),'Baggage',FUnits))+'">'+Esc('Source: '+Ex.SourceFile+' '+Ex.Region)+'</link>');
       Result := Result + Para(Text('Example ' + Ex.Title), 'Heading2') + Content(Ex.Description, ATopic);
       for LID in Ex.Code.Replace(#13#10, #10).Replace(#13, #10).Split([#10]) do
         Result := Result + Para(Text(LID), 'Code');
@@ -456,7 +460,7 @@ var
   I: Integer;
 begin
   SortDocumentation(AUnits);
-  FOptions := AOptions;
+  FOptions := AOptions;FUnits:=AUnits;
   LDir := TPath.Combine(AOptions.OutputDir, 'hmxp');
   LProjectFile := CProjectFile;
   if AOptions.ProjectName <> '' then

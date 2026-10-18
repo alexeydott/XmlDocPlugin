@@ -1,4 +1,4 @@
-﻿# XmlDoc Plugin for Delphi
+# XmlDoc Plugin for Delphi
 
 An **XML Documentation** plugin integrated into the Delphi IDE. Write C#-style `///` XML comments with a WYSIWYG editor and generate full API documentation for your projects.
 
@@ -22,6 +22,66 @@ The installer supports RAD Studio 12 (32-bit IDE) and RAD Studio 13 (32-bit and
 Installation is per user and does not require administrator privileges. To
 update, close RAD Studio and run the latest installer. To uninstall, close RAD
 Studio and remove **XmlDoc Plugin** from Windows Installed apps.
+
+## Documentation workbench (source builds)
+
+These improvements are available in source builds of the `improvements1` branch.
+
+The Inspector and Explorer share overload-aware symbol identities and guarded
+editing sessions. Every change records the source file, declaration, session and
+buffer revision. A stale edit is rejected with **Source changed**; cancelled edits
+remain recoverable drafts under `%LOCALAPPDATA%\XmlDocPlugin\Drafts`.
+
+**Documentation tools** provides:
+
+- Signature synchronization with an explicit rename preview. Unmatched parameter
+  descriptions are retained until you decide how to map them.
+- Documentation diagnostics, project and project-group search, filters, a next
+  problem queue, navigation history and pinned documentation cards.
+- A member-summary table with reviewed application of selected changes.
+- A searchable reference picker that distinguishes overloads.
+- Inherited documentation with source information and local section overrides;
+  ambiguous inheritance requires an explicit source choice.
+- Design, XML and Preview editing, rich parameter descriptions, lists, tables,
+  project images, example titles, link captions and prose-only replacement.
+- Project/global wording, Russian/English browser spell checking and project
+  terminology. Code, XML references and known terminology are excluded from prose
+  spell checking. Spell-check language availability depends on WebView2 dictionaries.
+- Selected source as an example and linked example files/regions. Linked examples
+  are checked for existence; arbitrary snippets are not compiled automatically.
+
+Unknown XML and mixed content are preserved. Invalid XML remains available for
+repair instead of becoming an empty comment. Formatting, synchronization and batch
+operations show their XML changes before applying them. IDE source Undo/Redo uses
+the existing undoable writer.
+
+Documentation actions are available from the Document menu, IDE action catalog,
+source editor context menu and Project Manager. Quick Documentation starts with
+explicit type/member references and unique project types/units. Unqualified member
+names are presented as candidates because local variables can shadow them. It lists overloads
+rather than guessing a call's overload; instance-variable type inference is not
+implemented.
+
+IDE analysis uses the active project configuration/platform and current open
+buffer snapshots. CLI analysis accepts `--config`, `--platform`, `--define` and
+`--search-path`. Project evaluation supports ordered property/item groups,
+property expansion and ordinary equality/boolean/Exists conditions; unsupported
+MSBuild expressions produce an error instead of silently choosing a branch.
+
+### Documentation checks in CI
+
+```powershell
+XmlDocGen.exe -p MyProject.dproj -o docs -f json --check
+XmlDocGen.exe -p MyProject.dproj -o docs -f json --check --write-baseline docs-baseline.json
+XmlDocGen.exe -p MyProject.dproj -o docs -f json --check --baseline docs-baseline.json
+```
+
+`--check` writes `diagnostics.json` and returns exit code **3** for new problems.
+A baseline lets existing issues remain while rejecting new ones. Public
+signatures removed or changed since the baseline produce **XD011**. Linked
+resource problems produce **XD013**. Coverage distinguishes comments that exist,
+structurally complete comments and comments that pass readiness checks; TODO
+placeholders do not count as finished documentation.
 
 ## Why This Project?
 

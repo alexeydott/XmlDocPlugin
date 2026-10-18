@@ -17,6 +17,10 @@ export function initToolbar(): void {
   toolbarEl = document.querySelector('#doc-toolbar');
   if (!toolbarEl) return;
   renderToolbar();
+  window.addEventListener('insertReference',event=>{
+    const detail=(event as CustomEvent).detail;
+    if(activeEditor)applyMark(activeEditor,'seeRef',{cref:detail.cref},detail.text);
+  });
 }
 
 export function setActiveEditor(editor: Editor | null): void {
@@ -61,6 +65,10 @@ function renderToolbar(): void {
 
   const formatGroup: ToolbarButton[] = [
     { action: 'bold', label: 'B', title: 'Bold (Ctrl+B)', icon: true },
+    { action:'bullet',label:'• List',title:'Bullet list' },
+    { action:'number',label:'1. List',title:'Numbered list' },
+    { action:'table',label:'Table',title:'Insert a documentation table' },
+    { action:'image',label:'Image',title:'Insert a project resource image' },
     { action: 'italic', label: 'I', title: 'Italic (Ctrl+I)', icon: true },
   ];
 
@@ -142,7 +150,17 @@ function handleAction(action: string, btn: HTMLElement): void {
     case 'code':
       activeEditor.chain().focus().toggleMark('codeInline').run();
       break;
+    case 'bullet': activeEditor?.chain().focus().toggleBulletList().run();break;
+    case 'number': activeEditor?.chain().focus().toggleOrderedList().run();break;
+    case 'table':activeEditor?.chain().focus().insertContent({type:'docTable',content:[{type:'docTableRow',attrs:{header:true},content:[{type:'docTableCell',content:[{type:'paragraph',content:[{type:'text',text:'Name'}]}]},{type:'docTableCell',content:[{type:'paragraph',content:[{type:'text',text:'Description'}]}]}]},{type:'docTableRow',content:[{type:'docTableCell',content:[{type:'paragraph'}]},{type:'docTableCell',content:[{type:'paragraph'}]}]}]}).run();break;
+    case 'image':{
+      const form=document.createElement('div');form.innerHTML='<label>Resource path relative to project<input class="image-path"></label><label>Alternative text<input class="image-alt"></label><button>Insert image</button><output></output>';
+      form.querySelector('button')!.onclick=()=>{const path=(form.querySelector('.image-path') as HTMLInputElement).value;const alt=(form.querySelector('.image-alt') as HTMLInputElement).value;
+       if(/^(?:[a-z]+:|[\\/])|(?:^|[\\/])\.\.(?:[\\/]|$)/i.test(path)){form.querySelector('output')!.textContent='Choose a resource inside the project';return;}
+       const esc=(s:string)=>s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');activeEditor?.chain().focus().insertContent({type:'opaqueXml',attrs:{xml:`<image src="${esc(path)}" alt="${esc(alt)}"/>`}}).run();hidePopover();};showPopover(btn,form);break;
+    }
     case 'see':
+      window.dispatchEvent(new CustomEvent('requestReferencePicker'));
       showSeePopover(btn);
       break;
     case 'paramref':

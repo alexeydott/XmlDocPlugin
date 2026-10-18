@@ -1,72 +1,83 @@
 import type { DocModel, ElementInfo, InboundMessage, OutboundMessage } from './types';
-
-/** 지정 ms 동안 추가 호출이 없을 때만 실행 */
-function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: any[]) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  }) as unknown as T;
-}
-
 export type DocChangedCallback = (doc: DocModel) => void;
 export type ElementLoadedCallback = (element: ElementInfo, doc: DocModel) => void;
+export type EditContext = Pick<ElementInfo, 'fileName' | 'symbolId' | 'declarationId' | 'sessionId' | 'sourceRevision'>;
 
-/**
- * Delphi ↔ WebView2 통신 브릿지.
- * - Delphi → WebView: window.bridge.receive(message)
- * - WebView → Delphi: window.chrome.webview.postMessage(json)
- */
 export class DelphiBridge {
   private onDocChangedListeners: DocChangedCallback[] = [];
   private onElementLoadedListeners: ElementLoadedCallback[] = [];
-
-  private debouncedSendDoc = debounce((doc: DocModel) => {
-    this.sendToHost({ type: 'docUpdated', doc });
-  }, 500);
-
-  /** Delphi에서 호출 — 메시지 수신 */
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private pending: OutboundMessage | null = null;
+  private context: EditContext = {};
+  saveDebounceMs = 500;
+  status = 'Applied';
+  pinned = false;
+  private held: InboundMessage | null = null;
+  readonly drafts = new Map<string, {doc:DocModel;revision?:string}>();
+  private key(c: EditContext): string { return `${c.fileName}|${c.declarationId??c.symbolId}`; }
+  setContext(element: ElementInfo): void {
+    this.cancelPending();
+    this.context = { fileName: element.fileName, symbolId: element.symbolId, declarationId:element.declarationId,
+      sessionId: element.sessionId, sourceRevision: element.sourceRevision };
+    const draft=this.drafts.get(this.key(this.context));
+    if(draft && draft.revision!==element.sourceRevision)this.context.sourceRevision=draft.revision;
+  }
+  setStatus(status: string): void {
+    this.status = status;
+    window.dispatchEvent(new CustomEvent('docStatus', { detail: status }));
+  }
+  setPinned(pinned: boolean): void {
+    this.pinned = pinned;
+    if (!pinned && this.held) { const next = this.held; this.held = null; this.receive(next); }
+  }
   receive(message: InboundMessage): void {
-    switch (message.type) {
-      case 'loadDoc':
-        this.onElementLoadedListeners.forEach(cb =>
-          cb(message.data.element, message.data.doc)
-        );
-        break;
-      case 'elementChanged':
-        // 요소만 변경, 문서는 유지 — 헤더 업데이트용
-        break;
+    if (message.type === 'editResult') {
+      if (message.sessionId === this.context.sessionId) {
+        this.setStatus(message.status);
+        if(message.status==='Applied')this.drafts.delete(this.key(this.context));
+      }
+      return;
+    }
+    if (message.type === 'loadDoc') {
+      if (this.pinned) { this.held = message; return; }
+      this.setContext(message.data.element);
+      const draft = this.drafts.get(this.key(this.context));
+      this.setStatus(draft ? 'Unsaved draft — source may have changed' : 'Applied');
+      if(draft && draft.revision!==this.context.sourceRevision) this.context.sourceRevision=draft.revision;
+      this.onElementLoadedListeners.forEach(cb => cb(message.data.element, draft?.doc ?? message.data.doc));
     }
   }
-
-  /** WebView → Delphi 메시지 전송 */
   sendToHost(message: OutboundMessage): void {
-    try {
-      // WebView2 환경
-      (window as any).chrome?.webview?.postMessage(JSON.stringify(message));
-    } catch {
-      // 독립 브라우저 디버깅 — 콘솔 출력
-      console.log('[Bridge → Host]', message);
-    }
+    (window as any).chrome?.webview?.postMessage(JSON.stringify(message));
   }
-
-  /** 에디터에서 문서가 변경되었을 때 (디바운싱 적용) */
+  cancelPending(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null; this.pending = null;
+  }
+  flush(): void {
+    if (!this.pending) return;
+    const pending = this.pending; this.cancelPending(); this.sendToHost(pending);
+  }
+  saveDraft(doc:DocModel):void {
+    const snapshot=JSON.parse(JSON.stringify(doc));const context={...this.context};
+    this.drafts.set(this.key(context),{doc:snapshot,revision:context.sourceRevision});
+    this.sendToHost({type:'draftUpdated',doc:snapshot,...context} as any);
+    this.setStatus('Modified');
+  }
   notifyDocChanged(doc: DocModel): void {
-    this.debouncedSendDoc(doc);
-    this.onDocChangedListeners.forEach(cb => cb(doc));
+    this.cancelPending();
+    const snapshot = JSON.parse(JSON.stringify(doc));
+    const context = { ...this.context };
+    this.drafts.set(this.key(context), {doc:snapshot,revision:context.sourceRevision});
+    this.sendToHost({type:'draftUpdated',doc:snapshot,...context} as any);
+    this.pending = { type: 'docUpdated', doc: snapshot, ...context };
+    this.setStatus('Modified');
+    this.timer = setTimeout(() => this.flush(), Math.max(0, this.saveDebounceMs));
+    this.onDocChangedListeners.forEach(cb => cb(snapshot));
   }
-
-  /** 문서 로드 콜백 등록 */
-  onElementLoaded(callback: ElementLoadedCallback): void {
-    this.onElementLoadedListeners.push(callback);
-  }
-
-  /** 문서 변경 콜백 등록 */
-  onDocChanged(callback: DocChangedCallback): void {
-    this.onDocChangedListeners.push(callback);
-  }
+  acknowledge(element: ElementInfo): void { this.drafts.delete(this.key(element)); }
+  onElementLoaded(callback: ElementLoadedCallback): void { this.onElementLoadedListeners.push(callback); }
+  onDocChanged(callback: DocChangedCallback): void { this.onDocChangedListeners.push(callback); }
 }
-
-// 전역 인스턴스
 export const bridge = new DelphiBridge();
 (window as any).bridge = bridge;

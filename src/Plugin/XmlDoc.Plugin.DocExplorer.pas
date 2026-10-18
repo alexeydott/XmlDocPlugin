@@ -24,6 +24,9 @@ uses
   XmlDoc.Model,
   XmlDoc.Parser,
   XmlDoc.Plugin.DeclarationContext,
+  XmlDoc.Plugin.EditSession,
+  XmlDoc.SourceText,
+  XmlDoc.Plugin.ProjectDocumentation,
   XmlDoc.CodeGen.OTA,
   XmlDoc.StubGen;
 
@@ -35,6 +38,9 @@ type
     FBrowserError: TLabel;
     FBrowserReady: Boolean;
     FParseError:string;
+    FProjectDocs:TProjectDocumentation;
+    FEditSessionId:string;
+    FPinned:Boolean;
     FCurrentFileName: string;
     FDocParser: TDocParser;
     FElements: TArray<TCodeElementInfo>;
@@ -53,7 +59,7 @@ type
     function BuildLoadTreeScript: string;
     procedure FilePollTimerFired(Sender: TObject);
     function FindElementByFullName(const AFullName: string): TCodeElementInfo;
-    procedure HandleDocUpdated(const AJsonStr, AFullName: string);
+    function HandleDocUpdated(const AJsonStr, AFullName: string):Boolean;
     procedure HandleJumpToLine(ALine: Integer);
     procedure InitTimerFired(Sender: TObject);
     procedure LoadBounds;
@@ -88,6 +94,7 @@ const
 constructor TDocExplorerForm.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  FProjectDocs:=TProjectDocumentation.Create;
 
   Caption := 'Documentation Explorer';
   DeskSection := 'XmlDocPlugin';
@@ -125,9 +132,16 @@ end;
 
 destructor TDocExplorerForm.Destroy;
 begin
+  if Assigned(FInitTimer) then FInitTimer.Enabled:=False;
+  if Assigned(FFilePollTimer) then FFilePollTimer.Enabled:=False;
+  if Assigned(FBrowser) then begin
+    FBrowser.OnWebMessageReceived:=nil;FBrowser.OnNavigationCompleted:=nil;
+    FBrowser.OnCreateWebViewCompleted:=nil;FBrowser.CloseWebView;FreeAndNil(FBrowser);
+  end;
   SaveBounds;
   FDocParser.Free;
 
+  FProjectDocs.Free;
   inherited;
 end;
 
@@ -188,6 +202,8 @@ begin
     Exit;
   end;
   try
+    var ResourceProject:=GetActiveProject;
+    if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
     FBrowser.LoadEditorResource(FindClassHInstance(TDocInspectorForm), CExplorerResourceName);
   except
     on E: Exception do
@@ -213,6 +229,7 @@ end;
 function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
 begin
   try
+    if (Source<>FDocParser.SourceText) or (FEditSessionId='') then FEditSessionId:=TGUID.NewGuid.ToString;
     ConfigureDeclarationContext(FDocParser);
     FDocParser.ParseSource(Source,FCurrentFileName);
     FParseError:='';
@@ -248,7 +265,7 @@ begin
     Exit;
 
   try
-    LMsg := TJSONObject.ParseJSONValue(string(LJson)) as TJSONObject;
+    LMsg := ParseHostMessage(string(LJson));
   finally
     CoTaskMemFree(LJson);
   end;
@@ -256,8 +273,14 @@ begin
     Exit;
 
   try
-    LMsgType := LMsg.GetValue<string>('type');
+   try
+    LMsgType := LMsg.GetValue<string>('type','');
+    if FProjectDocs.Handle(LMsg,FBrowser) then begin
+      if LMsgType='openSymbol' then RefreshFromCurrentEditor;
+      Exit;end;
 
+    if LMsgType='pin' then begin FPinned:=LMsg.GetValue<Boolean>('pinned',False);Exit;end;
+    if LMsgType='requestRefresh' then begin FPinned:=False;RefreshFromCurrentEditor;Exit;end;
     if LMsgType = 'sectionStateChanged' then
     begin
       LDocObj := LMsg.GetValue<TJSONObject>('sections');
@@ -267,9 +290,11 @@ begin
     else if LMsgType = 'docUpdated' then
     begin
       LDocObj := LMsg.GetValue<TJSONObject>('doc');
-      LFullName := LMsg.GetValue<string>('elementFullName', '');
+      LFullName := LMsg.GetValue<string>('symbolId', '');
       if Assigned(LDocObj) and (LFullName <> '') then
-        HandleDocUpdated(LDocObj.ToJSON, LFullName);
+        if ValidateEdit(LMsg,FindElementByFullName(LFullName),FCurrentFileName,FEditSessionId,FDocParser.SourceText) then begin
+          if HandleDocUpdated(LDocObj.ToJSON,LFullName) then FProjectDocs.Acknowledge(LMsg);end
+        else FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),'Source changed — reload before applying'));
     end
     else if LMsgType = 'jumpToLine' then
     begin
@@ -277,6 +302,7 @@ begin
       if LLine > 0 then
         HandleJumpToLine(LLine);
     end;
+   except on E:Exception do FBrowser.ExecuteScript(EditResult(FEditSessionId,'Invalid editor message: '+E.Message));end;
   finally
     LMsg.Free;
   end;
@@ -330,6 +356,10 @@ begin
       LObj.AddPair('genericParams', LGenericParams);
     end;
 
+    var ResourceProject:=GetActiveProject;
+    if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
+    LObj.AddPair('resourceBase','https://xmldoc.resources/');
+    AddEditContext(LObj,AElement,FCurrentFileName,FEditSessionId,FDocParser.SourceText);
     Result := LObj.ToJSON;
   finally
     LObj.Free;
@@ -379,10 +409,10 @@ begin
         Continue;
 
       // FullName 기준 중복 제거 (interface 선언이 implementation보다 먼저 나옴)
-      if LSeen.ContainsKey(FElements[I].FullName) then
+      if LSeen.ContainsKey(FElements[I].SymbolId) then
         Continue;
 
-      LSeen.Add(FElements[I].FullName, True);
+      LSeen.Add(FElements[I].SymbolId, True);
 
       // 요소 JSON 파싱 후 doc 필드 추가
       LObj := TJSONObject.ParseJSONValue(BuildElementJson(FElements[I])) as TJSONObject;
@@ -426,7 +456,7 @@ begin
 
   for I := 0 to Length(FElements) - 1 do
   begin
-    if FElements[I].FullName = AFullName then
+    if FElements[I].SymbolId = AFullName then
     begin
       Result := FElements[I];
       Exit;
@@ -434,13 +464,14 @@ begin
   end;
 end;
 
-procedure TDocExplorerForm.HandleDocUpdated(const AJsonStr, AFullName: string);
+function TDocExplorerForm.HandleDocUpdated(const AJsonStr, AFullName: string):Boolean;
 var
   LEditor: IOTASourceEditor;
   LElement: TCodeElementInfo;
   LModel: TXmlDocModel;
   LSource: string;
 begin
+  Result:=False;
   if FUpdatingSource then
     Exit;
 
@@ -448,17 +479,19 @@ begin
   if LElement.Name = '' then
     Exit;
 
-  LEditor := TDocOTAWriter.GetCurrentSourceEditor;
+  LEditor := SourceEditorForFile(FCurrentFileName);
   if not Assigned(LEditor) then
     Exit;
 
   LModel := TXmlDocModel.Create;
   try
     LModel.FromJson(AJsonStr);
+    if LModel.ParseError<>'' then begin FBrowser.ExecuteScript(EditResult(FEditSessionId,'Invalid XML — edit the XML source'));Exit;end;
 
     FUpdatingSource := True;
     try
-      TDocOTAWriter.ApplyToEditor(LEditor, LElement, LModel);
+      if not TDocOTAWriter.ApplyToEditor(LEditor, LElement, LModel) then Exit;
+      Result:=True;FBrowser.ExecuteScript(EditResult(FEditSessionId,'Applied'));
 
       // 소스 재파싱 + 트리 재전송
       LSource := ReadEditorSource(LEditor);
@@ -503,6 +536,7 @@ end;
 
 procedure TDocExplorerForm.HandleFileChanged(const AFileName, ASource: string);
 begin
+  if FPinned then Exit;
   if FUpdatingSource then
     Exit;
 
@@ -582,9 +616,9 @@ begin
 
     if (Length(LBuffer) >= 3) and
        (LBuffer[0] = $EF) and (LBuffer[1] = $BB) and (LBuffer[2] = $BF) then
-      Result := TEncoding.UTF8.GetString(LBuffer, 3, Length(LBuffer) - 3)
+      Result := DecodeSource(LBuffer, 3, Length(LBuffer) - 3)
     else
-      Result := TEncoding.UTF8.GetString(LBuffer);
+      Result := DecodeSource(LBuffer,0,Length(LBuffer));
   finally
     LStream.Free;
   end;

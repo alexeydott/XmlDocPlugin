@@ -58,7 +58,7 @@ begin
   else if LName = 'count' then
     Result := 'Count'
   else if LName = 'index' then
-    Result := 'Index (zero-based)'
+    Result := CPlaceholderPrefix + 'Describe the index and its base'
   else if LName = 'name' then
     Result := 'Name'
   else if LName = 'text' then
@@ -96,7 +96,7 @@ begin
   else if LName = 'size' then
     Result := 'Size'
   else if LName = 'timeout' then
-    Result := 'Timeout (milliseconds)'
+    Result := CPlaceholderPrefix + 'Describe the timeout and its units'
   else if LName = 'callback' then
     Result := 'Callback'
   else if LName = 'handler' then
@@ -116,7 +116,7 @@ begin
   LType := LowerCase(AReturnType);
 
   if LType = 'boolean' then
-    Result := 'True on success'
+    Result := CPlaceholderPrefix + 'Describe when the result is True'
   else if LType = 'string' then
     Result := CPlaceholderPrefix + 'Description of the returned string'
   else if (LType = 'integer') or (LType = 'int64') or (LType = 'cardinal') then
