@@ -1,9 +1,10 @@
 ﻿unit XmlDoc.Plugin.DeclarationContext;
 interface
-uses XmlDoc.Parser,XmlDoc.ProjectContext,ToolsAPI;
+uses XmlDoc.Parser,XmlDoc.Consts,XmlDoc.ProjectContext,ToolsAPI;
 function DocumentationProjectForFile(const FileName:string):IOTAProject;
 function ActiveDocumentationContext(Project:IOTAProject=nil):TProjectContext;
 procedure ConfigureDeclarationContext(Parser:TDocParser;Project:IOTAProject=nil;const SourceFileName:string='');
+procedure ConfigureCapturedDeclarationContext(Parser:TDocParser;Project:IOTAProject;const SourceFileName:string;const Snapshots:TArray<TSourceSnapshot>);
 implementation
 uses System.SysUtils,System.IOUtils,System.Generics.Collections,XmlDoc.Plugin.EditSession,XmlDoc.Plugin.Settings;
 function DocumentationProjectForFile(const FileName:string):IOTAProject;
@@ -25,11 +26,13 @@ begin
  if Project=GetActiveProject then TPluginSettings.Instance.LoadProject(ExtractFilePath(Project.FileName));
 end;
 procedure ConfigureDeclarationContext(Parser:TDocParser;Project:IOTAProject;const SourceFileName:string);
+begin ConfigureCapturedDeclarationContext(Parser,Project,SourceFileName,CurrentSourceSnapshots);end;
+procedure ConfigureCapturedDeclarationContext(Parser:TDocParser;Project:IOTAProject;const SourceFileName:string;const Snapshots:TArray<TSourceSnapshot>);
 var Context:TProjectContext;Files,Paths:TList<string>;I:Integer;FileName,Path,Search:string;
 begin
  Files:=TList<string>.Create;Paths:=TList<string>.Create;
  try
-  Parser.SourceSnapshots:=CurrentSourceSnapshots;
+  Parser.SourceSnapshots:=Snapshots;
   if not Assigned(Project) then begin if SourceFileName<>'' then Project:=DocumentationProjectForFile(SourceFileName) else Project:=DocumentationProjectForFile(Parser.SourceFileName);end;
   Context:=ActiveDocumentationContext(Project);
   try

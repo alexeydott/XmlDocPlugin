@@ -5,6 +5,7 @@ param(
     [string]$DcpOutputDir = ''
 )
 $ErrorActionPreference = 'Stop'
+& (Join-Path $PSScriptRoot 'build-locales.ps1') -Check
 if (!(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'vendor\DelphiAST\Source\DelphiAST.pas'))) {
     throw 'Initialize DelphiAST first: git submodule update --init --recursive'
 }

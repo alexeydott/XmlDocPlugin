@@ -15,7 +15,9 @@ type
   strict private
     class var FInstance: TI18n;
   private
+    FReverse:TDictionary<string,string>;
     FCurrentLanguage: string;
+    FLanguageLoaded:Boolean;
     FLocalesDir: string;
     FStrings: TDictionary<string, string>;
 
@@ -34,6 +36,9 @@ type
     /// <param name="AKey">dot-separated 키 (예: 'menu.generate_help')</param>
     /// <returns>번역된 문자열</returns>
     function T(const AKey: string): string; overload;
+    function TranslateText(const Text:string):string;
+    procedure TranslateComponent(Component:TComponent);
+    class function NormalizeLanguage(const Language:string):string;static;
 
     /// <summary>포맷 인자를 포함하는 번역 문자열을 조회합니다.</summary>
     /// <param name="AKey">dot-separated 키</param>
@@ -55,7 +60,20 @@ type
 implementation
 
 uses
-  Winapi.Windows;
+  Winapi.Windows,System.TypInfo;
+
+{$I XmlDoc.Locales.inc}
+
+type
+ TUiTranslationState=class(TComponent)
+  Source,Applied:TDictionary<string,string>;
+  constructor Create(AOwner:TComponent);override;
+  destructor Destroy;override;
+ end;
+constructor TUiTranslationState.Create(AOwner:TComponent);
+begin inherited;Source:=TDictionary<string,string>.Create;Applied:=TDictionary<string,string>.Create;end;
+destructor TUiTranslationState.Destroy;
+begin Source.Free;Applied.Free;inherited;end;
 
 { TI18n }
 
@@ -67,11 +85,16 @@ begin
     TPath.Combine(GetEnvironmentVariable('APPDATA'), 'XmlDocPlugin'), 'locales');
   FCurrentLanguage := 'en';
   LoadDefaults;
+  FReverse:=TDictionary<string,string>.Create;
+  for var Json in [CLocale_ru,CLocale_zh] do begin
+   var Pack:=TJSONObject.ParseJSONValue(Json) as TJSONObject;
+   try for var Pair in Pack do FReverse.AddOrSetValue(Pair.JsonValue.Value,Pair.JsonString.Value);finally Pack.Free;end;
+  end;
 end;
 
 destructor TI18n.Destroy;
 begin
-  FStrings.Free;
+  FReverse.Free;FStrings.Free;
   inherited;
 end;
 
@@ -131,10 +154,14 @@ procedure TI18n.LoadLanguage(const ALang: string);
 var
   LFilePath: string;
   LJson: string;
+  Builtin:TJSONObject;
   LObj: TJSONObject;
 begin
-  FCurrentLanguage := ALang;
+  FCurrentLanguage := ALang;FLanguageLoaded:=True;
   LoadDefaults;
+  LJson:='';if ALang='ru' then LJson:=CLocale_ru else if ALang='zh' then LJson:=CLocale_zh;
+  Builtin:=TJSONObject.ParseJSONValue(LJson) as TJSONObject;
+  try if Assigned(Builtin) then ParseJsonObject(Builtin,'');finally Builtin.Free;end;
 
   if SameText(ALang, 'en') then
     Exit;
@@ -180,34 +207,63 @@ begin
   end;
 end;
 
+class function TI18n.NormalizeLanguage(const Language:string):string;
+begin
+ Result:=LowerCase(Trim(Language)).Replace('_','-');if Pos('-',Result)>0 then Result:=Copy(Result,1,Pos('-',Result)-1);
+ if not ((Result='en') or (Result='ru') or (Result='zh') or (Result='ko') or (Result='ja')) then Result:='en';
+end;
+function TI18n.TranslateText(const Text:string):string;
+var Original,Value:string;
+begin
+ if FStrings.TryGetValue(Text,Value) then Exit(Value);
+ if not FReverse.TryGetValue(Text,Original) then Original:=Text;
+ if FStrings.TryGetValue(Original,Value) then Exit(Value);
+ if FStrings.TryGetValue(Original.Replace('&',''),Value) then Exit(Value);
+ if Original.StartsWith('Current Project (') then Exit(TranslateText('Current Project')+Copy(Original,Length('Current Project')+1,MaxInt));
+ Result:=Original;
+end;
+procedure TI18n.TranslateComponent(Component:TComponent);
+var Info:PPropInfo;Value,Original,Translated,Previous:string;State:TUiTranslationState;
+begin
+ if not Assigned(Component) or (Component is TUiTranslationState) then Exit;
+ State:=nil;for var I:=0 to Component.ComponentCount-1 do if Component.Components[I] is TUiTranslationState then begin State:=TUiTranslationState(Component.Components[I]);Break;end;
+ for var Name in ['Caption','Hint','TextHint'] do begin
+  Info:=GetPropInfo(Component,Name);if not Assigned(Info) or not Assigned(Info.SetProc) then Continue;
+  if not (Info.PropType^.Kind in [tkString,tkLString,tkWString,tkUString]) then Continue;
+  Value:=GetStrProp(Component,Info);if Value='' then Continue;if not Assigned(State) then State:=TUiTranslationState.Create(Component);
+  if State.Applied.TryGetValue(Name,Previous) and (Previous=Value) then Original:=State.Source[Name] else Original:=Value;
+  Translated:=TranslateText(Original);State.Source.AddOrSetValue(Name,Original);State.Applied.AddOrSetValue(Name,Translated);
+  if Value<>Translated then SetStrProp(Component,Info,Translated);
+ end;
+ for var I:=0 to Component.ComponentCount-1 do TranslateComponent(Component.Components[I]);
+end;
+
 procedure TI18n.SetLanguage(const ALang: string);
 var
   LLang: string;
   LLocaleId: LCID;
   LBuf: array[0..4] of Char;
 begin
-  LLang := ALang;
+  LLang := LowerCase(ALang);
 
   if SameText(LLang, 'auto') then
   begin
     LLocaleId := GetUserDefaultLCID;
-    GetLocaleInfo(LLocaleId, LOCALE_SISO639LANGNAME, @LBuf[0], Length(LBuf));
-    LLang := string(LBuf);
+    FillChar(LBuf,SizeOf(LBuf),0);
+    if GetLocaleInfo(LLocaleId, LOCALE_SISO639LANGNAME, @LBuf[0], Length(LBuf))=0 then LLang:='en' else LLang:=string(LBuf);
   end;
 
-  if not SameText(LLang, FCurrentLanguage) then
-    LoadLanguage(LLang);
+  LLang:=NormalizeLanguage(LLang);if not FLanguageLoaded or (FCurrentLanguage<>LLang) then LoadLanguage(LLang);
 end;
 
 procedure TI18n.SetLocalesDir(const ADir: string);
 begin
-  FLocalesDir := ADir;
+  FLocalesDir := ADir;LoadLanguage(FCurrentLanguage);
 end;
 
 function TI18n.T(const AKey: string): string;
 begin
-  if not FStrings.TryGetValue(AKey, Result) then
-    Result := AKey;
+  if not FStrings.TryGetValue(AKey, Result) then Result:=AKey;Result:=TranslateText(Result);
 end;
 
 function TI18n.T(const AKey: string; const AArgs: array of const): string;

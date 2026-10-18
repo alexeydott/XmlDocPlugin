@@ -46,7 +46,7 @@
         Caption = 'Language:'
       end
       object cmbTheme: TComboBox
-        Left = 130
+        Left = 232
         Top = 14
         Width = 160
         Height = 23
@@ -60,7 +60,7 @@
           'auto')
       end
       object spnFontSize: TSpinEdit
-        Left = 130
+        Left = 232
         Top = 46
         Width = 80
         Height = 24
@@ -70,7 +70,7 @@
         Value = 13
       end
       object cmbLanguage: TComboBox
-        Left = 130
+        Left = 232
         Top = 78
         Width = 160
         Height = 23
@@ -82,12 +82,14 @@
           'auto'
           'en'
           'ko'
-          'ja')
+          'ja'
+          'ru'
+          'zh')
       end
       object chkAutoShowOnCursor: TCheckBox
         Left = 16
         Top = 118
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Auto show inspector on cursor move'
         TabOrder = 3
@@ -95,7 +97,7 @@
       object chkCollapseEmptySections: TCheckBox
         Left = 16
         Top = 144
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Collapse empty sections'
         TabOrder = 4
@@ -103,7 +105,7 @@
       object chkShowSignatureHeader: TCheckBox
         Left = 16
         Top = 170
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Show signature header'
         TabOrder = 5
@@ -111,7 +113,7 @@
       object chkCheckUpdates: TCheckBox
         Left = 16
         Top = 196
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Check for updates on startup'
         TabOrder = 6
@@ -142,7 +144,7 @@
         Caption = 'Placeholder Prefix:'
       end
       object cmbIndentStyle: TComboBox
-        Left = 130
+        Left = 232
         Top = 14
         Width = 120
         Height = 23
@@ -155,7 +157,7 @@
           'Tabs')
       end
       object spnIndentSize: TSpinEdit
-        Left = 130
+        Left = 232
         Top = 46
         Width = 80
         Height = 24
@@ -167,7 +169,7 @@
       object chkBlankLineBefore: TCheckBox
         Left = 16
         Top = 88
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Blank line before XML doc comment'
         TabOrder = 2
@@ -175,7 +177,7 @@
       object chkBlankLineAfter: TCheckBox
         Left = 16
         Top = 114
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Blank line after XML doc comment'
         TabOrder = 3
@@ -183,7 +185,7 @@
       object chkOmitEmptyTags: TCheckBox
         Left = 16
         Top = 140
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Omit empty tags'
         TabOrder = 4
@@ -191,13 +193,13 @@
       object chkAutoGenerate: TCheckBox
         Left = 16
         Top = 178
-        Width = 300
+        Width = 428
         Height = 17
         Caption = 'Auto-generate stub on new declaration'
         TabOrder = 5
       end
       object edtPlaceholderPrefix: TEdit
-        Left = 130
+        Left = 232
         Top = 262
         Width = 200
         Height = 23

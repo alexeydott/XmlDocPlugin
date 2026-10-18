@@ -12,8 +12,17 @@ begin
  Result:=LowerCase(Trim(Name));if Result.StartsWith('system.') then Delete(Result,1,7);
  if (Result='unicodestring') or (Result='widestring') then Result:='string';if Result='longint' then Result:='integer';
 end;
-function TypeMatches(const Owner,Name:string):Boolean;
-begin Result:=SameText(Owner,Name) or LowerCase(Owner).EndsWith('.'+LowerCase(Name));end;
+function DeclarationTypeKey(const Name:string):string;
+var Depth,Count:Integer;
+begin
+ Result:='';Depth:=0;Count:=0;
+ for var C in Name do begin
+  if C='<' then begin if Depth=0 then Count:=1;Inc(Depth);end
+  else if C='>' then begin Dec(Depth);if Depth=0 then Result:=Result+'`'+IntToStr(Count);end
+  else if (C=',') and (Depth=1) then Inc(Count)
+  else if (Depth=0) and not C.IsWhiteSpace then Result:=Result+LowerCase(C);
+ end;
+end;
 function ResolveDocumentationExpression(Parser:TDocParser;const Source:string;Position,Line:Integer;
  const Symbols:TArray<TCodeElementInfo>;out Query,Reason:string):TArray<TCodeElementInfo>;
 var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string;Args:TList<string>;Candidates,Best:TList<TCodeElementInfo>;HasCall,InString:Boolean;
@@ -26,16 +35,34 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
   if (Text[1]=#39) and (Text[Length(Text)]=#39) then Exit('string');
   if SameText(Text,'True') or SameText(Text,'False') then Exit('Boolean');Result:=Parser.BindingType(Text,Line);
  end;
- function Owners(const TypeName:string):TArray<string>;
- var Pending,Seen:TList<string>;Current:string;
+ function TypeDeclarationName(const E:TCodeElementInfo):string;
+ begin Result:=E.FullName;if Length(E.GenericParams)>0 then Result:=Result+'<'+string.Join(',',E.GenericParams)+'>';end;
+ function TypeIdentity(const E:TCodeElementInfo):string;
+ begin Result:=LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+TypeDeclarationName(E));end;
+ function FindType(const Name,UnitScope:string;out Found:TCodeElementInfo):Boolean;
+ var Matches:TList<TCodeElementInfo>;
  begin
-  Pending:=TList<string>.Create;Seen:=TList<string>.Create;
-  try Pending.Add(TypeName);while (Pending.Count>0) and (Seen.Count<128) do begin
-   Current:=Pending[0];Pending.Delete(0);if Seen.Contains(LowerCase(Current)) then Continue;Seen.Add(LowerCase(Current));
-   for var E in Symbols do if (E.Kind in [dekClass,dekInterface,dekRecord]) and (TypeMatches(E.CanonicalName,Current) or TypeMatches(E.FullName,Current)) then begin
-    if E.Ancestor<>'' then Pending.Add(E.Ancestor);for var Name in E.Implements do Pending.Add(Name);
-   end;
-  end;Result:=Seen.ToArray;
+  Result:=False;Matches:=TList<TCodeElementInfo>.Create;
+  try
+   // Qualified references must retain their module and generic declaration identity.
+   for var E in Symbols do if (E.Kind in [dekClass,dekInterface,dekRecord,dekType]) and (DeclarationTypeKey(E.UnitName+'.'+TypeDeclarationName(E))=DeclarationTypeKey(Name)) then Matches.Add(E);
+   if Matches.Count=0 then for var E in Symbols do if (E.Kind in [dekClass,dekInterface,dekRecord,dekType]) and (DeclarationTypeKey(TypeDeclarationName(E))=DeclarationTypeKey(Name)) and SameText(E.UnitName,UnitScope) then Matches.Add(E);
+   if Matches.Count=0 then for var E in Symbols do if (E.Kind in [dekClass,dekInterface,dekRecord,dekType]) and (DeclarationTypeKey(TypeDeclarationName(E))=DeclarationTypeKey(Name)) then Matches.Add(E);
+   if Matches.Count=1 then begin Found:=Matches[0];Result:=True;end;
+  finally Matches.Free;end;
+ end;
+ function Owners(const TypeName:string):TArray<string>;
+ var Pending:TList<TCodeElementInfo>;Seen:TList<string>;Current,Parent:TCodeElementInfo;Scope:string;
+ begin
+  Pending:=TList<TCodeElementInfo>.Create;Seen:=TList<string>.Create;
+  try
+   Scope:='';for var E in Parser.GetAllElements do if E.Kind=dekUnit then begin Scope:=E.UnitName;Break;end;
+   if FindType(TypeName,Scope,Current) then Pending.Add(Current);
+   while (Pending.Count>0) and (Seen.Count<128) do begin
+    Current:=Pending[0];Pending.Delete(0);var Id:=TypeIdentity(Current);if Seen.Contains(Id) then Continue;Seen.Add(Id);
+    if (Current.Ancestor<>'') and FindType(Current.Ancestor,Current.UnitName,Parent) then Pending.Add(Parent);
+    for var Name in Current.Implements do if FindType(Name,Current.UnitName,Parent) then Pending.Add(Parent);
+   end;Result:=Seen.ToArray;
   finally Seen.Free;Pending.Free;end;
  end;
  function Score(const E:TCodeElementInfo):Integer;
@@ -61,12 +88,12 @@ begin
  Candidates:=TList<TCodeElementInfo>.Create;Best:=TList<TCodeElementInfo>.Create;Args:=TList<string>.Create;
  try
   Receiver:=Owner;if Owner<>'' then begin
-   Receiver:=ExpressionType(Owner);if Receiver='' then for var E in Symbols do if (E.Kind in [dekClass,dekInterface,dekRecord,dekType]) and (TypeMatches(E.CanonicalName,Owner) or TypeMatches(E.FullName,Owner)) then begin Receiver:=E.FullName;Break;end;
+   Receiver:=ExpressionType(Owner);if Receiver='' then Receiver:=Owner;
    if Receiver='' then begin Reason:='The receiver type is unknown; choose a declaration explicitly.';Exit;end;
   end;
-  var OwnerNames:=Owners(Receiver);
+  var OwnerNames:=Owners(Receiver);if (Owner<>'') and (Length(OwnerNames)=0) then begin Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';Exit;end;
   for var E in Symbols do if SameText(E.Name,Member) then begin
-   if Owner='' then Candidates.Add(E) else for var OwnerName in OwnerNames do if TypeMatches(E.QualifiedParent,OwnerName) then begin Candidates.Add(E);Break;end;
+   if Owner='' then Candidates.Add(E) else for var OwnerName in OwnerNames do if SameText(LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent),OwnerName) then begin Candidates.Add(E);Break;end;
   end;
   OpenAt:=Last;while (OpenAt<=Length(Source)) and Source[OpenAt].IsWhiteSpace do Inc(OpenAt);
   HasCall:=(OpenAt<=Length(Source)) and (Source[OpenAt]='(');InString:=False;Depth:=0;Angle:=0;

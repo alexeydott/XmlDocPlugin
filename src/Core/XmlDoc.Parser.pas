@@ -27,7 +27,7 @@ type
     FSourceLines: TArray<string>;
     FOnResolveDeclaration: TResolveDeclarationEvent;
     FSourceFileName,FPlatform:string;
-    FSearchPaths,FSourceFiles,FDefines,FDependencyFiles:TArray<string>;
+    FSearchPaths,FSourceFiles,FDefines,FDependencyFiles,FDependencyProbes:TArray<string>;
     FSnapshots,FDependencySnapshots:TArray<TSourceSnapshot>;
     FHasDeclared:Boolean;
     procedure SetPlatform(const Value:string);
@@ -83,6 +83,7 @@ type
     function BindingType(const Name:string;Line:Integer):string;
     property DependencySnapshots:TArray<TSourceSnapshot> read FDependencySnapshots;
     property DependencyFiles:TArray<string> read FDependencyFiles;
+    property DependencyProbes:TArray<string> read FDependencyProbes;
     property RootNode: TSyntaxNode read FRootNode;
 
     /// <summary>마지막으로 파싱한 소스 텍스트</summary>
@@ -139,6 +140,7 @@ type
       out Declared:Boolean):Boolean;
   protected
     procedure VarSection; override;
+    procedure TypeArgs; override;
   public
     constructor Create; override;
   end;
@@ -149,6 +151,7 @@ type
     FLoading:TDictionary<string,Boolean>;
     FLocated:TDictionary<string,string>;
     FReadFiles:TDictionary<string,string>;
+    FProbes:TList<string>;
     FPaths,FFiles,FDefines:TArray<string>;
     FSnapshots:TDictionary<string,string>;
     FRTLRoot,FPlatform:string;
@@ -181,6 +184,22 @@ type
       out Content,FileName:string):Boolean;
   end;
 
+procedure TScopeAwareBuilder.TypeArgs;
+var Parent,TypeNode,Args:TSyntaxNode;
+begin
+ inherited;
+ // DelphiAST's parameter-list normalization clones only ntType. Keep the
+ // generic arguments inside that node before the normalization discards siblings.
+ Parent:=FStack.Peek;
+
+ if (Parent.Typ=ntType) and Assigned(Parent.ParentNode) and (Parent.ParentNode.Typ=ntType) then begin
+  Args:=Parent.FindNode(ntTypeArgs);
+  if Assigned(Args) then Parent.ParentNode.AddChild(Parent.ExtractChild(Args));
+ end else if Parent.Typ=ntParameters then begin
+  TypeNode:=Parent.FindNode(ntType);Args:=Parent.FindNode(ntTypeArgs);
+  if Assigned(TypeNode) and Assigned(Args) then TypeNode.AddChild(Parent.ExtractChild(Args));
+ end;
+end;
 procedure TScopeAwareBuilder.UnitFile;
 begin
   FModuleRoot:=FStack.Peek;
@@ -290,7 +309,7 @@ begin
   FPaths:=Copy(Paths);FFiles:=Copy(Files);FDefines:=Copy(Defines);
   FLoaded:=TObjectDictionary<string,TSyntaxNode>.Create([doOwnsValues]);
   FLoading:=TDictionary<string,Boolean>.Create;
-  FLocated:=TDictionary<string,string>.Create;FReadFiles:=TDictionary<string,string>.Create;
+  FProbes:=TList<string>.Create;FLocated:=TDictionary<string,string>.Create;FReadFiles:=TDictionary<string,string>.Create;
   FSnapshots:=TDictionary<string,string>.Create;
   for Snapshot in Snapshots do FSnapshots.AddOrSetValue(PathKey(Snapshot.FileName),Snapshot.Source);
   Registry:=TRegistry.Create(KEY_READ);
@@ -317,7 +336,7 @@ begin
 end;
 
 destructor TDeclarationSession.Destroy;
-begin FReadFiles.Free;FSnapshots.Free;FLocated.Free;FLoading.Free;FLoaded.Free;inherited;end;
+begin FProbes.Free;FReadFiles.Free;FSnapshots.Free;FLocated.Free;FLoading.Free;FLoaded.Free;inherited;end;
 
 function TDeclarationSession.LocateUnit(const Name,ExplicitPath,FromFile:string):string;
 var Candidate,Dir,FileName,Scope:string;Matches:TArray<string>;
@@ -370,9 +389,10 @@ begin
   Parent:=ParentFileName;if Parent='' then Parent:=FBaseFile;
   if TPath.IsPathRooted(IncludeName) then FileName:=IncludeName
   else FileName:=TPath.Combine(ExtractFilePath(Parent),IncludeName);
+  FSession.FProbes.Add(TPath.GetFullPath(FileName));
   if not TFile.Exists(FileName) then
     for Dir in FSession.FPaths do begin
-      FileName:=TPath.Combine(Dir,IncludeName);if TFile.Exists(FileName) then Break;
+      FileName:=TPath.Combine(Dir,IncludeName);FSession.FProbes.Add(TPath.GetFullPath(FileName));if TFile.Exists(FileName) then Break;
     end;
   if not TFile.Exists(FileName) then raise Exception.CreateFmt('Cannot load include %s from %s',[IncludeName,Parent]);
   FileName:=TPath.GetFullPath(FileName);Current:=Parent;Count:=0;
@@ -642,6 +662,7 @@ var Child,Args:TSyntaxNode;Parts:TArray<string>;
 begin
  Result:='';if not Assigned(Node) then Exit;
  Result:=Node.GetAttribute(anName);Args:=Node.FindNode(ntTypeArgs);
+ if not Assigned(Args) and Assigned(Node.ParentNode) and (Node.ParentNode.FindNode(ntType)=Node) then Args:=Node.ParentNode.FindNode(ntTypeArgs);
  if Assigned(Args) then begin
   Parts:=nil;for Child in Args.ChildNodes do Parts:=Parts+[SyntaxTypeName(Child)];
   if Length(Parts)>0 then Result:=Result+'<'+string.Join(',',Parts)+'>';
@@ -1064,8 +1085,22 @@ end;
 
 function TDocParser.IsUpToDate(const ASource: string): Boolean;
 begin
-  Result := not FHasDeclared and not Assigned(FOnResolveDeclaration) and
-    (FCachedHash <> '') and (FCachedHash = HashSource(ASource));
+  Result := not Assigned(FOnResolveDeclaration) and Assigned(FRootNode) and
+    (FCachedHash <> '') and (FCachedSource = ASource);
+  if not Result then Exit;
+  // Include lookup order is part of the cache: a previously missing local file
+  // can shadow an unchanged include selected from the search path.
+  for var Probe in FDependencyProbes do begin
+    var WasRead:=False;
+    for var Dependency in FDependencySnapshots do if SameText(Probe,Dependency.FileName) then begin WasRead:=True;Break;end;
+    if not WasRead and TFile.Exists(Probe) then Exit(False);
+  end;
+  for var Dependency in FDependencySnapshots do begin
+    var Current:='';var Found:=False;
+    for var Snapshot in FSnapshots do if SameText(Snapshot.FileName,Dependency.FileName) then begin Current:=Snapshot.Source;Found:=True;Break;end;
+    if not Found then begin if not TFile.Exists(Dependency.FileName) then Exit(False);Current:=ReadSourceFile(Dependency.FileName);end;
+    if Current<>Dependency.Source then Exit(False);
+  end;
 end;
 
 function TDocParser.NodeToElementInfo(ANode: TSyntaxNode): TCodeElementInfo;
@@ -1275,10 +1310,10 @@ begin
   if not SameText(FSourceFileName,AFileName) then FCachedHash:='';
   FSourceFileName:=AFileName;
   FHasDeclared:=(Pos('DECLARED',UpperCase(ASource))>0) or
-    TRegEx.IsMatch(ASource,'(?i)\{\$\s*(?:I|INCLUDE)\s');
-  LHash := HashSource(ASource);
-  if not FHasDeclared and not Assigned(FOnResolveDeclaration) and (LHash = FCachedHash) then
+    TRegEx.IsMatch(ASource,'(?i)(?:\{|\(\*)\$\s*(?:I|INCLUDE)\s');
+  if IsUpToDate(ASource) then
     Exit;
+  LHash := HashSource(ASource);
 
   // 이전 AST 해제
   FreeAndNil(FRootNode);
@@ -1318,7 +1353,7 @@ begin
     end;
   finally
     LStream.Free;
-    FDependencyFiles:=Session.FReadFiles.Keys.ToArray;SetLength(FDependencySnapshots,Length(FDependencyFiles));
+    FDependencyProbes:=Session.FProbes.ToArray;FDependencyFiles:=Session.FReadFiles.Keys.ToArray;SetLength(FDependencySnapshots,Length(FDependencyFiles));
     for var DependencyIndex:=0 to High(FDependencyFiles) do begin FDependencySnapshots[DependencyIndex].FileName:=FDependencyFiles[DependencyIndex];FDependencySnapshots[DependencyIndex].Source:=Session.FReadFiles[FDependencyFiles[DependencyIndex]];end;
     Session.Free;
   end;

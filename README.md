@@ -69,9 +69,9 @@ the existing undoable writer.
 Documentation actions are available from the Document menu, IDE action catalog,
 source editor context menu and Project Manager. Quick Documentation starts with
 explicit type/member references and unique project types/units. Unqualified member
-names are presented as candidates because local variables can shadow them. It lists overloads
-rather than guessing a call's overload; instance-variable type inference is not
-implemented.
+names are presented as candidates because local variables can shadow them. Explicitly typed object receivers, parameters and local variables are resolved,
+and known argument types narrow overloads. Inline type inference and chained expressions
+remain limited; unknown or ambiguous cases show candidates for an explicit choice.
 
 IDE analysis uses the active project configuration/platform and current open
 buffer snapshots. CLI analysis accepts `--config`, `--platform`, `--define` and
@@ -94,11 +94,23 @@ resource problems produce **XD013**. Coverage distinguishes comments that exist,
 structurally complete comments and comments that pass readiness checks; TODO
 placeholders do not count as finished documentation.
 
-## Why This Project?
+## Interface languages
 
-XML Documentation comments (`///`) are a standard practice in C# and many other languages, yet Delphi has never shipped with built-in tooling to author or manage them. The only option available today is [Documentation Insight](https://www.devjetsoftware.com/products/documentation-insight/) by DevJet Software — a well-made commercial product, but its licensing cost can be a barrier, especially for individual developers, small teams, and open-source contributors.
+Choose **Document → Settings → General → Language**. Built-in interface translations
+are English (`en`), Russian (`ru`), and Simplified Chinese (`zh`). `auto` follows the
+Windows user locale; regional codes such as `ru-RU` and `zh-CN` use the corresponding
+language. Missing translations fall back to English. The legacy `ko` and `ja` choices are retained;
+built-in dictionaries currently cover `en`, `ru`, and `zh`.
 
-This project was born from a simple belief: **writing documentation should be a first-class feature of any modern IDE, not a paid add-on.** We hope that by building an open-source alternative, we can both serve the community today and encourage Embarcadero to eventually provide official XML documentation support in Delphi.
+Language selection applies to plugin menus, settings, generation/coverage dialogs,
+and Inspector/Explorer labels and SVG tooltips. Changes apply to open editors after
+accepting Settings; newly opened dialogs use the selected language. Documentation
+comments, XML tag names, symbols, paths, and generated project filenames are not
+translated. Spell-check language is selected independently in Documentation tools.
+
+The shared translation sources are `resources/locales/ru.json` and `zh.json`.
+Run `pwsh ./build-locales.ps1` after changing them. Native build scripts check the
+embedded dictionaries for consistency before compiling.
 
 ## Screenshots
 
@@ -109,6 +121,15 @@ This project was born from a simple belief: **writing documentation should be a 
 ![Documentation Explorer](docs/assets/explorer.png)
 
 ## Features
+
+Quick documentation resolves explicit object/local-variable types and compares call
+arguments when selecting overloads; ambiguous or unknown contexts require a choice.
+Draft recovery opens the original declaration and compares the original comment,
+current source, and draft before an explicit apply. Project workspace reuses parsed
+modules when their sources, configuration and read dependencies match, reports progress,
+and supports cancellation between modules. Effective documentation is rebuilt from the
+indexed records so inherited comments reflect updated dependencies.
+
 
 ### IDE Plugin (BPL)
 
@@ -213,27 +234,23 @@ resources/      Built web resources
 
 ### Prerequisites
 
-- Delphi 11 Alexandria or later (requires TEdgeBrowser / WebView2)
+- RAD Studio 12 (32-bit IDE) or RAD Studio 13 (32-bit or 64-bit IDE)
 - Node.js 18+ (for building the web editor)
-- WebView2 Runtime (included by default on Windows 10/11)
+- Microsoft Edge WebView2 Runtime (Setup offers to install it when missing)
+- PowerShell 7 (`pwsh`) for build scripts and the offline guide
 
 ### Build Steps
 
-```bash
-# 1. Build the web editor
-cd web
-npm install
-npm run build
-
-# 2. Compile resources
-cd ../src/Plugin
-brcc32 XmlDocEditor.rc
-
-# 3. Build the BPL in Delphi
-# Open src/Packages/13/XmlDocPlugin.dpk → Build + Install
+```powershell
+# Run from the repository root after cloning with submodules.
+git submodule update --init --recursive
+pwsh ./build-delphi12.ps1
+pwsh ./build-cli.ps1 -Platform Win64
+# Build all supported IDE packages, the CLI, offline help and Setup.
+pwsh ./build-installer.ps1
 ```
 
-For Delphi 12.x, run `powershell -File .\build-delphi12.ps1` from the
+For Delphi 12.x, run `pwsh -File .\build-delphi12.ps1` from the
 repository root, or open `src/Packages/12/XmlDocPlugin.dproj` in the IDE.
 Delphi 12 uses a Win32 design-time package, including on 64-bit Windows.
 The script builds both web pages and their resources, compiles the package,
@@ -252,8 +269,8 @@ stored in the IDE desktop layout and follows the IDE's layout save/restore setti
 Select **Help & Manual (HMXP project)** in **Generate API Documentation**, or run:
 
 ```powershell
-.\build-cli.ps1
-& "$env:LOCALAPPDATA\XmlDocPlugin\CLI\Win32\XmlDocGen.exe" `
+.\build-cli.ps1 -Platform Win64
+& "$env:LOCALAPPDATA\XmlDocPlugin\CLI\Win64\XmlDocGen.exe" `
   -d "C:\MyProject\src" -o "C:\MyProject\docs" -f hmxp -t "My API"
 ```
 

@@ -28,6 +28,12 @@ XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API r
 4. Use **Document → Doc Inspector**. For a unit-wide tree, open **Documentation Explorer**. Shortcuts are configurable; use the menu labels or action hints to find the assigned keys.
 5. Open this guide from **Document → User Guide** whenever you need instructions.
 
+Choose **Document → Settings → General → Language** for the interface language:
+`en` (English), `ru` (Russian), `zh` (Simplified Chinese), or `auto` (Windows user locale).
+Unavailable translations use English. This changes plugin captions and tooltips,
+not your comments, XML tags or source symbols. The spell-check language in
+Documentation tools is a separate setting. This guide uses the English action names.
+
 ## How editing works
 
 Comments belong to the declaration immediately below them. The Delphi parser supplies the declaration kind, signature, parameters and source position. Inspector follows the source caret; Explorer lets you select a declaration in the current unit tree. Unit comments are supported as well as type and member comments.

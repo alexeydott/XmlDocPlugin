@@ -66,6 +66,7 @@ begin
  try
   Module.Elements:=Parser.GetAllElements;Module.SourceKey:=SourceKey;Module.ContextKey:=ContextKey;
   for var Dependency in Parser.DependencySnapshots do Module.Dependencies.AddOrSetValue(Dependency.FileName,THashSHA2.GetHashString(Dependency.Source));
+  for var Probe in Parser.DependencyProbes do if not Module.Dependencies.ContainsKey(Probe) then Module.Dependencies.Add(Probe,'missing');
   // The dependency set includes transitive imported DECLARED sources and their includes.
   FModules.AddOrSetValue(Key,Module);Result:=Copy(Module.Elements);Module:=nil;Inc(FParsed);
  finally Module.Free;end;

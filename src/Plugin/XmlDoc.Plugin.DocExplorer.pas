@@ -87,7 +87,7 @@ type
 
 implementation
 
-uses
+uses XmlDoc.Plugin.Localization,
   XmlDoc.Plugin.DocInspector;
 
 const
@@ -135,6 +135,7 @@ begin
   FFilePollTimer.Enabled := True;
   FFilePollTimer.OnTimer := FilePollTimerFired;
   ApplyIDETheme;
+  LocalizePluginUi(Self);
 end;
 
 procedure TDocExplorerForm.ApplyIDETheme;

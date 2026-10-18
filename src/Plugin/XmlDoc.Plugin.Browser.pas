@@ -14,6 +14,7 @@ type
     FResourceName: string;
     FResourceRoot:string;
     FResourceStatus:string;
+    FAppliedSettings:string;
     procedure LoadTimer(Sender: TObject);
   protected
     procedure DestroyWnd;override;
@@ -33,7 +34,7 @@ implementation
 
 uses
   System.IOUtils, System.JSON, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils,
-  XmlDoc.Plugin.Settings,WebView2;
+  XmlDoc.Plugin.Settings,XmlDoc.Plugin.Localization,XmlDoc.I18n,WebView2;
 
 procedure ConfigureWebViewLoader;
 var
@@ -120,11 +121,15 @@ begin
   LSettings := TPluginSettings.Instance.Global.Editor;
   LJson := TJSONObject.Create;
   try
+    TI18n.Instance.SetLanguage(TPluginSettings.Instance.Global.General.Language);
+    LJson.AddPair('language',TI18n.Instance.CurrentLanguage);
     LJson.AddPair('saveDebounceMs',TJSONNumber.Create(LSettings.SaveDebounceMs));
     LJson.AddPair('theme', LSettings.Theme);
     LJson.AddPair('fontSize', TJSONNumber.Create(LSettings.FontSize));
     LJson.AddPair('showSignatureHeader', TJSONBool.Create(LSettings.ShowSignatureHeader));
-    ExecuteScript('window.xmlDocSettings?.apply(' + LJson.ToJSON + ');');
+    var Payload:=LJson.ToJSON;if Payload=FAppliedSettings then Exit;
+    LocalizePluginUi(Owner);FAppliedSettings:=Payload;
+    ExecuteScript('window.xmlDocSettings?.apply(' + Payload + ');');
   finally
     LJson.Free;
   end;
@@ -132,7 +137,7 @@ end;
 
 procedure TXmlDocBrowser.DestroyWnd;
 begin
- FResourceRoot:='';inherited;
+ FResourceRoot:='';FAppliedSettings:='';inherited;
 end;
 
 procedure TXmlDocBrowser.LoadTimer(Sender:TObject);
@@ -140,7 +145,7 @@ begin
  FLoadTimer.Enabled:=False;
  // Resource loaders are created at navigation time. Mapping after a page has
  // loaded requires a new navigation (WebView2 host mapping contract).
- FLoadTimer.Enabled:=False;NavigateToString(FHtml);
+ FLoadTimer.Enabled:=False;FAppliedSettings:='';NavigateToString(FHtml);
 end;
 
 end.

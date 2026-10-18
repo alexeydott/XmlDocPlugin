@@ -19,7 +19,7 @@ export class DelphiBridge {
   private inFlight: {id:string;key:string;context:EditContext;doc:DocModel;applied:boolean}|null=null;
   private held: InboundMessage | null = null;
   private originalXml='';
-  readonly drafts = new Map<string, {doc:DocModel;revision?:string;apply:boolean}>();
+  readonly drafts = new Map<string, {doc:DocModel;revision?:string;baseXml:string;apply:boolean}>();
   private sameLocation(a:EditContext,b:EditContext):boolean { return a.fileName===b.fileName && (a.locationId && b.locationId ? a.locationId===b.locationId : (a.declarationId??a.symbolId)===(b.declarationId??b.symbolId)); }
   private key(c: EditContext): string { return `${c.fileName}|${c.locationId??c.declarationId??c.symbolId}`; }
   setContext(element: ElementInfo): void {
@@ -68,9 +68,13 @@ export class DelphiBridge {
       if(rebase){this.inFlight=null;this.drafts.delete(flight!.key);}
       this.originalXml=message.data.doc.sourceXml??message.data.doc.rawXml??'';
       this.setContext(element);
-      if(pending && !rebase && !this.readOnly)this.notifyDocChanged(pending.doc);
+      // Requeue the permitted write without replacing a newer, unapplied draft.
+      if(pending && !rebase && !this.readOnly){
+        this.pending={...pending,...this.context};
+        this.timer=setTimeout(()=>this.flush(),Math.max(0,this.saveDebounceMs));
+      }
       if(newer && !this.readOnly){
-        this.drafts.set(this.key(this.context),{doc:newer.doc,revision:element.sourceRevision,apply:newer.apply});
+        this.drafts.set(this.key(this.context),{doc:newer.doc,revision:element.sourceRevision,baseXml:this.originalXml,apply:newer.apply});
         this.context.sourceRevision=element.sourceRevision;
         if(newer.apply)this.notifyDocChanged(newer.doc);
       }
@@ -101,8 +105,9 @@ export class DelphiBridge {
   saveDraft(doc:DocModel):void {
     if(this.readOnly){this.setStatus(this.readOnlyReason);return;}
     const snapshot=JSON.parse(JSON.stringify(doc));const context={...this.context};
-    this.drafts.set(this.key(context),{doc:snapshot,revision:context.sourceRevision,apply:false});
-    this.sendToHost({type:'draftUpdated',doc:snapshot,baseXml:this.originalXml,applyAllowed:false,...context} as any);
+    const baseXml=this.drafts.get(this.key(context))?.baseXml??this.originalXml;
+    this.drafts.set(this.key(context),{doc:snapshot,revision:context.sourceRevision,baseXml,apply:false});
+    this.sendToHost({type:'draftUpdated',doc:snapshot,baseXml,applyAllowed:false,...context} as any);
     this.setStatus('Modified');
   }
   notifyDocChanged(doc: DocModel): void {
@@ -110,8 +115,9 @@ export class DelphiBridge {
     this.cancelPending();
     const snapshot = JSON.parse(JSON.stringify(doc));
     const context = { ...this.context };
-    this.drafts.set(this.key(context), {doc:snapshot,revision:context.sourceRevision,apply:true});
-    this.sendToHost({type:'draftUpdated',doc:snapshot,baseXml:this.originalXml,applyAllowed:true,...context} as any);
+    const baseXml=this.drafts.get(this.key(context))?.baseXml??this.originalXml;
+    this.drafts.set(this.key(context), {doc:snapshot,revision:context.sourceRevision,baseXml,apply:true});
+    this.sendToHost({type:'draftUpdated',doc:snapshot,baseXml,applyAllowed:true,...context} as any);
     this.pending = { type: 'docUpdated', doc: snapshot, ...context };
     this.setStatus('Modified');
     this.timer = setTimeout(() => this.flush(), Math.max(0, this.saveDebounceMs));

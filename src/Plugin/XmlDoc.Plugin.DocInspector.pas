@@ -94,6 +94,8 @@ type
   end;
 
 implementation
+uses XmlDoc.Plugin.Localization;
+
 
 {$R XmlDocEditor.res}
 
@@ -149,6 +151,7 @@ begin
   FCursorPollTimer.Enabled := True;
   FCursorPollTimer.OnTimer := CursorPollTimerFired;
   ApplyIDETheme;
+  LocalizePluginUi(Self);
 end;
 
 procedure TDocInspectorForm.ApplyIDETheme;
@@ -604,9 +607,7 @@ begin
   if FDocParser.SourceText<>ASource then FLastElementName:='';
   FLastFileName := AFileName;
   if not ParseEditorSource(ASource) then Exit;
-  // 소스 변경 시 재파싱
-  if not SameText(FDocParser.SourceFileName,AFileName) or not FDocParser.IsUpToDate(ASource) then
-    begin FLastElementName:='';if not ParseEditorSource(ASource) then Exit;end;
+
 
   //Caption := Format('Doc Inspector - %s / %d', [ExtractFileName(AFileName), ALine]);
   LElement := FDocParser.GetElementAtLine(ALine);

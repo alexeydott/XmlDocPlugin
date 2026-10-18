@@ -41,6 +41,8 @@ type
 procedure ShowAboutDialog;
 
 implementation
+uses XmlDoc.Plugin.Localization;
+
 
 {$R *.dfm}
 
@@ -55,6 +57,7 @@ begin
     LVersion := 'unavailable';
 
   lblVersion.Caption := 'Version ' + LVersion;
+  LocalizePluginUi(Self);
 end;
 
 procedure TAboutDialog.OnLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);

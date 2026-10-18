@@ -3,8 +3,11 @@ interface
 uses DUnitX.TestFramework;
 type [TestFixture] TImprovementsTests=class
 public
+ [Test] procedure LanguagePacks;
  [Test] procedure IncrementalIndex;
  [Test] procedure ExpressionTypes;
+ [Test] procedure ReviewDraftAndDependencies;
+ [Test] procedure QualifiedExpressionIdentity;
  [Test] procedure ReviewRemainingCases;
  [Test] procedure ReviewGenericFuzz;
  [Test] procedure ReviewMetadata;
@@ -43,7 +46,70 @@ public
  [Test] procedure DeterministicXmlFuzz;
 end;
 implementation
-uses XmlDoc.Expressions,XmlDoc.ProjectIndex,XmlDoc.HelpGen.BatchParser,XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+uses System.Classes,XmlDoc.I18n,Vcl.StdCtrls,XmlDoc.Expressions,XmlDoc.ProjectIndex,XmlDoc.HelpGen.BatchParser,XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+procedure TImprovementsTests.LanguagePacks;
+var I:TI18n;Owner:TComponent;LabelControl:TLabel;Edit:TEdit;
+begin
+ I:=TI18n.Create;Owner:=TComponent.Create(nil);
+ try
+  I.SetLocalesDir(TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString));
+  Assert.AreEqual('ru',TI18n.NormalizeLanguage('ru-RU'));Assert.AreEqual('zh',TI18n.NormalizeLanguage('zh_Hans'));Assert.AreEqual('en',TI18n.NormalizeLanguage('unknown'));
+  LabelControl:=TLabel.Create(Owner);LabelControl.Caption:='Summary';LabelControl.Hint:='Recover drafts';Edit:=TEdit.Create(Owner);Edit.Text:='Summary';
+  I.SetLanguage('ru-RU');Assert.AreEqual('Описание',I.T('inspector.summary'));I.TranslateComponent(Owner);Assert.AreEqual('Описание',LabelControl.Caption);Assert.AreEqual('Summary',Edit.Text);
+  I.SetLanguage('zh-CN');I.TranslateComponent(Owner);Assert.AreEqual('摘要',LabelControl.Caption);Assert.AreEqual('恢复草稿',LabelControl.Hint);Assert.AreEqual('Summary',Edit.Text);
+  var Plural:=TLabel.Create(Owner);Plural.Caption:='Parameters';I.TranslateComponent(Owner);Assert.AreEqual('参数',Plural.Caption);
+  I.SetLanguage('en');I.TranslateComponent(Owner);Assert.AreEqual('Parameters',Plural.Caption);Assert.AreEqual('Summary',LabelControl.Caption);Assert.AreEqual('Recover drafts',LabelControl.Hint);
+  I.SetLanguage('ru');Assert.AreEqual('Документация создана: 5 страниц',I.T('helpgen.complete',[5]));Assert.AreEqual('Missing key',I.T('Missing key'));Assert.AreEqual('Текущий проект (Test.dproj)',I.T('Current Project (Test.dproj)'));
+  for var Round:=0 to 999 do begin if Odd(Round) then I.SetLanguage('zh') else I.SetLanguage('ru');I.TranslateComponent(Owner);Assert.AreEqual('Summary',Edit.Text);end;
+ finally Owner.Free;I.Free;end;
+end;
+procedure TImprovementsTests.QualifiedExpressionIdentity;
+var P,A,B:TDocParser;Source,Query,Reason:string;All,Matches:TArray<TCodeElementInfo>;
+begin
+ P:=TDocParser.Create;A:=TDocParser.Create;B:=TDocParser.Create;
+ try
+  A.ParseSource('unit UnitA; interface type TWorker=class procedure Run(Value:AnsiString); end; implementation end.','UnitA.pas');
+  B.ParseSource('unit UnitB; interface type TWorker=class procedure Run(Value:string); end; implementation end.','UnitB.pas');
+  Source:='unit Caller; interface implementation begin UnitA.TWorker.Run('+QuotedStr('text')+'); end.';
+  P.ParseSource(Source,'Caller.pas');All:=A.GetAllElements+B.GetAllElements;
+  Matches:=ResolveDocumentationExpression(P,Source,Pos('UnitA.TWorker.Run',Source)+15,1,All,Query,Reason);
+  Assert.AreEqual<NativeInt>(1,Length(Matches),Reason);Assert.AreEqual('UnitA',Matches[0].UnitName);Assert.AreEqual('UnitA.pas',Matches[0].FileName);
+  A.ParseSource('unit UnitA; interface type TWorker<T>=class procedure Run(Value:AnsiString); end; TWorker<T,U>=class procedure Run(Value:string); end; implementation end.','UnitA.pas');
+  Source:='unit Caller; interface'+sLineBreak+'implementation'+sLineBreak+'procedure Test(Obj:UnitA.TWorker<Integer>);'+sLineBreak+'begin'+sLineBreak+'Obj.Run('+QuotedStr('text')+');'+sLineBreak+'end; end.';
+  P.ParseSource(Source,'Caller.pas');All:=A.GetAllElements+B.GetAllElements;
+  Assert.AreEqual('UnitA.TWorker<Integer>',P.BindingType('Obj',5));
+  Matches:=ResolveDocumentationExpression(P,Source,Pos('Obj.Run',Source)+6,5,All,Query,Reason);
+  Assert.AreEqual<NativeInt>(1,Length(Matches),'Constructed generic receiver: '+Reason);Assert.AreEqual('UnitA',Matches[0].UnitName);Assert.AreEqual('TWorker<T>',Matches[0].QualifiedParent);
+  var Seed:Cardinal:=$195AB;
+  for var Round:=1 to 200 do begin
+   Seed:=Seed*1664525+1013904223;var Argument:='Integer';
+   for var Depth:=0 to Integer(Seed mod 4) do Argument:='TMap<string,'+Argument+'>';
+   var Changed:=Source.Replace('UnitA.TWorker<Integer>','UnitA.TWorker<'+Argument+'>');P.ParseSource(Changed,'Caller.pas');
+   Assert.AreEqual('UnitA.TWorker<'+Argument+'>',P.BindingType('Obj',5));
+   Matches:=ResolveDocumentationExpression(P,Changed,Pos('Obj.Run',Changed)+6,5,All,Query,Reason);
+   Assert.AreEqual<NativeInt>(1,Length(Matches),Reason);Assert.AreEqual('UnitA.pas',Matches[0].FileName);
+  end;
+
+
+ finally B.Free;A.Free;P.Free;end;
+end;
+procedure TImprovementsTests.ReviewDraftAndDependencies;
+var P:TDocParser;Index:TDocumentationIndex;Root,Shared,FileName,Source:string;
+ function HasType(const Name:string):Boolean;
+ begin Result:=False;for var E in Index.Update(FileName,Source,P) do if E.Name=Name then Exit(True);end;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);Shared:=TPath.Combine(Root,'shared');ForceDirectories(Shared);
+ P:=TDocParser.Create;Index:=TDocumentationIndex.Create;
+ try
+  FileName:=TPath.Combine(Root,'Main.pas');Source:='unit Main; interface (*$I defs.inc*) {$IFDEF SHARED} type TShared=class end; {$ENDIF} {$IFDEF CHANGED} type TChanged=class end; {$ENDIF} {$IFDEF LOCAL} type TLocal=class end; {$ENDIF} implementation end.';P.SearchPaths:=[Shared];
+  TFile.WriteAllText(TPath.Combine(Shared,'defs.inc'),'{$DEFINE SHARED}');
+  Assert.IsTrue(HasType('TShared'),'Initial include type');Assert.IsTrue(P.IsUpToDate(Source),'Fresh include cache');
+  TFile.WriteAllText(TPath.Combine(Shared,'defs.inc'),'{$DEFINE CHANGED}');
+  Assert.IsFalse(P.IsUpToDate(Source),'Changed include cache');Assert.IsTrue(HasType('TChanged'),'Changed include type');
+  TFile.WriteAllText(TPath.Combine(Root,'defs.inc'),'{$DEFINE LOCAL}');
+  Assert.IsFalse(Index.IsCurrent(FileName,Source,P),'Shadow index');Assert.IsFalse(P.IsUpToDate(Source),'Shadow parser');Assert.IsTrue(HasType('TLocal'),'Shadow type');
+ finally Index.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
 procedure TImprovementsTests.ExpressionTypes;
 var P:TDocParser;Source,Query,Reason:string;Elements,Matches:TArray<TCodeElementInfo>;
 begin

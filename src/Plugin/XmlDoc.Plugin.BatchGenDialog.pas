@@ -89,6 +89,8 @@ type
 procedure ShowBatchGenDialog;
 
 implementation
+uses XmlDoc.Plugin.Localization;
+
 
 procedure ShowBatchGenDialog;
 var
@@ -120,6 +122,7 @@ begin
   FCancelled := False;
 
   BuildUI;
+  LocalizePluginUi(Self);
 end;
 
 procedure TBatchGenDialog.ScaleForPPI(NewPPI: Integer);

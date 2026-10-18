@@ -59,6 +59,7 @@ contains
   XmlDoc.Expressions in '..\..\Core\XmlDoc.Expressions.pas',
   XmlDoc.Parser in '..\..\Core\XmlDoc.Parser.pas',
   XmlDoc.StubGen in '..\..\Core\XmlDoc.StubGen.pas',
+  XmlDoc.Plugin.Localization in '..\..\Plugin\XmlDoc.Plugin.Localization.pas',
   XmlDoc.I18n in '..\..\Core\XmlDoc.I18n.pas',
   XmlDoc.Logger in '..\..\Core\XmlDoc.Logger.pas',
   XmlDoc.ErrorHandler in '..\..\Core\XmlDoc.ErrorHandler.pas',

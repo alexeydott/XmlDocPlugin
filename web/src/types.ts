@@ -101,6 +101,7 @@ export interface DocModel {
 
 /** 트리용 요소 정보 (요소 + 문서 데이터 포함) */
 export interface TreeElementInfo extends ElementInfo {
+  searchText?:string;
   doc: DocModel;
   effectiveDoc?:DocModel;
 }

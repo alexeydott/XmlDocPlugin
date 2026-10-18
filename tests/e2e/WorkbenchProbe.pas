@@ -2,11 +2,12 @@ unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
- XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
+ XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TProbe=class
  Timer,FormatConfirmation:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
+ LanguageSaved:Boolean;OriginalLanguage:string;
  ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
  FormatWait,Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
  procedure ConfirmFormat(Sender:TObject);procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
@@ -19,9 +20,11 @@ end;
 var Probe:TProbe;
 procedure Log(const Text:string);
 begin TFile.AppendAllText(GetEnvironmentVariable('XMLDOC_E2E_LOG'),Text+sLineBreak);end;
+function XmlEscape(const Value:string):string;
+begin Result:=Value.Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;').Replace('"','&quot;');end;
 function FindMenuCommand(Parent:TMenuItem;const Caption:string):TMenuItem;
 begin
- if SameText(StringReplace(Parent.Caption,'&','',[rfReplaceAll]),Caption) then Exit(Parent);
+ if SameText(StringReplace(Parent.Caption,'&','',[rfReplaceAll]),TI18n.Instance.T(Caption)) then Exit(Parent);
  for var I:=0 to Parent.Count-1 do begin Result:=FindMenuCommand(Parent[I],Caption);if Assigned(Result) then Exit;end;
  Result:=nil;
 end;
@@ -47,7 +50,8 @@ var Project:IOTAProject;Module:IOTAModule;Services:IOTAModuleServices;I:Integer;
   Result:=FindExit(Child);if Assigned(Result) then Exit;
  end;end;
 begin
- if Finished then Exit;Finished:=True;Timer.Enabled:=False;
+ if Finished then Exit;Finished:=True;
+ if LanguageSaved then begin var SavedSettings:=TPluginSettings.Instance.Global;SavedSettings.General.Language:=OriginalLanguage;TPluginSettings.Instance.Global:=SavedSettings;TI18n.Instance.SetLanguage(OriginalLanguage);end;Timer.Enabled:=False;
  Log('Closing Explorer');Explorer.Free;Explorer:=nil;Log('Closing Inspector');Inspector.Free;Inspector:=nil;Log('Closed Inspector');Services:=BorlandIDEServices as IOTAModuleServices;
  Project:=Services.GetActiveProject;if Assigned(Project) then begin
   Log('Closing project '+Project.FileName);Project.CloseModule(True);Log('Closed project');end;
@@ -80,7 +84,22 @@ begin
   if not Assigned(Json) or (Json.GetValue<string>('type','')<>'e2e') then begin if Assigned(OriginalMessage) then OriginalMessage(Sender,Args);Exit;end;
   Action:=Json.GetValue<string>('action','');
   try
-   if Action='arm-explorer' then begin
+   if Action='language-ui' then begin
+    var Language:=Json.GetValue<string>('language');AssertTrue((Language='ru') or (Language='zh') or (Language='en'),'Unexpected language');
+    var Updated:=TPluginSettings.Instance.Global;if not LanguageSaved then begin OriginalLanguage:=Updated.General.Language;LanguageSaved:=True;end;
+    Updated.General.Language:=Language;TPluginSettings.Instance.Global:=Updated;
+    var Dialog:=TSettingsDialog.Create(nil);
+    try
+     AssertTrue(Dialog.cmbLanguage.Items.IndexOf('ru')>=0,'Russian option missing');AssertTrue(Dialog.cmbLanguage.Items.IndexOf('zh')>=0,'Chinese option missing');AssertTrue(Dialog.cmbLanguage.Text=Language,'Selected language changed');
+     AssertTrue(Dialog.Caption=TI18n.Instance.T('XmlDoc Plugin Settings'),'Settings title not translated');if Language<>'en' then AssertTrue(Dialog.Caption<>'XmlDoc Plugin Settings','Native language pack missing');
+    finally Dialog.Free;end;
+    var Generation:=TBatchGenDialog.Create(nil);try AssertTrue(Generation.Caption=TI18n.Instance.T('Generate API Documentation'),'Generation dialog not translated');finally Generation.Free;end;
+    var Coverage:=TCoverageDialog.Create(nil);try AssertTrue(Coverage.Caption=TI18n.Instance.T('Documentation Coverage Report'),'Coverage dialog not translated');finally Coverage.Free;end;
+    var MenuRoot:=(BorlandIDEServices as INTAServices).MainMenu.Items;for var I:=0 to MenuRoot.Count-1 do if MenuRoot[I].Name='XmlDocDocumentMenu' then LocalizePluginUi(MenuRoot[I].Owner);
+    AssertTrue(Assigned(FindMenuCommand(MenuRoot,'User Guide')),'Localized guide menu missing');Browser.ApplySettings;ExplorerBrowser.ApplySettings;
+    Browser.ExecuteScript('window.__xmlDocLanguageUi="'+Language+'"');Log('PASS native Settings, generation, coverage and menus language '+Language);
+   end
+   else if Action='arm-explorer' then begin
      Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));
      ExplorerBrowser.ExecuteScript('(()=>{const row=Array.from(document.querySelectorAll(".tree-row")).find(r=>r.dataset.symbolId?.includes("tdocumented.run(const string)"));if(row)row.click();window.e2eOldDocument=JSON.parse(JSON.stringify(window.xmlDocEditor.get()));})()');
    end
@@ -147,7 +166,7 @@ begin
    else if Action='group-navigation-checked' then Log('PASS GroupB Source and Back/Forward retain owning project while A is active')
    else if Action='group-include-checked' then Log('PASS catalog Refresh detects a changed closed include')
    else if Action='group-context-error' then begin
-    var BrokenProject:=TPath.Combine(Root,'GroupB','GroupB.dproj');var ProjectBefore:=TFile.ReadAllText(BrokenProject);var ErrorFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var ErrorSource:=EditorSource(SourceEditorForFile(ErrorFile));
+    var BrokenProject:=TPath.Combine(Root,'GroupB','GroupB.dproj');var ProjectBefore:=TFile.ReadAllText(BrokenProject);var ProjectStamp:=TFile.GetLastWriteTimeUtc(BrokenProject);var ErrorFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var ErrorSource:=EditorSource(SourceEditorForFile(ErrorFile));
     try
      TFile.WriteAllText(BrokenProject,ProjectBefore.Replace('ContextB.pas','MissingReviewSource.pas'));
      Inspector.HandleCursorChanged(3,ErrorSource,ErrorFile);Explorer.HandleFileChanged(ErrorFile,ErrorSource);
@@ -155,11 +174,25 @@ begin
       var ErrorShown:=False;for var N:=0 to Panel.ComponentCount-1 do if Panel.Components[N] is TLabel then begin var LabelControl:=TLabel(Panel.Components[N]);if LabelControl.Visible and (Pos('Missing project source',string(LabelControl.Caption))>0) then ErrorShown:=True;end;
       AssertTrue(ErrorShown,'Project-context error was not shown inside '+Panel.Caption);
      end;
-    finally TFile.WriteAllText(BrokenProject,ProjectBefore);end;
+    finally TFile.WriteAllText(BrokenProject,ProjectBefore);TFile.SetLastWriteTimeUtc(BrokenProject,ProjectStamp);end;
     Inspector.RefreshFromCurrentEditor;Explorer.HandleFileChanged(ErrorFile,ErrorSource);Log('PASS Inspector/Explorer contain and recover from project-context errors');
    end
+   else if Action='analysis-metrics' then Log('PERF analysis '+Json.ToJSON)
+   else if Action='large-editor-check' then begin Step:=95;Timer.Interval:=100;Timer.Enabled:=True;end
    else if Action='open-user-guide' then begin
     var HelpItem:=FindMenuCommand((BorlandIDEServices as INTAServices).MainMenu.Items,'User Guide');AssertTrue(Assigned(HelpItem),'User Guide menu missing');HelpItem.Click;Log('PASS offline User Guide opened from IDE menu');
+   end
+   else if Action='review-external-comment' then begin
+    var ReviewFile:=TPath.Combine(Root,'GroupB','ContextB.pas');Editor:=SourceEditorForFile(ReviewFile);Source:=EditorSource(Editor);
+    var Marker:='XML requires explicit approval';var CharOffset:=Pos(Marker,Source);AssertTrue(CharOffset>0,'Original review comment absent');
+    Offset:=Length(UTF8Encode(Copy(Source,1,CharOffset-1)));Writer:=Editor.CreateUndoableWriter;Writer.CopyTo(Offset);Writer.DeleteTo(Offset+Length(Marker));Utf8:='EXTERNAL SOURCE CHANGE';Writer.Insert(PAnsiChar(Utf8));Writer:=nil;
+    Inspector.HandleCursorChanged(Json.GetValue<Integer>('line'),EditorSource(Editor),ReviewFile);Browser.ExecuteScript('window.__reviewExternalReady=true');Log('PASS external source mutation for native recovery conflict');
+   end
+   else if Action='assert-review-design' then begin
+    var Actual:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    AssertTrue(Actual.Contains('REVIEW VISIBLE DESIGN WINS'),'Visible Design text did not reach native XML serialization');
+    AssertTrue(not Actual.Contains('REVIEW HIDDEN RAW MUST NOT WRITE'),'Hidden XML draft overwrote Design text');
+    Log('PASS restored raw draft to Design serializes visible content into source');
    end
    else if Action='group-xml-applied-checked' then begin
     var ApprovedSource:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
@@ -278,13 +311,13 @@ begin
   B:=nil;N:=0;
   for var I:=0 to D.ComponentCount-1 do begin C:=D.Components[I];
    if C is TCheckBox then begin
-    if TCheckBox(C).Caption='Include private members' then TCheckBox(C).Checked:=False
+    if TCheckBox(C).Caption=TI18n.Instance.T('Include private members') then TCheckBox(C).Checked:=False
     else TCheckBox(C).Checked:=True;
    end;
    if C is TEdit then begin
     Inc(N);case N of 2:TEdit(C).Text:='';3:TEdit(C).Text:=Output;4:TEdit(C).Text:='XmlDocE2E';end;
    end;
-   if (C is TButton) and (TButton(C).Caption='Generate') then B:=TButton(C);
+   if (C is TButton) and (TButton(C).Caption=TI18n.Instance.T('Generate')) then B:=TButton(C);
   end;
   AssertTrue(Assigned(B),'Generate button unavailable');D.Show;T.Interval:=200;T.OnTimer:=CloseExportMessage;
   B.Click;T.Enabled:=False;
@@ -337,6 +370,47 @@ begin
  Timer.Enabled:=False;
  try
  case Step of
+  95:begin
+   Log('Starting large-file IDE check');
+   var LargeProject:=GetEnvironmentVariable('XMLDOC_E2E_LARGE_PROJECT');var LargeFile:=GetEnvironmentVariable('XMLDOC_E2E_LARGE_SOURCE');
+   if (LargeProject<>'') and (LargeFile<>'') then begin
+    var BeforeHash:=THashSHA2.GetHashStringFromFile(LargeFile);
+    var GroupBefore:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;var ActiveBefore:=GetActiveProject;
+    // Carry the actual project's evaluated compiler context into a temporary,
+    // source-only project. Restoring its desktop would instantiate unavailable
+    // third-party form classes in the deliberately isolated test profile.
+    var Context:=TProjectContext.Create(LargeProject,'Debug','Win32');
+    var PerformanceRoot:=TPath.Combine(Root,'Performance');ForceDirectories(PerformanceRoot);
+    var PerformanceProject:=TPath.Combine(PerformanceRoot,'SourceLatency.dproj');
+    try
+     var ProjectXml:='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><PropertyGroup><MainSource>SourceLatency.dpr</MainSource><DCC_Define>'+XmlEscape(string.Join(';',Context.Defines))+'</DCC_Define><DCC_IncludePath>'+XmlEscape(ExtractFilePath(LargeProject)+';'+string.Join(';',Context.IncludePaths))+'</DCC_IncludePath><DCC_UnitSearchPath>'+XmlEscape(ExtractFilePath(LargeProject)+';'+string.Join(';',Context.SearchPaths))+'</DCC_UnitSearchPath></PropertyGroup><ItemGroup>';
+     for var OriginalFile in Context.SourceFiles+[LargeFile] do if not SameText(ExtractFileExt(OriginalFile),'.dpr') then ProjectXml:=ProjectXml+'<DCCReference Include="'+XmlEscape(OriginalFile)+'"/>';
+     ProjectXml:=ProjectXml+'</ItemGroup></Project>';TFile.WriteAllText(PerformanceProject,ProjectXml,TEncoding.UTF8);TFile.WriteAllText(TPath.Combine(PerformanceRoot,'SourceLatency.dpr'),'program SourceLatency; begin end.',TEncoding.UTF8);
+    finally Context.Free;end;
+    AssertTrue(Assigned(ActiveBefore) and ActiveBefore.FileName.StartsWith(Root,True),'Performance context must belong to the isolated fixture');
+    var SavedProject:=TFile.ReadAllBytes(ActiveBefore.FileName);var SavedStamp:=TFile.GetLastWriteTimeUtc(ActiveBefore.FileName);
+    // Exercise the real evaluated context through the normal Inspector path,
+    // without restoring the user project's form designer in the test profile.
+    TFile.WriteAllText(TPath.Combine(ExtractFilePath(ActiveBefore.FileName),'SourceLatency.dpr'),'program SourceLatency; begin end.',TEncoding.UTF8);
+    try
+    TFile.WriteAllBytes(ActiveBefore.FileName,TFile.ReadAllBytes(PerformanceProject));TFile.SetLastWriteTimeUtc(ActiveBefore.FileName,SavedStamp);
+    Log('Opening performance source '+LargeFile);AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(LargeFile),'Cannot open large source');
+    var LargeEditor:=SourceEditorForFile(LargeFile);AssertTrue(Assigned(LargeEditor),'Large source editor unavailable');
+    var LargeText:=EditorSource(LargeEditor);var Parser:=TDocParser.Create;var LargeLine:=0;
+    try ConfigureDeclarationContext(Parser,nil,LargeFile);Parser.ParseSource(LargeText,LargeFile);
+     for var Item in Parser.GetAllElements do if (Item.Name='WriteToChangeLogTable') and (Item.SourceSection='implementation') then begin LargeLine:=Item.LineNumber;Break;end;
+    finally Parser.Free;end;
+    AssertTrue(LargeLine>0,'Requested large-file method not found');
+    var Watch:=TStopwatch.StartNew;Inspector.HandleCursorChanged(LargeLine,LargeText,LargeFile);Log('PERF large Inspector cold ms='+FloatToStr(Watch.Elapsed.TotalMilliseconds));
+    var Total,Maximum:Double;Total:=0;Maximum:=0;
+    for var J:=1 to 20 do begin Watch:=TStopwatch.StartNew;Inspector.HandleCursorChanged(LargeLine+(J mod 2),LargeText,LargeFile);var Elapsed:=Watch.Elapsed.TotalMilliseconds;Total:=Total+Elapsed;if Elapsed>Maximum then Maximum:=Elapsed;end;
+    Log('PERF large Inspector warm mean ms='+FloatToStr(Total/20)+' max synchronous UI ms='+FloatToStr(Maximum));
+    AssertTrue(BeforeHash=THashSHA2.GetHashStringFromFile(LargeFile),'Large user source changed');
+    Log('PASS large source remained byte-for-byte unchanged: '+LargeFile);
+    finally TFile.WriteAllBytes(ActiveBefore.FileName,SavedProject);TFile.SetLastWriteTimeUtc(ActiveBefore.FileName,SavedStamp);end;
+   end;
+   Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;Exit;
+  end;
   90:begin Finish;Exit;end;
   80:begin
    Log('Adding project B outside WebView callback');

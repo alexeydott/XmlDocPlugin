@@ -112,7 +112,7 @@ procedure SetSettingsCallback(ACallback: TProc);
 implementation
 
 uses
-  XmlDoc.Plugin.AboutDialog,Winapi.Windows,Winapi.ShellAPI,System.IOUtils;
+  XmlDoc.Plugin.Localization,XmlDoc.Plugin.AboutDialog,Winapi.Windows,Winapi.ShellAPI,System.IOUtils;
 
 var
   GDocumentationCommand:TProc<string>;
@@ -532,6 +532,7 @@ begin
   end;
 
   if Supports(BorlandIDEServices,IOTAProjectManager,ProjectManager) then FProjectMenuIndex:=ProjectManager.AddMenuItemCreatorNotifier(TDocumentationProjectMenuNotifier.Create);
+  LocalizePluginUi(Self);LocalizePluginUi(FContextActions);
   // Tools 메뉴 오른쪽에 최상위 메뉴로 삽입
   I := LMainMenu.Items.IndexOf(LToolsMenu);
   if I >= 0 then
@@ -544,6 +545,7 @@ procedure TXmlDocMenuIntegration.RefreshShortcuts;
 var
   LShortcuts: TShortcutSettings;
 begin
+  LocalizePluginUi(Self);LocalizePluginUi(FContextActions);
   LShortcuts := TPluginSettings.Instance.Global.Shortcuts;
 
   if Assigned(FMiToggleInspector) then

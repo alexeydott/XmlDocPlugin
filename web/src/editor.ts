@@ -1,3 +1,4 @@
+import {setLanguage,translate} from './i18n';
 import {mergeRenderedDoc,sameDocContent} from './docTools';
 import { applySourceAccess } from './sourceAccess';
 import { Editor,Extension } from '@tiptap/core';
@@ -446,7 +447,7 @@ function createEditor(element: HTMLElement, content: string, placeholder: string
     element,
     extensions: [
       ...sharedExtensions,
-      Placeholder.configure({ placeholder }),
+      Placeholder.configure({ placeholder:()=>translate(placeholder) }),
     ],
     content: textToHtml(content),
     onUpdate: () => notifyChanged(),
@@ -545,7 +546,8 @@ export function init(): void {
   };
   darkMode.addEventListener('change', applyTheme);
   (window as any).xmlDocSettings = {
-    apply(settings: { theme: string; fontSize: number; showSignatureHeader: boolean; saveDebounceMs?:number }) {
+    apply(settings: { theme: string; fontSize: number; showSignatureHeader: boolean; language?:string; saveDebounceMs?:number }) {
+      setLanguage(settings.language??'en');
       bridge.saveDebounceMs=Math.max(0,settings.saveDebounceMs??500);
       theme = ['light', 'dark', 'auto'].includes(settings.theme) ? settings.theme : 'light';
       applyTheme();
@@ -554,6 +556,7 @@ export function init(): void {
       if (signature) signature.style.display = settings.showSignatureHeader ? '' : 'none';
     },
   };
+  window.addEventListener('uiLanguageChanged',()=>editors().forEach(e=>e.view.dispatch(e.state.tr)));
   window.addEventListener('terminologyChanged',()=>editors().forEach(e=>e.view.dispatch(e.state.tr)));
   initToolbar();
   setupCollapsible();

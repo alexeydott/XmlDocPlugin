@@ -8,6 +8,15 @@
  try{
   await pause(300);
   assert(document.querySelector('#workbench'),'Documentation tools missing');
+  const originalDoc=JSON.stringify(window.xmlDocEditor.get().doc);
+  for(const [language,caption,hint] of [['ru','Описание','Восстановить черновики'],['zh','摘要','恢复草稿'],['en','Summary','Recover drafts']]){
+   send('language-ui',{language});for(let i=0;i<100 && (window.__xmlDocLanguageUi!==language || document.documentElement.lang!==language);i++)await pause(100);
+   assert(window.__xmlDocLanguageUi===language && document.documentElement.lang===language,'Language did not reach editor: '+language);
+   assert(document.querySelector('[data-section=summary]').textContent.includes(caption),'Heading not translated: '+language);
+   assert(document.querySelector('#recover-drafts').title===hint,'SVG tooltip not translated: '+language);
+   assert(JSON.stringify(window.xmlDocEditor.get().doc)===originalDoc,'Language switch modified user documentation');
+  }
+
   const iconButtons=document.querySelectorAll('#workbench button[id].workbench-icon');
   assert(iconButtons.length===27,'Documentation tool icons are missing');
   for(const button of iconButtons){

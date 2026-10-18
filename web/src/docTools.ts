@@ -146,7 +146,12 @@ export function editableXml(doc:DocModel):string {
 }
 
 export function mergeRenderedDoc(original:DocModel,baseline:DocModel,rendered:DocModel):DocModel {
+ // A visible Design edit is an explicit choice of the Design representation.
+ // Never let a previously restored XML draft override its serialized fields.
  const next={...original};
+ if(!sameDocContent(baseline,rendered)){
+  delete next.xmlEdited;delete next.rawXml;delete next.parseError;
+ }
  for(const key of ['summary','remarks','returns','value','params','typeParams','exceptions','examples','seeAlso'] as const){
   const empty=['summary','remarks','returns','value'].includes(key)?'':[];
   if(JSON.stringify(rendered[key]??empty)!==JSON.stringify(baseline[key]??empty))(next as any)[key]=rendered[key]??empty;

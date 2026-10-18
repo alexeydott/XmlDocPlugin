@@ -94,3 +94,12 @@ test('public API comparison excludes private members, hidden containing types an
  const {isPublicApi}=load('docTools.ts');const outer={kind:'class',name:'Outer',fileName:'A.pas',params:[],visibility:'private',genericParams:['T']};const inner={kind:'class',name:'Inner',qualifiedParent:'Outer<T>',fileName:'A.pas',params:[],visibility:'public'};const method={kind:'method',name:'Run',qualifiedParent:'Outer<T>.Inner',fileName:'A.pas',params:[],visibility:'public'};
  assert.equal(isPublicApi(method,[outer,inner,method]),false);assert.equal(isPublicApi({...method,qualifiedParent:undefined,visibility:'private'},[]),false);assert.equal(isPublicApi({...method,qualifiedParent:undefined,locationId:'run@implementation'},[]),false);assert.equal(isPublicApi({...method,qualifiedParent:undefined},[]),true);
 });
+
+
+test('a visible Design edit serializes Design rather than hidden restored raw XML',()=>{
+ const {mergeRenderedDoc,modelXml}=load('docTools.ts');
+ const original={summary:'Old design',rawXml:'<summary>UNAPPLIED RAW</summary>',xmlEdited:true};
+ const next=mergeRenderedDoc(original,{summary:'Old design'},{summary:'NEW DESIGN TEXT'});
+ assert.equal(modelXml(next),'<summary>NEW DESIGN TEXT</summary>');
+ assert.equal(original.xmlEdited,true);
+});

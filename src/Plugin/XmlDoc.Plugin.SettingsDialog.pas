@@ -67,7 +67,7 @@ function ShowSettingsDialog: Boolean;
 
 implementation
 
-uses ToolsAPI,Vcl.ActnList,XmlDoc.ShortcutValidation,Vcl.Dialogs;
+uses XmlDoc.Plugin.Localization, ToolsAPI,Vcl.ActnList,XmlDoc.ShortcutValidation,Vcl.Dialogs;
 
 {$R *.dfm}
 
@@ -91,6 +91,7 @@ procedure TSettingsDialog.FormCreate(Sender: TObject);
 begin
   FShortcutsChanged := False;
   LoadSettings;
+  LocalizePluginUi(Self);
 end;
 
 procedure TSettingsDialog.btnOKClick(Sender: TObject);

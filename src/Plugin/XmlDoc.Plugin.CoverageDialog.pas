@@ -75,6 +75,8 @@ type
 procedure ShowCoverageDialog;
 
 implementation
+uses XmlDoc.Plugin.Localization;
+
 
 {$R *.dfm}
 
@@ -339,6 +341,7 @@ begin
     rbProject.Enabled := False;
     rbDirectory.Checked := True;
   end;
+  LocalizePluginUi(Self);
 end;
 
 procedure TCoverageDialog.lvItemsDblClick(Sender: TObject);

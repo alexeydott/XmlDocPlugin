@@ -1,4 +1,4 @@
-param([string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,
+param([string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
  [ValidateSet('rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
@@ -17,7 +17,7 @@ function Test-Export([string]$Output){
  if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
 }
 $savedEnvironment=@{}
-foreach($name in 'XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+foreach($name in 'XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
 $boundsKey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\XmlDocPlugin\DocExplorer')
 try {foreach($name in 'Left','Top','Width','Height'){
@@ -25,6 +25,7 @@ try {foreach($name in 'Left','Top','Width','Height'){
 }} finally {if($boundsKey){$boundsKey.Dispose()}}
 Push-Location $repo
 try {
+ $env:XMLDOC_E2E_LARGE_PROJECT=$LargeProject;$env:XMLDOC_E2E_LARGE_SOURCE=$LargeSource
  $env:XMLDOC_E2E_GROUP_ONLY=if($GroupOnly){'1'}else{''}
  $env:XMLDOC_E2E_VERSION=(Get-Content (Join-Path $repo 'installer\Version.txt') -Raw).Trim()
  if($Installed){

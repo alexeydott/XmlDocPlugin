@@ -156,3 +156,43 @@ test('stable location preserves non-applying draft after external line shift and
  assert.equal(sent.find(m=>m.type==='draftUpdated').baseXml,'<summary>Original</summary>');assert.equal(sent.find(m=>m.type==='draftUpdated').applyAllowed,false);
  b.prepareRecovery(moved);b.notifyDocChanged(shown);b.flush();assert.equal(sent.at(-1).sourceRevision,'external');assert.equal(sent.at(-1).declarationId,'Run@40');b.cancelPending();
 });
+
+
+test('same-revision reload requeues Design without overwriting a newer XML draft',()=>{
+ const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);
+ const e=element('A');const load=doc=>b.receive({type:'loadDoc',data:{element:e,doc}});
+ load({summary:'Original',sourceXml:'<summary>Original</summary>'});
+ b.notifyDocChanged({summary:'Older design'});
+ b.saveDraft({rawXml:'<summary>New XML</summary>',xmlEdited:true});
+ const before=sent.filter(m=>m.type==='draftUpdated').length;
+ load({summary:'Original',sourceXml:'<summary>Original</summary>'});b.flush();
+ assert.equal(b.drafts.get('A.pas|A').doc.rawXml,'<summary>New XML</summary>');
+ assert.equal(sent.filter(m=>m.type==='draftUpdated').length,before);
+ assert.equal(sent.find(m=>m.type==='docUpdated').doc.summary,'Older design');
+ b.cancelPending();
+});
+
+test('external reload preserves draft base XML paired with its original revision',()=>{
+ const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);
+ b.receive({type:'loadDoc',data:{element:element('A','r1'),doc:{sourceXml:'<summary>Original</summary>'}}});
+ b.saveDraft({summary:'Draft'});
+ b.receive({type:'loadDoc',data:{element:element('A','r2'),doc:{sourceXml:'<summary>External</summary>'}}});
+ b.saveDraft({summary:'Draft edited again'});
+ const saved=sent.filter(m=>m.type==='draftUpdated').at(-1);
+ assert.equal(saved.sourceRevision,'r1');assert.equal(saved.baseXml,'<summary>Original</summary>');
+});
+
+
+test('seeded reload and raw/Design interleavings preserve draft provenance and apply mode',()=>{
+ let seed=0x917bc;const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);
+ for(let i=0;i<1000;i++){
+  seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+  const e=element('A'+i,'r1');const base='<summary>Base '+i+'</summary>';
+  b.receive({type:'loadDoc',data:{element:e,doc:{sourceXml:base}}});
+  b.notifyDocChanged({summary:'Allowed '+i});b.saveDraft({xmlEdited:true,rawXml:'<summary>Raw '+i+'</summary>'});
+  const external=!!(seed&1);b.receive({type:'loadDoc',data:{element:{...e,sourceRevision:external?'r2':'r1'},doc:{sourceXml:external?'<summary>External</summary>':base}}});
+  b.saveDraft({xmlEdited:true,rawXml:'<summary>Latest '+i+'</summary>'});
+  const saved=sent.at(-1);assert.equal(saved.baseXml,base);assert.equal(saved.sourceRevision,'r1');assert.equal(saved.applyAllowed,false);
+  assert.equal(b.drafts.get('A.pas|A'+i).doc.rawXml,saved.doc.rawXml);b.cancelPending();
+ }
+});

@@ -11,8 +11,11 @@
   let analysis,analysisStarted=false;const receiveAnalysis=window.xmlDocWorkbench.receiveAnalysis;window.xmlDocWorkbench.receiveAnalysis=data=>{if(data.state==='running')analysisStarted=true;if(analysisStarted)analysis=data;receiveAnalysis(data);};
   // A previous catalog's completion can arrive after its receiveCatalog callback.
   // Require a fresh running notification before accepting this request's completion.
+  let lastPulse=performance.now(),maxGap=0;const pulse=setInterval(()=>{const now=performance.now();maxGap=Math.max(maxGap,now-lastPulse);lastPulse=now;},10);const warmStart=performance.now();
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && (!analysisStarted || analysis?.state!=='completed');i++)await pause(100);assert(analysis?.parsed===0 && analysis?.reused>0,'Unchanged modules were not reused: '+JSON.stringify(analysis));
-  window.bridge.sendToHost({type:'requestCatalog',scope:'group'});window.bridge.sendToHost({type:'cancelAnalysis'});for(let i=0;i<100 && analysis?.state!=='cancelled';i++)await pause(100);assert(analysis?.state==='cancelled','Analysis cancellation was not reported');await pause(250);assert(analysis?.state==='cancelled','Cancelled analysis resumed from a queued timer');assert(getComputedStyle(document.querySelector('#cancel-analysis')).display==='none','Cancelled analysis action is still visible');
+  clearInterval(pulse);send('analysis-metrics',{warmMs:performance.now()-warmStart,maxUiGapMs:maxGap});
+  const cancelStart=performance.now();
+  window.bridge.sendToHost({type:'requestCatalog',scope:'group'});window.bridge.sendToHost({type:'cancelAnalysis'});for(let i=0;i<100 && analysis?.state!=='cancelled';i++)await pause(100);assert(analysis?.state==='cancelled','Analysis cancellation was not reported');send('analysis-metrics',{cancelMs:performance.now()-cancelStart});await pause(250);assert(analysis?.state==='cancelled','Cancelled analysis resumed from a queued timer');assert(getComputedStyle(document.querySelector('#cancel-analysis')).display==='none','Cancelled analysis action is still visible');
   groupCatalog=null;window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && !groupCatalog;i++)await pause(100);
   const fromB=groupCatalog?.elements.find(e=>e.name==='FromB' && e.params[0].type==='string');assert(fromB?.projectFile,'Project B context missing from group search');
   window.bridge.sendToHost({type:'openSymbol',projectFile:fromB.projectFile,fileName:fromB.fileName,symbolId:fromB.symbolId,line:fromB.lineNumber});for(let i=0;i<100 && window.xmlDocEditor.get().element.name!=='FromB';i++)await pause(100);
@@ -60,15 +63,34 @@
   window.bridge.sendToHost({type:'openSymbol',...declaration,line:declaration.lineNumber});await pause(400);
   const recoveryTarget=window.xmlDocEditor.get().element;window.bridge.sendToHost({type:'openSymbol',...recoveryTarget,locationId:implementationId});await pause(400);
   const savedTarget=window.xmlDocEditor.get().element;window.bridge.saveDraft({...window.xmlDocEditor.get().doc,summary:'Recovered implementation draft',rawXml:'<summary>Recovered implementation draft</summary>',xmlEdited:true});
+  send('review-external-comment',{line:savedTarget.lineNumber});for(let i=0;i<100 && !window.__reviewExternalReady;i++)await pause(50);assert(window.__reviewExternalReady,'External comment edit failed');
+  window.bridge.saveDraft({...window.xmlDocEditor.get().doc,summary:'Recovered implementation draft',rawXml:'<summary>Recovered implementation draft</summary>',xmlEdited:true});
   window.bridge.sendToHost({type:'openSymbol',...declaration,line:declaration.lineNumber});await pause(400);
   let drafts;const receiveDrafts=window.xmlDocWorkbench.receiveDrafts;window.xmlDocWorkbench.receiveDrafts=data=>{drafts=data.drafts;receiveDrafts(data);};window.bridge.sendToHost({type:'listDrafts'});for(let i=0;i<100 && !drafts;i++)await pause(100);
   const saved=drafts?.find(d=>d.locationId===savedTarget.locationId && d.fileName===savedTarget.fileName);assert(saved?.draftId,'Saved implementation draft missing');
+  assert(saved.baseXml.includes('XML requires explicit approval') && !saved.baseXml.includes('EXTERNAL SOURCE CHANGE'),'Persisted Original was replaced by external source');
+  assert(saved.sourceRevision===savedTarget.sourceRevision,'Draft revision was rebased on external edit');
+  let recovered;const receiveRecovery=window.xmlDocWorkbench.receiveRecovery;window.xmlDocWorkbench.receiveRecovery=data=>{recovered=data;receiveRecovery(data);};
   window.bridge.sendToHost({type:'recoverDraft',draftId:saved.draftId});for(let i=0;i<100 && !document.querySelector('.draft-comparison');i++)await pause(100);
+  assert(recovered?.conflict && recovered.currentXml.includes('EXTERNAL SOURCE CHANGE') && recovered.baseXml===saved.baseXml,'Native recovery failed to detect original/current conflict');
   assert(window.xmlDocEditor.get().element.locationId===implementationId,'Recovery selected another source section');assert(document.querySelectorAll('.draft-comparison section').length===3,'Recovery comparison missing');
   assert(document.querySelector('.draft-comparison').textContent.includes('Recovered implementation draft'),'Draft comparison lost saved XML');document.querySelector('#documentation-problems button').click();await pause(1200);assert(window.bridge.status==='Applied','Recovery apply failed: '+window.bridge.status);
   window.bridge.sendToHost({type:'openSymbol',...declaration,line:declaration.lineNumber});await pause(400);
+  // Restore an unapplied raw draft, choose Design, then verify the native source.
+  window.bridge.sendToHost({type:'openSymbol',...declaration,locationId:implementationId});await pause(400);
+  const designTarget=window.xmlDocEditor.get();
+  document.querySelector('#open-xml').click();const hiddenRaw=document.querySelector('#xml-source');
+  hiddenRaw.value='<summary>REVIEW HIDDEN RAW MUST NOT WRITE</summary>';hiddenRaw.dispatchEvent(new Event('input',{bubbles:true}));
+  window.bridge.sendToHost({type:'openSymbol',...declaration,line:declaration.lineNumber});await pause(400);
+  window.bridge.sendToHost({type:'openSymbol',...declaration,locationId:implementationId});await pause(400);
+  assert(window.xmlDocEditor.get().doc.xmlEdited,'Raw draft was not restored');
+  document.querySelector('#doc-tabs [data-tab=design]').click();
+  document.querySelector('#summary-editor .tiptap').editor.chain().focus().selectAll().insertContent('REVIEW VISIBLE DESIGN WINS').run();
+  window.bridge.flush();await pause(1100);assert(window.bridge.status==='Applied','Design transition was not applied');
+  send('assert-review-design');await pause(200);
+  window.bridge.sendToHost({type:'openSymbol',...declaration,line:declaration.lineNumber});await pause(400);
   send('format-group-source');for(let i=0;i<500 && !window.__xmlDocNativeFormatted;i++)await pause(100);assert(window.__xmlDocNativeFormatted,'Native GroupB formatter did not complete');
   send('group-context-error');await pause(400);send('view-system');for(let i=0;i<200 && !window.xmlDocEditor.get().element.fileName?.toLowerCase().endsWith('system.pas');i++)await pause(100);const current=window.xmlDocEditor.get();assert(current.element.fileName?.toLowerCase().endsWith('system.pas') && current.element.readOnly,'System source is not read-only: '+JSON.stringify(current.element));assert(document.querySelector('#summary-editor .tiptap').contentEditable==='false','System source editable');window.chrome.webview.postMessage(JSON.stringify({type:'docUpdated',...current.element,doc:{...current.doc,summary:'FORBIDDEN READONLY WRITE'}}));await pause(250);send('assert-system');await pause(100);
-  send('open-user-guide');await pause(300);send('finish');
+  send('open-user-guide');await pause(300);send('large-editor-check');
  }catch(error){send('fail',{message:error.message,stack:error.stack});}
 })();
