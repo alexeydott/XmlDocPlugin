@@ -330,8 +330,16 @@ begin
       // 렌더링 옵션
       LRenderOpts.NumericFileNames := FOptions.NumericFileNames;
       LRenderOpts.OutputDir := FOptions.OutputDir;
-      if TDirectory.Exists(FOptions.ProjectPath) then LRenderOpts.ProjectDir:=TPath.GetFullPath(FOptions.ProjectPath) else LRenderOpts.ProjectDir:=ExtractFilePath(TPath.GetFullPath(FOptions.ProjectPath));
+      if FOptions.ProjectPath <> '' then
+      begin
+        LRenderOpts.ProjectDir := ExtractFilePath(TPath.GetFullPath(FOptions.ProjectPath));
         LRenderOpts.ProjectName := ChangeFileExt(ExtractFileName(FOptions.ProjectPath), '');
+      end
+      else
+      begin
+        LRenderOpts.ProjectDir := TPath.GetFullPath(FOptions.Directory);
+        LRenderOpts.ProjectName := ExtractFileName(ExcludeTrailingPathDelimiter(LRenderOpts.ProjectDir));
+      end;
       LRenderOpts.Title := FOptions.Title;
       LRenderOpts.IncludePrivate := FOptions.IncludePrivate;
       LRenderOpts.IncludeSearchIndex := True;

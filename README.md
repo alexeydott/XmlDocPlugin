@@ -23,9 +23,9 @@ Installation is per user and does not require administrator privileges. To
 update, close RAD Studio and run the latest installer. To uninstall, close RAD
 Studio and remove **XmlDoc Plugin** from Windows Installed apps.
 
-## Documentation workbench (source builds)
+## Documentation workbench
 
-These improvements are available in source builds of the `improvements1` branch.
+The latest installer includes the documentation workbench described below.
 
 The Inspector and Explorer share overload-aware symbol identities and guarded
 editing sessions. Every change records the source file, declaration, session and
