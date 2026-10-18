@@ -8,8 +8,10 @@
   let groupCatalog;const receive=window.xmlDocWorkbench.receiveCatalog;window.xmlDocWorkbench.receiveCatalog=data=>{groupCatalog=data;receive(data);};
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});
   for(let i=0;i<100 && !groupCatalog;i++)await pause(100);
-  let analysis;const receiveAnalysis=window.xmlDocWorkbench.receiveAnalysis;window.xmlDocWorkbench.receiveAnalysis=data=>{analysis=data;receiveAnalysis(data);};
-  window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && analysis?.state!=='completed';i++)await pause(100);assert(analysis?.parsed===0 && analysis?.reused>0,'Unchanged modules were not reused: '+JSON.stringify(analysis));
+  let analysis,analysisStarted=false;const receiveAnalysis=window.xmlDocWorkbench.receiveAnalysis;window.xmlDocWorkbench.receiveAnalysis=data=>{if(data.state==='running')analysisStarted=true;if(analysisStarted)analysis=data;receiveAnalysis(data);};
+  // A previous catalog's completion can arrive after its receiveCatalog callback.
+  // Require a fresh running notification before accepting this request's completion.
+  window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && (!analysisStarted || analysis?.state!=='completed');i++)await pause(100);assert(analysis?.parsed===0 && analysis?.reused>0,'Unchanged modules were not reused: '+JSON.stringify(analysis));
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});window.bridge.sendToHost({type:'cancelAnalysis'});for(let i=0;i<100 && analysis?.state!=='cancelled';i++)await pause(100);assert(analysis?.state==='cancelled','Analysis cancellation was not reported');await pause(250);assert(analysis?.state==='cancelled','Cancelled analysis resumed from a queued timer');assert(getComputedStyle(document.querySelector('#cancel-analysis')).display==='none','Cancelled analysis action is still visible');
   groupCatalog=null;window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && !groupCatalog;i++)await pause(100);
   const fromB=groupCatalog?.elements.find(e=>e.name==='FromB' && e.params[0].type==='string');assert(fromB?.projectFile,'Project B context missing from group search');
