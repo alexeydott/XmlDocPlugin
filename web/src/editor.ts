@@ -203,6 +203,20 @@ function renderSignature(el: ElementInfo): void {
 // ────────────────────────────────────────────
 // Render Sections
 // ────────────────────────────────────────────
+function refreshRows(body:HTMLElement,render:()=>void):void {
+ const oldRows=Array.from(body.children) as HTMLElement[];
+ render();
+ for(const row of Array.from(body.children) as HTMLElement[]){
+  const name=row.querySelector('.td-name')?.textContent;
+  const old=oldRows.find(r=>r.querySelector('.td-name')?.textContent===name);
+  if(!old)continue;
+  const oldName=old.querySelector<HTMLElement>('.td-name'),newName=row.querySelector<HTMLElement>('.td-name');
+  if(oldName && newName)oldName.title=newName.title;
+  for(const [field,editor] of fieldEditors)if(row.contains(field)){editor.destroy();fieldEditors.delete(field);}
+  row.replaceWith(old);oldRows.splice(oldRows.indexOf(old),1);
+ }
+ for(const row of oldRows)for(const [field,editor] of fieldEditors)if(row.contains(field)){editor.destroy();fieldEditors.delete(field);}
+}
 function renderParams(params: ParamDoc[], elementParams: ElementInfo['params']): void {
   const tbody = $('#params-body')!;
   tbody.innerHTML = '';
@@ -228,7 +242,7 @@ function renderParams(params: ParamDoc[], elementParams: ElementInfo['params']):
       nameCell.style.cursor = 'pointer';
       nameCell.addEventListener('dblclick', event => {
         event.preventDefault();
-        bridge.sendToHost({ type: 'jumpToLine', line: owner.lineNumber! });
+        if(currentElement?.lineNumber)bridge.sendToHost({ type: 'jumpToLine', line: currentElement.lineNumber });
       });
     }
     attachField(tr,'.td-desc');
@@ -458,10 +472,23 @@ function initEditors(doc: DocModel): void {
 // Load Document
 // ────────────────────────────────────────────
 export function loadDocument(element: ElementInfo, doc: DocModel): void {
-  const oldKey=currentElement?`${currentElement.fileName}|${currentElement.symbolId}`:'';
+  const oldMetadata=JSON.stringify([currentElement?.params,currentElement?.genericParams,currentElement?.returnType,currentElement?.kind]);
+  const key=(e:ElementInfo)=>`${e.fileName}|${e.locationId??e.declarationId??e.symbolId}`;
+  const oldKey=currentElement?key(currentElement):'';
   if(currentElement)positions.set(oldKey,{scroll:$('#doc-design')?.scrollTop??0,fields:editors().map(e=>({from:e.state.selection.from,to:e.state.selection.to,focus:e.view.dom.contains(document.activeElement)}))});
-  if(currentElement && oldKey===`${element.fileName}|${element.symbolId}` && sameDocContent(currentDoc,doc)){
-    currentElement=element;currentDoc=doc;original=JSON.parse(JSON.stringify(doc));baseline=collectDoc();renderSignature(element);editors().forEach(e=>e.setEditable(!bridge.readOnly));applySourceAccess(bridge.readOnly,bridge.readOnlyReason);
+  if(currentElement && oldKey===key(element) && sameDocContent(currentDoc,doc)){
+    currentElement=element;currentDoc=doc;original=JSON.parse(JSON.stringify(doc));renderSignature(element);
+    if(oldMetadata!==JSON.stringify([element.params,element.genericParams,element.returnType,element.kind])){
+      loading=true;
+      refreshRows($('#params-body')!,()=>renderParams(doc.params??[],element.params));
+      refreshRows($('#typeparams-body')!,()=>renderTypeParams(doc.typeParams??[],element.genericParams));
+      const hasReturn=element.kind==='method' && !!element.returnType;
+      $('#returns-section')!.classList.toggle('hidden',!hasReturn);$('#value-section')!.classList.toggle('hidden',element.kind!=='property');
+      $('#exceptions-section')!.classList.toggle('hidden',element.kind==='unit');
+      $('#return-type')!.textContent=element.returnType?'Type: '+element.returnType:'';
+      loading=false;
+    }
+    updateToolbarState(element);baseline=collectDoc();editors().forEach(e=>e.setEditable(!bridge.readOnly));applySourceAccess(bridge.readOnly,bridge.readOnlyReason);
     window.dispatchEvent(new CustomEvent('documentationLoaded',{detail:{element,doc}}));return;
   }
   loading=true;
@@ -495,11 +522,11 @@ export function loadDocument(element: ElementInfo, doc: DocModel): void {
   editors().forEach(e=>e.setEditable(!bridge.readOnly));
   applySourceAccess(bridge.readOnly,bridge.readOnlyReason);
   baseline=collectDoc();loading=false;
-  const position=positions.get(`${element.fileName}|${element.symbolId}`);
+  const position=positions.get(key(element));
   if(position){
     editors().forEach((editor,i)=>{const saved=position.fields[i];if(!saved)return;const max=editor.state.doc.content.size;
       editor.commands.setTextSelection({from:Math.min(saved.from,max),to:Math.min(saved.to,max)});
-      if(oldKey===`${element.fileName}|${element.symbolId}` && saved.focus && document.hasFocus())editor.commands.focus();
+      if(oldKey===key(element) && saved.focus && document.hasFocus())editor.commands.focus();
     });
     $('#doc-design')!.scrollTop=position.scroll;
   }

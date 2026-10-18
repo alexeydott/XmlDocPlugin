@@ -238,7 +238,7 @@ begin
  Editor:=XmlDoc.Plugin.EditSession.SourceEditorForFile(FileName);if not Assigned(Editor) or (EditorSource(Editor)<>Source) then Exit;
  Parser:=TDocParser.Create;
  try
-  try ConfigureDeclarationContext(Parser);Parser.ParseSource(Source,FileName);except Exit;end;
+  try ConfigureDeclarationContext(Parser,nil,FileName);Parser.ParseSource(Source,FileName);except Exit;end;
   Element:=Parser.GetElementAtLine(ALine);if (Element.Name='') or (Trim(Element.ExistingDocXml)<>'') then Exit;
   Model:=TDocStubGenerator.GenerateStub(Element);
   try TDocOTAWriter.ApplyToEditor(Editor,Element,Model);finally Model.Free;end;
@@ -266,7 +266,7 @@ begin
   // 현재 커서 위치의 요소 찾기
   LParser := XmlDoc.Parser.TDocParser.Create;
   try
-    ConfigureDeclarationContext(LParser);
+    ConfigureDeclarationContext(LParser,nil,LEditor.FileName);
     LParser.ParseSource(LSource,LEditor.FileName);
     LView := LEditor.GetEditView(0);
     if not Assigned(LView) then

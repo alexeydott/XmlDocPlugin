@@ -21,6 +21,7 @@ type
     FSnapshots:TArray<TSourceSnapshot>;
     FPlatform:string;
     FConfigure:TProc<TDocParser,string>;
+    FParsedElements:TFunc<string,TArray<TCodeElementInfo>>;
     FIndexOwners:TObjectList<TElementDocInfo>;
 
     FOnProgress: TProgressCallback;
@@ -35,6 +36,7 @@ type
     /// <param name="AFiles">절대 경로 .pas 파일 배열</param>
     procedure ParseAll(const AFiles: TArray<string>);
 
+    property ParsedElements:TFunc<string,TArray<TCodeElementInfo>> read FParsedElements write FParsedElements;
     property OnConfigureParser:TProc<TDocParser,string> read FConfigure write FConfigure;
     property Platform:string read FPlatform write FPlatform;
     property SourceSnapshots:TArray<TSourceSnapshot> read FSnapshots write FSnapshots;
@@ -115,21 +117,9 @@ var
   LCodeElem: TCodeElementInfo;
   LLine, LTypeKey: string;
 begin
-  LSource := ReadSourceFile(AFilePath);
+  LSource:='';var HasSnapshot:=False;for var Snapshot in FSnapshots do if SameText(Snapshot.FileName,AFilePath) then begin LSource:=Snapshot.Source;HasSnapshot:=True;Break;end;
+  if not HasSnapshot then LSource := ReadSourceFile(AFilePath);
   for var Snapshot in FSnapshots do if SameText(Snapshot.FileName,AFilePath) then begin LSource:=Snapshot.Source;Break;end;
-
-  // implementation 섹션 시작 행 찾기 (interface 요소만 처리하기 위함)
-  LLines := LSource.Split([#10]);
-  LImplLine := MaxInt;
-  for I := 0 to Length(LLines) - 1 do
-  begin
-    LLine := Trim(LLines[I]);
-    if SameText(LLine, 'implementation') or LLine.StartsWith('implementation ') then
-    begin
-      LImplLine := I + 1;  // 1-based
-      Break;
-    end;
-  end;
 
   // TDocParser로 소스 파싱
   LDocParser := TDocParser.Create;
@@ -137,15 +127,15 @@ begin
     try
       LDocParser.Platform:=FPlatform;LDocParser.SourceSnapshots:=FSnapshots;LDocParser.SourceFiles:=FSourceFiles;LDocParser.SearchPaths:=FSearchPaths;LDocParser.Defines:=FDefines;
       if Assigned(FConfigure) then FConfigure(LDocParser,AFilePath);
-      LDocParser.ParseSource(LSource,AFilePath);
+      if not Assigned(FParsedElements) then LDocParser.ParseSource(LSource,AFilePath);
     except
       on E:Exception do raise Exception.CreateFmt('Cannot parse %s: %s', [AFilePath,E.Message]);
     end;
 
-    if not Assigned(LDocParser.RootNode) then
+    if not Assigned(FParsedElements) and not Assigned(LDocParser.RootNode) then
       Exit;
 
-    LElements := LDocParser.GetAllElements;
+    if Assigned(FParsedElements) then LElements:=FParsedElements(AFilePath) else LElements := LDocParser.GetAllElements;
 
     LUnitDoc := TUnitDocInfo.Create;
     LUnitDoc.FilePath := AFilePath;
@@ -159,7 +149,7 @@ begin
         LCodeElem := LElements[I];
 
         // implementation 섹션 이후 요소는 스킵
-        if LCodeElem.LineNumber >= LImplLine then
+        if LCodeElem.SourceSection='implementation' then
           Continue;
 
         // 이름이 없는 요소는 스킵

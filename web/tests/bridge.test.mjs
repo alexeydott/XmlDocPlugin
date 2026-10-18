@@ -117,3 +117,42 @@ test('same revision refresh retains pending formatted edit, external revision do
   b.cancelPending();
  }
 });
+test('pinned implementation ACK cannot rebase its next edit onto the interface declaration',()=>{
+ const b=new DelphiBridge(),sent=[];b.sendToHost=m=>{if(m.type==='docUpdated')sent.push(m);};
+ const impl={...element('Run'),declarationId:'Run@30',locationId:'Run@implementation'};
+ b.setContext(impl);b.setPinned(true);b.notifyDocChanged({summary:'first'});b.flush();b.notifyDocChanged({summary:'second'});
+ b.receive({type:'editResult',sessionId:'session',editId:sent[0].editId,status:'Applied'});
+ b.receive({type:'loadDoc',data:{element:{...impl,declarationId:'Run@10',locationId:'Run@interface',sourceRevision:'2'},doc:{summary:'interface'}}});b.flush();
+ assert.equal(sent.length,1);
+ b.receive({type:'loadDoc',data:{element:{...impl,declarationId:'Run@32',sourceRevision:'2'},doc:{summary:'first'}}});b.flush();
+ assert.equal(sent.length,2);assert.equal(sent[1].declarationId,'Run@32');assert.equal(sent[1].locationId,'Run@implementation');assert.equal(sent[1].doc.summary,'second');
+});
+test('ACK rebases XML draft without applying it until explicitly approved',()=>{
+ const b=new DelphiBridge(),sent=[];b.sendToHost=m=>{if(m.type==='docUpdated')sent.push(m);};const e=element('Run');
+ b.setContext(e);b.notifyDocChanged({summary:'Design'});b.flush();b.saveDraft({summary:'XML',rawXml:'<summary>XML</summary>',xmlEdited:true});
+ b.receive({type:'editResult',sessionId:'session',editId:sent[0].editId,status:'Applied'});
+ b.receive({type:'loadDoc',data:{element:{...e,sourceRevision:'2'},doc:{summary:'Design'}}});b.flush();assert.equal(sent.length,1);
+ assert.equal(b.drafts.get('A.pas|Run').revision,'2');b.notifyDocChanged(b.drafts.get('A.pas|Run').doc);b.flush();assert.equal(sent.length,2);assert.equal(sent[1].sourceRevision,'2');
+});
+
+test('ACK and unapplied XML drafts remain isolated across declaration/implementation fuzz',()=>{
+ for(let i=0;i<1000;i++){
+  const b=new DelphiBridge(),sent=[];b.sendToHost=m=>{if(m.type==='docUpdated')sent.push(m);};const role=i%2?'interface':'implementation';
+  const e={...element('Run'),locationId:'Run@'+role,declarationId:'Run@'+(10+i)};
+  b.setContext(e);b.setPinned(true);b.notifyDocChanged({summary:'first'});b.flush();
+  const xml=i%3===0;if(xml)b.saveDraft({summary:'draft XML',xmlEdited:true,rawXml:'<summary>XML</summary>'});else b.notifyDocChanged({summary:'next'});
+  b.receive({type:'editResult',sessionId:'session',editId:sent[0].editId,status:'Applied'});
+  b.receive({type:'loadDoc',data:{element:{...e,locationId:role==='interface'?'Run@implementation':'Run@interface',declarationId:'other',sourceRevision:'2'},doc:{summary:'other'}}});b.flush();assert.equal(sent.length,1);
+  b.receive({type:'loadDoc',data:{element:{...e,declarationId:'Run@'+(20+i),sourceRevision:'2'},doc:{summary:'first'}}});b.flush();assert.equal(sent.length,xml?1:2);if(!xml)assert.equal(sent[1].locationId,e.locationId);
+ }
+});
+test('stable location preserves non-applying draft after external line shift and card switching',()=>{
+ const b=new DelphiBridge(),sent=[];b.sendToHost=m=>sent.push(m);let shown;b.onElementLoaded((e,d)=>shown=d);
+ const e={...element('Run'),declarationId:'Run@30',locationId:'Run@implementation'};
+ b.receive({type:'loadDoc',data:{element:e,doc:{summary:'Original',sourceXml:'<summary>Original</summary>'}}});b.saveDraft({summary:'XML',rawXml:'<summary>XML</summary>',xmlEdited:true});
+ b.receive({type:'loadDoc',data:{element:element('Other'),doc:{summary:'Other'}}});
+ const moved={...e,declarationId:'Run@40',sourceRevision:'external',sessionId:'new'};b.receive({type:'loadDoc',data:{element:moved,doc:{summary:'Changed'}}});b.flush();
+ assert.equal(shown.summary,'XML');assert.equal(sent.filter(m=>m.type==='docUpdated').length,0);assert.equal(b.drafts.get('A.pas|Run@implementation').apply,false);
+ assert.equal(sent.find(m=>m.type==='draftUpdated').baseXml,'<summary>Original</summary>');assert.equal(sent.find(m=>m.type==='draftUpdated').applyAllowed,false);
+ b.prepareRecovery(moved);b.notifyDocChanged(shown);b.flush();assert.equal(sent.at(-1).sourceRevision,'external');assert.equal(sent.at(-1).declarationId,'Run@40');b.cancelPending();
+});

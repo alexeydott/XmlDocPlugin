@@ -851,3 +851,10 @@ body.compact .doc-section {margin-bottom:2px;}body.compact .doc-heading {padding
 .seealso-row {flex-wrap:wrap;}.seealso-description {width:100%;min-width:0;}
 .example-title {width:100%;min-width:0;}
 @media(max-width:520px){.xml-diff{grid-template-columns:1fr;}}
+
+.draft-comparison { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem; }
+.draft-comparison section { min-width:0; }
+.draft-comparison pre { white-space:pre-wrap;overflow-wrap:anywhere; }
+#analysis-state { white-space:normal;overflow-wrap:anywhere; }
+
+.workbench-icon[hidden] {display:none;}

@@ -1,4 +1,4 @@
-﻿unit WorkbenchProbe;
+unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
@@ -19,6 +19,12 @@ end;
 var Probe:TProbe;
 procedure Log(const Text:string);
 begin TFile.AppendAllText(GetEnvironmentVariable('XMLDOC_E2E_LOG'),Text+sLineBreak);end;
+function FindMenuCommand(Parent:TMenuItem;const Caption:string):TMenuItem;
+begin
+ if SameText(StringReplace(Parent.Caption,'&','',[rfReplaceAll]),Caption) then Exit(Parent);
+ for var I:=0 to Parent.Count-1 do begin Result:=FindMenuCommand(Parent[I],Caption);if Assigned(Result) then Exit;end;
+ Result:=nil;
+end;
 procedure TProbe.AssertTrue(Value:Boolean;const Message:string);
 begin if not Value then raise Exception.Create(Message);end;
 procedure TProbe.Select(const FileName,Name,TypeName:string);
@@ -122,7 +128,8 @@ begin
    end
    else if Action='prepare-group' then begin
     PrimaryProjectFile:=GetActiveProject.FileName;var Dir:=TPath.Combine(Root,'GroupB');TDirectory.CreateDirectory(Dir);
-    TFile.WriteAllText(TPath.Combine(Dir,'ContextB.pas'),'unit ContextB;'+sLineBreak+'interface'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'implementation'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'begin end;'+sLineBreak+'end.');
+    TFile.WriteAllText(TPath.Combine(Dir,'ContextB.pas'),'unit ContextB;'+sLineBreak+'interface'+sLineBreak+'{$I Features.inc}'+sLineBreak+'type TWorker=class procedure Run(Value:Integer); overload; procedure Run(Value:string); overload; end;'+sLineBreak+'procedure OtherB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'implementation'+sLineBreak+'procedure OtherB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF}); begin end;'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'begin end;'+sLineBreak+'procedure TWorker.Run(Value:Integer); begin end;'+sLineBreak+'procedure TWorker.Run(Value:string); begin end;'+sLineBreak+'procedure Exercise(Worker:TWorker);'+sLineBreak+'var Local:Integer;'+sLineBreak+'begin'+sLineBreak+' Worker.Run(Local);'+sLineBreak+'end;'+sLineBreak+'end.');
+    TFile.WriteAllText(TPath.Combine(Dir,'Features.inc'),'{$DEFINE FROM_B}');
     TFile.WriteAllText(TPath.Combine(Dir,'GroupB.dpr'),'program GroupB; uses ContextB in ''ContextB.pas''; begin end.');
     var GroupXml:=TFile.ReadAllText(TPath.Combine(Root,'XmlDocE2E.dproj')).Replace('XmlDocE2E','GroupB');
     GroupXml:=GroupXml.Replace('{3A72602E-67CF-469D-A733-BC75247CC365}',TGUID.NewGuid.ToString);
@@ -136,6 +143,55 @@ begin
     AssertTrue(SameText(GetActiveProject.FileName,TPath.Combine(Root,'XmlDocE2E.dproj')),'Group navigation changed active project A');
     AssertTrue(Assigned(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas'))),'Group source did not open');
     Log('PASS group symbol navigation uses project B defines while A is active');
+   end
+   else if Action='group-navigation-checked' then Log('PASS GroupB Source and Back/Forward retain owning project while A is active')
+   else if Action='group-include-checked' then Log('PASS catalog Refresh detects a changed closed include')
+   else if Action='group-context-error' then begin
+    var BrokenProject:=TPath.Combine(Root,'GroupB','GroupB.dproj');var ProjectBefore:=TFile.ReadAllText(BrokenProject);var ErrorFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var ErrorSource:=EditorSource(SourceEditorForFile(ErrorFile));
+    try
+     TFile.WriteAllText(BrokenProject,ProjectBefore.Replace('ContextB.pas','MissingReviewSource.pas'));
+     Inspector.HandleCursorChanged(3,ErrorSource,ErrorFile);Explorer.HandleFileChanged(ErrorFile,ErrorSource);
+     for var Panel in TArray<TForm>.Create(Inspector,Explorer) do begin
+      var ErrorShown:=False;for var N:=0 to Panel.ComponentCount-1 do if Panel.Components[N] is TLabel then begin var LabelControl:=TLabel(Panel.Components[N]);if LabelControl.Visible and (Pos('Missing project source',string(LabelControl.Caption))>0) then ErrorShown:=True;end;
+      AssertTrue(ErrorShown,'Project-context error was not shown inside '+Panel.Caption);
+     end;
+    finally TFile.WriteAllText(BrokenProject,ProjectBefore);end;
+    Inspector.RefreshFromCurrentEditor;Explorer.HandleFileChanged(ErrorFile,ErrorSource);Log('PASS Inspector/Explorer contain and recover from project-context errors');
+   end
+   else if Action='open-user-guide' then begin
+    var HelpItem:=FindMenuCommand((BorlandIDEServices as INTAServices).MainMenu.Items,'User Guide');AssertTrue(Assigned(HelpItem),'User Guide menu missing');HelpItem.Click;Log('PASS offline User Guide opened from IDE menu');
+   end
+   else if Action='group-xml-applied-checked' then begin
+    var ApprovedSource:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    AssertTrue(ApprovedSource.Contains('XML requires explicit approval'),'Explicit XML apply did not update source');Log('PASS explicit XML Apply writes the approved draft');
+   end
+   else if Action='group-xml-draft-checked' then begin
+    var XmlDraftSource:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    AssertTrue(XmlDraftSource.Contains('Implementation design before XML'),'Design save did not complete');AssertTrue(not XmlDraftSource.Contains('XML requires explicit approval'),'Unapproved XML draft was written');Log('PASS XML draft stays unapplied after Design ACK');
+   end
+   else if Action='group-implementation-checked' then begin
+    var GroupFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var CheckParser:=TDocParser.Create;
+    try CheckParser.ParseSource(EditorSource(SourceEditorForFile(GroupFile)),GroupFile);var Seen:=0;
+     for var E in CheckParser.GetAllElements do if E.Name='FromB' then begin
+      if E.SourceSection='implementation' then AssertTrue(E.ExistingDocXml.Contains('Implementation second'),'Pinned second edit missed implementation')
+      else AssertTrue(E.ExistingDocXml.Contains('GroupB saved before format'),'Pinned implementation edit changed interface declaration');Inc(Seen);
+     end;AssertTrue(Seen=2,'Declaration/implementation pair missing');
+    finally CheckParser.Free;end;
+    Log('PASS pinned implementation ACK retains both source locations after line shifts');
+   end
+   else if Action='group-include' then begin
+    var IncludePath:=TPath.Combine(Root,'GroupB','Features.inc');
+    if Json.GetValue<Boolean>('enabled',True) then TFile.WriteAllText(IncludePath,'{$DEFINE FROM_B}') else TFile.WriteAllText(IncludePath,'{$UNDEF FROM_B}');
+   end
+   else if Action='group-quick-context' then begin
+    var QuickFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var QuickEditor:=SourceEditorForFile(QuickFile);QuickEditor.Show;var QuickSource:=EditorSource(QuickEditor);var Lines:=QuickSource.Split([#10]);
+    var QuickPos:TOTAEditPos;QuickPos.Line:=0;for var I:=0 to High(Lines) do if Lines[I].Contains('Worker.Run(Local)') then begin QuickPos.Line:=I+1;QuickPos.Col:=System.Pos('Run(Local)',Lines[I])+1;Break;end;
+    AssertTrue(QuickPos.Line>0,'Quick documentation call fixture absent');QuickEditor.EditViews[0].SetCursorPos(QuickPos);QuickEditor.EditViews[0].MoveViewToCursor;Inspector.HandleCursorChanged(QuickPos.Line,QuickSource,QuickFile);Browser.ExecuteScript('window.__quickContextReady=true');
+   end
+   else if Action='group-stub' then begin
+    var StubItem:=FindMenuCommand((BorlandIDEServices as INTAServices).MainMenu.Items,'Generate Doc Stub');AssertTrue(Assigned(StubItem),'Stub menu absent');StubItem.Click;
+    var StubSource:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    AssertTrue(StubSource.Contains('<param name="Value">'),'Stub did not document project B parameter');Log('PASS GroupB Generate Stub with owning project');
    end
    else if Action='assert-group-format' then begin
     var GroupFile:=TPath.Combine(Root,'GroupB','ContextB.pas');
@@ -170,7 +226,8 @@ begin
    else if Action='view-system' then begin
     SystemFile:=TPath.Combine(ExtractFileDir(ExcludeTrailingPathDelimiter(ExtractFilePath(GetModuleName(0)))),'source\rtl\sys\System.pas');
     ProtectedBefore:=TFile.ReadAllText(SystemFile);(BorlandIDEServices as IOTAActionServices).OpenFile(SystemFile);
-    Inspector.RefreshFromCurrentEditor;Explorer.HandleFileChanged(SystemFile,EditorSource(SourceEditorForFile(SystemFile)));
+    var SystemEditor:=SourceEditorForFile(SystemFile);AssertTrue(Assigned(SystemEditor),'System source editor missing');SystemEditor.Show;
+    Inspector.HandleCursorChanged(1,EditorSource(SystemEditor),SystemFile);Explorer.HandleFileChanged(SystemFile,EditorSource(SystemEditor));
    end
    else if Action='assert-system' then begin
     AssertTrue(TFile.ReadAllText(SystemFile)=ProtectedBefore,'System.pas disk content changed');
@@ -321,7 +378,7 @@ begin
   0:begin
     var Actions:=(BorlandIDEServices as INTAServices).ActionList;var Found:=False;
     for var ActionIndex:=0 to Actions.ActionCount-1 do if Actions.Actions[ActionIndex].Name='XmlDocActionsyncdocument' then Found:=True;
-    AssertTrue(Found,'Documentation actions are not registered in the IDE action catalog');Log('PASS IDE action registration');
+    AssertTrue(Found,'Documentation actions are not registered in the IDE action catalog');AssertTrue(Assigned(FindMenuCommand((BorlandIDEServices as INTAServices).MainMenu.Items,'User Guide')),'Offline User Guide menu missing');Log('PASS IDE action registration and offline User Guide menu');
     var Shortcuts:=TPluginSettings.Instance.Global.Shortcuts;
     var Conflicts:=DocumentationShortcutConflicts([Shortcuts.ToggleInspector,Shortcuts.GenerateStub,Shortcuts.CoverageReport,Shortcuts.NextUndocumented],['Inspector','Stub','Coverage','Next'],Actions,(BorlandIDEServices as INTAServices).MainMenu.Items);
     for var Conflict in Conflicts do begin

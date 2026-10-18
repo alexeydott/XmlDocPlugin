@@ -42,6 +42,7 @@ type
     FProjectDocs:TProjectDocumentation;
     FEditSessionId:string;
     FPinned:Boolean;
+    FPreferredLocation:string;
     FCurrentFileName: string;
     FDocParser: TDocParser;
     FElements: TArray<TCodeElementInfo>;
@@ -248,7 +249,7 @@ function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
 begin
   try
     ConfigureDeclarationContext(FDocParser,nil,FCurrentFileName);
-    if not FDocParser.IsUpToDate(Source) or (FEditSessionId='') then FEditSessionId:=TGUID.NewGuid.ToString;
+    if not FDocParser.IsUpToDate(Source) or not SameText(FDocParser.SourceFileName,FCurrentFileName) or (FEditSessionId='') then begin FLastSource:='';FEditSessionId:=TGUID.NewGuid.ToString;end;
     FDocParser.ParseSource(Source,FCurrentFileName);
     FParseError:='';
     if Assigned(FBrowserError) then FBrowserError.Visible:=False;
@@ -294,7 +295,12 @@ begin
    try
     LMsgType := LMsg.GetValue<string>('type','');
     if FProjectDocs.Handle(LMsg,FBrowser) then begin
-      if LMsgType='openSymbol' then RefreshFromCurrentEditor;
+      if (LMsgType='openSymbol') or (LMsgType='recoverDraft') then begin
+       var TargetEditor:=SourceEditorForFile(LMsg.GetValue<string>('fileName',''));if Assigned(TargetEditor) then begin
+        FPinned:=False;FBrowser.ExecuteScript('window.bridge.setPinned(false)');FPreferredLocation:=LMsg.GetValue<string>('locationId','');TargetEditor.Show;FLastSource:='';
+        HandleFileChanged(TargetEditor.FileName,EditorSource(TargetEditor));
+       end;
+      end;
       Exit;end;
 
     if LMsgType='pin' then begin FPinned:=LMsg.GetValue<Boolean>('pinned',False);Exit;end;
@@ -311,9 +317,9 @@ begin
       LFullName := LMsg.GetValue<string>('symbolId', '');
       if Assigned(LDocObj) and (LFullName <> '') then
         if SourceEditProtection(FCurrentFileName)<>'' then FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),SourceEditProtection(FCurrentFileName))) else
-        if ValidateEdit(LMsg,FindElementByFullName(LFullName),FCurrentFileName,FEditSessionId,FDocParser.SourceText) then begin
+        begin FPreferredLocation:=LMsg.GetValue<string>('locationId','');if ValidateEdit(LMsg,FindElementByFullName(LFullName),FCurrentFileName,FEditSessionId,FDocParser.SourceText) then begin
           if HandleDocUpdated(LDocObj.ToJSON,LFullName,LMsg.GetValue<string>('editId','')) then FProjectDocs.Acknowledge(LMsg);end
-        else FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),'Source changed — reload before applying'));
+        else FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),'Source changed — reload before applying'));end;
     end
     else if LMsgType = 'jumpToLine' then
     begin
@@ -428,10 +434,10 @@ begin
         Continue;
 
       // FullName 기준 중복 제거 (interface 선언이 implementation보다 먼저 나옴)
-      if LSeen.ContainsKey(FElements[I].SymbolId) then
+      if LSeen.ContainsKey(FElements[I].SymbolId) and (FPreferredLocation<>FElements[I].SymbolId+'@'+FElements[I].SourceSection) then
         Continue;
 
-      LSeen.Add(FElements[I].SymbolId, True);
+      LSeen.AddOrSetValue(FElements[I].SymbolId, True);
 
       // 요소 JSON 파싱 후 doc 필드 추가
       LObj := TJSONObject.ParseJSONValue(BuildElementJson(FElements[I])) as TJSONObject;
@@ -444,8 +450,8 @@ begin
     end;
 
     Result := Format(
-      'window.bridge.receive({"type":"loadTree","data":{"fileName":"%s","elements":%s}});',
-      [TJSONString.Create(ExtractFileName(FCurrentFileName)).Value, LArr.ToJSON]
+      'window.bridge.receive({"type":"loadTree","data":{"fileName":"%s","selectedLocation":"%s","elements":%s}});',
+      [TJSONString.Create(ExtractFileName(FCurrentFileName)).Value,FPreferredLocation,LArr.ToJSON]
     );
   finally
     LSeen.Free;
@@ -475,7 +481,7 @@ begin
 
   for I := 0 to Length(FElements) - 1 do
   begin
-    if FElements[I].SymbolId = AFullName then
+    if (FElements[I].SymbolId = AFullName) and ((FPreferredLocation='') or (FPreferredLocation=FElements[I].SymbolId+'@'+FElements[I].SourceSection)) then
     begin
       Result := FElements[I];
       Exit;
@@ -563,7 +569,8 @@ begin
     Exit;
 
   // 소스가 동일하면 무시
-  ConfigureDeclarationContext(FDocParser,nil,FCurrentFileName);
+  FCurrentFileName:=AFileName;
+  if not ParseEditorSource(ASource) then Exit;
   if SameText(AFileName, FCurrentFileName) and (FLastSource = ASource) and FDocParser.IsUpToDate(ASource) then
     Exit;
 

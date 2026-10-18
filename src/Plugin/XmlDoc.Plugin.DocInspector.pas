@@ -310,7 +310,7 @@ function TDocInspectorForm.ParseEditorSource(const Source:string):Boolean;
 begin
   try
     ConfigureDeclarationContext(FDocParser,nil,FLastFileName);
-    if not FDocParser.IsUpToDate(Source) or (FEditSessionId='') then FEditSessionId:=TGUID.NewGuid.ToString;
+    if not FDocParser.IsUpToDate(Source) or not SameText(FDocParser.SourceFileName,FLastFileName) or (FEditSessionId='') then begin FLastElementName:='';FEditSessionId:=TGUID.NewGuid.ToString;end;
     FDocParser.ParseSource(Source,FLastFileName);
     FParseError:='';
     if Assigned(FBrowserError) then FBrowserError.Visible:=False;
@@ -354,7 +354,12 @@ begin
    try
     LMsgType := LMsg.GetValue<string>('type','');
     if FProjectDocs.Handle(LMsg,FBrowser) then begin
-      if LMsgType='openSymbol' then RefreshFromCurrentEditor;
+      if (LMsgType='openSymbol') or (LMsgType='recoverDraft') then begin
+       var TargetEditor:=SourceEditorForFile(LMsg.GetValue<string>('fileName',''));if Assigned(TargetEditor) then begin
+        FPinned:=False;FBrowser.ExecuteScript('window.bridge.setPinned(false)');FLastElementName:='';TargetEditor.Show;
+        HandleCursorChanged(LMsg.GetValue<Integer>('line',1),EditorSource(TargetEditor),TargetEditor.FileName);
+       end;
+      end;
       Exit;end;
 
     if LMsgType='pin' then begin FPinned:=LMsg.GetValue<Boolean>('pinned',False);Exit;end;
@@ -477,8 +482,8 @@ begin
 
         LElement:=Default(TCodeElementInfo);
         for LElement in FDocParser.GetAllElements do
-          if LElement.SymbolId=FCurrentElement.SymbolId then Break;
-        if LElement.Name <> '' then
+          if (LElement.SymbolId=FCurrentElement.SymbolId) and (LElement.SourceSection=FCurrentElement.SourceSection) then Break;
+        if (LElement.Name <> '') and (LElement.SymbolId=FCurrentElement.SymbolId) and (LElement.SourceSection=FCurrentElement.SourceSection) then
         begin
           FCurrentElement := LElement;
           FLastElementName := LElement.Name;
@@ -598,7 +603,7 @@ begin
 
   if FDocParser.SourceText<>ASource then FLastElementName:='';
   FLastFileName := AFileName;
-  ConfigureDeclarationContext(FDocParser,nil,FLastFileName);
+  if not ParseEditorSource(ASource) then Exit;
   // 소스 변경 시 재파싱
   if not SameText(FDocParser.SourceFileName,AFileName) or not FDocParser.IsUpToDate(ASource) then
     begin FLastElementName:='';if not ParseEditorSource(ASource) then Exit;end;

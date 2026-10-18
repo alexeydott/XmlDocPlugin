@@ -1,5 +1,5 @@
 import { bridge } from './bridge';
-import { analyze, synchronize, modelXml, parseXml, inheritDoc, ready, issueKey, replaceProse, compatibleInheritedMember, wordingMatches, editableXml } from './docTools';
+import { analyze, synchronize, modelXml, parseXml, inheritDoc, ready, issueKey, replaceProse, compatibleInheritedMember, genericArguments, isPublicApi, wordingMatches, editableXml } from './docTools';
 import type { DocModel, ElementInfo, TreeElementInfo } from './types';
 import { escapeXml } from './xmlCodec';
 import { initWorkbenchIcons, setWorkbenchIcon } from './workbenchIcons';
@@ -12,7 +12,7 @@ export function initWorkbench(hooks:Hooks):void {
  <button id="pin-document" aria-pressed="false">Pin</button><button id="compact-document" aria-pressed="false">Compact</button><button id="focus-source">Source</button><button id="reload-document">Reload source</button><button id="recover-drafts">Recover drafts</button>
  <button id="quick-documentation">Quick documentation</button><button id="sync-document">Synchronize signature</button><button id="open-xml">XML</button><button id="format-document">Format</button><button id="fold-documentation">Fold source comments</button><button id="show-problems">Problems</button></div>
  <details><summary>Project workspace</summary><div class="workbench-actions"><select id="catalog-scope" aria-label="Documentation scope"><option value="module">Module</option><option value="project" selected>Project</option><option value="group">Project group</option></select><button id="refresh-catalog">Refresh</button>
- <input id="reference-label" placeholder="Reference display text (optional)" aria-label="Reference display text"><input id="catalog-query" placeholder="Find symbol or documentation" aria-label="Find symbol or documentation"><select id="catalog-filter" aria-label="Documentation filter"><option value="all">All symbols</option><option value="public">Public API</option><option value="missing">No documentation</option><option value="todo">TODO drafts</option><option value="incomplete">Incomplete signature</option><option value="links">Reference problems</option><option value="review">New problems</option></select>
+ <output id="analysis-state" aria-live="polite"></output><button id="cancel-analysis" hidden title="Cancel analysis">Cancel analysis</button><input id="reference-label" placeholder="Reference display text (optional)" aria-label="Reference display text"><input id="catalog-query" placeholder="Find symbol or documentation" aria-label="Find symbol or documentation"><select id="catalog-filter" aria-label="Documentation filter"><option value="all">All symbols</option><option value="public">Public API</option><option value="missing">No documentation</option><option value="todo">TODO drafts</option><option value="incomplete">Incomplete signature</option><option value="links">Reference problems</option><option value="review">New problems</option></select>
  <select id="catalog-kind" aria-label="Symbol kind"><option value="">All kinds</option>${['unit','class','record','interface','method','property','field','type','constant'].map(k=>`<option>${k}</option>`).join('')}</select>
  <button id="next-problem">Next problem</button><button id="save-baseline">Save baseline</button><button id="load-baseline">Load baseline</button><input type="file" id="baseline-file" accept="application/json" hidden></div><div id="catalog-results" role="listbox" aria-label="Project symbols"></div>
  <details><summary>Member summaries</summary><button id="apply-summaries">Preview selected summaries</button><div id="member-summaries"></div></details></details>
@@ -27,15 +27,28 @@ export function initWorkbench(hooks:Hooks):void {
  const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
  const xml=$<HTMLTextAreaElement>('xml-source');
  xml.oninput=()=>{const error=parseXml(xml.value).querySelector('parsererror');$('xml-error').textContent=error?.textContent??'XML is valid';const e=hooks.get().element;if(e)bridge.saveDraft({...hooks.get().doc,rawXml:xml.value,xmlEdited:true});};
- let applyPreview:(()=>void)|null=null;let preview:DocModel|null=null;let baseline=new Set<string>();let publicBaseline: {symbolId:string;name:string;file:string;line:number}[]=[];let history:{projectFile?:string;fileName?:string;symbolId?:string;line?:number}[]=[];let index=-1;let navigating=false;
+ let applyPreview:(()=>void)|null=null;let preview:DocModel|null=null;let baseline=new Set<string>();let publicBaseline: {symbolId:string;name:string;file:string;line:number}[]=[];let history:{projectFile?:string;fileName?:string;symbolId?:string;line?:number;locationId?:string}[]=[];let index=-1;let navigating=false;
  const current=()=>hooks.get();
  const open=(element:ElementInfo)=>{
   if(!element.fileName || !element.symbolId)return;
-  bridge.sendToHost({type:'openSymbol',projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber??1});
+  bridge.sendToHost({type:'openSymbol',locationId:element.locationId,projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber??1});
  };
  const viewXml=(focus=true)=>{
   $('doc-design').classList.add('hidden');$('doc-preview').classList.add('hidden');raw.classList.remove('hidden');
   xml.value=editableXml(current().doc);if(focus)xml.focus();
+ };
+ let recovery:any=null;
+ const showRecovery=()=>{
+  if(!recovery)return;const target=current().element;
+  if(!target || target.fileName!==recovery.fileName || target.locationId!==recovery.locationId || target.sourceRevision!==recovery.currentRevision)return;
+  const data=recovery;recovery=null;const panel=$('documentation-problems');panel.replaceChildren();
+  const heading=document.createElement('h4');heading.textContent='Recover documentation draft';panel.append(heading);
+  const explanation=document.createElement('p');explanation.textContent=data.readOnly?'The source is read-only. The draft can be viewed but cannot be applied.':data.conflict?'Conflict: the source comment changed after this draft was created. Review all three versions before applying.':'The source comment matches the original version. Review the saved draft before applying.';panel.append(explanation);
+  const versions=document.createElement('div');versions.className='draft-comparison';
+  for(const [label,text] of [['Original comment',data.baseXml??'(Original version unavailable)'],['Current source comment',data.currentXml??''],['Saved draft',editableXml(data.doc)]]){const section=document.createElement('section');const title=document.createElement('h5');title.textContent=label;const code=document.createElement('pre');code.textContent=text;section.append(title,code);versions.append(section);}panel.append(versions);
+  const apply=document.createElement('button');apply.textContent=data.conflict?'Apply draft over current comment':'Apply recovered draft';setWorkbenchIcon(apply,'apply-operation');apply.disabled=!!data.readOnly || bridge.readOnly;
+  apply.onclick=()=>{const now=current().element;if(!now || now.fileName!==target.fileName || now.locationId!==target.locationId || now.sessionId!==target.sessionId || now.sourceRevision!==target.sourceRevision){bridge.setStatus('Source changed — recover the draft again');return;}bridge.prepareRecovery(now);hooks.apply(data.doc);panel.replaceChildren();};
+  const cancel=document.createElement('button');cancel.textContent='Keep draft and close';setWorkbenchIcon(cancel,'cancel-operation');cancel.onclick=()=>panel.replaceChildren();panel.append(apply,cancel);
  };
  const review=(doc:DocModel)=>{
   preview=doc;const target=current().element;applyPreview=()=>{if(current().element?.declarationId!==target?.declarationId || current().element?.sourceRevision!==target?.sourceRevision){bridge.setStatus('Source changed — review again');return;}hooks.apply(doc);};$('xml-before').textContent=editableXml(current().doc);$('xml-after').textContent=modelXml(doc);$('operation-preview').hidden=false;
@@ -62,6 +75,7 @@ export function initWorkbench(hooks:Hooks):void {
   const next=document.createElement('button');next.textContent='Preview synchronization';setWorkbenchIcon(next,'preview-change');next.onclick=()=>{try{review(synchronize(c.element!,c.doc,mappings));panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);
   $('documentation-problems').replaceChildren(panel);if(!old.length)next.click();
  };
+ $('cancel-analysis').onclick=()=>bridge.sendToHost({type:'cancelAnalysis'} as any);
  $('quick-documentation').onclick=()=>bridge.sendToHost({type:'requestQuickDoc'} as any);
  $('sync-document').onclick=sync;$('show-problems').onclick=showProblems;$('open-xml').onclick=()=>viewXml();
  $('apply-operation').onclick=()=>{applyPreview?.();applyPreview=null;preview=null;$('operation-preview').hidden=true;};
@@ -79,7 +93,7 @@ export function initWorkbench(hooks:Hooks):void {
  $('focus-source').onclick=()=>{const e=current().element;if(e)open(e);};
  $('recover-drafts').onclick=()=>bridge.sendToHost({type:'listDrafts'} as any);
  $('reload-document').onclick=()=>{bridge.cancelPending();bridge.drafts.clear();bridge.setPinned(false);bridge.sendToHost({type:'requestRefresh'});};
- const move=(delta:number)=>{const next=index+delta;if(next>=0 && next<history.length){index=next;navigating=true;const e=history[index];if(e.fileName && e.symbolId)bridge.sendToHost({type:'openSymbol',projectFile:e.projectFile,fileName:e.fileName,symbolId:e.symbolId,line:e.line??1});}};
+ const move=(delta:number)=>{const next=index+delta;if(next>=0 && next<history.length){index=next;navigating=true;const e=history[index];if(e.fileName && e.symbolId)bridge.sendToHost({type:'openSymbol',locationId:e.locationId,projectFile:e.projectFile,fileName:e.fileName,symbolId:e.symbolId,line:e.line??1});}};
  $('history-back').onclick=()=>move(-1);$('history-forward').onclick=()=>move(1);
  document.addEventListener('keydown',event=>{
   if(event.altKey && ['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();move(event.key==='ArrowLeft'?-1:1);}
@@ -98,7 +112,7 @@ export function initWorkbench(hooks:Hooks):void {
  let queueIndex=-1;
  const renderCatalog=()=>{
   const results=$('catalog-results');results.replaceChildren();
-  for(const old of publicBaseline)if(!catalog.some(e=>e.symbolId===old.symbolId)){const row=document.createElement('div');row.className='documentation-issue';row.textContent=`XD011 Public declaration removed or signature changed: ${old.name}`;results.append(row);}
+  for(const old of publicBaseline)if(!catalog.some(e=>e.symbolId===old.symbolId && isPublicApi(e,catalog))){const row=document.createElement('div');row.className='documentation-issue';row.textContent=`XD011 Public declaration removed or signature changed: ${old.name}`;results.append(row);}
   for(const element of filtered()){
    const row=document.createElement('div');row.className='catalog-row';row.tabIndex=0;row.setAttribute('role','option');
    const button=document.createElement('button');button.textContent=`${element.fileName?.split(/[\\/]/).pop()} · ${element.signature??element.fullName??element.name}`;const caption=document.createElement('span');caption.className='symbol-caption';caption.textContent=button.textContent;row.append(caption);button.title='Open source: '+button.textContent;button.textContent='Open source';setWorkbenchIcon(button,'open-source');button.onclick=()=>open(element);row.append(button);
@@ -139,7 +153,7 @@ export function initWorkbench(hooks:Hooks):void {
  };
  $('save-baseline').onclick=()=>{
   const keys=catalog.flatMap(e=>analyze(e,e.doc,catalog).map(i=>issueKey(e,i)));baseline=new Set(keys);
-  const link=document.createElement('a');const url=URL.createObjectURL(new Blob([JSON.stringify({version:1,issues:keys,symbols:catalog.map(e=>e.symbolId),publicSymbols:catalog.filter(e=>!e.visibility || ['public','published','protected'].includes(e.visibility)).map(e=>({symbolId:e.symbolId,name:e.canonicalName??e.fullName,file:e.fileName,line:e.lineNumber}))},null,2)],{type:'application/json'}));link.href=url;link.download='xmldoc-baseline.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const link=document.createElement('a');const url=URL.createObjectURL(new Blob([JSON.stringify({version:1,issues:keys,symbols:catalog.map(e=>e.symbolId),publicSymbols:catalog.filter(e=>isPublicApi(e,catalog)).map(e=>({symbolId:e.symbolId,name:e.canonicalName??e.fullName,file:e.fileName,line:e.lineNumber}))},null,2)],{type:'application/json'}));link.href=url;link.download='xmldoc-baseline.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
  };
  $('load-baseline').onclick=()=>$<HTMLInputElement>('baseline-file').click();$<HTMLInputElement>('baseline-file').onchange=async()=>{
   try{const file=$<HTMLInputElement>('baseline-file').files?.[0];if(file){const data=JSON.parse(await file.text());if(data.version!==1 || !Array.isArray(data.issues))throw Error('Unsupported baseline');baseline=new Set(data.issues);publicBaseline=data.publicSymbols??[];renderCatalog();}}catch(e){bridge.setStatus(String(e));}
@@ -178,32 +192,35 @@ export function initWorkbench(hooks:Hooks):void {
   const c=current();const container=$('inheritance-sources');container.replaceChildren();if(!c.element)return;
   const effective=catalog.find(e=>e.symbolId===c.element!.symbolId && e.fileName===c.element!.fileName)?.effectiveDoc;
   if(effective?.inheritedFrom){const info=document.createElement('div');info.textContent='Inherited from '+effective.inheritedFrom;container.append(info);for(const section of ['summary','remarks','returns','value'] as const)if(!c.doc[section] && effective[section]){const text=document.createElement('pre');text.textContent=section+': '+effective[section];container.append(text);}}
-  const type=catalog.find(e=>e.name===c.element!.qualifiedParent && e.fileName===c.element!.fileName && ['class','interface'].includes(e.kind));
+  const typeName=(e:ElementInfo)=>(e.qualifiedParent?e.qualifiedParent+'.':'')+e.name+(e.genericParams?.length?'<'+e.genericParams.join(',')+'>':'');
+  const type=catalog.find(e=>typeName(e)===c.element!.qualifiedParent && e.fileName===c.element!.fileName && ['class','interface'].includes(e.kind));
   const ancestors=[type?.ancestor,...(type?.implements??[])].filter(Boolean) as string[];
   for(const ancestor of ancestors){const name=ancestor.replace(/<.*>/,'').split('.').pop();
-   const parents=catalog.filter(e=>e.name===name && ['class','interface'].includes(e.kind));const sameUnit=parents.filter(e=>e.unitName===c.element!.unitName);const candidatesOfType=sameUnit.length?sameUnit:parents;
-   const candidates=catalog.filter(e=>e.qualifiedParent===name && candidatesOfType.some(parent=>parent.fileName===e.fileName && compatibleInheritedMember(c.element!,e,parent,ancestor)));
+   const parents=catalog.filter(e=>e.name===name && (e.genericParams?.length??0)===genericArguments(ancestor).length && ['class','interface'].includes(e.kind));const sameUnit=parents.filter(e=>e.unitName===c.element!.unitName);const candidatesOfType=sameUnit.length?sameUnit:parents;
+   const candidates=catalog.filter(e=>candidatesOfType.some(parent=>e.qualifiedParent===typeName(parent) && parent.fileName===e.fileName && compatibleInheritedMember(c.element!,e,parent,ancestor)));
    for(const source of candidates){const row=document.createElement('div');row.textContent=`Source: ${source.fileName} · ${source.signature}`;const copy=document.createElement('button');copy.textContent='Copy missing sections';setWorkbenchIcon(copy,'copy-documentation');copy.onclick=()=>review(inheritDoc(c.doc,source.doc));const jump=document.createElement('button');jump.textContent='Open source';setWorkbenchIcon(jump,'open-source');jump.onclick=()=>open(source);row.append(copy,jump);container.append(row);}
   }
  };
- (window as any).xmlDocWorkbench={receiveDrafts(data:{drafts:any[]}){
+ (window as any).xmlDocWorkbench={receiveAnalysis(data:{state:string;completed:number;total:number;parsed:number;reused:number}){
+ $('analysis-state').textContent=`Analysis ${data.state}: ${data.completed}/${data.total}; parsed ${data.parsed}, reused ${data.reused}`;$('cancel-analysis').hidden=data.state!=='running';
+ },receiveDrafts(data:{drafts:any[]}){
     const panel=$('documentation-problems');panel.replaceChildren();
     for(const draft of data.drafts){const row=document.createElement('div');const label=document.createElement('span');label.textContent=`${draft.fileName} · ${draft.symbolId} · saved draft`;
-      const recover=document.createElement('button');recover.textContent='Review against current documentation';setWorkbenchIcon(recover,'review-draft');recover.onclick=()=>review(draft.doc);row.append(label,recover);panel.append(row);}
+      const recover=document.createElement('button');recover.textContent='Review against current documentation';setWorkbenchIcon(recover,'review-draft');recover.onclick=()=>{bridge.cancelPending();bridge.sendToHost({type:'recoverDraft',draftId:draft.draftId} as any);};row.append(label,recover);panel.append(row);}
     if(!data.drafts.length)panel.textContent='No recoverable drafts for this project.';
-   },receiveAuthoring(data:any){
+   },receiveRecovery(data:any){recovery=data;},receiveAuthoring(data:any){
     authoring={project:data.project??{},global:data.global??{}};showWording();$<HTMLTextAreaElement>('project-terms').value=(authoring.project.terminology??[]).join('\n');
     (window as any).xmlDocTerminology=[...(authoring.project.terminology??[]),...(authoring.global.terminology??[])];window.dispatchEvent(new CustomEvent('terminologyChanged'));
-   },receiveCatalog(data:{elements:TreeElementInfo[];errors?:string[]}){catalog=data.elements.sort((a,b)=>`${a.unitName}.${a.qualifiedParent}.${a.kind}.${a.signature}`.localeCompare(`${b.unitName}.${b.qualifiedParent}.${b.kind}.${b.signature}`));renderCatalog();inheritance();if(data.errors?.length)bridge.setStatus(data.errors.join('; '));},receiveQuickDoc(data:{query:string;matches:TreeElementInfo[];resolved:boolean}){
+   },receiveCatalog(data:{elements:TreeElementInfo[];errors?:string[]}){catalog=data.elements.sort((a,b)=>`${a.unitName}.${a.qualifiedParent}.${a.kind}.${a.signature}`.localeCompare(`${b.unitName}.${b.qualifiedParent}.${b.kind}.${b.signature}`));renderCatalog();inheritance();if(data.errors?.length)bridge.setStatus(data.errors.join('; '));},receiveQuickDoc(data:{query:string;matches:TreeElementInfo[];resolved:boolean;reason?:string}){
    const panel=$('documentation-problems');panel.replaceChildren();
-   const heading=document.createElement('strong');heading.textContent=data.resolved?'Quick documentation':`Choose a declaration for ${data.query}`;panel.append(heading);
+   const heading=document.createElement('strong');heading.textContent=data.resolved?'Quick documentation':`Choose a declaration for ${data.query}`;panel.append(heading);if(data.reason){const reason=document.createElement("p");reason.textContent=data.reason;panel.append(reason);}
    for(const e of data.matches){const row=document.createElement('div');const title=document.createElement('button');title.textContent=e.signature??e.name;const caption=document.createElement('span');caption.textContent=title.textContent;row.append(caption);title.title='Open source: '+title.textContent;title.textContent='Open source';setWorkbenchIcon(title,'open-source');title.onclick=()=>open(e);const prose=document.createElement('pre');prose.textContent=e.doc.summary+'\n'+(e.doc.params??[]).map(p=>p.name+': '+p.description).join('\n')+'\n'+(e.doc.returns??'');row.append(title,prose);panel.append(row);}
    if(!data.matches.length)panel.append(document.createTextNode('The symbol at the cursor could not be resolved. Use the project symbol picker.'));
   },receiveSelection(code:string){const doc=current().doc;review({...doc,examples:[...(doc.examples??[]),{title:'Selected source',description:'',code}]});}};
  window.addEventListener('documentationLoaded',(event)=>{
   const {element,doc}=(event as CustomEvent).detail;
-  if(element){const last=history[index];if(!navigating && (last?.symbolId!==element.symbolId || last?.fileName!==element.fileName)){history=history.slice(0,index+1);history.push({projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber});index=history.length-1;}navigating=false;}
-  xml.value=editableXml(doc);$('xml-error').textContent=doc.parseError??'';if(doc.parseError || doc.xmlEdited)viewXml(false);showProblems();inheritance();showWording();spell();
+  if(element){const last=history[index];if(!navigating && (last?.symbolId!==element.symbolId || last?.fileName!==element.fileName || last?.locationId!==element.locationId)){history=history.slice(0,index+1);history.push({locationId:element.locationId,projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber});index=history.length-1;}navigating=false;}
+  xml.value=editableXml(doc);$('xml-error').textContent=doc.parseError??'';if(doc.parseError || doc.xmlEdited)viewXml(false);showProblems();inheritance();showWording();spell();showRecovery();
   bridge.sendToHost({type:'loadAuthoring'} as any);
   const revision=element?.fileName+'|'+element?.sourceRevision;if(revision!==catalogRevision){catalogRevision=revision;refresh();}
  });

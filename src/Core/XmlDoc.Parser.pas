@@ -27,8 +27,8 @@ type
     FSourceLines: TArray<string>;
     FOnResolveDeclaration: TResolveDeclarationEvent;
     FSourceFileName,FPlatform:string;
-    FSearchPaths,FSourceFiles,FDefines:TArray<string>;
-    FSnapshots:TArray<TSourceSnapshot>;
+    FSearchPaths,FSourceFiles,FDefines,FDependencyFiles:TArray<string>;
+    FSnapshots,FDependencySnapshots:TArray<TSourceSnapshot>;
     FHasDeclared:Boolean;
     procedure SetPlatform(const Value:string);
     procedure SetSnapshots(const Value:TArray<TSourceSnapshot>);
@@ -80,6 +80,9 @@ type
     property Defines:TArray<string> read FDefines write SetDefines;
     property SearchPaths:TArray<string> read FSearchPaths write SetSearchPaths;
     property SourceFiles:TArray<string> read FSourceFiles write SetSourceFiles;
+    function BindingType(const Name:string;Line:Integer):string;
+    property DependencySnapshots:TArray<TSourceSnapshot> read FDependencySnapshots;
+    property DependencyFiles:TArray<string> read FDependencyFiles;
     property RootNode: TSyntaxNode read FRootNode;
 
     /// <summary>마지막으로 파싱한 소스 텍스트</summary>
@@ -145,6 +148,7 @@ type
     FLoaded:TObjectDictionary<string,TSyntaxNode>;
     FLoading:TDictionary<string,Boolean>;
     FLocated:TDictionary<string,string>;
+    FReadFiles:TDictionary<string,string>;
     FPaths,FFiles,FDefines:TArray<string>;
     FSnapshots:TDictionary<string,string>;
     FRTLRoot,FPlatform:string;
@@ -286,7 +290,7 @@ begin
   FPaths:=Copy(Paths);FFiles:=Copy(Files);FDefines:=Copy(Defines);
   FLoaded:=TObjectDictionary<string,TSyntaxNode>.Create([doOwnsValues]);
   FLoading:=TDictionary<string,Boolean>.Create;
-  FLocated:=TDictionary<string,string>.Create;
+  FLocated:=TDictionary<string,string>.Create;FReadFiles:=TDictionary<string,string>.Create;
   FSnapshots:=TDictionary<string,string>.Create;
   for Snapshot in Snapshots do FSnapshots.AddOrSetValue(PathKey(Snapshot.FileName),Snapshot.Source);
   Registry:=TRegistry.Create(KEY_READ);
@@ -313,7 +317,7 @@ begin
 end;
 
 destructor TDeclarationSession.Destroy;
-begin FSnapshots.Free;FLocated.Free;FLoading.Free;FLoaded.Free;inherited;end;
+begin FReadFiles.Free;FSnapshots.Free;FLocated.Free;FLoading.Free;FLoaded.Free;inherited;end;
 
 function TDeclarationSession.LocateUnit(const Name,ExplicitPath,FromFile:string):string;
 var Candidate,Dir,FileName,Scope:string;Matches:TArray<string>;
@@ -378,7 +382,7 @@ begin
     if not FParents.TryGetValue(PathKey(Current),Current) then Break;
   end;
   if Parent<>'' then FParents.AddOrSetValue(PathKey(FileName),Parent);
-  if not FSession.FSnapshots.TryGetValue(PathKey(FileName),Content) then Content:=ReadSourceFile(FileName);Content:=FSession.PrepareSource(Content,FileName);Result:=True;
+  if not FSession.FSnapshots.TryGetValue(PathKey(FileName),Content) then Content:=ReadSourceFile(FileName);FSession.FReadFiles.AddOrSetValue(FileName,Content);Content:=FSession.PrepareSource(Content,FileName);Result:=True;
 end;
 
 function TDeclarationSession.NativeRTLSize(const Match:TMatch):string;
@@ -432,6 +436,7 @@ begin
     for Define in FDefines do Builder.Lexer.Lexer.AddDefine(Define);
     Builder.Lexer.Lexer.IncludeHandler:=TResolutionIncludes.Create(Self,FileName);
     if not FSnapshots.TryGetValue(PathKey(FileName),Source) then Source:=ReadSourceFile(FileName);
+    FReadFiles.AddOrSetValue(FileName,Source);
     // RTL uses target-native built-in sizes in conditionals. Keep unsupported
     // expressions intact so the lexer reports them instead of guessing a branch.
     Source:=PrepareSource(Source,FileName);
@@ -627,6 +632,7 @@ begin
     function(const ALeft, ARight: TSyntaxNode): Integer
     begin
       Result := ALeft.Line - ARight.Line;
+      if Result=0 then Result:=ALeft.Col-ARight.Col;
     end
   ));
 end;
@@ -827,6 +833,8 @@ begin
         LTypeNode := LChild.FindNode(ntType);
         if Assigned(LTypeNode) then
           LParam.TypeName := SyntaxTypeName(LTypeNode);
+
+        LExprNode:=LChild.FindNode(ntExpression);LParam.HasDefault:=Assigned(LExprNode);
 
         // const/var/out
         LKind := LowerCase(LChild.GetAttribute(anKind));
@@ -1068,6 +1076,11 @@ var
 begin
   Result := Default(TCodeElementInfo);
   Result.LineNumber := ANode.Line;
+  LTypeNode:=ANode;Result.SourceSection:='interface';
+  while Assigned(LTypeNode) do begin
+    if LTypeNode.Typ=ntImplementation then begin Result.SourceSection:='implementation';Break;end;
+    LTypeNode:=LTypeNode.ParentNode;
+  end;
   Result.CommentStartLine := -1;
   Result.CommentEndLine := -1;
 
@@ -1225,6 +1238,34 @@ begin
   end;
 end;
 
+function TDocParser.BindingType(const Name:string;Line:Integer):string;
+var Scope,Declaration,N:TSyntaxNode;BestLine:Integer;
+ function ContainsLine(Node:TSyntaxNode):Boolean;
+ begin Result:=(Node.Line<=Line) and (not (Node is TCompoundSyntaxNode) or (TCompoundSyntaxNode(Node).EndLine>=Line));end;
+ procedure FindScope(Node:TSyntaxNode);
+ begin
+  if not Assigned(Node) or not ContainsLine(Node) then Exit;
+  if Node.Typ=ntMethod then Scope:=Node;
+  for var Child in Node.ChildNodes do FindScope(Child);
+ end;
+ procedure InlineBindings(Node:TSyntaxNode);
+ begin
+  if (Node.Typ=ntMethod) and (Node<>Scope) then Exit;
+  if not ContainsLine(Node) then Exit;
+  if (Node.Typ=ntVariable) and SameText(DeclarationName(Node),Name) and (Node.Line>=BestLine) then begin Declaration:=Node;BestLine:=Node.Line;end;
+  for var Child in Node.ChildNodes do InlineBindings(Child);
+ end;
+begin
+ Result:='';Scope:=FRootNode;FindScope(FRootNode);
+ if SameText(Name,'Self') and Assigned(Scope) and (Scope.Typ=ntMethod) then Exit(NodeToElementInfo(Scope).QualifiedParent);
+ Declaration:=FindDeclaration(Scope,Name);BestLine:=0;InlineBindings(Scope);
+ while not Assigned(Declaration) and Assigned(Scope) do begin Scope:=Scope.ParentNode;Declaration:=FindDeclaration(Scope,Name);end;
+ if not Assigned(Declaration) then Exit;
+ if Declaration.Typ=ntTypeDecl then Exit(DeclarationName(Declaration));
+ N:=Declaration.FindNode(ntType);if not Assigned(N) and (Declaration.Typ in [ntName,ntVariable]) and Assigned(Declaration.ParentNode) then N:=Declaration.ParentNode.FindNode(ntType);
+ Result:=SyntaxTypeName(N);
+end;
+
 procedure TDocParser.ParseSource(const ASource: string; const AFileName:string);
 var
   LStream: TStringStream;
@@ -1277,6 +1318,8 @@ begin
     end;
   finally
     LStream.Free;
+    FDependencyFiles:=Session.FReadFiles.Keys.ToArray;SetLength(FDependencySnapshots,Length(FDependencyFiles));
+    for var DependencyIndex:=0 to High(FDependencyFiles) do begin FDependencySnapshots[DependencyIndex].FileName:=FDependencyFiles[DependencyIndex];FDependencySnapshots[DependencyIndex].Source:=Session.FReadFiles[FDependencyFiles[DependencyIndex]];end;
     Session.Free;
   end;
 

@@ -9,7 +9,7 @@
   await pause(300);
   assert(document.querySelector('#workbench'),'Documentation tools missing');
   const iconButtons=document.querySelectorAll('#workbench button[id].workbench-icon');
-  assert(iconButtons.length===26,'Documentation tool icons are missing');
+  assert(iconButtons.length===27,'Documentation tool icons are missing');
   for(const button of iconButtons){
    assert(button.querySelector('svg[aria-hidden="true"]'),'Tool must use an inline SVG: '+button.id);
    assert(button.title && button.getAttribute('aria-label'),'Tool needs a hint and accessible name: '+button.id);

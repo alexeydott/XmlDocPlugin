@@ -129,7 +129,7 @@ export function genericArguments(name:string):string[]{
 export function compatibleInheritedMember(target:ElementInfo,source:ElementInfo,parent:ElementInfo,ancestor:string):boolean {
  if(target.name.toLowerCase()!==source.name.toLowerCase() || target.kind!==source.kind || target.params.length!==source.params.length)return false;
  const args=genericArguments(ancestor);const substitute=(type:string)=>{
-  let result=type;for(let i=0;i<(parent.genericParams?.length??0);i++)if(args[i]){const name=parent.genericParams![i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&');result=result.replace(new RegExp('\\b'+name+'\\b','gi'),args[i]);}return result.toLowerCase().replace(/\s+/g,'');
+  const names=parent.genericParams??[];return type.replace(/[\p{L}_][\p{L}\p{N}_]*/gu,token=>{const i=names.findIndex(n=>n.toLowerCase()===token.toLowerCase());return i>=0 && args[i] ? args[i] : token;}).toLowerCase().replace(/\s+/g,'');
  };
  if((target.returnType??'').toLowerCase().replace(/\s+/g,'')!==substitute(source.returnType??''))return false;
  if(parent.kind && parent.kind!=='interface' && target.kind==='method' && (target.isReintroduce || (target.methodBinding!==undefined && target.methodBinding!=='override')))return false;
@@ -157,4 +157,15 @@ export function sameDocContent(a:DocModel,b:DocModel):boolean {
  const normalize=(v:any):any=>Array.isArray(v)?v.map(normalize):v && typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>v[k]!==undefined && v[k]!=='' && !(Array.isArray(v[k])&&!v[k].length)).map(k=>[k,normalize(v[k])])):v;
  const content=(doc:DocModel)=>Object.fromEntries(['summary','remarks','returns','value','params','typeParams','exceptions','examples','seeAlso'].map(k=>[k,(doc as any)[k]]));
  return JSON.stringify(normalize(content(a)))===JSON.stringify(normalize(content(b)));
+}
+
+export function isPublicApi(element:ElementInfo,catalog:ElementInfo[]):boolean {
+ const accessible=(e:ElementInfo)=>!e.visibility || ['public','published','protected'].includes(e.visibility.toLowerCase());
+ if(!accessible(element) || element.locationId?.endsWith('@implementation'))return false;
+ let owner=element.qualifiedParent;const visited=new Set<string>();
+ while(owner){if(visited.has(owner))return false;visited.add(owner);
+  const parent=catalog.find(e=>e.fileName===element.fileName && ['class','record','interface','type'].includes(e.kind) && ((e.qualifiedParent?e.qualifiedParent+'.':'')+e.name+(e.genericParams?.length?'<'+e.genericParams.join(',')+'>':''))===owner);
+  if(!parent)break;if(!accessible(parent))return false;owner=parent.qualifiedParent;
+ }
+ return true;
 }

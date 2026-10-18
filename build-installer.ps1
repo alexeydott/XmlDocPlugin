@@ -11,7 +11,8 @@ $OutputDir = [IO.Path]::GetFullPath($OutputDir)
 $Version = & (Join-Path $PSScriptRoot 'build-version.ps1') -Version $Version -IncrementVersion:$IncrementVersion
 # Only the final EXE goes into OutputDir. All staging, DCPs and hashes stay outside Git.
 $workDir = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Installer'
-$stage = Join-Path $workDir 'payload'
+# A fresh staging directory prevents obsolete resources entering a new installer.
+$stage = Join-Path $workDir ('payload-' + [guid]::NewGuid().ToString('N'))
 $retiredPayload = [IO.Path]::GetFullPath((Join-Path $stage 'rad12-x64'))
 if (!$retiredPayload.StartsWith([IO.Path]::GetFullPath($workDir) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid retired payload path' }
 if (Test-Path -LiteralPath $retiredPayload) { Remove-Item -LiteralPath $retiredPayload -Recurse -Force }
@@ -25,6 +26,8 @@ foreach ($root in @($Rad12, $Rad13)) {
 if (!(Test-Path -LiteralPath $ISCC)) { throw "Inno Setup compiler not found: $ISCC" }
 Push-Location $PSScriptRoot
 try {
+    & .\build-help.ps1 -OutputDir (Join-Path $stage 'help')
+    if (!$?) { throw 'Offline user guide generation failed' }
     # Build the bundled editor, resources and Win32 package first.
     & .\build-delphi12.ps1 -Bds $Rad12 -OutputDir (Join-Path $stage 'rad12-x86') -DcpOutputDir (Join-Path $workDir 'intermediate\rad12-x86')
     if (!$?) { throw 'RAD Studio 12 build failed' }
@@ -79,6 +82,7 @@ try {
     $productVersion = '{0}.{1}.{2}.{3}' -f $info.ProductMajorPart,$info.ProductMinorPart,$info.ProductBuildPart,$info.ProductPrivatePart
     if ($productVersion -ne $Version) { throw "Installer product version mismatch: $productVersion instead of $Version" }
     (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash | Set-Content (Join-Path $workDir 'XmlDocPlugin-Setup.exe.sha256') -Encoding ASCII
+    [IO.File]::WriteAllText((Join-Path $workDir 'current-payload.txt'), $stage, [Text.UTF8Encoding]::new($false))
 
     Write-Host "Installer: $installer (FileVersion $fileVersion)"
 } finally { Pop-Location }

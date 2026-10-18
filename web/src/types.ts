@@ -24,6 +24,7 @@ export interface ElementInfo {
   symbolId?: string;
   canonicalName?:string;
   unitName?:string;
+  locationId?:string;
   declarationId?:string;
   sessionId?: string;
   sourceRevision?: string;
@@ -116,7 +117,7 @@ export type OutboundMessage =
   | { type: 'pin'; pinned:boolean }
   | { type:'requestRefresh' }
   | { type:'requestCatalog'; scope:'module'|'project'|'group' }
-  | { type:'openSymbol'; fileName:string; symbolId:string; line:number;projectFile?:string }
+  | { type:'openSymbol'; locationId?:string; fileName:string; symbolId:string; line:number;projectFile?:string }
   | { type:'copySelection' }
   | { type: 'sectionStateChanged'; sections: Record<string, boolean> }
   | ({ type: 'docUpdated'; doc: DocModel; editId?:string } & Pick<ElementInfo, 'fileName' | 'symbolId' | 'declarationId' | 'sessionId' | 'sourceRevision'>)

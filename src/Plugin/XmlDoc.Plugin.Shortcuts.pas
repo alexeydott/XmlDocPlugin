@@ -44,6 +44,7 @@ type
     procedure Notification(AComponent:TComponent;Operation:TOperation);override;
     procedure OnCommand(Sender:TObject);
     procedure OnAboutClick(Sender: TObject);
+    procedure OnUserGuideClick(Sender:TObject);
     procedure OnCoverageReportClick(Sender: TObject);
     procedure OnDocumentMenuClick(Sender: TObject);
     procedure OnGenerateHelpClick(Sender: TObject);
@@ -111,7 +112,7 @@ procedure SetSettingsCallback(ACallback: TProc);
 implementation
 
 uses
-  XmlDoc.Plugin.AboutDialog;
+  XmlDoc.Plugin.AboutDialog,Winapi.Windows,Winapi.ShellAPI,System.IOUtils;
 
 var
   GDocumentationCommand:TProc<string>;
@@ -497,6 +498,9 @@ begin
   LXmlDocMenu.Add(LItem);
   FMenuItems.Add(LItem);
 
+  LItem:=TMenuItem.Create(Self);LItem.Caption:='User Guide';LItem.Hint:='Open the offline illustrated user guide';
+  LItem.OnClick:=OnUserGuideClick;LXmlDocMenu.Add(LItem);FMenuItems.Add(LItem);
+
   // About...
   LItem := TMenuItem.Create(Self);
   LItem.Caption := 'About...';
@@ -583,6 +587,15 @@ begin
 
   FMenuItems.Clear;
   while FCommandActions.Count>0 do TAction(FCommandActions[FCommandActions.Count-1]).Free;FCommandActions.Clear;
+end;
+
+procedure TXmlDocMenuIntegration.OnUserGuideClick(Sender:TObject);
+var GuidePath:string;
+begin
+ GuidePath:=TPath.GetFullPath(TPath.Combine(ExtractFilePath(GetModuleName(HInstance)),'..\help\index.html'));
+ if not TFile.Exists(GuidePath) then GuidePath:=TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'),'XmlDocPlugin\Help\index.html');
+ if not TFile.Exists(GuidePath) then raise Exception.Create('Offline user guide is missing. Reinstall XmlDocPlugin or run build-help.ps1.');
+ if NativeInt(ShellExecute(0,'open',PChar(GuidePath),nil,nil,SW_SHOWNORMAL))<=32 then raise Exception.Create('Cannot open the offline user guide.');
 end;
 
 procedure TXmlDocMenuIntegration.OnAboutClick(Sender: TObject);

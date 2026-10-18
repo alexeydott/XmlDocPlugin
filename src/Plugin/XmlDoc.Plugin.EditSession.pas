@@ -11,7 +11,7 @@ procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const F
 function ValidateEdit(Message:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string):Boolean;
 function EditResult(const SessionId,Status:string;const EditId:string=''):string;
 implementation
-uses XmlDoc.SourceAccess,System.Classes,System.Hash,System.Generics.Collections,XmlDoc.SourceText;
+uses XmlDoc.SourceAccess,System.Classes,System.Hash,System.Generics.Collections,XmlDoc.SourceText,XmlDoc.Plugin.DeclarationContext;
 function ParseHostMessage(const Text:string):TJSONObject;
 var Value:TJSONValue;
 begin
@@ -72,6 +72,9 @@ function SourceRevision(const Source:string):string;
 begin Result:=THashSHA2.GetHashString(Source);end;
 procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string);
 begin
+ var Project:=DocumentationProjectForFile(FileName);
+ if Assigned(Project) then Json.AddPair('projectFile',Project.FileName);
+ Json.AddPair('locationId',Element.SymbolId+'@'+Element.SourceSection);
  Json.AddPair('readOnly',TJSONBool.Create(SourceEditProtection(FileName)<>''));
  Json.AddPair('readOnlyReason',SourceEditProtection(FileName));
  Json.AddPair('declarationId',Element.SymbolId+'@'+IntToStr(Element.LineNumber));

@@ -6,6 +6,7 @@ type
  private
   FIssues:TList<TDocIssue>;
   FSymbols:TList<TCodeElementInfo>;
+  FPublicSymbols:TDictionary<string,Boolean>;
  public
   constructor Create;
   destructor Destroy;override;
@@ -21,23 +22,27 @@ function IssueKey(const Issue:TDocIssue):string;
 var Key:TJSONArray;
 begin Key:=TJSONArray.Create;try Key.Add(Issue.SymbolId);Key.Add(Issue.Code);if Issue.Code='XD001' then Key.Add('Invalid XML') else Key.Add(Issue.Message);Result:=Key.ToJSON;finally Key.Free;end;end;
 constructor TDocumentationReport.Create;
-begin inherited;FIssues:=TList<TDocIssue>.Create;FSymbols:=TList<TCodeElementInfo>.Create;end;
+begin inherited;FIssues:=TList<TDocIssue>.Create;FSymbols:=TList<TCodeElementInfo>.Create;FPublicSymbols:=TDictionary<string,Boolean>.Create;end;
 destructor TDocumentationReport.Destroy;
-begin FSymbols.Free;FIssues.Free;inherited;end;
+begin FPublicSymbols.Free;FSymbols.Free;FIssues.Free;inherited;end;
 procedure TDocumentationReport.Analyze(Units:TObjectList<TUnitDocInfo>;const ProjectDir:string);
 var U:TUnitDocInfo;T:TTypeDocInfo;E:TElementDocInfo;
- procedure AddType(Typ:TTypeDocInfo);
+ function Accessible(const E:TCodeElementInfo):Boolean;
+ begin Result:=(E.Visibility='') or SameText(E.Visibility,'public') or SameText(E.Visibility,'published') or SameText(E.Visibility,'protected');end;
+ procedure AddSymbol(const E:TCodeElementInfo;ParentAccessible:Boolean);
+ begin FSymbols.Add(E);if ParentAccessible and Accessible(E) then FPublicSymbols.AddOrSetValue(E.SymbolId,True);end;
+ procedure AddType(Typ:TTypeDocInfo;ParentAccessible:Boolean);
  var M:TElementDocInfo;N:TTypeDocInfo;
- begin FSymbols.Add(Typ.CodeElement);for M in Typ.Members do FSymbols.Add(M.CodeElement);for N in Typ.NestedTypes do AddType(N);end;
+ begin AddSymbol(Typ.CodeElement,ParentAccessible);ParentAccessible:=ParentAccessible and Accessible(Typ.CodeElement);for M in Typ.Members do AddSymbol(M.CodeElement,ParentAccessible);for N in Typ.NestedTypes do AddType(N,ParentAccessible);end;
  procedure Check(const Code:TCodeElementInfo;Model:TXmlDocModel);
  begin FIssues.AddRange(TDocumentation.Analyze(Code,Model,FSymbols.ToArray,ProjectDir));end;
  procedure CheckType(Typ:TTypeDocInfo);
  var M:TElementDocInfo;N:TTypeDocInfo;
  begin Check(Typ.CodeElement,Typ.Doc);for M in Typ.Members do Check(M.CodeElement,M.Doc);for N in Typ.NestedTypes do CheckType(N);end;
 begin
- FIssues.Clear;FSymbols.Clear;
- for U in Units do begin FSymbols.Add(U.UnitElement);for T in U.Types do AddType(T);
-  for E in U.StandaloneMethods do FSymbols.Add(E.CodeElement);for E in U.Constants do FSymbols.Add(E.CodeElement);for E in U.Variables do FSymbols.Add(E.CodeElement);end;
+ FIssues.Clear;FSymbols.Clear;FPublicSymbols.Clear;
+ for U in Units do begin AddSymbol(U.UnitElement,True);for T in U.Types do AddType(T,True);
+  for E in U.StandaloneMethods do AddSymbol(E.CodeElement,True);for E in U.Constants do AddSymbol(E.CodeElement,True);for E in U.Variables do AddSymbol(E.CodeElement,True);end;
  for U in Units do begin Check(U.UnitElement,U.UnitDoc);for T in U.Types do CheckType(T);
   for E in U.StandaloneMethods do Check(E.CodeElement,E.Doc);for E in U.Constants do Check(E.CodeElement,E.Doc);for E in U.Variables do Check(E.CodeElement,E.Doc);end;
 end;
@@ -57,7 +62,7 @@ var Root:TJSONObject;Items,Symbols,PublicSymbols:TJSONArray;Issue:TDocIssue;E:TC
 begin
  Root:=TJSONObject.Create;Items:=TJSONArray.Create;Symbols:=TJSONArray.Create;Root.AddPair('version',TJSONNumber.Create(1));Root.AddPair('issues',Items);Root.AddPair('symbols',Symbols);PublicSymbols:=TJSONArray.Create;Root.AddPair('publicSymbols',PublicSymbols);
  try for Issue in FIssues do Items.Add(IssueKey(Issue));for E in FSymbols do begin Symbols.Add(E.SymbolId);
-  if (E.Visibility='') or SameText(E.Visibility,'public') or SameText(E.Visibility,'published') or SameText(E.Visibility,'protected') then begin
+  if FPublicSymbols.ContainsKey(E.SymbolId) then begin
    Item:=TJSONObject.Create;Item.AddPair('symbolId',E.SymbolId);Item.AddPair('name',E.CanonicalName);Item.AddPair('file',E.FileName);Item.AddPair('line',TJSONNumber.Create(E.LineNumber));PublicSymbols.AddElement(Item);
   end;
  end;WriteJson(FileName,Root);finally Root.Free;end;
@@ -74,7 +79,7 @@ begin
    for Value in Items do Known.AddOrSetValue(Value.Value,True);
    if Root.TryGetValue<TJSONArray>('publicSymbols',PublicSymbols) then for Value in PublicSymbols do begin
     Item:=Value as TJSONObject;Found:=False;
-    for E in FSymbols do if E.SymbolId=Item.GetValue<string>('symbolId','') then begin Found:=True;Break;end;
+    Found:=FPublicSymbols.ContainsKey(Item.GetValue<string>('symbolId',''));
     if not Found then begin
      Issue:=Default(TDocIssue);Issue.Code:='XD011';Issue.SymbolId:=Item.GetValue<string>('symbolId','');
      Issue.Message:='Public declaration removed or signature changed: '+Item.GetValue<string>('name',Issue.SymbolId);

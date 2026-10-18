@@ -83,3 +83,14 @@ test('nested XML attributes survive prose edits and table cells keep paragraphs'
  assert.match(html,/<td><p>First<\/p><p>Second<\/p><\/td>/);assert.ok(!html.startsWith('<p><table'));
  assert.match(textToHtml('<code language="pascal">Code;</code>'),/data-xml=/);
 });
+
+test('generic substitutions use original tokens rather than cascading mapped arguments',()=>{
+ const {compatibleInheritedMember}=load('docTools.ts');
+ assert.equal(compatibleInheritedMember({kind:'method',name:'Run',params:[{name:'V',type:'U'}],returnType:'U'}, {kind:'method',name:'Run',params:[{name:'V',type:'T'}],returnType:'T'}, {genericParams:['T','U']},'TBase<U,Integer>'),true);
+ assert.equal(compatibleInheritedMember({kind:'method',name:'Run',params:[],returnType:'U'}, {kind:'method',name:'Run',params:[],returnType:'Тип'}, {genericParams:['Тип','U']},'TBase<U,Integer>'),true);
+});
+
+test('public API comparison excludes private members, hidden containing types and implementations',()=>{
+ const {isPublicApi}=load('docTools.ts');const outer={kind:'class',name:'Outer',fileName:'A.pas',params:[],visibility:'private',genericParams:['T']};const inner={kind:'class',name:'Inner',qualifiedParent:'Outer<T>',fileName:'A.pas',params:[],visibility:'public'};const method={kind:'method',name:'Run',qualifiedParent:'Outer<T>.Inner',fileName:'A.pas',params:[],visibility:'public'};
+ assert.equal(isPublicApi(method,[outer,inner,method]),false);assert.equal(isPublicApi({...method,qualifiedParent:undefined,visibility:'private'},[]),false);assert.equal(isPublicApi({...method,qualifiedParent:undefined,locationId:'run@implementation'},[]),false);assert.equal(isPublicApi({...method,qualifiedParent:undefined},[]),true);
+});

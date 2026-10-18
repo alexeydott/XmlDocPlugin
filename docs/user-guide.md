@@ -1,12 +1,10 @@
 # XmlDocPlugin user guide
 
-XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API reference documentation from the same source comments. This guide uses the runnable [XmlDocE2E project](../tests/e2e/DocumentationWorkbench/XmlDocE2E.dproj) throughout.
-
-The screenshots show the actual bundled editor populated with declarations and comments exported from XmlDocE2E. They are editor views captured in a browser, without an IDE window. The IDE supplies source navigation, persistence and project analysis when you use the plugin normally; those services are not demonstrated by these browser captures. Colors and sizing follow the host IDE theme and display settings.
+XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API reference documentation from the same source comments.
 
 ## Contents
 
-- [Install and open the sample](#install-and-open-the-sample)
+- [Install and open the editor](#install-and-open-the-editor)
 - [How editing works](#how-editing-works)
 - [Write and review a comment](#write-and-review-a-comment)
 - [Documentation tools](#documentation-tools)
@@ -22,24 +20,13 @@ The screenshots show the actual bundled editor populated with declarations and c
 - [Use the command line](#use-the-command-line)
 - [Troubleshooting](#troubleshooting)
 
-## Install and open the sample
+## Install and open the editor
 
 1. Download [XmlDocPlugin-Setup.exe](https://github.com/alexeydott/XmlDocPlugin/releases/latest/download/XmlDocPlugin-Setup.exe), close RAD Studio, and run Setup. Choose the detected IDE installations. Supported IDEs are RAD Studio 12 (32-bit) and RAD Studio 13 (32-bit and 64-bit).
 2. Allow installation of Microsoft Edge WebView2 Runtime if requested. Declining cancels installation.
-3. Copy the entire `tests/e2e/DocumentationWorkbench` directory to a writable working directory. Keep `Units`, `Examples` and `Resources` together. Use this copy for the exercises so the repository fixture stays unchanged.
-4. Open `XmlDocE2E.dproj`. Open `Units/Workbench.Sample.pas` and put the caret on a declaration.
-5. Use **Document → Doc Inspector**. For a unit-wide tree, open **Documentation Explorer**. Use the menu labels or action hints rather than assuming a particular shortcut: assignments are configurable and may conflict with other IDE extensions.
-
-| Sample declaration | What to try |
-| --- | --- |
-| `Workbench.Sample` unit declaration | Edit module-level Summary and Remarks. |
-| `TDocumented.RenameScenario` | Map `OldName` to `NewName`, document `Options` and the Boolean result. |
-| `TDocumented.Run(Integer)` | Examine inheritance from the base class and interface. |
-| `TDocumented.Run(const string)` | Inspect rich text, references, a linked example and a project image. |
-| `TDocumented.BrokenDocumentation` | Repair malformed XML without losing its original text. |
-| `UndocumentedFirst`, `UndocumentedSecond` | Generate stubs and practice summary editing and coverage checks. |
-
-The fixture intentionally contains incomplete and malformed documentation. A successful build does not mean every documentation check should pass before you finish these exercises.
+3. Open your Delphi project and a source unit, then put the caret on the declaration you want to document.
+4. Use **Document → Doc Inspector**. For a unit-wide tree, open **Documentation Explorer**. Shortcuts are configurable; use the menu labels or action hints to find the assigned keys.
+5. Open this guide from **Document → User Guide** whenever you need instructions.
 
 ## How editing works
 
@@ -49,15 +36,15 @@ The editor updates the IDE source buffer after a short pause. **Applied** means 
 
 An edit is associated with its file, declaration, session and source revision. If source changes underneath an operation, the plugin rejects a stale write instead of applying it to another declaration. Reload the source and review the draft again. A preview is not an accepted edit: use **Apply changes** only after checking it.
 
-Read-only files, read-only IDE buffers and sources under installed RAD Studio source directories are view-only. Navigation and inspection remain available; documentation changes, stubs and batch writes are blocked. Copy any sample you want to modify into your own writable project rather than editing RTL/VCL source.
+Read-only files, read-only IDE buffers and sources under installed RAD Studio source directories are view-only. Navigation and inspection remain available; documentation changes, stubs and batch writes are blocked. Use a writable project source file when editing documentation.
 
 ## Write and review a comment
 
 ![Inspector with the RenameScenario documentation and diagnostics](assets/user-guide/inspector.png)
 
-*XmlDocE2E: the unfinished RenameScenario comment, with signature diagnostics above the Design editor.*
+*An unfinished method comment, with signature diagnostics above the Design editor.*
 
-1. Select `UndocumentedFirst` and generate a documentation stub from the Document menu if needed.
+1. Select an undocumented declaration and generate a documentation stub from the Document menu if needed.
 2. Enter a concise **Summary** describing the operation. Use **Remarks** for context, limitations and usage details.
 3. For methods, document each **Parameters** row and the **Return Value** for functions. Double-click a parameter row to navigate to its owning method in source.
 4. For generic declarations, document **Type Parameters**; for properties, use **Value**. Add exceptions only where applicable to the declaration. Unit documentation does not have an Exceptions editor.
@@ -83,8 +70,6 @@ Expand **Documentation tools** above the editor. Most actions use SVG icons. Hov
 | Synchronize signature | Review missing, obsolete or renamed parameter/result sections. |
 | XML | Open the raw documentation fragment; Ctrl+Alt+X inside the editor also opens it. Escape returns to Design. |
 | Format | Preview XML formatting before applying it. |
-
-The Documentation tools **Format** action formats the documentation XML. The IDE **Format Source / Ctrl+D** command formats Pascal source and is available in RAD Studio 12; RAD Studio 13 does not include that built-in formatter.
 | Fold source comments | Request folding of documentation comments in the source editor. |
 | Problems | Show checks for the selected declaration and actions for resolving them. |
 
@@ -96,22 +81,22 @@ The expandable sections below these actions are **Project workspace**, **Inherit
 
 Drafts preserve editor work that has not been accepted by the source writer. They are local recovery data, not a replacement for saving source or version control.
 
-1. Open the same project and select the relevant declaration.
+1. Open the project that owns the source file.
 2. Choose **Recover drafts**.
-3. Find the entry by source file and symbol and choose **Review against current documentation**.
-4. Compare the XML against the current source. Cancel if the declaration or intended wording has changed; otherwise apply the reviewed result.
+3. Find the entry by source file and symbol and choose **Review against current documentation**. The plugin opens the saved declaration, including its original interface or implementation section.
+4. Compare **Original comment**, **Current source comment**, and **Saved draft**. A conflict message explains when the source comment changed after the draft was created. Apply the recovered draft explicitly only after reviewing that change. If the declaration was renamed or removed, recovery reports the problem and keeps the draft.
 5. Save the source file normally after it is applied.
 
-Drafts are stored under `%LOCALAPPDATA%\XmlDocPlugin\Drafts`. A stale source revision can leave a draft recoverable even when its automatic update was rejected. Reloading source does not mean an old draft should be applied blindly. Protected source files stay view-only even if a draft exists for them.
+Drafts are stored under `%LOCALAPPDATA%\XmlDocPlugin\Drafts`. A stale source revision can leave a draft recoverable even when its automatic update was rejected. Reloading source does not mean an old draft should be applied blindly. Protected source files stay view-only even if a draft exists for them. Legacy drafts without a stable source-location identity are retained for manual recovery from that folder; they cannot be automatically applied to a guessed declaration.
 
 ## Synchronize a changed signature
 
-`RenameScenario` declares `NewName` and `Options`, but its original comment describes `OldName` and references that name in Remarks.
+When you rename a parameter, synchronize the documentation to keep parameter descriptions and inline references consistent. For example, if `OldName` becomes `NewName`:
 
-1. Select `RenameScenario` and choose **Synchronize signature**.
+1. Select the changed method and choose **Synchronize signature**.
 2. In **Map OldName**, explicitly select `NewName`. Leaving **Keep unmatched description** retains the old description for you to resolve; the plugin does not guess that a rename is safe.
 3. Choose **Preview synchronization**.
-4. Check that the `param` name and `paramref` in Remarks change together. Review the added `Options` and result sections.
+4. Check that the `param` name and `paramref` in Remarks change together. Review any added parameter and result sections.
 5. Apply, then replace any empty descriptions or TODO result text with meaningful documentation.
 
 ![Signature synchronization before and after XML](assets/user-guide/synchronization.png)
@@ -126,13 +111,13 @@ Synchronization fixes structure, not the meaning of the prose. Run Problems agai
 
 *Searching for Run shows the base declaration, interface contract and both sample overloads.*
 
-1. Expand **Project workspace**. Choose **Module**, **Project**, or **Project group**, then **Refresh**.
+1. Expand **Project workspace**. Choose **Module**, **Project**, or **Project group**, then **Refresh**. Analysis displays its progress and how many modules were parsed or reused. **Cancel analysis** stops between modules and keeps the previous completed catalog. Modules are reused only when their source, project configuration and actually read dependencies (including closed includes and imported `DECLARED` sources) still match; effective documentation is recomputed from the indexed modules.
 2. Type a symbol name or documentation phrase. Narrow results with **Symbol kind** and the documentation filter: public API, no documentation, TODO drafts, incomplete signature, reference problems or new problems.
 3. Use a result's **Open source** icon to navigate. Check the full signature when overloads share a name.
 4. To insert an inline reference, place the editor caret where it belongs, optionally enter **Reference display text**, then choose the result's **Reference** icon. The caption and reference target are separate.
 5. Use **Next problem** to cycle through declarations in the current filtered set that are not ready.
 
-Quick documentation starts from the source caret. When a name or overload cannot be resolved uniquely, choose a candidate rather than assuming the first match is correct. Instance-variable type inference is not implemented; the project picker is the reliable fallback.
+Quick documentation starts from the source caret. When a name or overload cannot be resolved uniquely, choose a candidate rather than assuming the first match is correct. Quick documentation resolves explicit parameter and local-variable types, `Self`, and inherited members. It compares argument types to select an overload, including integer, hexadecimal, string and Boolean literals. Unknown receiver types, incomplete argument lists and ambiguous overloads require an explicit choice; inferred inline-variable types, expression chains and compiler conversions beyond the supported primitive types still require the project picker.
 
 ## Edit member summaries together
 
@@ -145,7 +130,7 @@ Only selected summaries are submitted. Other documentation sections remain part 
 
 ## Reuse inherited documentation
 
-Select `TDocumented.Run(Integer)` and expand **Inheritance and reusable text**. The fixture supplies both a base-class method and an interface contract; an unqualified `<inheritdoc/>` can therefore be ambiguous.
+Select a method inherited from a base class or implementing an interface, then expand **Inheritance and reusable text**. If both ancestors provide documentation, an unqualified `<inheritdoc/>` can be ambiguous.
 
 - Inspect the listed inheritance sources and use **Open source** to check the contract.
 - **Copy missing sections** previews copying available text while preserving existing local sections.
@@ -162,7 +147,7 @@ Wording templates fill empty sections with reusable **plain text**. They do not 
 
 *Project-scoped wording for the Integer Options parameter, plus known project terminology.*
 
-Try this with `RenameScenario` after synchronization:
+To save reusable wording for an `Options: Integer` parameter:
 
 1. Expand **Inheritance and reusable text**.
 2. Choose section **param**, scope **Project wording**, element kind **method**, parameter name **Options** and type **Integer**.
@@ -176,14 +161,14 @@ A name pattern supports `*` (for example `A*`); matching is case-insensitive. A 
 
 Enter **Project terminology** one word per line, then **Save terminology**. Choose English or Russian and enable **Spell check prose** as needed. Dictionary availability depends on WebView2. Code, XML references and known terminology are excluded from prose spell checking; terminology does not rename code or replace documentation text.
 
-See [the authoring configuration example](examples/XmlDocE2E.authoring.json). To use it, merge only its `authoring` object into the existing project `.xmldocplugin.json`, preserving every other key (including generation settings). If no configuration exists, copy the example to `.xmldocplugin.json` beside your writable XmlDocE2E project. Reopen the documentation view to reload it.
+See [the authoring configuration example](examples/authoring.json). To use it, merge only its `authoring` object into the existing project `.xmldocplugin.json`, preserving every other key (including generation settings). If no configuration exists, copy the example to `.xmldocplugin.json` beside your project. Reopen the documentation view to reload it.
 
 ## Add examples and replace prose
 
 ### Examples
 
 - Select source code in the IDE, then choose **Insert selected source as example**. Review the proposed example before applying it. This creates a snapshot; later source changes do not update that copied code.
-- For a linked example, enter `Examples/Workbench.Examples.pas` and region `Usage`, then choose **Preview linked example**. Review and apply the generated `example source` and `region` attributes.
+- For a linked example, enter `Examples/Usage.pas` and region `Usage`, then choose **Preview linked example**. Review and apply the generated `example source` and `region` attributes.
 - Use paths relative to the project. Absolute paths and parent-directory traversal are rejected by the linked-example action.
 - Add a title and explanation to make examples useful independently of their code. Keep referenced images and example files with the project.
 
@@ -213,7 +198,7 @@ Use **Problems** for the current declaration and project filters for a wider cle
 ## Generate documentation
 
 1. Open **Generate API Documentation** from the Document menu.
-2. Select **Current Project** for your copied `XmlDocE2E.dproj`, or choose a directory. IDE project analysis uses the active configuration/platform and open buffer snapshots.
+2. Select **Current Project** for the active project, or choose a directory. IDE project analysis uses the active configuration/platform and open buffer snapshots.
 3. Select the output formats, destination and options. Check exclusions, visibility, interface-only analysis, title, search index and coverage settings for your intended audience.
 4. Select **Use numeric topic file names** to keep topic paths short across exports.
 5. Generate, inspect the reported errors, then open the output and test representative cross-references and images.
@@ -222,9 +207,9 @@ Use **Problems** for the current declaration and project filters for a wider cle
 | --- | --- |
 | HTML | Multi-page reference with navigation and optional search; preserve its supporting assets. |
 | Markdown | Pages for a repository/wiki workflow; preserve relative links and resources. |
-| CHM | `XmlDocE2E.chm`; needs Microsoft HTML Help Workshop's compiler. Failed or missing compilation is an error. |
+| CHM | `MyProject.chm`; needs Microsoft HTML Help Workshop's compiler. Failed or missing compilation is an error. |
 | JSON | `api.json` for further tooling; logical names remain intact. |
-| Help & Manual | `XmlDocE2E.hmxp` with Topics, Baggage and supporting project resources. Open the project in Help & Manual and keep the directory together. |
+| Help & Manual | `MyProject.hmxp` with Topics, Baggage and supporting project resources. Open the project in Help & Manual and keep the directory together. |
 | MkDocs | Generated site project with configuration, documentation and build instructions; requires Python. |
 | Docusaurus | Generated site project with dependency manifest and build instructions; requires Node.js. |
 | VitePress | Generated site project with dependency manifest and build instructions; requires Node.js. |
@@ -237,11 +222,11 @@ For HTML, use the documentation viewer/server when available rather than assumin
 
 ## Use the command line
 
-Setup includes the x64 generator at `%LOCALAPPDATA%\Programs\XmlDocPlugin\bin\XmlDocGen.exe`. From the directory containing your writable sample project:
+Setup includes the x64 generator at `%LOCALAPPDATA%\Programs\XmlDocPlugin\bin\XmlDocGen.exe`. From the directory containing your project (replace `MyProject.dproj` with its filename):
 
 ```powershell
 $generator = "$env:LOCALAPPDATA\Programs\XmlDocPlugin\bin\XmlDocGen.exe"
-& $generator --project .\XmlDocE2E.dproj --output .\Generated `
+& $generator --project .\MyProject.dproj --output .\Generated `
   --format html,md,json,hmxp,mkdocs,docusaurus,vitepress,chm `
   --config Debug --platform Win32 --numeric-file-names
 ```
@@ -251,12 +236,12 @@ Install the external CHM compiler before including `chm`, or omit that format. R
 For CI checks:
 
 ```powershell
-& $generator -p .\XmlDocE2E.dproj -o .\Generated -f json --check
-& $generator -p .\XmlDocE2E.dproj -o .\Generated -f json --check --write-baseline .\docs-baseline.json
-& $generator -p .\XmlDocE2E.dproj -o .\Generated -f json --check --baseline .\docs-baseline.json
+& $generator -p .\MyProject.dproj -o .\Generated -f json --check
+& $generator -p .\MyProject.dproj -o .\Generated -f json --check --write-baseline .\docs-baseline.json
+& $generator -p .\MyProject.dproj -o .\Generated -f json --check --baseline .\docs-baseline.json
 ```
 
-`--check` writes `diagnostics.json` and returns exit code 3 for new documentation problems. Build a baseline only after reviewing its findings. The intentionally incomplete sample produces findings until you repair its comments or accept them in a baseline.
+`--check` writes `diagnostics.json` and returns exit code 3 for new documentation problems. Build a baseline only after reviewing its findings.
 
 ## Troubleshooting
 

@@ -97,10 +97,10 @@ begin
   if LSource = '' then
     Exit;
 
-  if SameText(FLastFileName,LEditor.FileName) and (FLastSource=LSource) then Exit;
+  ConfigureDeclarationContext(FParser,nil,LEditor.FileName);
+  if SameText(FLastFileName,LEditor.FileName) and (FLastSource=LSource) and FParser.IsUpToDate(LSource) then Exit;
   FLastFileName:=LEditor.FileName;FLastSource:=LSource;
   FCurrentIndex:=-1;
-  ConfigureDeclarationContext(FParser);
   FParser.ParseSource(LSource,LEditor.FileName);
   LAllElements := FParser.GetAllElements;
 

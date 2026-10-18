@@ -3,6 +3,9 @@ interface
 uses DUnitX.TestFramework;
 type [TestFixture] TImprovementsTests=class
 public
+ [Test] procedure IncrementalIndex;
+ [Test] procedure ExpressionTypes;
+ [Test] procedure ReviewRemainingCases;
  [Test] procedure ReviewGenericFuzz;
  [Test] procedure ReviewMetadata;
  [Test] procedure ReviewContextAndResources;
@@ -40,7 +43,84 @@ public
  [Test] procedure DeterministicXmlFuzz;
 end;
 implementation
-uses XmlDoc.HelpGen.BatchParser,XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+uses XmlDoc.Expressions,XmlDoc.ProjectIndex,XmlDoc.HelpGen.BatchParser,XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+procedure TImprovementsTests.ExpressionTypes;
+var P:TDocParser;Source,Query,Reason:string;Elements,Matches:TArray<TCodeElementInfo>;
+begin
+ P:=TDocParser.Create;
+ try
+  Source:='unit Expressions; interface type TWorker=class procedure Run(Value:Integer); overload; procedure Run(Value:string); overload; end;'+sLineBreak+
+   'implementation'+sLineBreak+'procedure Test(SomeObject:TWorker);'+sLineBreak+'var Local:Integer;'+sLineBreak+'begin'+sLineBreak+' SomeObject.Run(Local);'+sLineBreak+'end; end.';
+  P.ParseSource(Source,'Expressions.pas');Elements:=P.GetAllElements;
+  Assert.AreEqual('TWorker',P.BindingType('SomeObject',6));Assert.AreEqual('Integer',P.BindingType('Local',6));
+  Matches:=ResolveDocumentationExpression(P,Source,Pos('SomeObject.Run(Local)',Source)+12,6,Elements,Query,Reason);
+  Assert.AreEqual('SomeObject.Run',Query);Assert.AreEqual<NativeInt>(1,Length(Matches),Reason);Assert.AreEqual('Integer',Matches[0].Params[0].TypeName);
+  for var I:=0 to Length(Source) do begin Matches:=ResolveDocumentationExpression(P,Source,I,6,Elements,Query,Reason);end;
+  for var Argument in ['$AB','42',#39+'text'+#39,'Missing','42 {comment, ignored}'] do begin
+   var Changed:=Source.Replace('SomeObject.Run(Local)','SomeObject.Run('+Argument+')');P.ParseSource(Changed,'Expressions.pas');
+   Matches:=ResolveDocumentationExpression(P,Changed,Pos('SomeObject.Run(',Changed)+12,6,P.GetAllElements,Query,Reason);
+   if Argument='Missing' then Assert.IsTrue(Reason<>'') else if Pos('comment',Argument)>0 then Assert.IsTrue(Reason<>'') else begin Assert.AreEqual<NativeInt>(1,Length(Matches),Argument);if Argument[1]=#39 then Assert.AreEqual('string',Matches[0].Params[0].TypeName) else Assert.AreEqual('Integer',Matches[0].Params[0].TypeName);end;
+  end;
+  Source:='unit Expressions; interface type TBase=class procedure Run(Value:Integer=1); end; TWorker=class(TBase) end;'+sLineBreak+
+   'implementation'+sLineBreak+'procedure Test(SomeObject:TWorker);'+sLineBreak+'begin'+sLineBreak+' SomeObject.Run();'+sLineBreak+'end; end.';
+  P.ParseSource(Source,'Expressions.pas');Matches:=ResolveDocumentationExpression(P,Source,Pos('SomeObject.Run()',Source)+12,5,P.GetAllElements,Query,Reason);
+  Assert.AreEqual<NativeInt>(1,Length(Matches),'Inherited optional overload: '+Reason);
+  var Seed:Cardinal:=$516ABC;
+  for var Round:=0 to 1999 do begin Seed:=Seed*1664525+1013904223;Matches:=ResolveDocumentationExpression(P,Source,Integer(Seed mod (Length(Source)+40))-20,5,P.GetAllElements,Query,Reason);end;
+ finally P.Free;end;
+end;
+procedure TImprovementsTests.IncrementalIndex;
+var Root,FileName,IncludeFile,Source:string;P:TDocParser;Index:TDocumentationIndex;E:TArray<TCodeElementInfo>;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(Root);FileName:=TPath.Combine(Root,'Indexed.pas');IncludeFile:=TPath.Combine(Root,'types.inc');P:=TDocParser.Create;Index:=TDocumentationIndex.Create;
+ try
+  Source:='unit Indexed; interface {$I types.inc} {$IFDEF SECOND} type TSecond=class end; {$ELSE} type TFirst=class end; {$ENDIF} implementation end.';TFile.WriteAllText(IncludeFile,'{$UNDEF SECOND}');
+  E:=Index.Update(FileName,Source,P);Assert.AreEqual(1,Index.Parsed);E:=Index.Update(FileName,Source,P);Assert.AreEqual(1,Index.Reused);
+  TFile.WriteAllText(IncludeFile,'{$DEFINE SECOND}');E:=Index.Update(FileName,Source,P);Assert.AreEqual(2,Index.Parsed);
+  var Found:=False;var Names:='';for var Item in E do begin Names:=Names+'|'+Item.Name;if Item.Name='TSecond' then Found:=True;end;Assert.IsTrue(Found,'closed include must invalidate indexed module: '+Names);
+  P.Defines:=TArray<string>.Create('CHANGED');E:=Index.Update(FileName,Source,P);Assert.AreEqual(3,Index.Parsed);
+  var OtherFile:=TPath.Combine(Root,'Other.pas');var OtherSource:='unit Other; interface type TOther=class end; implementation end.';E:=Index.Update(OtherFile,OtherSource,P);
+  for var Round:=0 to 99 do begin
+   // Mutate only valid include directives; the unrelated module must be reused.
+   TFile.WriteAllText(IncludeFile,'{$DEFINE SECOND} {revision '+IntToStr(Round)+'}');Index.ResetStatistics;E:=Index.Update(FileName,Source,P);E:=Index.Update(OtherFile,OtherSource,P);
+   Assert.AreEqual(1,Index.Parsed);Assert.AreEqual(1,Index.Reused);
+  end;
+  var ParentFile:=TPath.Combine(Root,'Parent.pas');TFile.WriteAllText(ParentFile,'unit Parent; interface type TKnown=class end; implementation end.');P.SourceFiles:=[ParentFile];
+  Source:='unit Indexed; interface uses Parent; {$IF DECLARED(TKnown)} type TPresent=class end; {$ELSE} type TAbsent=class end; {$ENDIF} implementation end.';
+  E:=Index.Update(FileName,Source,P);Assert.IsTrue(Index.IsCurrent(FileName,Source,P));
+  TFile.WriteAllText(ParentFile,'unit Parent; interface implementation end.');Assert.IsFalse(Index.IsCurrent(FileName,Source,P));E:=Index.Update(FileName,Source,P);
+  var Absent:=False;for var Item in E do if Item.Name='TAbsent' then Absent:=True;Assert.IsTrue(Absent,'Imported declaration changed without invalidation');
+  var Snapshot:TSourceSnapshot;Snapshot.FileName:=ParentFile;Snapshot.Source:='unit Parent; interface type TKnown=class end; implementation end.';P.SourceSnapshots:=[Snapshot];
+  Assert.IsFalse(Index.IsCurrent(FileName,Source,P));E:=Index.Update(FileName,Source,P);var Present:=False;for var Item in E do if Item.Name='TPresent' then Present:=True;Assert.IsTrue(Present,'Unsaved imported source did not invalidate dependency');
+ finally Index.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.ReviewRemainingCases;
+var Root,FileName,Baseline,Source:string;P:TBatchParser;Parser:TDocParser;Report:TDocumentationReport;M:TXmlDocModel;E:TCodeElementInfo;Kinds:TList<string>;Child:TTypeDocInfo;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(Root);FileName:=TPath.Combine(Root,'Cases.pas');Baseline:=TPath.Combine(Root,'baseline.json');
+ P:=TBatchParser.Create;Parser:=TDocParser.Create;Report:=TDocumentationReport.Create;M:=TXmlDocModel.Create;Kinds:=TList<string>.Create;
+ try
+  Source:='unit Cases; interface'+sLineBreak+'{'+sLineBreak+'implementation'+sLineBreak+'}'+sLineBreak+
+   'type TVisible=class public procedure Run; end;'+sLineBreak+'implementation procedure TVisible.Run; begin end; end.';
+  TFile.WriteAllText(FileName,Source);P.ParseAll([FileName]);Assert.AreEqual<NativeInt>(1,P.Units[0].Types.Count);
+  Parser.ParseSource(Source,FileName);for E in Parser.GetAllElements do if E.Name='Run' then Kinds.Add(E.SourceSection);
+  Assert.AreEqual<NativeInt>(2,Kinds.Count);Assert.AreEqual('interface',Kinds[0]);Assert.AreEqual('implementation',Kinds[1]);
+  Report.Analyze(P.Units);Report.SaveBaseline(Baseline);
+  TFile.WriteAllText(FileName,Source.Replace('class public','class private'));P.ParseAll([FileName]);Report.Analyze(P.Units);Report.NewIssueCount(Baseline);
+  var Removed:=False;for var Issue in Report.Issues do if Issue.Code='XD011' then Removed:=True;Assert.IsTrue(Removed,'public to private must change the API');
+  M.LoadFromXml('<summary>Before</summary><example><para>Prepare</para><code>Run;</code><para>After</para></example>');M.Summary:='Changed';Source:=M.ToXml;
+  Assert.IsTrue(Pos('Run;',Source)<Pos('After',Source));
+  TFile.WriteAllText(FileName,'unit Cases; interface type'+sLineBreak+
+   'TBase<T>=class public'+sLineBreak+'/// <summary>One argument</summary>'+sLineBreak+'procedure Run(Value:T); virtual; end;'+sLineBreak+
+   'TBase<Тип,U>=class public'+sLineBreak+'/// <summary>Two arguments</summary>'+sLineBreak+'procedure Run(Value:Тип); virtual; end;'+sLineBreak+
+   'TChild<U>=class(TBase<U,Integer>) public procedure Run(Value:U); override; end;'+sLineBreak+'TOne=class(TBase<Integer>) public procedure Run(Value:Integer); override; end; implementation end.');
+  P.ParseAll([FileName]);Source:='';for var Orphan in P.Units[0].StandaloneMethods do Source:=Source+Orphan.CodeElement.QualifiedParent+'|';for Child in P.Units[0].Types do begin
+   if Child.Name='TChild' then begin Assert.IsTrue(Child.Members.Count>0,'TChild members absent: '+Source);end;
+   if Child.Name='TChild' then Assert.AreEqual('Two arguments',Child.Members[0].Doc.Summary);
+   if Child.Name='TOne' then Assert.AreEqual('One argument',Child.Members[0].Doc.Summary);
+  end;
+ finally Kinds.Free;M.Free;Report.Free;Parser.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
 procedure TImprovementsTests.ReviewContextAndResources;
 var Root,FileName,UnitPath:string;Scanner:TProjectScanner;Opt:TScanOptions;Files:TArray<string>;C:TProjectContext;P:TDocParser;Source:string;
 begin

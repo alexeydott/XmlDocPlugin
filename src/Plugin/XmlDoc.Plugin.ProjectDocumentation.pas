@@ -1,14 +1,29 @@
-﻿unit XmlDoc.Plugin.ProjectDocumentation;
+unit XmlDoc.Plugin.ProjectDocumentation;
 interface
-uses System.SysUtils,System.JSON,System.Generics.Collections,ToolsAPI,XmlDoc.Consts,XmlDoc.Plugin.Browser,XmlDoc.Plugin.QuickDocPreview;
+uses Vcl.ExtCtrls,XmlDoc.Parser,XmlDoc.ProjectIndex,System.SysUtils,System.JSON,System.Generics.Collections,ToolsAPI,XmlDoc.Consts,XmlDoc.Plugin.Browser,XmlDoc.Plugin.QuickDocPreview;
 type
  TProjectDocumentation=class
  private
   FElements:TDictionary<string,TCodeElementInfo>;
   FQuickPreview:TQuickDocPreview;
-  FCacheKey,FCacheCatalog:string;
+  FIndex:TDocumentationIndex;
+  FAnalysisTimer:TTimer;
+  FJobFiles:TArray<string>;
+  FJobParsers:TObjectDictionary<string,TDocParser>;
+  FJobSources:TDictionary<string,string>;
+  FJobBrowser:TXmlDocBrowser;
+  FJobPosition:Integer;
+  FQuickPending:Boolean;
+  FQuickSource,FQuickFile:string;
+  FQuickPosition,FQuickLine:Integer;
   FEffective:TDictionary<string,string>;
   FSources,FSessions:TDictionary<string,string>;
+  procedure AnalysisTick(Sender:TObject);
+  procedure AnalysisState(const State:string);
+  procedure CancelAnalysis;
+  procedure PublishCatalog;
+  procedure ShowQuickDoc;
+
   function Key(const FileName,SymbolId:string):string;
   function DraftPath(Message:TJSONObject):string;
   procedure Draft(Message:TJSONObject;Browser:TXmlDocBrowser);
@@ -23,13 +38,15 @@ type
   function Handle(Message:TJSONObject;Browser:TXmlDocBrowser):Boolean;
  end;
 implementation
-uses System.Classes,System.IOUtils,System.Generics.Defaults,XmlDoc.Parser,XmlDoc.Model,
- Vcl.Controls,System.RegularExpressions,System.Win.Registry,Winapi.Windows,System.Hash,XmlDoc.CodeGen,XmlDoc.Plugin.EditSession,XmlDoc.Plugin.DeclarationContext,XmlDoc.Plugin.Settings,XmlDoc.HelpGen.BatchParser,XmlDoc.SourceText;
+uses System.Classes,System.IOUtils,System.Generics.Defaults,XmlDoc.Model,
+ XmlDoc.Expressions,Vcl.Controls,System.RegularExpressions,System.Win.Registry,Winapi.Windows,System.Hash,XmlDoc.CodeGen,XmlDoc.Plugin.EditSession,XmlDoc.Plugin.DeclarationContext,XmlDoc.Plugin.Settings,XmlDoc.HelpGen.BatchParser,XmlDoc.SourceText;
 constructor TProjectDocumentation.Create;
-begin inherited;FEffective:=TDictionary<string,string>.Create;FElements:=TDictionary<string,TCodeElementInfo>.Create;
+begin inherited;FIndex:=TDocumentationIndex.Create;FJobParsers:=TObjectDictionary<string,TDocParser>.Create([doOwnsValues]);FJobSources:=TDictionary<string,string>.Create;
+ FAnalysisTimer:=TTimer.Create(nil);FAnalysisTimer.Enabled:=False;FAnalysisTimer.Interval:=10;FAnalysisTimer.OnTimer:=AnalysisTick;
+ FEffective:=TDictionary<string,string>.Create;FElements:=TDictionary<string,TCodeElementInfo>.Create;
  FSources:=TDictionary<string,string>.Create;FSessions:=TDictionary<string,string>.Create;end;
 destructor TProjectDocumentation.Destroy;
-begin FEffective.Free;FQuickPreview.Free;FSessions.Free;FSources.Free;FElements.Free;inherited;end;
+begin FAnalysisTimer.Free;FJobParsers.Free;FJobSources.Free;FIndex.Free;FEffective.Free;FQuickPreview.Free;FSessions.Free;FSources.Free;FElements.Free;inherited;end;
 function TProjectDocumentation.Key(const FileName,SymbolId:string):string;
 begin Result:=LowerCase(FileName)+'|'+SymbolId;end;
 function DraftDirectory:string;
@@ -37,7 +54,7 @@ begin Result:=GetEnvironmentVariable('XMLDOC_DRAFT_DIR');if Result='' then Resul
 function TProjectDocumentation.DraftPath(Message:TJSONObject):string;
 var Identity:string;
 begin
- Identity:=Message.GetValue<string>('fileName','')+'|'+Message.GetValue<string>('declarationId',Message.GetValue<string>('symbolId',''))+'|'+Message.GetValue<string>('sessionId','');
+ Identity:=LowerCase(Message.GetValue<string>('fileName',''))+'|'+Message.GetValue<string>('locationId',Message.GetValue<string>('declarationId',Message.GetValue<string>('symbolId','')));
  Result:=TPath.Combine(DraftDirectory,THashSHA2.GetHashString(Identity)+'.json');
 end;
 procedure TProjectDocumentation.Acknowledge(Message:TJSONObject);
@@ -50,6 +67,13 @@ begin FileName:=DraftPath(Message);if not TFile.Exists(FileName) then Exit;
 end;
 procedure TProjectDocumentation.Draft(Message:TJSONObject;Browser:TXmlDocBrowser);
 var FileName,RootPath:string;Project:IOTAProject;Json,Reply:TJSONObject;Drafts:TJSONArray;
+ function BelongsToWorkspace(Item:TJSONObject):Boolean;
+ var ProjectFile:string;Group:IOTAProjectGroup;
+ begin
+  ProjectFile:=Item.GetValue<string>('projectFile','');Result:=Assigned(Project) and SameText(Project.FileName,ProjectFile);
+  if not Result and (ProjectFile<>'') then begin Group:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;if Assigned(Group) then for var I:=0 to Group.ProjectCount-1 do if SameText(Group.Projects[I].FileName,ProjectFile) then Exit(True);end;
+  if not Result and (ProjectFile='') then Result:=(RootPath<>'') and Item.GetValue<string>('fileName','').StartsWith(RootPath,True);
+ end;
 begin
  if Message.GetValue<string>('type','')='draftUpdated' then begin
   if SourceEditProtection(Message.GetValue<string>('fileName',''))<>'' then Exit;
@@ -64,66 +88,80 @@ begin
    if TDirectory.Exists(DraftDirectory) then for FileName in TDirectory.GetFiles(DraftDirectory,'*.json') do begin
     Json:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName)) as TJSONObject;
     if not Assigned(Json) then Continue;
-    if (RootPath<>'') and Json.GetValue<string>('fileName','').StartsWith(RootPath,True) then Drafts.AddElement(Json) else Json.Free;
+    if BelongsToWorkspace(Json) then begin Json.AddPair('draftId',TPath.GetFileNameWithoutExtension(FileName));Drafts.AddElement(Json);end else Json.Free;
    end;
    Browser.ExecuteScript('window.xmlDocWorkbench?.receiveDrafts('+Reply.ToJSON+');');
   finally Reply.Free;end;
  end;
 end;
 
-procedure TProjectDocumentation.Catalog(const Scope:string;Browser:TXmlDocBrowser);
-var Files:TList<string>;Services:IOTAModuleServices;Project:IOTAProject;Group:IOTAProjectGroup;
- I,J:Integer;EditorServices:IOTAEditorServices;FileName,Source,Session:string;Parser:TDocParser;Model:TXmlDocModel;E:TCodeElementInfo;
- Root,Json,Param:TJSONObject;Elements,Errors,Params,Generics,Interfaces:TJSONArray;P:TParamInfo;G:string;Editor:IOTASourceEditor;Batch:TBatchParser;Context:TDocParser;FileProjects:TDictionary<string,IOTAProject>;SourceTexts:TDictionary<string,string>;CacheBuilder:TStringBuilder;CacheKey:string;
- procedure AddProject(AProject:IOTAProject);
- var K:Integer;F:string;
- begin
-  if not Assigned(AProject) then Exit;
-  for K:=0 to AProject.GetModuleCount-1 do begin
-   F:=AProject.GetModule(K).FileName;
-   if SameText(ExtractFileExt(F),'.pas') and not Files.Contains(F) then Files.Add(F);
-   if SameText(ExtractFileExt(F),'.pas') then FileProjects.AddOrSetValue(LowerCase(F),AProject);
-  end;
- end;
+procedure TProjectDocumentation.AnalysisState(const State:string);
+var Json:TJSONObject;
 begin
- SourceTexts:=TDictionary<string,string>.Create;CacheBuilder:=TStringBuilder.Create;
- FileProjects:=TDictionary<string,IOTAProject>.Create;Files:=TList<string>.Create;Root:=TJSONObject.Create;Elements:=TJSONArray.Create;Errors:=TJSONArray.Create;
- Root.AddPair('elements',Elements);Root.AddPair('errors',Errors);
+ if not Assigned(FJobBrowser) then Exit;Json:=TJSONObject.Create;
+ try Json.AddPair('state',State);Json.AddPair('completed',TJSONNumber.Create(FJobPosition));Json.AddPair('total',TJSONNumber.Create(Length(FJobFiles)));Json.AddPair('parsed',TJSONNumber.Create(FIndex.Parsed));Json.AddPair('reused',TJSONNumber.Create(FIndex.Reused));
+ FJobBrowser.ExecuteScript('window.xmlDocWorkbench?.receiveAnalysis('+Json.ToJSON+');');finally Json.Free;end;
+end;
+procedure TProjectDocumentation.CancelAnalysis;
+begin FAnalysisTimer.Enabled:=False;FQuickPending:=False;AnalysisState('cancelled');end;
+procedure TProjectDocumentation.Catalog(const Scope:string;Browser:TXmlDocBrowser);
+var Files:TList<string>;Projects:TDictionary<string,IOTAProject>;Services:IOTAModuleServices;Project:IOTAProject;Group:IOTAProjectGroup;EditorServices:IOTAEditorServices;
+ procedure AddProject(P:IOTAProject);
+ begin if not Assigned(P) then Exit;for var I:=0 to P.GetModuleCount-1 do begin var FileName:=P.GetModule(I).FileName;
+  if SameText(ExtractFileExt(FileName),'.pas') then begin if not Files.Contains(FileName) then Files.Add(FileName);Projects.AddOrSetValue(LowerCase(FileName),P);end;
+ end;end;
+begin
+ FAnalysisTimer.Enabled:=False;FJobBrowser:=Browser;FJobPosition:=0;FJobParsers.Clear;FJobSources.Clear;FIndex.ResetStatistics;
+ Files:=TList<string>.Create;Projects:=TDictionary<string,IOTAProject>.Create;
+ try
  try
   Services:=BorlandIDEServices as IOTAModuleServices;Project:=Services.GetActiveProject;
-  if Assigned(Project) then TPluginSettings.Instance.LoadProject(ExtractFilePath(Project.FileName));
-  if Scope='group' then begin Group:=Services.MainProjectGroup;if Assigned(Group) then for I:=0 to Group.ProjectCount-1 do AddProject(Group.Projects[I]);end
-  else if Scope='project' then AddProject(Project);
-  if Files.Count=0 then begin
-   if Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) and Assigned(EditorServices.TopView) and Assigned(EditorServices.TopView.Buffer) then
-     Files.Add(EditorServices.TopView.Buffer.FileName);
-  end;
-  CacheBuilder.Append(Scope);
-  for FileName in Files do begin
-   Editor:=SourceEditorForFile(FileName);if Assigned(Editor) then Source:=EditorSource(Editor) else Source:=ReadSourceFile(FileName);
-   SourceTexts.AddOrSetValue(LowerCase(FileName),Source);CacheBuilder.Append(FileName).Append(SourceRevision(Source)).Append(SourceEditProtection(FileName));
-   var ProjectContext:=ActiveDocumentationContext;
+  if Scope='group' then begin Group:=Services.MainProjectGroup;if Assigned(Group) then for var I:=0 to Group.ProjectCount-1 do AddProject(Group.Projects[I]);end else if Scope='project' then AddProject(Project);
+  if Files.Count=0 then if Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) and Assigned(EditorServices.TopView) then Files.Add(EditorServices.TopView.Buffer.FileName);
+  FJobFiles:=Files.ToArray;AnalysisState('running');
+  for var FileName in FJobFiles do begin
+   var Editor:=SourceEditorForFile(FileName);var Source:='';if Assigned(Editor) then Source:=EditorSource(Editor) else Source:=ReadSourceFile(FileName);
+   FJobSources.AddOrSetValue(LowerCase(FileName),Source);var Parser:=TDocParser.Create;
    try
-    if FileProjects.ContainsKey(LowerCase(FileName)) then begin ProjectContext.Free;ProjectContext:=nil;ProjectContext:=ActiveDocumentationContext(FileProjects[LowerCase(FileName)]);end;
-    if Assigned(ProjectContext) then CacheBuilder.Append(ProjectContext.ProjectFile).Append(ProjectContext.Configuration).Append(ProjectContext.Platform).Append(string.Join(';',ProjectContext.Defines)).Append(string.Join(';',ProjectContext.SearchPaths)).Append(string.Join(';',ProjectContext.IncludePaths));
-   finally ProjectContext.Free;end;
+    var Owner:IOTAProject:=nil;Projects.TryGetValue(LowerCase(FileName),Owner);ConfigureDeclarationContext(Parser,Owner,FileName);Parser.SourceFiles:=FJobFiles;
+    FJobParsers.Add(LowerCase(FileName),Parser);Parser:=nil;
+   finally Parser.Free;end;
   end;
-  for var Snapshot in CurrentSourceSnapshots do CacheBuilder.Append(Snapshot.FileName).Append(SourceRevision(Snapshot.Source));
-  CacheKey:=THashSHA2.GetHashString(CacheBuilder.ToString);
-  if (FCacheCatalog<>'') and (CacheKey=FCacheKey) then begin Browser.ExecuteScript('window.xmlDocWorkbench?.receiveCatalog('+FCacheCatalog+');');Exit;end;
-  FElements.Clear;FSources.Clear;FSessions.Clear;FEffective.Clear;
-  for FileName in Files do begin
-   Parser:=TDocParser.Create;Model:=TXmlDocModel.Create;
-   try
-    try
-     Source:=SourceTexts[LowerCase(FileName)];
-     Session:=TGUID.NewGuid.ToString;FSources.AddOrSetValue(LowerCase(FileName),Source);FSessions.AddOrSetValue(LowerCase(FileName),Session);
-     if FileProjects.ContainsKey(LowerCase(FileName)) then ConfigureDeclarationContext(Parser,FileProjects[LowerCase(FileName)]) else ConfigureDeclarationContext(Parser);
-     Parser.SourceFiles:=Files.ToArray;Parser.ParseSource(Source,FileName);
-     for E in Parser.GetAllElements do begin
-      if (E.Name='') or FElements.ContainsKey(Key(FileName,E.SymbolId)) then Continue;
-      FElements.Add(Key(FileName,E.SymbolId),E);Json:=TJSONObject.Create;
-      if FileProjects.ContainsKey(LowerCase(FileName)) then Json.AddPair('projectFile',FileProjects[LowerCase(FileName)].FileName);
+  FAnalysisTimer.Enabled:=True;
+ except AnalysisState('failed');FQuickPending:=False;raise;
+ end;
+ finally Files.Free;Projects.Free;end;
+end;
+procedure TProjectDocumentation.AnalysisTick(Sender:TObject);
+begin
+ if not FAnalysisTimer.Enabled then Exit;
+ FAnalysisTimer.Enabled:=False;
+ try
+  if FJobPosition<Length(FJobFiles) then begin
+   var FileName:=FJobFiles[FJobPosition];FIndex.Update(FileName,FJobSources[LowerCase(FileName)],FJobParsers[LowerCase(FileName)]);Inc(FJobPosition);AnalysisState('running');FAnalysisTimer.Enabled:=True;
+  end else begin PublishCatalog;AnalysisState('completed');if FQuickPending then begin FQuickPending:=False;ShowQuickDoc;end;end;
+ except on Ex:Exception do begin AnalysisState('failed');FQuickPending:=False;
+  var Json:=TJSONString.Create(Ex.Message);try FJobBrowser.ExecuteScript('window.bridge.setStatus('+Json.ToJSON+');');finally Json.Free;end;
+ end;end;
+end;
+procedure TProjectDocumentation.PublishCatalog;
+var FileName,Source,Session:string;E:TCodeElementInfo;Root,Json,Param:TJSONObject;Elements,Errors,Params,Generics,Interfaces:TJSONArray;Model:TXmlDocModel;P:TParamInfo;G:string;Batch:TBatchParser;NewElements:TDictionary<string,TCodeElementInfo>;NewSources,NewSessions,NewEffective:TDictionary<string,string>;
+begin
+ for var PendingFile in FJobFiles do begin
+  var LiveEditor:=SourceEditorForFile(PendingFile);var LiveSource:='';if Assigned(LiveEditor) then LiveSource:=EditorSource(LiveEditor) else LiveSource:=ReadSourceFile(PendingFile);
+  if LiveSource<>FJobSources[LowerCase(PendingFile)] then raise Exception.Create('Source changed during analysis — refresh the workspace');
+  var CapturedParser:=FJobParsers[LowerCase(PendingFile)];ConfigureDeclarationContext(CapturedParser,nil,PendingFile);CapturedParser.SourceFiles:=FJobFiles;
+  if not FIndex.IsCurrent(PendingFile,LiveSource,CapturedParser) then raise Exception.Create('Project context or a dependency changed during analysis — refresh the workspace');
+ end;
+ Root:=TJSONObject.Create;Elements:=TJSONArray.Create;Errors:=TJSONArray.Create;Root.AddPair('elements',Elements);Root.AddPair('errors',Errors);
+ Model:=TXmlDocModel.Create;Batch:=TBatchParser.Create;NewElements:=TDictionary<string,TCodeElementInfo>.Create;NewSources:=TDictionary<string,string>.Create;NewSessions:=TDictionary<string,string>.Create;NewEffective:=TDictionary<string,string>.Create;
+ try
+
+  for FileName in FJobFiles do begin Source:=FJobSources[LowerCase(FileName)];Session:=TGUID.NewGuid.ToString;NewSources.AddOrSetValue(LowerCase(FileName),Source);NewSessions.AddOrSetValue(LowerCase(FileName),Session);
+     for E in FIndex.Elements(FileName) do begin
+      if (E.Name='') or NewElements.ContainsKey(Key(FileName,E.SymbolId)) then Continue;
+      NewElements.Add(Key(FileName,E.SymbolId),E);Json:=TJSONObject.Create;
+
       Json.AddPair('kind',E.Kind.ToString);Json.AddPair('name',E.Name);Json.AddPair('fullName',E.FullName);
       Json.AddPair('qualifiedParent',E.QualifiedParent);Json.AddPair('visibility',E.Visibility);
  Json.AddPair('methodBinding',E.MethodBinding);Json.AddPair('isReintroduce',TJSONBool.Create(E.IsReintroduce));
@@ -134,29 +172,16 @@ begin
       Interfaces:=TJSONArray.Create;for G in E.Implements do Interfaces.Add(G);Json.AddPair('implements',Interfaces);
       Model.LoadFromXml(E.ExistingDocXml);Json.AddPair('doc',TJSONObject.ParseJSONValue(Model.ToJson));Elements.AddElement(Json);
      end;
-    except on Ex:Exception do Errors.Add(FileName+': '+Ex.Message);end;
-   finally Model.Free;Parser.Free;end;
+
   end;
-  Batch:=TBatchParser.Create;Context:=TDocParser.Create;
-  try
-   try
-    ConfigureDeclarationContext(Context);Batch.SourceSnapshots:=CurrentSourceSnapshots;Batch.SearchPaths:=Context.SearchPaths;Batch.Defines:=Context.Defines;Batch.Platform:=Context.Platform;
-    Batch.OnConfigureParser:=procedure(P:TDocParser;FileName:string) begin
-     if FileProjects.ContainsKey(LowerCase(FileName)) then ConfigureDeclarationContext(P,FileProjects[LowerCase(FileName)]);
-    end;
-    Batch.ParseAll(Files.ToArray);
-    for var Value in Elements do begin
-     var Item:=Value as TJSONObject;var Id:=Item.GetValue<string>('symbolId','');
-     if Batch.SymbolIndex.ContainsKey(Id) then begin
-      var Effective:=Batch.SymbolIndex[Id].Doc.ToJson;FEffective.AddOrSetValue(Key(Item.GetValue<string>('fileName',''),Id),Effective);
-      Item.AddPair('effectiveDoc',TJSONObject.ParseJSONValue(Effective));
-     end;
-    end;
-   except on Ex:Exception do Errors.Add('Inherited documentation: '+Ex.Message);end;
-  finally Context.Free;Batch.Free;end;
-  if Errors.Count=0 then begin FCacheKey:=CacheKey;FCacheCatalog:=Root.ToJSON;end else FCacheCatalog:='';
-  Browser.ExecuteScript('window.xmlDocWorkbench?.receiveCatalog('+Root.ToJSON+');');
- finally Root.Free;Files.Free;FileProjects.Free;CacheBuilder.Free;SourceTexts.Free;end;
+  Batch.ParsedElements:=function(FileName:string):TArray<TCodeElementInfo> begin Result:=FIndex.Elements(FileName);end;
+  Batch.SourceSnapshots:=CurrentSourceSnapshots;Batch.ParseAll(FJobFiles);
+  for var Value in Elements do begin var Item:=Value as TJSONObject;var Id:=Item.GetValue<string>('symbolId','');
+   if Batch.SymbolIndex.ContainsKey(Id) then begin var Effective:=Batch.SymbolIndex[Id].Doc.ToJson;NewEffective.AddOrSetValue(Key(Item.GetValue<string>('fileName',''),Id),Effective);Item.AddPair('effectiveDoc',TJSONObject.ParseJSONValue(Effective));end;
+  end;
+  FElements.Free;FElements:=NewElements;NewElements:=nil;FSources.Free;FSources:=NewSources;NewSources:=nil;FSessions.Free;FSessions:=NewSessions;NewSessions:=nil;FEffective.Free;FEffective:=NewEffective;NewEffective:=nil;
+  FJobBrowser.ExecuteScript('window.xmlDocWorkbench?.receiveCatalog('+Root.ToJSON+');');
+ finally NewElements.Free;NewSources.Free;NewSessions.Free;NewEffective.Free;Batch.Free;Model.Free;Root.Free;end;
 end;
 procedure TProjectDocumentation.Authoring(Message:TJSONObject;Browser:TXmlDocBrowser);
 var Project:IOTAProject;FileName,Scope,Text:string;Root,Payload,Reply,Global:TJSONObject;
@@ -187,29 +212,27 @@ begin
 end;
 
 procedure TProjectDocumentation.QuickDoc(Browser:TXmlDocBrowser);
-var View:IOTAEditView;EditPos:TOTAEditPos;CharPos:TOTACharPos;Position,First,Last,Dot:Integer;
- Source,Prefix,Query,Owner:string;Utf8:UTF8String;Matches:TJSONArray;Root,Item:TJSONObject;
- Pair:TPair<string,TCodeElementInfo>;E:TCodeElementInfo;Model:TXmlDocModel;Only:TCodeElementInfo;Resolved:Boolean;
+var View:IOTAEditView;EditPos:TOTAEditPos;CharPos:TOTACharPos;Utf8:UTF8String;
 begin
  View:=(BorlandIDEServices as IOTAEditorServices).TopView;if not Assigned(View) then Exit;
- Source:=EditorSource(View.Buffer);EditPos:=View.CursorPos;View.ConvertPos(True,EditPos,CharPos);Position:=View.CharPosToPos(CharPos);
- Utf8:=UTF8Encode(Source);Prefix:=UTF8ToString(Copy(Utf8,1,Position));First:=Length(Prefix);Last:=First+1;
- while (First>0) and CharInSet(Source[First],['A'..'Z','a'..'z','0'..'9','_','.']) do Dec(First);
- while (Last<=Length(Source)) and CharInSet(Source[Last],['A'..'Z','a'..'z','0'..'9','_','.']) do Inc(Last);
- Query:=Copy(Source,First+1,Last-First-1);if Query='' then Exit;
- Catalog('project',Browser);Owner:='';Dot:=LastDelimiter('.',Query);if Dot>0 then begin Owner:=Copy(Query,1,Dot-1);Query:=Copy(Query,Dot+1,MaxInt);end;
+ FQuickSource:=EditorSource(View.Buffer);FQuickFile:=View.Buffer.FileName;EditPos:=View.CursorPos;FQuickLine:=EditPos.Line;View.ConvertPos(True,EditPos,CharPos);
+ Utf8:=UTF8Encode(FQuickSource);FQuickPosition:=Length(UTF8ToString(Copy(Utf8,1,View.CharPosToPos(CharPos))));FQuickPending:=True;Catalog('group',Browser);
+end;
+procedure TProjectDocumentation.ShowQuickDoc;
+var Query,Reason:string;MatchesInfo:TArray<TCodeElementInfo>;Matches:TJSONArray;Root,Item:TJSONObject;E,Only:TCodeElementInfo;Model:TXmlDocModel;Resolved:Boolean;Parser:TDocParser;Browser:TXmlDocBrowser;
+begin
+ Browser:=FJobBrowser;var Editor:=SourceEditorForFile(FQuickFile);if not Assigned(Editor) or (EditorSource(Editor)<>FQuickSource) then begin Browser.ExecuteScript('window.bridge.setStatus("Source changed — request Quick documentation again");');Exit;end;
+ Parser:=TDocParser.Create;
+ try ConfigureDeclarationContext(Parser,nil,FQuickFile);Parser.ParseSource(FQuickSource,FQuickFile);MatchesInfo:=ResolveDocumentationExpression(Parser,FQuickSource,FQuickPosition,FQuickLine,FElements.Values.ToArray,Query,Reason);
+ finally Parser.Free;end;
  Root:=TJSONObject.Create;Matches:=TJSONArray.Create;Root.AddPair('matches',Matches);Root.AddPair('query',Query);Model:=TXmlDocModel.Create;
  try
-  for Pair in FElements do begin E:=Pair.Value;
-   if not SameText(E.Name,Query) then Continue;
-   // Qualified type/member references can be resolved exactly. Instance-qualified
-   // and overloaded references are shown as candidates instead of guessed.
-   if (Owner<>'') and not SameText(E.QualifiedParent,Owner) and not SameText(E.FullName,Owner+'.'+Query) then Continue;
+  for E in MatchesInfo do begin
    if FEffective.ContainsKey(Key(E.FileName,E.SymbolId)) then Model.FromJson(FEffective[Key(E.FileName,E.SymbolId)]) else Model.LoadFromXml(E.ExistingDocXml);Item:=TJSONObject.Create;Item.AddPair('name',E.Name);Item.AddPair('signature',E.Signature);
    Item.AddPair('symbolId',E.SymbolId);Item.AddPair('fileName',E.FileName);Item.AddPair('lineNumber',TJSONNumber.Create(E.LineNumber));
    Item.AddPair('doc',TJSONObject.ParseJSONValue(Model.ToJson));Matches.AddElement(Item);Only:=E;
   end;
-  Resolved:=(Matches.Count=1) and ((Owner<>'') or (Only.Kind in [dekUnit,dekClass,dekInterface,dekRecord,dekType]));
+  Resolved:=(Matches.Count=1) and (Reason='');Root.AddPair('reason',Reason);
   Root.AddPair('resolved',TJSONBool.Create(Resolved));
   Browser.ExecuteScript('window.xmlDocWorkbench?.receiveQuickDoc('+Root.ToJSON+');');
   if Resolved then begin
@@ -270,10 +293,19 @@ begin
 end;
 function TProjectDocumentation.Handle(Message:TJSONObject;Browser:TXmlDocBrowser):Boolean;
 var Kind,FileName,SymbolId,Selection,ProjectFile:string;Project:IOTAProject;Group:IOTAProjectGroup;Actions:IOTAActionServices;Editor:IOTASourceEditor;View:IOTAEditView;
- Pos:TOTAEditPos;Elide:IOTAElideActions;Utf8Selection:UTF8String;E:TCodeElementInfo;Parser:TDocParser;Found:Boolean;J:TJSONString;
+ Pos:TOTAEditPos;Elide:IOTAElideActions;Utf8Selection:UTF8String;E:TCodeElementInfo;Parser:TDocParser;Found:Boolean;J:TJSONString;Recovery:TJSONObject;DraftId:string;
 begin
- Kind:=Message.GetValue<string>('type','');Result:=(Kind='requestCatalog') or (Kind='openSymbol') or (Kind='batchUpdated') or (Kind='copySelection') or (Kind='requestQuickDoc') or (Kind='foldDocumentation') or (Kind='loadAuthoring') or (Kind='saveAuthoring') or (Kind='draftUpdated') or (Kind='listDrafts');if not Result then Exit;
+ Kind:=Message.GetValue<string>('type','');Result:=(Kind='recoverDraft') or (Kind='cancelAnalysis') or (Kind='requestCatalog') or (Kind='openSymbol') or (Kind='batchUpdated') or (Kind='copySelection') or (Kind='requestQuickDoc') or (Kind='foldDocumentation') or (Kind='loadAuthoring') or (Kind='saveAuthoring') or (Kind='draftUpdated') or (Kind='listDrafts');if not Result then Exit;
+ Recovery:=nil;
  try
+ try
+  if Kind='recoverDraft' then begin
+   DraftId:=Message.GetValue<string>('draftId','');if not TRegEx.IsMatch(DraftId,'^[0-9a-fA-F]{64}$') then raise Exception.Create('Invalid draft identity');
+   Recovery:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(DraftDirectory,DraftId+'.json'))) as TJSONObject;
+   if not Assigned(Recovery) then raise Exception.Create('Draft is invalid');
+   if Recovery.GetValue<string>('locationId','')='' then raise Exception.Create('This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.');
+   for var Field in ['fileName','symbolId','locationId','projectFile'] do begin Message.RemovePair(Field).Free;Message.AddPair(Field,Recovery.GetValue<string>(Field,''));end;
+  end;
   if Assigned(FQuickPreview) then FQuickPreview.HidePreview;
   if (Kind='draftUpdated') or (Kind='listDrafts') then Draft(Message,Browser)
   else if (Kind='loadAuthoring') or (Kind='saveAuthoring') then Authoring(Message,Browser)
@@ -282,7 +314,8 @@ begin
     View:=(BorlandIDEServices as IOTAEditorServices).TopView;
     if Assigned(View) and Supports(View,IOTAElideActions,Elide) then Elide.ElideDocRegions;
   end
-  else if Kind='requestCatalog' then Catalog(Message.GetValue<string>('scope','project'),Browser)
+  else if Kind='cancelAnalysis' then CancelAnalysis
+  else if Kind='requestCatalog' then begin FQuickPending:=False;Catalog(Message.GetValue<string>('scope','project'),Browser);end
   else if Kind='batchUpdated' then ApplyBatch(Message.GetValue<TJSONArray>('changes'),Browser)
   else if Kind='copySelection' then begin
    View:=(BorlandIDEServices as IOTAEditorServices).TopView;
@@ -306,12 +339,19 @@ begin
      if Assigned(Group) then for var I:=0 to Group.ProjectCount-1 do if SameText(Group.Projects[I].FileName,ProjectFile) then begin Project:=Group.Projects[I];Break;end;
      if not Assigned(Project) then raise Exception.Create('Project context is unavailable: '+ProjectFile);
     end;
-    ConfigureDeclarationContext(Parser,Project);Parser.ParseSource(EditorSource(Editor),FileName);Found:=False;
-    for E in Parser.GetAllElements do if E.SymbolId=SymbolId then begin Found:=True;Break;end;
-    if not Found then raise Exception.Create('Declaration changed — refresh the workspace');
+    ConfigureDeclarationContext(Parser,Project,FileName);Parser.ParseSource(EditorSource(Editor),FileName);Found:=False;
+    for E in Parser.GetAllElements do if (E.SymbolId=SymbolId) and ((Message.GetValue<string>('locationId','')='') or (Message.GetValue<string>('locationId','')=E.SymbolId+'@'+E.SourceSection)) then begin Found:=True;Break;end;
+    if not Found then raise Exception.Create('Declaration changed — the draft has been retained; locate the declaration before recovering it');
+    if Assigned(Recovery) then begin
+     Recovery.AddPair('currentRevision',SourceRevision(EditorSource(Editor)));Recovery.AddPair('currentXml',E.ExistingDocXml);Recovery.AddPair('conflict',TJSONBool.Create(Recovery.GetValue<string>('baseXml','')<>E.ExistingDocXml));
+     Recovery.AddPair('readOnly',TJSONBool.Create(SourceEditProtection(FileName)<>''));
+     Browser.ExecuteScript('window.xmlDocWorkbench?.receiveRecovery('+Recovery.ToJSON+');');
+    end;
+    Message.RemovePair('line').Free;Message.AddPair('line',TJSONNumber.Create(E.LineNumber));
     View:=Editor.EditViews[0];Pos.Line:=E.LineNumber;Pos.Col:=1;View.SetCursorPos(Pos);View.MoveViewToCursor;View.Paint;
    finally Parser.Free;end;
   end;
  except on Ex:Exception do begin J:=TJSONString.Create(Ex.Message);try Browser.ExecuteScript('window.bridge.setStatus('+J.ToJSON+');');finally J.Free;end;end;end;
+ finally Recovery.Free;end;
 end;
 end.

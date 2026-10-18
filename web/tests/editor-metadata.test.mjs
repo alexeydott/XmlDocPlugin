@@ -1,0 +1,14 @@
+import {JSDOM} from 'jsdom';import {readFileSync} from 'node:fs';import test from 'node:test';import assert from 'node:assert/strict';import {load} from './load.mjs';
+test('same comment refresh updates signature fields and retains summary undo',()=>{
+ const dom=new JSDOM(readFileSync(new URL('../index.html',import.meta.url),'utf8'),{pretendToBeVisual:true});
+ for(const name of ['window','document','DOMParser','XMLSerializer','HTMLElement','Element','Node','MutationObserver','CustomEvent','getComputedStyle'])globalThis[name]=name==='getComputedStyle'?dom.window.getComputedStyle.bind(dom.window):dom.window[name];
+ Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true});
+ globalThis.ResizeObserver=class{observe(){} disconnect(){}};
+ const {loadDocument,collectDoc}=load('editor.ts');
+ const e={kind:'method',name:'Run',symbolId:'run',fileName:'Case.pas',params:[{name:'A',type:'Integer'}],genericParams:['T'],returnType:'Integer',lineNumber:10};const doc={summary:'Keep',params:[{name:'A',description:'Original'}],typeParams:[{name:'T',description:'Type'}]};
+ loadDocument(e,doc);const summary=document.querySelector('#summary-editor .tiptap');const before=summary;summary.editor.chain().selectAll().insertContent('Undo target').run();summary.editor.commands.undo();
+ loadDocument({...e,params:[{name:'B',type:'String'}],genericParams:['U'],returnType:'Boolean',lineNumber:12},doc);
+ assert.equal(document.querySelector('#summary-editor .tiptap'),before);assert.equal(summary.editor.can().redo(),true,'summary history retained');assert.equal(document.querySelector('#params-body .td-name').textContent,'B');assert.equal(document.querySelector('#typeparams-body .td-name').textContent,'U');assert.match(document.querySelector('#return-type').textContent,/Boolean/);
+ assert.equal(collectDoc().params[0].name,'B');assert.equal(doc.params[0].name,'A','incoming documentation is not mutated');
+ dom.window.close();
+});

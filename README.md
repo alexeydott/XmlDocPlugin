@@ -25,13 +25,14 @@ Studio and remove **XmlDoc Plugin** from Windows Installed apps.
 
 ## User guide
 
-Read the [illustrated user guide](docs/user-guide.md) for a walkthrough using
-[XmlDocE2E.dproj](tests/e2e/DocumentationWorkbench/XmlDocE2E.dproj): editing and
-reviewing comments, draft recovery, signature synchronization, references,
-member summaries, inherited documentation, reusable wording and terminology,
-examples, prose replacement, coverage, and all IDE/CLI export formats.
-A [project authoring configuration example](docs/examples/XmlDocE2E.authoring.json)
-is included; merge its `authoring` object into your existing project settings.
+Read the [illustrated user guide](docs/user-guide.md) to learn how to edit and
+review comments, recover drafts, synchronize signatures, insert references,
+edit member summaries, reuse inherited documentation, save wording and terminology,
+add examples, replace prose, measure coverage, and generate documentation through the IDE or CLI.
+Open it in the IDE with **Document → User Guide**.
+A [project authoring configuration example](docs/examples/authoring.json) shows
+how to configure reusable wording and terminology. Merge its `authoring` object
+into your existing project settings.
 
 ## Documentation workbench
 

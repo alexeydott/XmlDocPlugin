@@ -13,6 +13,7 @@ const paths: Record<string, string> = {
  'review-draft': preview,
  'apply-operation': '<path d="m4 12 5 5L20 6"/>',
  'apply-xml': '<path d="m5 4-3 4 3 4m8-8 3 4-3 4m-4 3 4 4L22 9"/>',
+ 'cancel-analysis': '<path d="M5 5h14v14H5Z"/>',
  'cancel-operation': '<path d="m6 6 12 12M18 6 6 18"/>',
  'reference': '<path d="m10 14 4-4M9 17l-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2-2 2-2a4 4 0 1 1 6 6l-4 4a4 4 0 0 1-6 0"/>',
  'copy-documentation': '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',

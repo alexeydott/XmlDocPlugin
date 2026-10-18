@@ -19,14 +19,14 @@ function handleTreeDblClick(element: TreeElementInfo): void {
   }
 }
 
-function handleLoadTree(data: { fileName: string; elements: TreeElementInfo[] }): void {
+function handleLoadTree(data: { fileName: string; selectedLocation?:string; elements: TreeElementInfo[] }): void {
   const container = document.getElementById('tree-content')!;
   currentElements = data.elements;
   populateTree(container, data.fileName, data.elements);
 
   // 첫 번째 요소 자동 선택
   if (data.elements.length > 0) {
-    handleTreeSelect(data.elements.find(e => e.symbolId === selectedElement?.symbolId && e.fileName === selectedElement?.fileName) ?? data.elements[0]);
+    handleTreeSelect(data.elements.find(e=>data.selectedLocation && e.locationId===data.selectedLocation) ?? data.elements.find(e => e.locationId===selectedElement?.locationId && e.symbolId === selectedElement?.symbolId && e.fileName === selectedElement?.fileName) ?? data.elements[0]);
   }
 }
 

@@ -1,8 +1,12 @@
 param(
-    [string]$PayloadDir = "$env:LOCALAPPDATA\XmlDocPlugin\Installer\payload",
+    [string]$PayloadDir = '',
     [string]$ISCC = 'D:\tools\InnoSetup\6\ISCC.exe'
 )
 $ErrorActionPreference = 'Stop'
+if (!$PayloadDir) {
+    $currentPayload = "$env:LOCALAPPDATA\XmlDocPlugin\Installer\current-payload.txt"
+    $PayloadDir = if (Test-Path -LiteralPath $currentPayload) { [IO.File]::ReadAllText($currentPayload).Trim() } else { "$env:LOCALAPPDATA\XmlDocPlugin\Installer\payload" }
+}
 $repo = Split-Path $PSScriptRoot
 $id = [guid]::NewGuid().ToString()
 $dir = Join-Path $env:LOCALAPPDATA "XmlDocPlugin\InstallerTests\$id"
@@ -125,13 +129,17 @@ try {
     }
     if ((Get-Item $known).Property -contains $old) { throw 'Old registration was not replaced' }
     Test-InstalledCLI
+    & (Join-Path $PSScriptRoot 'Test-Help.ps1') -HelpDir (Join-Path $app 'help')
     Run-Setup 'upgrade' $true
     Test-InstalledCLI
+    & (Join-Path $PSScriptRoot 'Test-Help.ps1') -HelpDir (Join-Path $app 'help')
     $un = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru -WindowStyle Hidden
     if (!$un.WaitForExit(60000) -or $un.ExitCode -ne 0) { throw 'Uninstall failed' }
     if ((Get-ItemPropertyValue $known -Name $old) -ne 'Previous plugin') { throw 'Previous registration was not restored' }
     if (Test-Path "$app\rad12-x86\XmlDocPlugin290.bpl") { throw 'Uninstall left the package behind' }
     if (Test-Path "$app\bin\XmlDocGen.exe") { throw 'Uninstall left the command-line generator behind' }
+    if (Test-Path "$app\help\index.html") { throw 'Uninstall left the offline help behind' }
+    $script:results += 'PASS: offline illustrated help and sample installed, upgraded and removed'
     $script:results += 'PASS: x64 CLI installation, generation, upgrade and removal'
     $script:results += 'PASS: all three registrations, PE architectures and installed hashes'
     $script:results += 'PASS: uninstall restores the previous package registration'

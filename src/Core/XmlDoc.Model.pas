@@ -512,7 +512,12 @@ begin
         LExample.Code := LCodeNode.Text;
       var CodeCount:=0;
       for var J:=0 to LNode.ChildNodes.Count-1 do if LNode.ChildNodes[J].NodeName='code' then Inc(CodeCount);
-      if CodeCount>1 then begin LExample.Code:='';LExample.Description:=TrimDocText(ExtractInlineContent(LNode));end;
+      var AfterCode:=False;var MixedOrder:=False;
+      for var J:=0 to LNode.ChildNodes.Count-1 do begin
+        if LNode.ChildNodes[J].NodeName='code' then AfterCode:=True
+        else if AfterCode and (Trim(LNode.ChildNodes[J].XML)<>'') then MixedOrder:=True;
+      end;
+      if (CodeCount>1) or MixedOrder then begin LExample.Code:='';LExample.Description:=TrimDocText(ExtractInlineContent(LNode));end;
       FExamples.Add(LExample);
     end
 

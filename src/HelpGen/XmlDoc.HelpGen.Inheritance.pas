@@ -22,14 +22,6 @@ begin FDone.Free;FVisiting.Free;FTypes.Free;inherited;end;
 function BareType(const Name:string):string;
 var P:Integer;
 begin Result:=Name;P:=Pos('<',Result);if P>0 then Result:=Copy(Result,1,P-1);end;
-function TInheritanceResolver.FindType(const Name,Context:string):TTypeDocInfo;
-var Pair:TPair<string,TTypeDocInfo>;Key:string;
-begin
- Key:=LowerCase(BareType(Name));if FTypes.TryGetValue(Key,Result) then Exit;
- if (Context<>'') and FTypes.TryGetValue(LowerCase(Context)+'.'+Key,Result) then Exit;
- Result:=nil;
- for Pair in FTypes do if Pair.Key.EndsWith('.'+Key) then begin if Assigned(Result) and (Result<>Pair.Value) then Exit(nil);Result:=Pair.Value;end;
-end;
 function GenericArguments(const Name:string):TArray<string>;
 var Start,I,Depth:Integer;Part:string;Items:TList<string>;
 begin
@@ -43,6 +35,24 @@ begin
   end;Result:=Items.ToArray;
  finally Items.Free;end;
 end;
+function TInheritanceResolver.FindType(const Name,Context:string):TTypeDocInfo;
+var Pair:TPair<string,TTypeDocInfo>;Key:string;
+begin
+ Key:=LowerCase(BareType(Name))+'`'+IntToStr(Length(GenericArguments(Name)));if FTypes.TryGetValue(Key,Result) then Exit;
+ if (Context<>'') and FTypes.TryGetValue(LowerCase(Context)+'.'+Key,Result) then Exit;
+ Result:=nil;
+ for Pair in FTypes do if Pair.Key.EndsWith('.'+Key) then begin if Assigned(Result) and (Result<>Pair.Value) then Exit(nil);Result:=Pair.Value;end;
+end;
+function SubstituteGenerics(const Text:string;const Names,Args:TArray<string>):string;
+var Matches:TMatchCollection;I,J:Integer;M:TMatch;
+begin
+ Result:=Text;Matches:=TRegEx.Matches(Text,'[\p{L}_][\p{L}\p{N}_]*');
+ for I:=Matches.Count-1 downto 0 do begin M:=Matches[I];
+  for J:=0 to High(Names) do if (J<Length(Args)) and SameText(M.Value,Names[J]) then begin
+   Result:=Copy(Result,1,M.Index-1)+Args[J]+Copy(Result,M.Index+M.Length,MaxInt);Break;
+  end;
+ end;
+end;
 procedure TInheritanceResolver.Resolve(Typ:TTypeDocInfo);
 var Bases:TList<TTypeDocInfo>;Base:TTypeDocInfo;Member,Source,Matched:TElementDocInfo;
  Name,Explicit,Xml,Ancestor:string;Sources:TList<TElementDocInfo>;CopyModel:TXmlDocModel;I,Count:Integer;Match:TMatch;Mappings:TArray<string>;
@@ -55,13 +65,11 @@ var Bases:TList<TTypeDocInfo>;Base:TTypeDocInfo;Member,Source,Matched:TElementDo
    (Explicit='') and (A.CodeElement.IsReintroduce or not SameText(A.CodeElement.MethodBinding,'override')) then Exit;
   Args:=GenericArguments(Constructed);
   L:=A.CodeElement.ReturnType;R:=B.CodeElement.ReturnType;
-  for K:=0 to High(Parent.CodeElement.GenericParams) do if K<Length(Args) then
-   R:=TRegEx.Replace(R,'\b'+TRegEx.Escape(Parent.CodeElement.GenericParams[K])+'\b',Trim(Args[K]),[roIgnoreCase]);
+  R:=SubstituteGenerics(R,Parent.CodeElement.GenericParams,Args);
   if not SameText(L,R) then Exit;
   for J:=0 to High(A.CodeElement.Params) do begin
    L:=A.CodeElement.Params[J].TypeName;R:=B.CodeElement.Params[J].TypeName;
-   for K:=0 to High(Parent.CodeElement.GenericParams) do if K<Length(Args) then
-    R:=TRegEx.Replace(R,'\b'+TRegEx.Escape(Parent.CodeElement.GenericParams[K])+'\b',Trim(Args[K]),[roIgnoreCase]);
+   R:=SubstituteGenerics(R,Parent.CodeElement.GenericParams,Args);
    if not SameText(L,R) or (A.CodeElement.Params[J].IsVar<>B.CodeElement.Params[J].IsVar) or (A.CodeElement.Params[J].IsOut<>B.CodeElement.Params[J].IsOut) or (A.CodeElement.Params[J].IsConst<>B.CodeElement.Params[J].IsConst) then Exit;
   end;
   Result:=Length(A.CodeElement.GenericParams)=Length(B.CodeElement.GenericParams);
@@ -77,7 +85,7 @@ var Bases:TList<TTypeDocInfo>;Base:TTypeDocInfo;Member,Source,Matched:TElementDo
   if not Found then for ParentName in TArray<string>.Create(Parent.Ancestor)+Parent.Implements do if ParentName<>'' then begin
    AncestorType:=FindType(ParentName,Parent.CodeElement.UnitName);if Assigned(AncestorType) then begin
     NextName:=ParentName;Args:=GenericArguments(Constructed);
-    for var K:=0 to High(Parent.CodeElement.GenericParams) do if K<Length(Args) then NextName:=TRegEx.Replace(NextName,'\b'+TRegEx.Escape(Parent.CodeElement.GenericParams[K])+'\b',Trim(Args[K]),[roIgnoreCase]);
+    NextName:=SubstituteGenerics(NextName,Parent.CodeElement.GenericParams,Args);
     FindSources(AncestorType,NextName,Visited);
    end;
   end;
@@ -131,7 +139,7 @@ procedure TInheritanceResolver.Apply(Units:TObjectList<TUnitDocInfo>);
 var U:TUnitDocInfo;T:TTypeDocInfo;
  procedure AddType(Typ:TTypeDocInfo);
  var Nested:TTypeDocInfo;
- begin FTypes.AddOrSetValue(LowerCase(Typ.FullName),Typ);for Nested in Typ.NestedTypes do AddType(Nested);end;
+ begin FTypes.AddOrSetValue(LowerCase(Typ.FullName)+'`'+IntToStr(Length(Typ.CodeElement.GenericParams)),Typ);for Nested in Typ.NestedTypes do AddType(Nested);end;
 begin
  FTypes.Clear;FDone.Clear;FVisiting.Clear;
  for U in Units do for T in U.Types do AddType(T);

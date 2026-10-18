@@ -56,6 +56,7 @@ type
     Name: string;
     TypeName: string;
     DefaultValue: string;
+    HasDefault:Boolean;
     IsConst: Boolean;
     IsVar: Boolean;
     IsOut: Boolean;
@@ -68,6 +69,7 @@ type
     FullName: string;
     SymbolId: string;
     UnitName,CanonicalName:string;
+    SourceSection:string;
     IsOverload,IsReintroduce:Boolean;
     MethodBinding:string;
     FileName: string;
