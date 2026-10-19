@@ -4,11 +4,13 @@ uses System.SysUtils,System.Generics.Collections,XmlDoc.HelpGen.Types;
 type
  TInheritanceResolver=class
  private
+  FOnCheck:TProc;
   FTypes:TDictionary<string,TTypeDocInfo>;
   FVisiting,FDone:TDictionary<TTypeDocInfo,Boolean>;
   function FindType(const Name,Context:string):TTypeDocInfo;
   procedure Resolve(Typ:TTypeDocInfo);
  public
+  property OnCheck:TProc read FOnCheck write FOnCheck;
   constructor Create;
   destructor Destroy;override;
   procedure Apply(Units:TObjectList<TUnitDocInfo>);
@@ -77,10 +79,14 @@ var Bases:TList<TTypeDocInfo>;Base:TTypeDocInfo;Member,Source,Matched:TElementDo
  procedure FindSources(Parent:TTypeDocInfo;const Constructed:string;Visited:TList<string>);
  var Candidate:TElementDocInfo;Found:Boolean;ParentName,VisitKey,NextName:string;AncestorType:TTypeDocInfo;Args:TArray<string>;
  begin
+  if Assigned(FOnCheck) then FOnCheck();
   VisitKey:=Parent.FullName+'|'+Constructed;if Visited.Contains(VisitKey) then Exit;Visited.Add(VisitKey);Found:=False;
-  for Candidate in Parent.Members do if Compatible(Member,Candidate,Parent,Constructed) then begin
+  for Candidate in Parent.Members do begin
+   if Assigned(FOnCheck) then FOnCheck();
+   if Compatible(Member,Candidate,Parent,Constructed) then begin
    Found:=True;
    if ((Explicit='') or SameText(Explicit,Candidate.CodeElement.SymbolId) or SameText(Explicit,Candidate.FullName) or SameText(Explicit,Parent.Name)) and not Candidate.Doc.IsEmpty and not Sources.Contains(Candidate) then Sources.Add(Candidate);
+  end;
   end;
   if not Found then for ParentName in TArray<string>.Create(Parent.Ancestor)+Parent.Implements do if ParentName<>'' then begin
    AncestorType:=FindType(ParentName,Parent.CodeElement.UnitName);if Assigned(AncestorType) then begin
@@ -91,6 +97,7 @@ var Bases:TList<TTypeDocInfo>;Base:TTypeDocInfo;Member,Source,Matched:TElementDo
   end;
  end;
 begin
+ if Assigned(FOnCheck) then FOnCheck();
  if FDone.ContainsKey(Typ) then Exit;
  if FVisiting.ContainsKey(Typ) then raise Exception.Create('Documentation inheritance cycle: '+Typ.FullName);
  FVisiting.Add(Typ,True);Bases:=TList<TTypeDocInfo>.Create;Sources:=TList<TElementDocInfo>.Create;
@@ -114,6 +121,7 @@ begin
    end else if TypeSources.Count>1 then Typ.Doc.InheritedFrom:='Ambiguous inheritance: choose a source with inheritdoc cref';
   finally TypeSources.Free;end;
   for Member in Typ.Members do begin
+   if Assigned(FOnCheck) then FOnCheck();
    Sources.Clear;Explicit:='';Match:=TRegEx.Match(Member.Doc.ToXml,'(?i)<inheritdoc\b[^>]*\bcref=["'']([^"'']+)["'']');
    if Match.Success then Explicit:=Match.Groups[1].Value;
    var Visited:=TList<string>.Create;

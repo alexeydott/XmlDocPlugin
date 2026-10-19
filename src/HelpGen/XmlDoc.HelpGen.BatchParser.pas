@@ -25,6 +25,7 @@ type
     FIndexOwners:TObjectList<TElementDocInfo>;
 
     FOnProgress: TProgressCallback;
+    FOnCheck:TProc;
 
     procedure BuildSymbolIndex;
     procedure ParseUnit(const AFilePath: string);
@@ -45,6 +46,7 @@ type
     property SymbolIndex: TDictionary<string, TElementDocInfo> read FSymbolIndex;
     property Units: TObjectList<TUnitDocInfo> read FUnits;
 
+    property OnCheck:TProc read FOnCheck write FOnCheck;
     property OnProgress: TProgressCallback read FOnProgress write FOnProgress;
   end;
 
@@ -77,6 +79,7 @@ procedure TBatchParser.BuildSymbolIndex;
 var U:TUnitDocInfo;T:TTypeDocInfo;E,IndexItem:TElementDocInfo;Ambiguous:TDictionary<string,Boolean>;
  procedure Add(Element:TElementDocInfo);
  begin
+  if Assigned(FOnCheck) then FOnCheck();
   if Element.CodeElement.SymbolId<>'' then FSymbolIndex.AddOrSetValue(Element.CodeElement.SymbolId,Element);
   if Element.FullName='' then Exit;
   if FSymbolIndex.ContainsKey(Element.FullName) then begin FSymbolIndex.Remove(Element.FullName);Ambiguous.AddOrSetValue(Element.FullName,True);end
@@ -125,7 +128,7 @@ begin
   LDocParser := TDocParser.Create;
   try
     try
-      LDocParser.Platform:=FPlatform;LDocParser.SourceSnapshots:=FSnapshots;LDocParser.SourceFiles:=FSourceFiles;LDocParser.SearchPaths:=FSearchPaths;LDocParser.Defines:=FDefines;
+      LDocParser.OnCheck:=FOnCheck;LDocParser.Platform:=FPlatform;LDocParser.SourceSnapshots:=FSnapshots;LDocParser.SourceFiles:=FSourceFiles;LDocParser.SearchPaths:=FSearchPaths;LDocParser.Defines:=FDefines;
       if Assigned(FConfigure) then FConfigure(LDocParser,AFilePath);
       if not Assigned(FParsedElements) then LDocParser.ParseSource(LSource,AFilePath);
     except
@@ -146,6 +149,7 @@ begin
     try
       for I := 0 to Length(LElements) - 1 do
       begin
+        if Assigned(FOnCheck) then FOnCheck();
         LCodeElem := LElements[I];
 
         // implementation 섹션 이후 요소는 스킵
@@ -265,7 +269,7 @@ begin
   end;
 
   var Inheritance:=TInheritanceResolver.Create;
-  try Inheritance.Apply(FUnits);finally Inheritance.Free;end;
+  try Inheritance.OnCheck:=FOnCheck;Inheritance.Apply(FUnits);finally Inheritance.Free;end;
   BuildSymbolIndex;
 end;
 

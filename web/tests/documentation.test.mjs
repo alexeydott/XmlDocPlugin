@@ -103,3 +103,13 @@ test('a visible Design edit serializes Design rather than hidden restored raw XM
  assert.equal(modelXml(next),'<summary>NEW DESIGN TEXT</summary>');
  assert.equal(original.xmlEdited,true);
 });
+
+ test('Design Undo back to baseline cannot reauthorize an unapplied raw draft',()=>{
+ const {mergeRenderedDoc,modelXml}=load('docTools.ts');
+ const original={summary:'Original Design',sourceXml:'<summary>Original Design</summary>',rawXml:'<summary>UNAPPLIED RAW</summary>',xmlEdited:true};
+ const baseline={summary:'Original Design'};
+ const changed=mergeRenderedDoc(original,baseline,{summary:'NEW DESIGN TEXT'});
+ const undone=mergeRenderedDoc(original,baseline,baseline);
+ assert.equal(modelXml(changed),'<summary>NEW DESIGN TEXT</summary>');assert.equal(modelXml(undone),original.sourceXml);
+ assert.equal(undone.xmlEdited,undefined);assert.equal(undone.rawXml,undefined);assert.equal(original.rawXml,'<summary>UNAPPLIED RAW</summary>');
+ });

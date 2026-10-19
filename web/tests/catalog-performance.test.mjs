@@ -14,5 +14,22 @@ test('large catalog avoids eager XML analysis, pages rows, and keeps pending gri
  document.querySelector('#member-summaries > button').click();assert.equal(document.querySelectorAll('#member-summaries textarea').length,200);assert.equal(grid.value,'UNSAVED GRID EDIT');
  const query=document.querySelector('#catalog-query');query.value='Run1499';query.dispatchEvent(new Event('input'));
  assert.equal(document.querySelectorAll('.catalog-row').length,1);assert.match(document.querySelector('.catalog-row').textContent,/Run1499/);
+ query.value='';query.dispatchEvent(new Event('input'));
+ const restored=document.querySelector('#member-summaries textarea');assert.equal(restored.value,'UNSAVED GRID EDIT');
+ const check=restored.parentElement.querySelector('input');check.checked=true;check.dispatchEvent(new Event('change'));
+ query.value='Run1499';query.dispatchEvent(new Event('input'));
+ document.querySelector('#apply-summaries').click();
+ assert.match(document.querySelector('#xml-after').textContent,/UNSAVED GRID EDIT/,'preview includes selected rows hidden by search');
+ query.value='';query.dispatchEvent(new Event('input'));
+ const filter=document.querySelector('#catalog-kind');filter.value='field';filter.dispatchEvent(new Event('change'));filter.value='';filter.dispatchEvent(new Event('change'));
+ assert.equal(document.querySelector('#member-summaries textarea').value,'UNSAVED GRID EDIT');assert.equal(document.querySelector('#member-summaries input').checked,true);
+ let seed=0x195ab;
+ for(let round=0;round<50;round++){
+  seed=(Math.imul(seed,1664525)+1013904223)>>>0;query.value=seed%2?'Run1499':'';query.dispatchEvent(new Event('input'));filter.value=seed%3?'':'field';filter.dispatchEvent(new Event('change'));
+  document.querySelector('#apply-summaries').click();assert.match(document.querySelector('#xml-after').textContent,/UNSAVED GRID EDIT/);
+ }
+ let applied=0;window.addEventListener('applyDocumentationBatch',()=>applied++);
+ window.xmlDocWorkbench.receiveCatalog({elements:elements.map(e=>({...e,sourceRevision:'changed'}))});
+ document.querySelector('#apply-operation').click();assert.equal(applied,0,'catalog refresh must invalidate a pending preview');
  dom.window.close();
 });

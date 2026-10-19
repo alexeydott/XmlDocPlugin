@@ -163,9 +163,12 @@ export function collectDoc(): DocModel {
   return doc;
 }
 
+let designChosen=false;
 function notifyChanged(): void {
   if(loading || bridge.readOnly)return;
   const rendered=collectDoc();
+  if(!designChosen && sameDocContent(baseline,rendered))return;
+  designChosen=true;
   const next=mergeRenderedDoc(original,baseline,rendered);
   if(JSON.stringify(next)===JSON.stringify(currentDoc))return;
   currentDoc=next;
@@ -473,6 +476,7 @@ function initEditors(doc: DocModel): void {
 // Load Document
 // ────────────────────────────────────────────
 export function loadDocument(element: ElementInfo, doc: DocModel): void {
+  designChosen=false;
   const oldMetadata=JSON.stringify([currentElement?.params,currentElement?.genericParams,currentElement?.returnType,currentElement?.kind]);
   const key=(e:ElementInfo)=>`${e.fileName}|${e.locationId??e.declarationId??e.symbolId}`;
   const oldKey=currentElement?key(currentElement):'';

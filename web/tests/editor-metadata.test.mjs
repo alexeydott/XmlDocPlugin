@@ -10,5 +10,17 @@ test('same comment refresh updates signature fields and retains summary undo',()
  loadDocument({...e,params:[{name:'B',type:'String'}],genericParams:['U'],returnType:'Boolean',lineNumber:12},doc);
  assert.equal(document.querySelector('#summary-editor .tiptap'),before);assert.equal(summary.editor.can().redo(),true,'summary history retained');assert.equal(document.querySelector('#params-body .td-name').textContent,'B');assert.equal(document.querySelector('#typeparams-body .td-name').textContent,'U');assert.match(document.querySelector('#return-type').textContent,/Boolean/);
  assert.equal(collectDoc().params[0].name,'B');assert.equal(doc.params[0].name,'A','incoming documentation is not mutated');
+ const b=window.bridge;b.onElementLoaded(loadDocument);b.cancelPending();const sent=[];b.sendToHost=m=>{if(m.type==='docUpdated')sent.push(m);};
+ const a={...e,sourceRevision:'r1',sessionId:'session',locationId:'run@interface'};
+ b.receive({type:'loadDoc',data:{element:a,doc:{summary:'Original Design',sourceXml:'<summary>Original Design</summary>'}}});
+ b.saveDraft({summary:'Original Design',sourceXml:'<summary>Original Design</summary>',rawXml:'<summary>UNAPPLIED RAW</summary>',xmlEdited:true});
+ b.receive({type:'loadDoc',data:{element:{...a,symbolId:'B',locationId:'B@interface'},doc:{summary:'Other'}}});
+ b.receive({type:'loadDoc',data:{element:a,doc:{summary:'Original Design',sourceXml:'<summary>Original Design</summary>'}}});
+ document.querySelector('[data-tab="design"]').click();
+ const actual=document.querySelector('#summary-editor .tiptap').editor;
+ actual.chain().selectAll().insertContent('NEW DESIGN TEXT').run();actual.commands.undo();b.flush();
+ assert.equal(sent.at(-1).doc.summary,'Original Design');assert.equal(sent.at(-1).doc.xmlEdited,undefined);
+ assert.equal(sent.at(-1).doc.rawXml,undefined);assert.equal(b.unappliedXml().xml,'<summary>UNAPPLIED RAW</summary>');
+ assert.equal(sent.at(-1).doc.unappliedXml.xml,'<summary>UNAPPLIED RAW</summary>');b.cancelPending();
  dom.window.close();
 });

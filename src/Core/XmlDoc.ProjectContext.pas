@@ -9,6 +9,7 @@ type
   function ExpandProperty(const Name:string):string;
   function Condition(const Text:string):Boolean;
   function Paths(const Value:string):TArray<string>;
+  function ResolveSource(const Reference:string):string;
  public
   ProjectFile,Configuration,Platform,MainSource:string;
   SearchPaths,IncludePaths,Defines,SourceFiles:TArray<string>;
@@ -95,6 +96,18 @@ begin List:=TList<string>.Create;try for Part in Expand(Value).Split([';']) do i
  Path:=Trim(Part);if not TPath.IsPathRooted(Path) then Path:=TPath.Combine(FDirectory,Path);
  Path:=TPath.GetFullPath(Path);if not List.Contains(Path) then List.Add(Path);end;Result:=List.ToArray;
  finally List.Free;end;end;
+function TProjectContext.ResolveSource(const Reference:string):string;
+begin
+ Result:=Reference;if not TPath.IsPathRooted(Result) then Result:=TPath.Combine(FDirectory,Result);Result:=TPath.GetFullPath(Result);
+ if TFile.Exists(Result) then Exit;
+ // Bare unit references are resolved using the evaluated compiler search path.
+ // Explicit relative or absolute paths retain their original meaning.
+ if not TPath.IsPathRooted(Reference) and (ExtractFilePath(Reference)='') then
+  for var Directory in SearchPaths do begin
+   var Candidate:=TPath.GetFullPath(TPath.Combine(Directory,Reference));if TFile.Exists(Candidate) then Exit(Candidate);
+  end;
+ raise Exception.Create('Missing project source: '+Result);
+end;
 constructor TProjectContext.Create(const FileName,Config,Target:string);
 var Doc:IXMLDocument;Group,Node:IXMLNode;I,J:Integer;Name,Value,Path:string;Files:TList<string>;
 begin
@@ -120,15 +133,15 @@ begin
     Node:=Group.ChildNodes[J];if (Node.NodeName<>'DCCReference') or not Node.HasAttribute('Include') then Continue;
     if Node.HasAttribute('Condition') and not Condition(Node.Attributes['Condition']) then Continue;
     Path:=Expand(Node.Attributes['Include']);if SameText(ExtractFileExt(Path),'.pas') then begin
-     if not TPath.IsPathRooted(Path) then Path:=TPath.Combine(FDirectory,Path);Path:=TPath.GetFullPath(Path);
-     if not TFile.Exists(Path) then raise Exception.Create('Missing project source: '+Path);
      if not Files.Contains(Path) then Files.Add(Path);
     end;
    end;
   end;
   MainSource:=ExpandProperty('MainSource');if not TPath.IsPathRooted(MainSource) then MainSource:=TPath.Combine(FDirectory,MainSource);
   SearchPaths:=Paths(ExpandProperty('DCC_UnitSearchPath'));IncludePaths:=Paths(ExpandProperty('DCC_IncludePath'));
-  Value:=ExpandProperty('DCC_Define');Defines:=Value.Split([';'],TStringSplitOptions.ExcludeEmpty);SourceFiles:=Files.ToArray;
+  Value:=ExpandProperty('DCC_Define');Defines:=Value.Split([';'],TStringSplitOptions.ExcludeEmpty);
+  var Resolved:=TList<string>.Create;
+  try for var Reference in Files do begin Path:=ResolveSource(Reference);if not Resolved.Contains(Path) then Resolved.Add(Path);end;SourceFiles:=Resolved.ToArray;finally Resolved.Free;end;
  finally Files.Free;end;
 end;
 destructor TProjectContext.Destroy;

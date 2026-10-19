@@ -101,7 +101,10 @@
    assert(document.querySelector('#summary-editor .tiptap').contentEditable==='true','Rich editor did not unlock: '+mode);
   }
   for(const [config,platform,first,second] of [['Debug','Win32','Integer','Integer'],['Release','Win32','string','Integer'],['Debug','Win64','Integer','Int64'],['Debug','Win32','Integer','Integer']]){
-   send('context',{config,platform});await pause(450);const e=window.xmlDocEditor.get().element;
+   const requestId=config+'|'+platform+'|'+performance.now();send('context',{config,platform,requestId});
+   for(let wait=0;wait<100 && window.__xmlDocContextReady!==requestId;wait++)await pause(50);
+   assert(window.__xmlDocContextReady===requestId,'Native context switch did not complete: '+config+' '+platform);
+   const e=window.xmlDocEditor.get().element;
    assert(e.name==='ContextProbe' && e.params[0].type===first && e.params[1].type===second,'Stale IDE configuration/platform: '+JSON.stringify(e));
   }
   send('prepare-group');return;

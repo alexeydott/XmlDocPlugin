@@ -19,6 +19,10 @@ export class DelphiBridge {
   private inFlight: {id:string;key:string;context:EditContext;doc:DocModel;applied:boolean}|null=null;
   private held: InboundMessage | null = null;
   private originalXml='';
+  private readonly rawDrafts=new Map<string,NonNullable<DocModel['unappliedXml']>>();
+  unappliedXml():DocModel['unappliedXml'] {return this.rawDrafts.get(this.key(this.context));}
+  approveXml():void {this.rawDrafts.delete(this.key(this.context));}
+  discardDrafts():void {this.cancelPending();this.drafts.clear();this.rawDrafts.clear();}
   readonly drafts = new Map<string, {doc:DocModel;revision?:string;baseXml:string;apply:boolean}>();
   private sameLocation(a:EditContext,b:EditContext):boolean { return a.fileName===b.fileName && (a.locationId && b.locationId ? a.locationId===b.locationId : (a.declarationId??a.symbolId)===(b.declarationId??b.symbolId)); }
   private key(c: EditContext): string { return `${c.fileName}|${c.locationId??c.declarationId??c.symbolId}`; }
@@ -31,7 +35,7 @@ export class DelphiBridge {
     const draft=this.drafts.get(this.key(this.context));
     if(draft && draft.revision!==element.sourceRevision)this.context.sourceRevision=draft.revision;
   }
-  prepareRecovery(element:ElementInfo):void {this.cancelPending();this.drafts.delete(this.key(element));this.setContext(element);}
+  prepareRecovery(element:ElementInfo):void {this.cancelPending();this.drafts.delete(this.key(element));this.rawDrafts.delete(this.key(element));this.setContext(element);}
   setStatus(status: string): void {
     this.status = status;
     window.dispatchEvent(new CustomEvent('docStatus', { detail: status }));
@@ -106,6 +110,7 @@ export class DelphiBridge {
     if(this.readOnly){this.setStatus(this.readOnlyReason);return;}
     const snapshot=JSON.parse(JSON.stringify(doc));const context={...this.context};
     const baseXml=this.drafts.get(this.key(context))?.baseXml??this.originalXml;
+    if(snapshot.xmlEdited){const raw={xml:snapshot.rawXml??'',sourceRevision:context.sourceRevision,baseXml};this.rawDrafts.set(this.key(context),raw);snapshot.unappliedXml=raw;}
     this.drafts.set(this.key(context),{doc:snapshot,revision:context.sourceRevision,baseXml,apply:false});
     this.sendToHost({type:'draftUpdated',doc:snapshot,baseXml,applyAllowed:false,...context} as any);
     this.setStatus('Modified');
@@ -116,6 +121,8 @@ export class DelphiBridge {
     const snapshot = JSON.parse(JSON.stringify(doc));
     const context = { ...this.context };
     const baseXml=this.drafts.get(this.key(context))?.baseXml??this.originalXml;
+    if(snapshot.xmlEdited){this.rawDrafts.delete(this.key(context));delete snapshot.unappliedXml;}
+    else {const raw=this.rawDrafts.get(this.key(context))??snapshot.unappliedXml;if(raw){snapshot.unappliedXml=raw;this.rawDrafts.set(this.key(context),raw);}}
     this.drafts.set(this.key(context), {doc:snapshot,revision:context.sourceRevision,baseXml,apply:true});
     this.sendToHost({type:'draftUpdated',doc:snapshot,baseXml,applyAllowed:true,...context} as any);
     this.pending = { type: 'docUpdated', doc: snapshot, ...context };

@@ -4,9 +4,16 @@ uses DUnitX.TestFramework;
 type [TestFixture] TImprovementsTests=class
 public
  [Test] procedure LanguagePacks;
+ [Test] procedure SearchPathUnitReferences;
+ [Test] procedure ErrorMemoTheme;
  [Test] procedure IncrementalIndex;
  [Test] procedure ExpressionTypes;
+ [Test] procedure GenericExpressionBindings;
  [Test] procedure ReviewDraftAndDependencies;
+ [Test] procedure ImportedUnitShadowing;
+ [Test] procedure ReusedModuleLiveDependency;
+ [Test] procedure ActiveWorkerCancellation;
+ [Test] procedure CancelledParserInvalidatesIndex;
  [Test] procedure QualifiedExpressionIdentity;
  [Test] procedure ReviewRemainingCases;
  [Test] procedure ReviewGenericFuzz;
@@ -46,7 +53,34 @@ public
  [Test] procedure DeterministicXmlFuzz;
 end;
 implementation
-uses System.Classes,XmlDoc.I18n,Vcl.StdCtrls,XmlDoc.Expressions,XmlDoc.ProjectIndex,XmlDoc.HelpGen.BatchParser,XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+uses XmlDoc.Plugin.Utils,Vcl.Forms,Vcl.Graphics,Winapi.Windows,Winapi.Messages,System.SyncObjs,System.Diagnostics,System.Classes,XmlDoc.I18n,Vcl.StdCtrls,XmlDoc.Expressions,XmlDoc.ProjectIndex,XmlDoc.HelpGen.BatchParser,XmlDoc.SourceAccess,System.SysUtils,System.JSON,XmlDoc.Model,XmlDoc.Parser,XmlDoc.CodeGen,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.ProjectContext,XmlDoc.HelpGen.Scanner,System.IOUtils,XmlDoc.SourceText,XmlDoc.XmlFragments,XmlDoc.Markup,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Inheritance,XmlDoc.HelpGen.CrossRef,System.Generics.Collections,XmlDoc.HelpGen.Diagnostics,XmlDoc.HelpGen.Resources,XmlDoc.ShortcutValidation,Vcl.ActnList,Vcl.Menus;
+procedure TImprovementsTests.SearchPathUnitReferences;
+var Root,ProjectFile,UnitFile,Xml:string;Context:TProjectContext;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);ForceDirectories(TPath.Combine(Root,'src'));
+ try
+  ProjectFile:=TPath.Combine(Root,'Tool.dproj');UnitFile:=TPath.Combine(Root,'src','Gtfs.Tools.BuildStatic.pas');TFile.WriteAllText(UnitFile,'unit Gtfs.Tools.BuildStatic; interface implementation end.');
+  Xml:='<Project><ItemGroup><DCCReference Include="Gtfs.Tools.BuildStatic.pas"/><DCCReference Include="src\Gtfs.Tools.BuildStatic.pas"/></ItemGroup><PropertyGroup><MainSource>Tool.dpr</MainSource><DCC_UnitSearchPath>$(MSBuildProjectDirectory)\src</DCC_UnitSearchPath></PropertyGroup></Project>';
+  TFile.WriteAllText(ProjectFile,Xml);Context:=TProjectContext.Create(ProjectFile);
+  try Assert.AreEqual<NativeInt>(1,Length(Context.SourceFiles));Assert.AreEqual(UnitFile,Context.SourceFiles[0]);finally Context.Free;end;
+  TFile.WriteAllText(ProjectFile,Xml.Replace('Include="Gtfs.Tools.BuildStatic.pas"','Include="missing\Gtfs.Tools.BuildStatic.pas"'));
+  Assert.WillRaise(procedure begin var Missing:=TProjectContext.Create(ProjectFile);Missing.Free;end,Exception,'Explicit missing paths must not silently bind another source');
+ finally TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.ErrorMemoTheme;
+var Form:TForm;Memo:TMemo;
+begin
+ Form:=TForm.CreateNew(nil);
+ try
+  Memo:=TMemo.Create(Form);Memo.Parent:=Form;Memo.SetBounds(0,0,180,300);Memo.WordWrap:=True;Memo.ScrollBars:=ssVertical;
+  for var Background in [TColor(clWhite),TColor($002F2E2C),TColor($00808080)] do begin
+   ApplyDocumentationErrorTheme(Memo,Background);Assert.AreEqual(Background,Memo.Color);
+   if Background=TColor($002F2E2C) then Assert.AreEqual(TColor(clWhite),Memo.Font.Color) else Assert.AreEqual(TColor(clBlack),Memo.Font.Color);
+  end;
+  Memo.Text:='Missing project source: '+StringOfChar('x',600)+'\Unit.pas';
+  Assert.IsTrue(SendMessage(Memo.Handle,EM_GETLINECOUNT,0,0)>1,'A long filename must wrap in a narrow error panel');Assert.IsTrue(string(Memo.Text).Contains(StringOfChar('x',600)),'Wrapping must not change the copyable error text');
+ finally Form.Free;end;
+end;
 procedure TImprovementsTests.LanguagePacks;
 var I:TI18n;Owner:TComponent;LabelControl:TLabel;Edit:TEdit;
 begin
@@ -80,6 +114,9 @@ begin
   Assert.AreEqual('UnitA.TWorker<Integer>',P.BindingType('Obj',5));
   Matches:=ResolveDocumentationExpression(P,Source,Pos('Obj.Run',Source)+6,5,All,Query,Reason);
   Assert.AreEqual<NativeInt>(1,Length(Matches),'Constructed generic receiver: '+Reason);Assert.AreEqual('UnitA',Matches[0].UnitName);Assert.AreEqual('TWorker<T>',Matches[0].QualifiedParent);
+  var Direct:='unit Caller; interface implementation begin UnitA.TWorker<Integer>.Run('+QuotedStr('text')+'); end.';
+  P.ParseSource(Direct,'Caller.pas');Matches:=ResolveDocumentationExpression(P,Direct,Pos('.Run',Direct)+3,1,All,Query,Reason);
+  Assert.AreEqual<NativeInt>(1,Length(Matches),'Direct generic: '+Reason);Assert.AreEqual('UnitA',Matches[0].UnitName);
   var Seed:Cardinal:=$195AB;
   for var Round:=1 to 200 do begin
    Seed:=Seed*1664525+1013904223;var Argument:='Integer';
@@ -88,6 +125,9 @@ begin
    Assert.AreEqual('UnitA.TWorker<'+Argument+'>',P.BindingType('Obj',5));
    Matches:=ResolveDocumentationExpression(P,Changed,Pos('Obj.Run',Changed)+6,5,All,Query,Reason);
    Assert.AreEqual<NativeInt>(1,Length(Matches),Reason);Assert.AreEqual('UnitA.pas',Matches[0].FileName);
+   Direct:='unit Caller; interface implementation begin UnitA.TWorker<'+Argument+'>.Run('+QuotedStr('text')+'); end.';
+   P.ParseSource(Direct,'Caller.pas');Matches:=ResolveDocumentationExpression(P,Direct,Pos('.Run',Direct)+3,1,All,Query,Reason);
+   Assert.AreEqual<NativeInt>(1,Length(Matches),'Nested direct receiver: '+Reason);Assert.AreEqual('UnitA.pas',Matches[0].FileName);
   end;
 
 
@@ -109,6 +149,92 @@ begin
   TFile.WriteAllText(TPath.Combine(Root,'defs.inc'),'{$DEFINE LOCAL}');
   Assert.IsFalse(Index.IsCurrent(FileName,Source,P),'Shadow index');Assert.IsFalse(P.IsUpToDate(Source),'Shadow parser');Assert.IsTrue(HasType('TLocal'),'Shadow type');
  finally Index.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.ImportedUnitShadowing;
+var P:TDocParser;Index:TDocumentationIndex;Root,Priority,Shared,FileName,Source:string;
+ function HasType(const Name:string):Boolean;
+ begin Result:=False;for var E in Index.Update(FileName,Source,P) do if E.Name=Name then Exit(True);end;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);Priority:=TPath.Combine(Root,'priority');Shared:=TPath.Combine(Root,'shared');ForceDirectories(Priority);ForceDirectories(Shared);
+ P:=TDocParser.Create;Index:=TDocumentationIndex.Create;
+ try
+  FileName:=TPath.Combine(Root,'Caller.pas');Source:='unit Caller; interface uses Dep; {$IF DECLARED(TKnown)} type TPresent=class end; {$ELSE} type TAbsent=class end; {$ENDIF} implementation end.';
+  P.SearchPaths:=[Priority,Shared];TFile.WriteAllText(TPath.Combine(Shared,'Dep.pas'),'unit Dep; interface type TKnown=class end; implementation end.');
+  Assert.IsTrue(HasType('TPresent'));Assert.IsTrue(P.IsUpToDate(Source));
+  TFile.WriteAllText(TPath.Combine(Priority,'Dep.pas'),'unit Dep; interface implementation end.');
+  Assert.IsFalse(P.IsUpToDate(Source));Assert.IsFalse(Index.IsCurrent(FileName,Source,P));Assert.IsTrue(HasType('TAbsent'));
+  TFile.Delete(TPath.Combine(Priority,'Dep.pas'));Assert.IsFalse(P.IsUpToDate(Source));Assert.IsFalse(Index.IsCurrent(FileName,Source,P));Assert.IsTrue(HasType('TPresent'));
+ finally Index.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.ReusedModuleLiveDependency;
+var P,Fresh:TDocParser;Index:TDocumentationIndex;Root,FileName,IncludeName,Source:string;Snapshot:TSourceSnapshot;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);ForceDirectories(Root);P:=TDocParser.Create;Fresh:=TDocParser.Create;Index:=TDocumentationIndex.Create;
+ try
+  FileName:=TPath.Combine(Root,'Caller.pas');IncludeName:=TPath.Combine(Root,'Features.inc');Source:='unit Caller; interface {$I Features.inc} implementation end.';
+  TFile.WriteAllText(IncludeName,'type TOriginal=class end;');Index.Update(FileName,Source,P);Index.ResetStatistics;Index.Update(FileName,Source,Fresh);
+  Assert.AreEqual(1,Index.Reused);Assert.AreEqual<NativeInt>(0,Length(Fresh.DependencySnapshots));Assert.IsTrue(Index.IsCurrent(FileName,Source,Fresh));
+  Snapshot.FileName:=IncludeName;Snapshot.Source:='type TChanged=class end;';Fresh.SourceSnapshots:=[Snapshot];Assert.IsFalse(Index.IsCurrent(FileName,Source,Fresh),'A reused module must validate its indexed dependencies against new open buffers');
+ finally Index.Free;Fresh.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.GenericExpressionBindings;
+var P:TDocParser;Source,Query,Reason:string;Matches:TArray<TCodeElementInfo>;
+begin
+ P:=TDocParser.Create;
+ try
+  for var Argument in ['Integer','string'] do begin
+   var Value:='123';if Argument='string' then Value:=QuotedStr('text');
+   Source:='unit GenericCalls; interface type TBase<T>=class procedure Put(Value:T); end; TBox<U>=class(TBase<U>) end;'+sLineBreak+'implementation'+sLineBreak+'procedure Test(Obj:TBox<'+Argument+'>);'+sLineBreak+'begin'+sLineBreak+'Obj.Put('+Value+');'+sLineBreak+'end; end.';
+   P.ParseSource(Source,'GenericCalls.pas');Matches:=ResolveDocumentationExpression(P,Source,Pos('Obj.Put',Source)+6,5,P.GetAllElements,Query,Reason);
+   Assert.AreEqual<NativeInt>(1,Length(Matches),Argument+': '+Reason);Assert.AreEqual('',Reason);Assert.AreEqual('TBase<T>',Matches[0].QualifiedParent);
+  end;
+  Source:='unit GenericCalls; interface type TWorker=class procedure Put<T>(Value:T); overload; procedure Put(Value:Int64); overload; end;'+sLineBreak+'implementation'+sLineBreak+'procedure Test(Obj:TWorker);'+sLineBreak+'begin'+sLineBreak+'Obj.Put(123);'+sLineBreak+'end; end.';
+  P.ParseSource(Source,'GenericCalls.pas');Matches:=ResolveDocumentationExpression(P,Source,Pos('Obj.Put',Source)+6,5,P.GetAllElements,Query,Reason);Assert.IsTrue(Length(Matches)>0);Assert.IsTrue(Reason<>'','An unresolved generic overload must prevent a false unique result');
+
+ finally P.Free;end;
+end;
+procedure TImprovementsTests.ActiveWorkerCancellation;
+var Started,ContinueWork:TEvent;Worker:TThread;Cancelled,Checks,Observed:Integer;Source,Root,FileName,Failure:string;Clock:TStopwatch;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);ForceDirectories(Root);FileName:=TPath.Combine(Root,'Worker.pas');
+ var Text:=TStringBuilder.Create;
+ try Text.Append('unit Worker; interface type TBase=class procedure Run; end;');for var I:=1 to 10000 do Text.Append(' TChild').Append(I).Append('=class(TBase) procedure Run; override; end;');Text.Append(' implementation end.');Source:=Text.ToString;finally Text.Free;end;
+ TFile.WriteAllText(FileName,Source);
+ try
+  for var Stage:=0 to 1 do begin
+   Started:=TEvent.Create(nil,True,False,'');ContinueWork:=TEvent.Create(nil,True,False,'');Cancelled:=0;Checks:=0;Observed:=0;Failure:='';
+   Worker:=TThread.CreateAnonymousThread(procedure
+    var Parser:TDocParser;Batch:TBatchParser;Check:TProc;
+    begin
+     Check:=procedure begin Inc(Checks);if ((Stage=0) and (Checks=8)) or ((Stage=1) and (Checks=2)) then begin Started.SetEvent;if ContinueWork.WaitFor(5000)<>wrSignaled then raise Exception.Create('Cancellation barrier timed out');end;if TInterlocked.CompareExchange(Cancelled,0,0)<>0 then Abort;end;
+     Parser:=TDocParser.Create;Batch:=TBatchParser.Create;
+     try try
+      if Stage=0 then begin Parser.OnCheck:=Check;Parser.ParseSource(Source,FileName);end
+      else begin Batch.ParseAll([FileName]);var Resolver:=TInheritanceResolver.Create;try Resolver.OnCheck:=Check;Resolver.Apply(Batch.Units);finally Resolver.Free;end;end;
+     except on E:EAbort do TInterlocked.Exchange(Observed,1);on E:Exception do Failure:=E.Message;end;
+     finally Batch.Free;Parser.Free;end;
+    end);
+   Worker.FreeOnTerminate:=False;Worker.Start;
+   try
+    Assert.AreEqual(wrSignaled,Started.WaitFor(15000),'Worker must be inside '+IntToStr(Stage)+' before cancellation');
+    Clock:=TStopwatch.StartNew;TInterlocked.Exchange(Cancelled,1);ContinueWork.SetEvent;Worker.WaitFor;Clock.Stop;
+    Assert.AreEqual('',Failure);Assert.AreEqual(1,Observed,'Active worker did not observe cancellation');Assert.IsTrue(Clock.ElapsedMilliseconds<2000,'Worker shutdown exceeded 2 seconds: '+Clock.ElapsedMilliseconds.ToString);
+    System.Writeln(Format('Active worker stage %d cancellation/shutdown ms: %.3f',[Stage,Clock.Elapsed.TotalMilliseconds]));
+   finally TInterlocked.Exchange(Cancelled,1);ContinueWork.SetEvent;Worker.WaitFor;Worker.Free;ContinueWork.Free;Started.Free;end;
+  end;
+ finally TDirectory.Delete(Root,True);end;
+end;
+procedure TImprovementsTests.CancelledParserInvalidatesIndex;
+var P:TDocParser;Source:string;
+begin
+ P:=TDocParser.Create;
+ try
+  Source:='unit Cancelled; interface type TFirst=class end; TSecond=class end; implementation end.';
+  P.OnCheck:=procedure begin if Assigned(P.RootNode) then Abort;end;
+  Assert.WillRaise(procedure begin P.ParseSource(Source,'Cancelled.pas');end,EAbort);
+  Assert.IsFalse(P.IsUpToDate(Source),'Cancellation while indexing must not cache a partial index');
+  P.OnCheck:=nil;P.ParseSource(Source,'Cancelled.pas');var Found:=False;for var Element in P.GetAllElements do if Element.Name='TSecond' then Found:=True;Assert.IsTrue(Found,'Parser could not recover after cancellation');
+ finally P.Free;end;
 end;
 procedure TImprovementsTests.ExpressionTypes;
 var P:TDocParser;Source,Query,Reason:string;Elements,Matches:TArray<TCodeElementInfo>;

@@ -1,16 +1,31 @@
 ﻿unit XmlDoc.Plugin.Utils;
 
 interface
+uses Vcl.StdCtrls,Vcl.Graphics;
 
-/// <summary>BPL의 파일 버전 정보를 읽어 문자열로 반환합니다.</summary>
+/// <summary>Keep diagnostic text readable against the actual host background.</summary>
+procedure ApplyDocumentationErrorTheme(Error:TMemo;Background:TColor);
+
+/// <summary>Read the package file version.</summary>
 /// <returns>Major.Minor.Release.Build, or an empty string if metadata is unavailable.</returns>
 function GetModuleVersion: string;
 
 implementation
 
 uses
-  System.SysUtils,
+  System.SysUtils,System.Math,Vcl.Controls,
   Winapi.Windows;
+
+procedure ApplyDocumentationErrorTheme(Error:TMemo;Background:TColor);
+ function Linear(Value:Byte):Double;
+ begin Result:=Value/255;if Result<=0.04045 then Result:=Result/12.92 else Result:=Power((Result+0.055)/1.055,2.4);end;
+begin
+ if not Assigned(Error) then Exit;
+ Error.StyleElements:=Error.StyleElements-[seFont,seClient];Error.ParentFont:=False;Error.Color:=Background;
+ var Color:=ColorToRGB(Background);
+ var Luminance:=0.2126*Linear(GetRValue(Color))+0.7152*Linear(GetGValue(Color))+0.0722*Linear(GetBValue(Color));
+ if Luminance>0.179 then Error.Font.Color:=clBlack else Error.Font.Color:=clWhite;
+end;
 
 function GetModuleVersion: string;
 var

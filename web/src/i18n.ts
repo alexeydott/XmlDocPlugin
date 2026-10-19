@@ -10,7 +10,7 @@ export function resolveLanguage(code:string):string {
  return base in packs?base:'en';
 }
 export function translate(text:string):string {return packs[language][text]??text;}
-const protectedContent=(e:Element)=>!!e.closest('.tiptap,[contenteditable],pre,code,#member-signature,#doc-preview,#tree-content,#template-choice,.td-name');
+const protectedContent=(e:Element)=>!!e.closest('.tiptap,[contenteditable],[data-code],[translate="no"],pre,code,#member-signature,#doc-preview,#tree-content,#template-choice,.td-name');
 export function localizeUi():void {
  observer?.disconnect();
  const walker=document.createTreeWalker(document.body,5,{acceptNode(node){return node.nodeType===1 && protectedContent(node as Element)?2:node.nodeType===3?1:3;}});let node:Node|null;

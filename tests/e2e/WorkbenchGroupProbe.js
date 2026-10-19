@@ -13,7 +13,9 @@
   // Require a fresh running notification before accepting this request's completion.
   let lastPulse=performance.now(),maxGap=0;const pulse=setInterval(()=>{const now=performance.now();maxGap=Math.max(maxGap,now-lastPulse);lastPulse=now;},10);const warmStart=performance.now();
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && (!analysisStarted || analysis?.state!=='completed');i++)await pause(100);assert(analysis?.parsed===0 && analysis?.reused>0,'Unchanged modules were not reused: '+JSON.stringify(analysis));
-  clearInterval(pulse);send('analysis-metrics',{warmMs:performance.now()-warmStart,maxUiGapMs:maxGap});
+  clearInterval(pulse);
+  const nativePhases=Object.fromEntries(['preparationMs','validationMs','publicationMs','stopWorkerMs'].map(key=>{assert(Number.isFinite(analysis[key]) && analysis[key]>=0,'Missing native phase timing: '+key);return [key,analysis[key]];}));
+  send('analysis-metrics',{warmMs:performance.now()-warmStart,maxUiGapMs:maxGap,...nativePhases});
   const cancelStart=performance.now();
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});window.bridge.sendToHost({type:'cancelAnalysis'});for(let i=0;i<100 && analysis?.state!=='cancelled';i++)await pause(100);assert(analysis?.state==='cancelled','Analysis cancellation was not reported');send('analysis-metrics',{cancelMs:performance.now()-cancelStart});await pause(250);assert(analysis?.state==='cancelled','Cancelled analysis resumed from a queued timer');assert(getComputedStyle(document.querySelector('#cancel-analysis')).display==='none','Cancelled analysis action is still visible');
   groupCatalog=null;window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && !groupCatalog;i++)await pause(100);
@@ -85,9 +87,16 @@
   window.bridge.sendToHost({type:'openSymbol',...declaration,locationId:implementationId});await pause(400);
   assert(window.xmlDocEditor.get().doc.xmlEdited,'Raw draft was not restored');
   document.querySelector('#doc-tabs [data-tab=design]').click();
+  const summaryEditor=document.querySelector('#summary-editor .tiptap').editor;
+  summaryEditor.chain().focus().selectAll().insertContent('REVIEW UNDO TEMPORARY TEXT').run();summaryEditor.commands.undo();window.bridge.flush();await pause(1000);
+  assert(!window.xmlDocEditor.get().doc.xmlEdited,'Undo reauthorized hidden XML');assert(window.bridge.unappliedXml()?.xml.includes('REVIEW HIDDEN RAW'),'Undo lost separate raw draft');send('assert-review-undo');
   document.querySelector('#summary-editor .tiptap').editor.chain().focus().selectAll().insertContent('REVIEW VISIBLE DESIGN WINS').run();
   window.bridge.flush();await pause(1100);assert(window.bridge.status==='Applied','Design transition was not applied');
   send('assert-review-design');await pause(200);
+  drafts=undefined;window.bridge.sendToHost({type:'listDrafts'});for(let i=0;i<100 && !drafts;i++)await pause(50);
+  const retainedRaw=drafts?.find(d=>d.locationId===implementationId && d.fileName===designTarget.element.fileName);
+  assert(retainedRaw?.doc.xmlEdited && retainedRaw.doc.rawXml.includes('REVIEW HIDDEN RAW') && retainedRaw.applyAllowed===false,'Design ACK discarded or authorized the persisted raw draft');
+
   window.bridge.sendToHost({type:'openSymbol',...declaration,line:declaration.lineNumber});await pause(400);
   send('format-group-source');for(let i=0;i<500 && !window.__xmlDocNativeFormatted;i++)await pause(100);assert(window.__xmlDocNativeFormatted,'Native GroupB formatter did not complete');
   send('group-context-error');await pause(400);send('view-system');for(let i=0;i<200 && !window.xmlDocEditor.get().element.fileName?.toLowerCase().endsWith('system.pas');i++)await pause(100);const current=window.xmlDocEditor.get();assert(current.element.fileName?.toLowerCase().endsWith('system.pas') && current.element.readOnly,'System source is not read-only: '+JSON.stringify(current.element));assert(document.querySelector('#summary-editor .tiptap').contentEditable==='false','System source editable');window.chrome.webview.postMessage(JSON.stringify({type:'docUpdated',...current.element,doc:{...current.doc,summary:'FORBIDDEN READONLY WRITE'}}));await pause(250);send('assert-system');await pause(100);

@@ -8,6 +8,7 @@ test('Russian and Chinese UI switch without changing document text, selectors or
  assert.equal(resolveLanguage('ru-RU'),'ru');assert.equal(resolveLanguage('zh-Hans'),'zh');assert.equal(resolveLanguage('fr-FR'),'en');
  for(const [code,pack] of [['ru',ru],['zh-CN',zh],['en',{}]]){setLanguage(code);assert.equal(document.querySelector('h3').textContent,pack.Summary??'Summary');assert.equal(document.querySelector('button').title,pack['Recover drafts']??'Recover drafts');assert.equal(document.querySelector('select').value,'All symbols');assert.equal(document.querySelector('.tiptap').textContent,'Summary');assert.equal(document.querySelector('#tree-content button').textContent,'Summary');document.querySelector('button').click();}
  assert.equal(clicks,3);setLanguage('zh');const dynamic=document.createElement('button');dynamic.textContent='Save terminology';document.body.append(dynamic);await new Promise(r=>setTimeout(r,0));assert.equal(dynamic.textContent,zh['Save terminology']);
+ const codeOption=document.createElement('option');codeOption.dataset.code='';codeOption.textContent='Value';document.querySelector('select').append(codeOption);setLanguage('ru');localizeUi();assert.equal(codeOption.textContent,'Value');
  let seed=16;for(let i=0;i<1000;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;setLanguage(['en','ru','zh'][seed%3]);localizeUi();assert.equal(document.querySelector('.tiptap').textContent,'Summary');assert.equal(document.querySelector('select').value,'All symbols');}
  dom.window.close();
 });

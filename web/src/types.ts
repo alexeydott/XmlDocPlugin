@@ -87,6 +87,7 @@ export interface DocModel {
   parseErrorLine?:number;
   parseErrorColumn?:number;
   rawXml?: string;
+  unappliedXml?:{xml:string;sourceRevision?:string;baseXml?:string};
   xmlEdited?: boolean;
   renameMappings?:Record<string,string>;
   remarks?: string;

@@ -37,7 +37,7 @@ type
   TDocInspectorForm = class(TDockableForm)
   private
     FBrowser: TXmlDocBrowser;
-    FBrowserError: TLabel;
+    FBrowserError: TMemo;
     FBrowserReady: Boolean;
     FPendingCommand:string;
     FParseError:string;
@@ -79,6 +79,7 @@ type
     procedure CMStyleChanged(var Message: TMessage); message CM_STYLECHANGED;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
   public
+    property Documentation:TProjectDocumentation read FProjectDocs;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
@@ -94,7 +95,7 @@ type
   end;
 
 implementation
-uses XmlDoc.Plugin.Localization;
+uses XmlDoc.Plugin.Utils,XmlDoc.Plugin.Localization;
 
 
 {$R XmlDocEditor.res}
@@ -118,13 +119,15 @@ begin
 
   FDocModel := TXmlDocModel.Create;
   FDocParser := TDocParser.Create;
-  FBrowserError := TLabel.Create(Self);
+  FBrowserError := TMemo.Create(Self);
   FBrowserError.Parent := Self;
-  FBrowserError.Align := alTop;
+  FBrowserError.Name:='DocumentationError';
+  FBrowserError.ReadOnly:=True;FBrowserError.ScrollBars:=ssVertical;FBrowserError.BorderStyle:=bsNone;
+  FBrowserError.Align := alClient;
   FBrowserError.WordWrap := True;
   FBrowserError.AlignWithMargins := True;
   FBrowserError.Margins.SetBounds(8, 8, 8, 8);
-  FBrowserError.Caption := FParseError;
+  FBrowserError.Text := FParseError;
   FBrowserError.Visible := FParseError<>'';
 
   FBrowserReady := False;
@@ -159,6 +162,7 @@ var Theme: IOTAIDEThemingServices;
 begin
   if Supports(BorlandIDEServices, IOTAIDEThemingServices, Theme) then
     Theme.ApplyTheme(Self);
+  ApplyDocumentationErrorTheme(FBrowserError,Color);
 end;
 
 procedure TDocInspectorForm.CMStyleChanged(var Message: TMessage);
@@ -275,10 +279,11 @@ procedure TDocInspectorForm.BrowserCreateWebViewCompleted(Sender: TCustomEdgeBro
 begin
   FBrowserReady := False;
   FBrowserError.Visible := Winapi.Windows.Failed(AResult) or (FParseError<>'');
-  if FParseError<>'' then FBrowserError.Caption:=FParseError;
+  if FBrowserError.Visible then FBrowserError.BringToFront;
+  if FParseError<>'' then FBrowserError.Text:=FParseError;
   if Winapi.Windows.Failed(AResult) then
   begin
-    FBrowserError.Caption := 'WebView2 could not start (0x' + IntToHex(AResult, 8) +
+    FBrowserError.Text := 'WebView2 could not start (0x' + IntToHex(AResult, 8) +
       '). Install the WebView2 Runtime and place the matching WebView2Loader.dll beside XmlDocPlugin.bpl.';
     Exit;
   end;
@@ -289,8 +294,8 @@ begin
   except
     on E: Exception do
     begin
-      FBrowserError.Caption := 'Cannot load the documentation editor: ' + E.Message;
-      FBrowserError.Visible := True;
+      FBrowserError.Text := 'Cannot load the documentation editor: ' + E.Message;
+      FBrowserError.Visible := True;FBrowserError.BringToFront;
     end;
   end;
 end;
@@ -326,7 +331,7 @@ begin
       if Assigned(FBrowser) then FBrowser.Visible:=False;
       FParseError:='Cannot parse '+FLastFileName+': '+E.Message;
       if Assigned(FBrowserError) then begin
-        FBrowserError.Caption:=FParseError;FBrowserError.Visible:=True;
+        FBrowserError.Text:=FParseError;FBrowserError.Visible:=True;FBrowserError.BringToFront;
       end;
       Result:=False;
     end;

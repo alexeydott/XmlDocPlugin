@@ -1,12 +1,21 @@
-unit WorkbenchProbe;
+﻿unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses System.SyncObjs,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
-type TProbe=class
+type TPublicationProbe=class(TProjectDocumentation)
+ public
+  IncludeFile,NewModule:string;Armed,Changed:Boolean;
+ protected
+  procedure BeforePublication;override;
+ end;
+ TProbe=class
  Timer,FormatConfirmation:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
+ ValidationProbe:TPublicationProbe;
+ StressEntered,StressContinue:TEvent;StressChecks:Integer;
+ StressRound:Integer;StressGeneration,StressStarted:UInt64;
  LanguageSaved:Boolean;OriginalLanguage:string;
  ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
  FormatWait,Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
@@ -18,6 +27,16 @@ type TProbe=class
  procedure Finish;
 end;
 var Probe:TProbe;
+procedure TPublicationProbe.BeforePublication;
+begin
+ inherited;
+ if not Armed then Exit;Armed:=False;
+ if NewModule<>'' then begin var Project:=GetActiveProject;if not Assigned(Project) then raise Exception.Create('No project at publication boundary');Project.AddFile(NewModule,True);Changed:=True;Exit;end;
+ var Editor:=SourceEditorForFile(IncludeFile);if not Assigned(Editor) then raise Exception.Create('Open include unavailable at publication boundary');
+ var Existing:=UTF8Encode(EditorSource(Editor));var Writer:=Editor.CreateUndoableWriter;
+ Writer.CopyTo(0);Writer.DeleteTo(Length(Existing));var Replacement:=UTF8String('type TChanged=class end;');Writer.Insert(PAnsiChar(Replacement));Writer:=nil;Changed:=True;
+end;
+
 procedure Log(const Text:string);
 begin TFile.AppendAllText(GetEnvironmentVariable('XMLDOC_E2E_LOG'),Text+sLineBreak);end;
 function XmlEscape(const Value:string):string;
@@ -56,6 +75,7 @@ begin
  Project:=Services.GetActiveProject;if Assigned(Project) then begin
   Log('Closing project '+Project.FileName);Project.CloseModule(True);Log('Closed project');end;
  if Assigned(Services.MainProjectGroup) then begin Log('Closing temporary project group');Services.MainProjectGroup.CloseModule(True);Log('Closed project group');end;
+ for var J:=Services.ModuleCount-1 downto 0 do begin var FixtureModule:=Services.Modules[J];if FixtureModule.FileName.StartsWith(Root,True) then FixtureModule.CloseModule(True);end;
  Menu:=(BorlandIDEServices as INTAServices).MainMenu;ExitItem:=FindExit(Menu.Items);AssertTrue(Assigned(ExitItem),'IDE Exit command is unavailable');
  Log('Invoke IDE Exit: '+ExitItem.Name+' target='+UIntToStr(Menu.WindowHandle));ExitItem.Click;Log('IDE Exit invoked');
 end;
@@ -72,8 +92,8 @@ procedure TProbe.MessageReceived(Sender:TCustomEdgeBrowser;Args:TWebMessageRecei
 var Buffer:PWideChar;Text,Action,Source:string;Json:TJSONObject;Editor:IOTASourceEditor;EditBuffer:IOTAEditBuffer;Writer:IOTAEditWriter;Offset,UndoMarkers:Integer;Utf8:UTF8String;
  procedure AssertParsed(Form:TForm);
  begin
-  for var I:=0 to Form.ComponentCount-1 do if Form.Components[I] is TLabel then
-   AssertTrue(not (TLabel(Form.Components[I]).Visible and (System.Pos('Cannot parse',TLabel(Form.Components[I]).Caption)=1)),'System.pas parse error: '+TLabel(Form.Components[I]).Caption);
+  for var I:=0 to Form.ComponentCount-1 do if (Form.Components[I] is TMemo) and (Form.Components[I].Name='DocumentationError') then
+   AssertTrue(not (TMemo(Form.Components[I]).Visible and (System.Pos('Cannot parse',TMemo(Form.Components[I]).Text)=1)),'System.pas parse error: '+TMemo(Form.Components[I]).Text);
  end;
 begin
  Buffer:=nil;Args.ArgsInterface.TryGetWebMessageAsString(Buffer);if Buffer=nil then Exit;
@@ -144,6 +164,7 @@ begin
     if not Assigned(Chosen) then Chosen:=Configs.AddConfiguration(ConfigName,Configs.BaseConfiguration);
     Configs.ActiveConfiguration:=Chosen;Select(SecondFile,'ContextProbe','');Inspector.RefreshFromCurrentEditor;
     Log('PASS switched IDE context '+ConfigName+' '+Project.CurrentPlatform+' with unchanged source');
+    var Reply:=TJSONString.Create(Json.GetValue<string>('requestId',''));try Browser.ExecuteScript('window.__xmlDocContextReady='+Reply.ToJSON+';');finally Reply.Free;end;
    end
    else if Action='prepare-group' then begin
     PrimaryProjectFile:=GetActiveProject.FileName;var Dir:=TPath.Combine(Root,'GroupB');TDirectory.CreateDirectory(Dir);
@@ -171,9 +192,15 @@ begin
      TFile.WriteAllText(BrokenProject,ProjectBefore.Replace('ContextB.pas','MissingReviewSource.pas'));
      Inspector.HandleCursorChanged(3,ErrorSource,ErrorFile);Explorer.HandleFileChanged(ErrorFile,ErrorSource);
      for var Panel in TArray<TForm>.Create(Inspector,Explorer) do begin
-      var ErrorShown:=False;for var N:=0 to Panel.ComponentCount-1 do if Panel.Components[N] is TLabel then begin var LabelControl:=TLabel(Panel.Components[N]);if LabelControl.Visible and (Pos('Missing project source',string(LabelControl.Caption))>0) then ErrorShown:=True;end;
+      var ErrorShown:=False;for var N:=0 to Panel.ComponentCount-1 do if (Panel.Components[N] is TMemo) and (Panel.Components[N].Name='DocumentationError') then begin var LabelControl:=TMemo(Panel.Components[N]);if LabelControl.Visible and (Pos('Missing project source',string(LabelControl.Text))>0) then ErrorShown:=True;end;
       AssertTrue(ErrorShown,'Project-context error was not shown inside '+Panel.Caption);
      end;
+    finally TFile.WriteAllText(BrokenProject,ProjectBefore);TFile.SetLastWriteTimeUtc(BrokenProject,ProjectStamp);end;
+    var ReferenceDirectory:=TPath.Combine(Root,'GroupB','ReferenceSources');ForceDirectories(ReferenceDirectory);TFile.WriteAllText(TPath.Combine(ReferenceDirectory,'SearchOnly.pas'),'unit SearchOnly; interface implementation end.');
+    try
+     var SearchProject:=ProjectBefore.Replace('Include="ContextB.pas"','Include="SearchOnly.pas"').Replace('</Project>','<PropertyGroup><DCC_UnitSearchPath>ReferenceSources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath></PropertyGroup></Project>');
+     TFile.WriteAllText(BrokenProject,SearchProject);Inspector.HandleCursorChanged(3,ErrorSource,ErrorFile);Explorer.HandleFileChanged(ErrorFile,ErrorSource);AssertParsed(Inspector);AssertParsed(Explorer);
+     Log('PASS Inspector/Explorer resolve bare project source using DCC_UnitSearchPath');
     finally TFile.WriteAllText(BrokenProject,ProjectBefore);TFile.SetLastWriteTimeUtc(BrokenProject,ProjectStamp);end;
     Inspector.RefreshFromCurrentEditor;Explorer.HandleFileChanged(ErrorFile,ErrorSource);Log('PASS Inspector/Explorer contain and recover from project-context errors');
    end
@@ -187,6 +214,10 @@ begin
     var Marker:='XML requires explicit approval';var CharOffset:=Pos(Marker,Source);AssertTrue(CharOffset>0,'Original review comment absent');
     Offset:=Length(UTF8Encode(Copy(Source,1,CharOffset-1)));Writer:=Editor.CreateUndoableWriter;Writer.CopyTo(Offset);Writer.DeleteTo(Offset+Length(Marker));Utf8:='EXTERNAL SOURCE CHANGE';Writer.Insert(PAnsiChar(Utf8));Writer:=nil;
     Inspector.HandleCursorChanged(Json.GetValue<Integer>('line'),EditorSource(Editor),ReviewFile);Browser.ExecuteScript('window.__reviewExternalReady=true');Log('PASS external source mutation for native recovery conflict');
+   end
+   else if Action='assert-review-undo' then begin
+    var Actual:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    AssertTrue(not Actual.Contains('REVIEW HIDDEN RAW') and not Actual.Contains('REVIEW UNDO TEMPORARY TEXT'),'Undo wrote hidden/unconfirmed text');Log('PASS native source after raw draft / Design edit / Undo to baseline');
    end
    else if Action='assert-review-design' then begin
     var Actual:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
@@ -290,14 +321,15 @@ begin
  end;
 end;
 procedure AssertErrorLabelTheme(Form:TForm);
-var LabelControl:TLabel;Foreground,Background:Longint;Difference:Integer;
+var LabelControl:TMemo;Foreground,Background:Longint;Difference:Integer;
 begin
- for var I:=0 to Form.ComponentCount-1 do if Form.Components[I] is TLabel then begin
-  LabelControl:=TLabel(Form.Components[I]);
-  Foreground:=ColorToRGB(LabelControl.Font.Color);Background:=ColorToRGB(Form.Color);
+ for var I:=0 to Form.ComponentCount-1 do if (Form.Components[I] is TMemo) and (Form.Components[I].Name='DocumentationError') then begin
+  LabelControl:=TMemo(Form.Components[I]);
+  Foreground:=ColorToRGB(LabelControl.Font.Color);Background:=ColorToRGB(LabelControl.Color);
   Difference:=Abs(Integer(GetRValue(Foreground))-Integer(GetRValue(Background)))+
    Abs(Integer(GetGValue(Foreground))-Integer(GetGValue(Background)))+
    Abs(Integer(GetBValue(Foreground))-Integer(GetBValue(Background)));
+  if not LabelControl.ReadOnly or not LabelControl.WordWrap then raise Exception.Create('Error panel must be read-only and wrap text');
   if Difference<192 then raise Exception.Create('Unreadable native error label in '+Form.Caption);
  end;
  Log('PASS native error label theme: '+Form.Caption);
@@ -409,7 +441,74 @@ begin
     Log('PASS large source remained byte-for-byte unchanged: '+LargeFile);
     finally TFile.WriteAllBytes(ActiveBefore.FileName,SavedProject);TFile.SetLastWriteTimeUtc(ActiveBefore.FileName,SavedStamp);end;
    end;
-   Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;Exit;
+   Step:=96;Timer.Interval:=20;Timer.Enabled:=True;Exit;
+  end;
+  96:begin
+   var Name:=TPath.Combine(Root,'WorkerStress'+StressRound.ToString+'.pas');
+   var Text:=TStringBuilder.Create;
+   try Text.Append('unit WorkerStress').Append(StressRound).Append(';').AppendLine.AppendLine('interface').AppendLine('type TBase=class procedure Run; virtual; end;');
+    for var J:=1 to 500 do Text.Append(' TChild').Append(J).AppendLine('=class(TBase) procedure Run; override; end;');Text.AppendLine('implementation').AppendLine('end.');TFile.WriteAllText(Name,Text.ToString,TEncoding.UTF8);
+   finally Text.Free;end;
+   AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(Name),'Cannot open stress fixture');
+   var Docs:TProjectDocumentation;var Target:TXmlDocBrowser;
+   if StressRound=3 then begin Docs:=Explorer.Documentation;Target:=ExplorerBrowser;end else begin Docs:=Inspector.Documentation;Target:=Browser;end;
+   StressEntered:=TEvent.Create(nil,True,False,'');StressContinue:=TEvent.Create(nil,True,False,'');StressChecks:=0;
+   Docs.OnWorkerCheck:=procedure begin if TInterlocked.Increment(StressChecks)=8 then begin StressEntered.SetEvent;if StressContinue.WaitFor(10000)<>wrSignaled then raise Exception.Create('Active worker barrier timed out');end;end;
+   StressGeneration:=Docs.PublishedGeneration;
+   var Request:=TJSONObject.Create;try Request.AddPair('type','requestCatalog');Request.AddPair('scope','module');Docs.Handle(Request,Target);finally Request.Free;end;
+   StressStarted:=GetTickCount64;Step:=97;Timer.Enabled:=True;Exit;
+  end;
+  97:begin
+   var Docs:TProjectDocumentation;var Target:TXmlDocBrowser;
+   if StressRound=3 then begin Docs:=Explorer.Documentation;Target:=ExplorerBrowser;end else begin Docs:=Inspector.Documentation;Target:=Browser;end;
+   if not Docs.Working or (StressEntered.WaitFor(0)<>wrSignaled) then begin AssertTrue(GetTickCount64-StressStarted<10000,'Stress worker did not become active: round='+StressRound.ToString+' checks='+StressChecks.ToString+' busy='+BoolToStr(Docs.Busy,True)+' error='+Docs.LastError);Timer.Enabled:=True;Exit;end;
+   StressStarted:=GetTickCount64;StressContinue.SetEvent;
+   if StressRound>=2 then begin
+    if StressRound=2 then begin Inspector.Free;Inspector:=nil;Browser:=nil;end else begin Explorer.Free;Explorer:=nil;ExplorerBrowser:=nil;end;
+    var Delay:=GetTickCount64-StressStarted;Log('PERF close form during active worker round='+StressRound.ToString+' ms='+UIntToStr(Delay));AssertTrue(Delay<2000,'Closing a form waited more than 2 seconds for active analysis');FreeAndNil(StressContinue);FreeAndNil(StressEntered);
+    Inc(StressRound);if StressRound=4 then begin Log('PASS active-worker cancellation, superseding request, Inspector/Explorer close');Log('PASS');Step:=90;end else Step:=96;
+   end else begin
+    var Request:=TJSONObject.Create;
+    try if StressRound=0 then Request.AddPair('type','cancelAnalysis') else begin Request.AddPair('type','requestCatalog');Request.AddPair('scope','module');end;Docs.Handle(Request,Target);finally Request.Free;end;
+    Step:=98;
+   end;Timer.Enabled:=True;Exit;
+  end;
+  98:begin
+   var Docs:=Inspector.Documentation;
+   if Docs.Busy then begin AssertTrue(GetTickCount64-StressStarted<20000,'Active worker did not stop/complete');Timer.Enabled:=True;Exit;end;
+   var Delay:=GetTickCount64-StressStarted;Log('PERF active worker round='+StressRound.ToString+' ms='+UIntToStr(Delay));
+   if StressRound=0 then begin AssertTrue(Delay<2000,'Active cancellation took more than 2 seconds');AssertTrue(Docs.PublishedGeneration=StressGeneration,'Cancelled job published a partial catalog');end
+   else AssertTrue(Docs.PublishedGeneration=StressGeneration+1,'Superseded job published a catalog');
+   Docs.OnWorkerCheck:=nil;FreeAndNil(StressContinue);FreeAndNil(StressEntered);
+   Inc(StressRound);if StressRound=2 then Step:=100 else Step:=96;Timer.Enabled:=True;Exit;
+  end;
+  100:begin
+   ValidationProbe:=TPublicationProbe.Create;
+   ValidationProbe.IncludeFile:=TPath.Combine(Root,'PublicationFeatures.inc');TFile.WriteAllText(ValidationProbe.IncludeFile,'type TOriginal=class end;',TEncoding.UTF8);
+   var SourceFile:=TPath.Combine(Root,'PublicationMain.pas');TFile.WriteAllText(SourceFile,'unit PublicationMain; interface {$I PublicationFeatures.inc} implementation end.',TEncoding.UTF8);
+   AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(ValidationProbe.IncludeFile),'Cannot open publication include');
+   AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(SourceFile),'Cannot open publication source');
+   var Request:=TJSONObject.Create;try Request.AddPair('type','requestCatalog');Request.AddPair('scope','module');ValidationProbe.Handle(Request,Browser);finally Request.Free;end;
+   StressStarted:=GetTickCount64;Step:=101;Timer.Enabled:=True;Exit;
+  end;
+  101:begin
+   if ValidationProbe.Busy then begin AssertTrue(GetTickCount64-StressStarted<10000,'Initial publication timed out');Timer.Enabled:=True;Exit;end;
+   AssertTrue(ValidationProbe.PublishedGeneration=1,'Initial validation catalog not published');ValidationProbe.Armed:=True;
+   var Request:=TJSONObject.Create;try Request.AddPair('type','requestCatalog');Request.AddPair('scope','module');ValidationProbe.Handle(Request,Browser);finally Request.Free;end;
+   StressStarted:=GetTickCount64;Step:=102;Timer.Enabled:=True;Exit;
+  end;
+  102:begin
+   if ValidationProbe.Busy then begin AssertTrue(GetTickCount64-StressStarted<10000,'Publication validation timed out');Timer.Enabled:=True;Exit;end;
+   AssertTrue(ValidationProbe.Changed,'Include did not change at the publication boundary');AssertTrue(ValidationProbe.PublishedGeneration=1,'A reused module published after its open include changed');
+   Log('PASS reused-module publication rejects include edited after incremental validation and retains the previous catalog');
+   ValidationProbe.NewModule:=TPath.Combine(Root,'PublicationExtra.pas');TFile.WriteAllText(ValidationProbe.NewModule,'unit PublicationExtra; interface type TExtra=class end; implementation end.',TEncoding.UTF8);ValidationProbe.Changed:=False;ValidationProbe.Armed:=True;
+   var Request:=TJSONObject.Create;try Request.AddPair('type','requestCatalog');Request.AddPair('scope','project');ValidationProbe.Handle(Request,Browser);finally Request.Free;end;
+   StressStarted:=GetTickCount64;Step:=103;Timer.Enabled:=True;Exit;
+  end;
+  103:begin
+   if ValidationProbe.Busy then begin AssertTrue(GetTickCount64-StressStarted<10000,'Project membership validation timed out');Timer.Enabled:=True;Exit;end;
+   AssertTrue(ValidationProbe.Changed,'Project membership did not change at the publication boundary');AssertTrue(ValidationProbe.PublishedGeneration=1,'Catalog published with a stale project module set');
+   Log('PASS publication rejects changed project membership and retains the previous catalog');FreeAndNil(ValidationProbe);Step:=96;Timer.Enabled:=True;Exit;
   end;
   90:begin Finish;Exit;end;
   80:begin
@@ -498,5 +597,5 @@ procedure Register;
 begin if Assigned(Probe) then Exit;Probe:=TProbe.Create;Probe.Timer:=TTimer.Create(nil);Probe.Timer.Interval:=2500;Probe.Timer.OnTimer:=Probe.Tick;end;
 initialization
 finalization
- Log('Finalizing probe');if Probe<>nil then begin Probe.Timer.Free;Probe.FormatConfirmation.Free;Probe.Inspector.Free;Probe.Explorer.Free;Probe.Free;Probe:=nil;end;Log('Probe finalized');
+ Log('Finalizing probe');if Probe<>nil then begin Probe.Timer.Free;Probe.ValidationProbe.Free;Probe.FormatConfirmation.Free;Probe.Inspector.Free;Probe.Explorer.Free;Probe.Free;Probe:=nil;end;Log('Probe finalized');
 end.

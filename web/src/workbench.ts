@@ -35,7 +35,7 @@ export function initWorkbench(hooks:Hooks):void {
  };
  const viewXml=(focus=true)=>{
   $('doc-design').classList.add('hidden');$('doc-preview').classList.add('hidden');raw.classList.remove('hidden');
-  xml.value=editableXml(current().doc);if(focus)xml.focus();
+  xml.value=(bridge.unappliedXml()??current().doc.unappliedXml)?.xml??editableXml(current().doc);if(focus)xml.focus();
  };
  let recovery:any=null;
  const showRecovery=()=>{
@@ -47,7 +47,7 @@ export function initWorkbench(hooks:Hooks):void {
   const versions=document.createElement('div');versions.className='draft-comparison';
   for(const [label,text] of [['Original comment',data.baseXml??'(Original version unavailable)'],['Current source comment',data.currentXml??''],['Saved draft',editableXml(data.doc)]]){const section=document.createElement('section');const title=document.createElement('h5');title.textContent=label;const code=document.createElement('pre');code.textContent=text;section.append(title,code);versions.append(section);}panel.append(versions);
   const apply=document.createElement('button');apply.textContent=data.conflict?'Apply draft over current comment':'Apply recovered draft';setWorkbenchIcon(apply,'apply-operation');apply.disabled=!!data.readOnly || bridge.readOnly;
-  apply.onclick=()=>{const now=current().element;if(!now || now.fileName!==target.fileName || now.locationId!==target.locationId || now.sessionId!==target.sessionId || now.sourceRevision!==target.sourceRevision){bridge.setStatus('Source changed — recover the draft again');return;}bridge.prepareRecovery(now);hooks.apply(data.doc);panel.replaceChildren();};
+  apply.onclick=()=>{const now=current().element;if(!now || now.fileName!==target.fileName || now.locationId!==target.locationId || now.sessionId!==target.sessionId || now.sourceRevision!==target.sourceRevision){bridge.setStatus('Source changed — recover the draft again');return;}bridge.prepareRecovery(now);hooks.apply({...data.doc,unappliedXml:undefined});panel.replaceChildren();};
   const cancel=document.createElement('button');cancel.textContent='Keep draft and close';setWorkbenchIcon(cancel,'cancel-operation');cancel.onclick=()=>panel.replaceChildren();panel.append(apply,cancel);
  };
  const review=(doc:DocModel)=>{
@@ -71,7 +71,7 @@ export function initWorkbench(hooks:Hooks):void {
   const expected=c.element.params.map(p=>p.name);const old=(c.doc.params??[]).filter(p=>!expected.some(n=>n.toLowerCase()===p.name.toLowerCase()));
   const mappings:Record<string,string>={};
   const panel=document.createElement('div');panel.id='rename-mapping';
-  for(const param of old){const label=document.createElement('label');label.textContent=`Map ${param.name}: `;const select=document.createElement('select');select.innerHTML='<option value="">Keep unmatched description</option>'+expected.map(n=>`<option>${escapeXml(n)}</option>`).join('');select.onchange=()=>{if(select.value)mappings[param.name]=select.value;else delete mappings[param.name];};label.append(select);panel.append(label);}
+  for(const param of old){const label=document.createElement('label');label.textContent=`Map ${param.name}: `;const select=document.createElement('select');select.innerHTML='<option value="">Keep unmatched description</option>'+expected.map(n=>`<option data-code>${escapeXml(n)}</option>`).join('');select.onchange=()=>{if(select.value)mappings[param.name]=select.value;else delete mappings[param.name];};label.append(select);panel.append(label);}
   const next=document.createElement('button');next.textContent='Preview synchronization';setWorkbenchIcon(next,'preview-change');next.onclick=()=>{try{review(synchronize(c.element!,c.doc,mappings));panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);
   $('documentation-problems').replaceChildren(panel);if(!old.length)next.click();
  };
@@ -85,14 +85,14 @@ export function initWorkbench(hooks:Hooks):void {
  $('apply-xml').onclick=()=>{
   const parsed=parseXml(xml.value);const error=parsed.querySelector('parsererror');
   $('xml-error').textContent=error?.textContent??'';
-  if(!error)hooks.apply({...current().doc,rawXml:xml.value,xmlEdited:true,parseError:undefined});
+  if(!error){bridge.approveXml();hooks.apply({...current().doc,unappliedXml:undefined,rawXml:xml.value,xmlEdited:true,parseError:undefined});}
  };
  document.querySelectorAll('#doc-tabs .tab').forEach(tab=>tab.addEventListener('click',()=>raw.classList.add('hidden')));
  $('pin-document').onclick=()=>{const pinned=!bridge.pinned;bridge.setPinned(pinned);$('pin-document').setAttribute('aria-pressed',String(pinned));bridge.sendToHost({type:'pin',pinned});};
  $('compact-document').onclick=()=>{document.body.classList.toggle('compact');$('compact-document').setAttribute('aria-pressed',String(document.body.classList.contains('compact')));};
  $('focus-source').onclick=()=>{const e=current().element;if(e)open(e);};
  $('recover-drafts').onclick=()=>bridge.sendToHost({type:'listDrafts'} as any);
- $('reload-document').onclick=()=>{bridge.cancelPending();bridge.drafts.clear();bridge.setPinned(false);bridge.sendToHost({type:'requestRefresh'});};
+ $('reload-document').onclick=()=>{bridge.discardDrafts();bridge.setPinned(false);bridge.sendToHost({type:'requestRefresh'});};
  const move=(delta:number)=>{const next=index+delta;if(next>=0 && next<history.length){index=next;navigating=true;const e=history[index];if(e.fileName && e.symbolId)bridge.sendToHost({type:'openSymbol',locationId:e.locationId,projectFile:e.projectFile,fileName:e.fileName,symbolId:e.symbolId,line:e.line??1});}};
  $('history-back').onclick=()=>move(-1);$('history-forward').onclick=()=>move(1);
  document.addEventListener('keydown',event=>{
@@ -110,7 +110,17 @@ export function initWorkbench(hooks:Hooks):void {
   });
  };
  let queueIndex=-1,catalogLimit=100;
+ // Pending bulk changes belong to declarations, not to their currently visible rows.
+ const bulkKey=(e:ElementInfo)=>JSON.stringify([e.projectFile,e.fileName,e.locationId??e.declarationId??e.symbolId]);
+ const bulkEdits=new Map<string,{element:TreeElementInfo;summary:string;selected:boolean}>();
+ const captureGrid=()=>{
+  for(const input of $('member-summaries').querySelectorAll<HTMLTextAreaElement>('textarea')){
+   const edit=bulkEdits.get(input.dataset.key!);if(!edit)continue;edit.summary=input.value;
+   const check=input.parentElement?.querySelector<HTMLInputElement>('input[type=checkbox]');if(check)edit.selected=check.checked;
+  }
+ };
  const renderCatalog=(preserveGrid=false)=>{
+  captureGrid();
   const matches=filtered();
   const results=$('catalog-results');results.replaceChildren();
   for(const old of publicBaseline)if(!catalog.some(e=>e.symbolId===old.symbolId && isPublicApi(e,catalog))){const row=document.createElement('div');row.className='documentation-issue';row.textContent=`XD011 Public declaration removed or signature changed: ${old.name}`;results.append(row);}
@@ -123,7 +133,7 @@ export function initWorkbench(hooks:Hooks):void {
     const expected=[...target.params.map(p=>p.name),...(target.genericParams??[])];
     for(const parameter of [...element.params.map(p=>p.name),...(element.genericParams??[])]){const label=document.createElement('label');label.textContent=parameter+' → ';const select=document.createElement('select');
      const unmatched=document.createElement('option');unmatched.value='';unmatched.textContent='Keep unmatched description';select.append(unmatched);
-     for(const name of expected){const option=document.createElement('option');option.value=name;option.textContent=name;select.append(option);}const exact=expected.find(n=>n.toLowerCase()===parameter.toLowerCase());if(exact)select.value=exact;
+     for(const name of expected){const option=document.createElement('option');option.value=name;option.textContent=name;option.dataset.code='';select.append(option);}const exact=expected.find(n=>n.toLowerCase()===parameter.toLowerCase());if(exact)select.value=exact;
      select.onchange=()=>{if(select.value && select.value!==parameter)mapping[parameter]=select.value;else delete mapping[parameter];};label.append(select);panel.append(label);
     }
     const next=document.createElement('button');next.textContent='Preview copy';setWorkbenchIcon(next,'preview-change');next.onclick=()=>{try{const source=element.effectiveDoc??element.doc;const independent=synchronize(target,source,mapping);independent.inheritedFrom=undefined;
@@ -140,9 +150,10 @@ export function initWorkbench(hooks:Hooks):void {
   const gridElements=matches.filter(e=>e.qualifiedParent===owner && e.fileName===current().element?.fileName);let gridLimit=0;
   const appendGrid=()=>{
   for(const element of gridElements.slice(gridLimit,gridLimit+100)){
-   const row=document.createElement('label');const selected=document.createElement('input');selected.type='checkbox';selected.dataset.id=element.symbolId;selected.disabled=!!element.readOnly;selected.dataset.sourceLocked=String(!!element.readOnly);
-   const name=document.createElement('span');name.textContent=element.signature??element.name;
-   const input=document.createElement('textarea');input.value=element.doc.summary;input.title='Summary XML fragment';input.dataset.id=element.symbolId;input.readOnly=!!element.readOnly;input.dataset.sourceLocked=String(!!element.readOnly);input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);members.append(row);
+   const key=bulkKey(element);let edit=bulkEdits.get(key);if(!edit || (!edit.selected && edit.summary===edit.element.doc.summary)){edit={element,summary:element.doc.summary,selected:false};bulkEdits.set(key,edit);}
+   const row=document.createElement('label');const selected=document.createElement('input');selected.type='checkbox';selected.checked=edit.selected;selected.onchange=()=>{edit!.selected=selected.checked;};selected.dataset.id=element.symbolId;selected.disabled=!!element.readOnly;selected.dataset.sourceLocked=String(!!element.readOnly);
+   const name=document.createElement('span');name.textContent=element.signature??element.name;name.dataset.code='';
+   const input=document.createElement('textarea');input.value=edit.summary;input.dataset.key=key;input.oninput=()=>{edit!.summary=input.value;};input.title='Summary XML fragment';input.dataset.id=element.symbolId;input.readOnly=!!element.readOnly;input.dataset.sourceLocked=String(!!element.readOnly);input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);members.append(row);
   }
   gridLimit+=100;
   if(gridLimit<gridElements.length){const more=document.createElement('button');more.textContent='Show more results';setWorkbenchIcon(more,'history-forward');more.onclick=()=>{more.remove();appendGrid();};members.append(more);}
@@ -153,12 +164,22 @@ export function initWorkbench(hooks:Hooks):void {
  const refresh=()=>bridge.sendToHost({type:'requestCatalog',scope:$<HTMLSelectElement>('catalog-scope').value as 'module'|'project'|'group'});
  $('refresh-catalog').onclick=refresh;$('next-problem').onclick=()=>{const list=filtered().filter(e=>!ready(e,e.doc,catalog));if(list.length)open(list[(++queueIndex)%list.length]);};
  $('apply-summaries').onclick=()=>{
-  const changes=Array.from($('member-summaries').querySelectorAll<HTMLInputElement>('input:checked')).map(check=>{
-   const e=catalog.find(e=>e.symbolId===check.dataset.id)!;const input=Array.from($('member-summaries').querySelectorAll<HTMLTextAreaElement>('textarea')).find(t=>t.dataset.id===check.dataset.id)!;if(parseXml('<summary>'+input.value+'</summary>').querySelector('parsererror'))throw Error('Invalid summary XML');return {element:e,doc:{...e.doc,summary:input.value}};
+  try {
+  captureGrid();
+  const changes=Array.from(bulkEdits.values()).filter(edit=>edit.selected).map(edit=>{
+   const e=catalog.find(e=>bulkKey(e)===bulkKey(edit.element));
+   if(!e || e.readOnly || e.sourceRevision!==edit.element.sourceRevision || JSON.stringify(e.doc)!==JSON.stringify(edit.element.doc))throw Error('Source changed — review selected summaries again');
+   if(parseXml('<summary>'+edit.summary+'</summary>').querySelector('parsererror'))throw Error('Invalid summary XML');
+   const doc={...e.doc,summary:edit.summary};delete doc.rawXml;delete doc.xmlEdited;delete doc.parseError;
+   return {element:e,doc};
   });
   if(!changes.length)return;
   $('xml-before').textContent=changes.map(c=>c.element.signature+'\n'+modelXml(c.element.doc)).join('\n');$('xml-after').textContent=changes.map(c=>c.element.signature+'\n'+modelXml(c.doc)).join('\n');$('operation-preview').hidden=false;
-  applyPreview=()=>window.dispatchEvent(new CustomEvent('applyDocumentationBatch',{detail:changes}));
+  applyPreview=()=>{
+   if(changes.some(c=>{const now=catalog.find(e=>bulkKey(e)===bulkKey(c.element));return !now || now.readOnly || now.sourceRevision!==c.element.sourceRevision || JSON.stringify(now.doc)!==JSON.stringify(c.element.doc);})){bridge.setStatus('Source changed — review selected summaries again');return;}
+   window.dispatchEvent(new CustomEvent('applyDocumentationBatch',{detail:changes}));
+  };
+  }catch(error){bridge.setStatus(String(error));}
  };
  $('save-baseline').onclick=()=>{
   const keys=catalog.flatMap(e=>analyze(e,e.doc,catalog).map(i=>issueKey(e,i)));baseline=new Set(keys);

@@ -30,6 +30,7 @@ type
     FSearchPaths,FSourceFiles,FDefines,FDependencyFiles,FDependencyProbes:TArray<string>;
     FSnapshots,FDependencySnapshots:TArray<TSourceSnapshot>;
     FHasDeclared:Boolean;
+    FOnCheck:TProc;
     procedure SetPlatform(const Value:string);
     procedure SetSnapshots(const Value:TArray<TSourceSnapshot>);
     procedure SetDefines(const Value:TArray<string>);
@@ -74,6 +75,7 @@ type
     /// <summary>파싱된 AST 루트 노드</summary>
     /// <summary>Returns known visibility, or False when external scope information is unavailable.</summary>
     property OnResolveDeclaration: TResolveDeclarationEvent read FOnResolveDeclaration write SetResolveDeclaration;
+    property OnCheck:TProc read FOnCheck write FOnCheck;
     property SourceFileName:string read FSourceFileName;
     property Platform:string read FPlatform write SetPlatform;
     property SourceSnapshots:TArray<TSourceSnapshot> read FSnapshots write SetSnapshots;
@@ -135,10 +137,12 @@ type
     FSession:TDeclarationSession;
     FModuleRoot:TSyntaxNode;
     FSourceFile:string;
+    FTokenCount:Integer;
     procedure UnitFile; override;
     function ResolveDeclaration(Sender:TmwBasePasLex; const Identifier:string;
       out Declared:Boolean):Boolean;
   protected
+    procedure NextToken; override;
     procedure VarSection; override;
     procedure TypeArgs; override;
   public
@@ -156,6 +160,7 @@ type
     FSnapshots:TDictionary<string,string>;
     FRTLRoot,FPlatform:string;
     FRTLArrayLength:Integer;
+    FOnCheck:TProc;
     procedure ConfigureTarget(Builder:TPasSyntaxTreeBuilder);
     function NativeRTLSize(const Match:TMatch):string;
     function RTLConditional(const Match:TMatch):string;
@@ -184,6 +189,12 @@ type
       out Content,FileName:string):Boolean;
   end;
 
+procedure TScopeAwareBuilder.NextToken;
+begin
+ Inc(FTokenCount);
+ if (FTokenCount and 255=0) and Assigned(FSession) and Assigned(FSession.FOnCheck) then FSession.FOnCheck();
+ inherited;
+end;
 procedure TScopeAwareBuilder.TypeArgs;
 var Parent,TypeNode,Args:TSyntaxNode;
 begin
@@ -346,12 +357,14 @@ begin
   if ExplicitPath<>'' then begin
     Candidate:=ExplicitPath;
     if not TPath.IsPathRooted(Candidate) then Candidate:=TPath.Combine(Dir,Candidate);
+    FProbes.Add(TPath.GetFullPath(Candidate));
     if TFile.Exists(Candidate) then Exit(TPath.GetFullPath(Candidate));
     raise Exception.CreateFmt('Cannot resolve DECLARED: unit %s specifies missing source %s',[Name,Candidate]);
   end;
   FileName:=Name+'.pas';
   if Dir<>'' then begin
     Candidate:=TPath.Combine(Dir,FileName);
+    FProbes.Add(TPath.GetFullPath(Candidate));
     if TFile.Exists(Candidate) then Exit(TPath.GetFullPath(Candidate));
   end;
   for Candidate in FFiles do
@@ -363,6 +376,7 @@ begin
   if Result<>'' then Exit;
   for Dir in FPaths do begin
     Candidate:=TPath.Combine(Dir,FileName);
+    FProbes.Add(TPath.GetFullPath(Candidate));
     if TFile.Exists(Candidate) then Exit(TPath.GetFullPath(Candidate));
   end;
   if (FRTLRoot<>'') and TDirectory.Exists(FRTLRoot) then begin
@@ -720,6 +734,7 @@ var
   I: Integer;
   LChild: TSyntaxNode;
 begin
+  if Assigned(FOnCheck) then FOnCheck();
   if (ANode.FileName<>'') and not SameText(ANode.FileName,FSourceFileName) then Exit;
   if IsDocTargetNode(ANode) then
     FFlatIndex.Add(ANode);
@@ -974,8 +989,10 @@ var
   I: Integer;
 begin
   SetLength(Result, FFlatIndex.Count);
-  for I := 0 to FFlatIndex.Count - 1 do
+  for I := 0 to FFlatIndex.Count - 1 do begin
+    if Assigned(FOnCheck) then FOnCheck();
     Result[I] := NodeToElementInfo(FFlatIndex[I]);
+  end;
 end;
 
 function TDocParser.FindNextElementAtOrBelow(ALine: Integer): TSyntaxNode;
@@ -1328,8 +1345,10 @@ begin
   // 별도 정리 불필요: Trim으로 처리됨 (ExtractDocComment에서)
 
   Session:=TDeclarationSession.Create(FSearchPaths,FSourceFiles,FDefines,FSnapshots,FPlatform);
+  Session.FOnCheck:=FOnCheck;
   LStream := nil;
   try
+    if Assigned(FOnCheck) then FOnCheck();
     LStream := TStringStream.Create(Session.PrepareSource(ASource,AFileName), TEncoding.UTF8);
     FBuilder := TScopeAwareBuilder.Create;
     TScopeAwareBuilder(FBuilder).FExternalResolver := FOnResolveDeclaration;
@@ -1358,8 +1377,11 @@ begin
     Session.Free;
   end;
 
-  if Assigned(FRootNode) then
-    BuildFlatIndex;
+  try
+    if Assigned(FRootNode) then BuildFlatIndex;
+  except
+    FCachedHash:='';FFlatIndex.Clear;FreeAndNil(FRootNode);raise;
+  end;
 end;
 
 end.
