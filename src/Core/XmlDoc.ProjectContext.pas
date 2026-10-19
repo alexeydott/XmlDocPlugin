@@ -16,6 +16,7 @@ type
   constructor Create(const FileName:string;const Config:string='Debug';const Target:string='Win32');
   destructor Destroy;override;
   function Expand(const Text:string):string;
+  function ResolveModuleSource(const FileName:string):string;
  end;
 implementation
 uses System.IOUtils,System.RegularExpressions,System.Generics.Defaults,Xml.XMLDoc,Xml.XMLIntf;
@@ -107,6 +108,29 @@ begin
    var Candidate:=TPath.GetFullPath(TPath.Combine(Directory,Reference));if TFile.Exists(Candidate) then Exit(Candidate);
   end;
  raise Exception.Create('Missing project source: '+Result);
+end;
+function TProjectContext.ResolveModuleSource(const FileName:string):string;
+var Candidate,Matched:string;
+begin
+ Candidate:=FileName;if not TPath.IsPathRooted(Candidate) then Candidate:=TPath.Combine(FDirectory,Candidate);
+ Candidate:=TPath.GetFullPath(Candidate);if TFile.Exists(Candidate) then Exit(Candidate);
+ // OTA may expand a bare DCCReference against the project directory before
+ // consulting the compiler search path. Only repair that specific alias.
+ if SameText(ExtractFilePath(Candidate),IncludeTrailingPathDelimiter(FDirectory)) then begin
+  Matched:='';
+  for var Source in SourceFiles do if SameText(ExtractFileName(Source),ExtractFileName(Candidate)) then begin
+   if (Matched<>'') and not SameText(Matched,Source) then raise Exception.Create('Ambiguous project source: '+FileName);
+   Matched:=Source;
+  end;
+  if Matched<>'' then Exit(Matched);
+ end;
+ // Unlisted OTA modules can exist only in a live editor buffer. Preserve
+ // their path; the caller reads snapshots before disk and reports missing data.
+ if not TPath.IsPathRooted(FileName) and (ExtractFilePath(FileName)='') then
+  for var Directory in SearchPaths do begin
+   var SearchFile:=TPath.GetFullPath(TPath.Combine(Directory,FileName));if TFile.Exists(SearchFile) then Exit(SearchFile);
+  end;
+ Result:=Candidate;
 end;
 constructor TProjectContext.Create(const FileName,Config,Target:string);
 var Doc:IXMLDocument;Group,Node:IXMLNode;I,J:Integer;Name,Value,Path:string;Files:TList<string>;

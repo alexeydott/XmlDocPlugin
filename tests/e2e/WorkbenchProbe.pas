@@ -84,7 +84,10 @@ var Buffer:PWideChar;Json:TJSONObject;
 begin
  Buffer:=nil;Args.ArgsInterface.TryGetWebMessageAsString(Buffer);
  if Assigned(Buffer) then begin try Json:=ParseHostMessage(string(Buffer));finally CoTaskMemFree(Buffer);end;
-  try if Assigned(Json) and (Json.GetValue<string>('type','')='docUpdated') then ExplorerAttempted:=True;finally Json.Free;end;
+  try
+   if Assigned(StressEntered) and Assigned(Json) and (Json.GetValue<string>('type','')='requestCatalog') then begin Log('Ignored automatic Explorer refresh during native worker barrier');Exit;end;
+   if Assigned(Json) and (Json.GetValue<string>('type','')='docUpdated') then ExplorerAttempted:=True;
+  finally Json.Free;end;
  end;
  if Assigned(OriginalExplorerMessage) then OriginalExplorerMessage(Sender,Args);
 end;
@@ -100,6 +103,9 @@ begin
  try Text:=string(Buffer);finally CoTaskMemFree(Buffer);end;
  Json:=TJSONObject.ParseJSONValue(Text) as TJSONObject;
  try
+  // Native stress requests are issued directly through Docs.Handle. Do not let
+  // the new card's automatic catalog replace that controlled worker request.
+  if Assigned(StressEntered) and Assigned(Json) and (Json.GetValue<string>('type','')='requestCatalog') then begin Log('Ignored automatic Inspector refresh during native worker barrier');Exit;end;
   if Assigned(Json) and (Json.GetValue<string>('type','')='docUpdated') then Log('EDIT '+Json.GetValue<string>('sourceRevision','')+' '+Json.GetValue<TJSONObject>('doc').GetValue<string>('summary',''));
   if not Assigned(Json) or (Json.GetValue<string>('type','')<>'e2e') then begin if Assigned(OriginalMessage) then OriginalMessage(Sender,Args);Exit;end;
   Action:=Json.GetValue<string>('action','');
@@ -170,12 +176,17 @@ begin
     PrimaryProjectFile:=GetActiveProject.FileName;var Dir:=TPath.Combine(Root,'GroupB');TDirectory.CreateDirectory(Dir);
     TFile.WriteAllText(TPath.Combine(Dir,'ContextB.pas'),'unit ContextB;'+sLineBreak+'interface'+sLineBreak+'{$I Features.inc}'+sLineBreak+'type TWorker=class procedure Run(Value:Integer); overload; procedure Run(Value:string); overload; end;'+sLineBreak+'procedure OtherB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'implementation'+sLineBreak+'procedure OtherB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF}); begin end;'+sLineBreak+'procedure FromB(Value:{$IFDEF FROM_B}string{$ELSE}Integer{$ENDIF});'+sLineBreak+'begin end;'+sLineBreak+'procedure TWorker.Run(Value:Integer); begin end;'+sLineBreak+'procedure TWorker.Run(Value:string); begin end;'+sLineBreak+'procedure Exercise(Worker:TWorker);'+sLineBreak+'var Local:Integer;'+sLineBreak+'begin'+sLineBreak+' Worker.Run(Local);'+sLineBreak+'end;'+sLineBreak+'end.');
     TFile.WriteAllText(TPath.Combine(Dir,'Features.inc'),'{$DEFINE FROM_B}');
-    TFile.WriteAllText(TPath.Combine(Dir,'GroupB.dpr'),'program GroupB; uses ContextB in ''ContextB.pas''; begin end.');
+    TFile.WriteAllText(TPath.Combine(Dir,'GroupB.dpr'),'program GroupB; uses ContextB in ''ContextB.pas'', SearchOnly in ''SearchOnly.pas''; begin end.');
     var GroupXml:=TFile.ReadAllText(TPath.Combine(Root,'XmlDocE2E.dproj')).Replace('XmlDocE2E','GroupB');
     GroupXml:=GroupXml.Replace('{3A72602E-67CF-469D-A733-BC75247CC365}',TGUID.NewGuid.ToString);
     GroupXml:=GroupXml.Replace('<DCCReference Include="Units\Workbench.Contracts.pas"/>','<DCCReference Include="ContextB.pas"/>');
     GroupXml:=GroupXml.Replace('<DCCReference Include="Units\Workbench.Sample.pas"/>','').Replace('<DCCReference Include="Units\Workbench.Second.pas"/>','').Replace('<DCCReference Include="Examples\Workbench.Examples.pas"/>','');
     GroupXml:=GroupXml.Replace('<DCC_Define>DEBUG;','<DCC_Define>FROM_B;DEBUG;');
+    // A bare DCCReference is deliberately outside the project directory. OTA
+    // reports the unresolved project-directory alias; analysis must normalize it.
+    var References:=TPath.Combine(Dir,'ReferenceSources');ForceDirectories(References);
+    TFile.WriteAllText(TPath.Combine(References,'SearchOnly.pas'),'unit SearchOnly; interface type TSearchOnly=class end; implementation end.');
+    GroupXml:=GroupXml.Replace('</Project>','<PropertyGroup><DCC_UnitSearchPath>ReferenceSources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath></PropertyGroup><ItemGroup><DCCReference Include="SearchOnly.pas"/></ItemGroup></Project>');
     TFile.WriteAllText(TPath.Combine(Dir,'GroupB.dproj'),GroupXml);
     Step:=80;Timer.Interval:=100;Timer.Enabled:=True;
    end
@@ -196,7 +207,7 @@ begin
       AssertTrue(ErrorShown,'Project-context error was not shown inside '+Panel.Caption);
      end;
     finally TFile.WriteAllText(BrokenProject,ProjectBefore);TFile.SetLastWriteTimeUtc(BrokenProject,ProjectStamp);end;
-    var ReferenceDirectory:=TPath.Combine(Root,'GroupB','ReferenceSources');ForceDirectories(ReferenceDirectory);TFile.WriteAllText(TPath.Combine(ReferenceDirectory,'SearchOnly.pas'),'unit SearchOnly; interface implementation end.');
+    var ReferenceDirectory:=TPath.Combine(Root,'GroupB','ReferenceSources');ForceDirectories(ReferenceDirectory);TFile.WriteAllText(TPath.Combine(ReferenceDirectory,'SearchOnly.pas'),'unit SearchOnly; interface type TSearchOnly=class end; implementation end.');
     try
      var SearchProject:=ProjectBefore.Replace('Include="ContextB.pas"','Include="SearchOnly.pas"').Replace('</Project>','<PropertyGroup><DCC_UnitSearchPath>ReferenceSources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath></PropertyGroup></Project>');
      TFile.WriteAllText(BrokenProject,SearchProject);Inspector.HandleCursorChanged(3,ErrorSource,ErrorFile);Explorer.HandleFileChanged(ErrorFile,ErrorSource);AssertParsed(Inspector);AssertParsed(Explorer);
@@ -321,11 +332,13 @@ begin
  end;
 end;
 procedure AssertErrorLabelTheme(Form:TForm);
-var LabelControl:TMemo;Foreground,Background:Longint;Difference:Integer;
+var LabelControl:TMemo;Foreground,Background:Longint;Difference:Integer;Theme:IOTAIDEThemingServices;
 begin
  for var I:=0 to Form.ComponentCount-1 do if (Form.Components[I] is TMemo) and (Form.Components[I].Name='DocumentationError') then begin
   LabelControl:=TMemo(Form.Components[I]);
   Foreground:=ColorToRGB(LabelControl.Font.Color);Background:=ColorToRGB(LabelControl.Color);
+  if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) and Theme.IDEThemingEnabled then
+   if Background<>ColorToRGB(Theme.StyleServices.GetSystemColor(clWindow)) then raise Exception.Create('Native diagnostic does not follow the IDE theme');
   Difference:=Abs(Integer(GetRValue(Foreground))-Integer(GetRValue(Background)))+
    Abs(Integer(GetGValue(Foreground))-Integer(GetGValue(Background)))+
    Abs(Integer(GetBValue(Foreground))-Integer(GetBValue(Background)));

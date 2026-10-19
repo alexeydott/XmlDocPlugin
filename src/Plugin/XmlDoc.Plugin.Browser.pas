@@ -15,6 +15,7 @@ type
     FResourceRoot:string;
     FResourceStatus:string;
     FAppliedSettings:string;
+    FHostTheme:string;
     procedure LoadTimer(Sender: TObject);
   protected
     procedure DestroyWnd;override;
@@ -26,6 +27,7 @@ type
     procedure ApplySettings;
     procedure MapResources(const Root:string);
     property ResourceStatus:string read FResourceStatus;
+    property HostTheme:string read FHostTheme write FHostTheme;
   end;
 
 procedure ConfigureWebViewLoader;
@@ -124,7 +126,7 @@ begin
     TI18n.Instance.SetLanguage(TPluginSettings.Instance.Global.General.Language);
     LJson.AddPair('language',TI18n.Instance.CurrentLanguage);
     LJson.AddPair('saveDebounceMs',TJSONNumber.Create(LSettings.SaveDebounceMs));
-    LJson.AddPair('theme', LSettings.Theme);
+    if FHostTheme<>'' then LJson.AddPair('theme',FHostTheme) else LJson.AddPair('theme',LSettings.Theme);
     LJson.AddPair('fontSize', TJSONNumber.Create(LSettings.FontSize));
     LJson.AddPair('showSignatureHeader', TJSONBool.Create(LSettings.ShowSignatureHeader));
     var Payload:=LJson.ToJSON;if Payload=FAppliedSettings then Exit;

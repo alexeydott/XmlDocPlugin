@@ -170,9 +170,15 @@ begin var Clock:=TStopwatch.StartNew;FPreparing:=False;FPublishing:=False;FAnaly
 procedure TProjectDocumentation.Catalog(const Scope:string;Browser:TXmlDocBrowser);
 var Files:TList<string>;Projects:TDictionary<string,IOTAProject>;Services:IOTAModuleServices;Project:IOTAProject;Group:IOTAProjectGroup;EditorServices:IOTAEditorServices;
  procedure AddProject(P:IOTAProject);
- begin if not Assigned(P) then Exit;for var I:=0 to P.GetModuleCount-1 do begin var FileName:=P.GetModule(I).FileName;
-  if SameText(ExtractFileExt(FileName),'.pas') then begin if not Files.Contains(FileName) then Files.Add(FileName);Projects.AddOrSetValue(LowerCase(FileName),P);end;
- end;end;
+ begin
+  if not Assigned(P) then Exit;var Context:=ActiveDocumentationContext(P);
+  try for var I:=0 to P.GetModuleCount-1 do begin var FileName:=P.GetModule(I).FileName;
+   if SameText(ExtractFileExt(FileName),'.pas') then begin
+    if Assigned(Context) then FileName:=Context.ResolveModuleSource(FileName);
+    if not Files.Contains(FileName) then Files.Add(FileName);Projects.AddOrSetValue(LowerCase(FileName),P);
+   end;
+  end;finally Context.Free;end;
+ end;
 begin
  StopWorker;FPreparationMs:=0;FValidationMs:=0;FPublicationMs:=0;FJobScope:=Scope;FJobOwners.Clear;FJobTemplates.Clear;FValidationContexts.Clear;TInterlocked.Exchange(FCancelled,0);TInterlocked.Exchange(FCompleted,0);FJobError:='';FJobPayload:='';FJobContexts.Clear;
  FAnalysisTimer.Enabled:=False;if Assigned(FJobBrowser) then FJobBrowser.RemoveFreeNotification(Self);FJobBrowser:=Browser;if Assigned(Browser) then Browser.FreeNotification(Self);FJobPosition:=0;FJobParsers.Clear;FJobSources.Clear;FIndex.ResetStatistics;
@@ -316,7 +322,11 @@ begin
    try
     if FJobScope='group' then begin var Group:=Services.MainProjectGroup;if Assigned(Group) then for var I:=0 to Group.ProjectCount-1 do Projects.Add(Group.Projects[I]);end
     else if FJobScope='project' then begin var Project:=Services.GetActiveProject;if Assigned(Project) then Projects.Add(Project);end;
-    for var Project in Projects do for var I:=0 to Project.GetModuleCount-1 do begin var Name:=Project.GetModule(I).FileName;if SameText(ExtractFileExt(Name),'.pas') and not LiveFiles.Contains(Name) then LiveFiles.Add(Name);end;
+    for var Project in Projects do begin var Context:=ActiveDocumentationContext(Project);
+     try for var I:=0 to Project.GetModuleCount-1 do begin var Name:=Project.GetModule(I).FileName;
+      if SameText(ExtractFileExt(Name),'.pas') then begin if Assigned(Context) then Name:=Context.ResolveModuleSource(Name);if not LiveFiles.Contains(Name) then LiveFiles.Add(Name);end;
+     end;finally Context.Free;end;
+    end;
     if LiveFiles.Count=0 then begin var Editors:IOTAEditorServices;if Supports(BorlandIDEServices,IOTAEditorServices,Editors) and Assigned(Editors.TopView) then LiveFiles.Add(Editors.TopView.Buffer.FileName);end;
    finally Projects.Free;end;
    if LiveFiles.Count<>Length(FJobFiles) then raise Exception.Create('Project modules changed during analysis — refresh the workspace');

@@ -39,11 +39,11 @@ begin
    if not Assigned(Context) then begin Parser.Platform:='';Parser.Defines:=nil;end;
    if Assigned(Context) then begin Parser.Platform:=Context.Platform;Parser.Defines:=Context.Defines;
     Paths.AddRange(Context.SearchPaths);Paths.AddRange(Context.IncludePaths);Files.AddRange(Context.SourceFiles);end;
-  finally Context.Free;end;
   if Assigned(Project) then begin
    Paths.Add(ExtractFilePath(Project.FileName));
    for I:=0 to Project.GetModuleCount-1 do begin
     FileName:=Project.GetModule(I).FileName;
+    if Assigned(Context) and SameText(ExtractFileExt(FileName),'.pas') then FileName:=Context.ResolveModuleSource(FileName);
     if SameText(ExtractFileExt(FileName),'.pas') then begin
      Files.Add(FileName);
      Path:=ExtractFilePath(FileName);
@@ -60,6 +60,7 @@ begin
   end;
   Parser.SourceFiles:=Files.ToArray;
   Parser.SearchPaths:=Paths.ToArray;
+  finally Context.Free;end;
  finally Paths.Free;Files.Free;end;
 end;
 end.

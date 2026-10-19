@@ -6,6 +6,7 @@ public
  [Test] procedure LanguagePacks;
  [Test] procedure SearchPathUnitReferences;
  [Test] procedure ErrorMemoTheme;
+ [Test] procedure ModuleSourceAliases;
  [Test] procedure IncrementalIndex;
  [Test] procedure ExpressionTypes;
  [Test] procedure GenericExpressionBindings;
@@ -67,6 +68,33 @@ begin
   Assert.WillRaise(procedure begin var Missing:=TProjectContext.Create(ProjectFile);Missing.Free;end,Exception,'Explicit missing paths must not silently bind another source');
  finally TDirectory.Delete(Root,True);end;
 end;
+procedure TImprovementsTests.ModuleSourceAliases;
+var Root,UnitFile,ProjectFile:string;Context:TProjectContext;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);ForceDirectories(TPath.Combine(Root,'src'));
+ try
+  UnitFile:=TPath.Combine(Root,'src','Gtfs.Tools.BuildStatic.pas');ProjectFile:=TPath.Combine(Root,'Tool.dproj');
+  TFile.WriteAllText(UnitFile,'unit Gtfs.Tools.BuildStatic; interface implementation end.');
+  TFile.WriteAllText(ProjectFile,'<Project><PropertyGroup><DCC_UnitSearchPath>src</DCC_UnitSearchPath></PropertyGroup><ItemGroup><DCCReference Include="Gtfs.Tools.BuildStatic.pas"/></ItemGroup></Project>');
+  Context:=TProjectContext.Create(ProjectFile);
+  try
+   Assert.AreEqual(UnitFile,Context.ResolveModuleSource(TPath.Combine(Root,'Gtfs.Tools.BuildStatic.pas')),'Resolve the absolute alias reported by OTA');
+   Assert.AreEqual(UnitFile,Context.ResolveModuleSource('Gtfs.Tools.BuildStatic.pas'));
+   Assert.AreEqual(UnitFile,Context.ResolveModuleSource(UnitFile));
+   var Missing:=TPath.Combine(Root,'missing','Gtfs.Tools.BuildStatic.pas');Assert.AreEqual(Missing,Context.ResolveModuleSource(Missing),'Never repair an unrelated explicit path');
+   var Unsaved:=TPath.Combine(Root,'Unsaved.pas');Assert.AreEqual(Unsaved,Context.ResolveModuleSource(Unsaved),'A module backed only by an editor snapshot keeps its identity');
+   for var I:=0 to 199 do begin
+    var Alias:='Gtfs.Tools.BuildStatic.pas';if Odd(I) then Alias:=Alias.ToUpper;
+    if (I mod 3)=0 then Alias:=TPath.Combine(Root,'.',Alias) else if (I mod 3)=1 then Alias:=TPath.Combine(Root,Alias);
+    Assert.AreEqual(UnitFile,Context.ResolveModuleSource(Alias));
+   end;
+   var Other:=TPath.Combine(Root,'other','Gtfs.Tools.BuildStatic.pas');ForceDirectories(ExtractFilePath(Other));TFile.WriteAllText(Other,'unit Other; interface implementation end.');
+   Context.SourceFiles:=[UnitFile,Other];
+   Assert.WillRaise(procedure begin Context.ResolveModuleSource(TPath.Combine(Root,'Gtfs.Tools.BuildStatic.pas'));end,Exception,'Ambiguous project aliases must fail');
+   Assert.AreEqual(Other,Context.ResolveModuleSource(Other),'Existing explicit files retain their meaning');
+  finally Context.Free;end;
+ finally TDirectory.Delete(Root,True);end;
+end;
 procedure TImprovementsTests.ErrorMemoTheme;
 var Form:TForm;Memo:TMemo;
 begin
@@ -75,6 +103,7 @@ begin
   Memo:=TMemo.Create(Form);Memo.Parent:=Form;Memo.SetBounds(0,0,180,300);Memo.WordWrap:=True;Memo.ScrollBars:=ssVertical;
   for var Background in [TColor(clWhite),TColor($002F2E2C),TColor($00808080)] do begin
    ApplyDocumentationErrorTheme(Memo,Background);Assert.AreEqual(Background,Memo.Color);
+   if Background=TColor($002F2E2C) then Assert.AreEqual('dark',DocumentationThemeName(Background)) else Assert.AreEqual('light',DocumentationThemeName(Background));
    if Background=TColor($002F2E2C) then Assert.AreEqual(TColor(clWhite),Memo.Font.Color) else Assert.AreEqual(TColor(clBlack),Memo.Font.Color);
   end;
   Memo.Text:='Missing project source: '+StringOfChar('x',600)+'\Unit.pas';

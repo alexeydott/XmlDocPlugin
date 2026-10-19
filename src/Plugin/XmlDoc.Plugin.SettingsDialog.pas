@@ -111,7 +111,9 @@ begin
   LSettings := TPluginSettings.Instance.Global;
 
   // General
-  cmbTheme.ItemIndex := cmbTheme.Items.IndexOf(LSettings.Editor.Theme);
+  // The embedded editor follows the IDE, independent of the old saved preference.
+  cmbTheme.Enabled:=False;cmbTheme.ShowHint:=True;cmbTheme.Hint:='Follows the current IDE theme';
+  cmbTheme.ItemIndex := cmbTheme.Items.IndexOf('auto');
   if cmbTheme.ItemIndex < 0 then
     cmbTheme.ItemIndex := 0;
 
@@ -156,7 +158,7 @@ begin
   LSettings := TPluginSettings.Instance.Global;
 
   // General
-  LSettings.Editor.Theme := cmbTheme.Text;
+  // Retain the previous preference for compatibility; the IDE supplies the active theme.
   LSettings.Editor.FontSize := spnFontSize.Value;
   LSettings.General.Language := cmbLanguage.Text;
   LSettings.Editor.AutoShowOnCursor := chkAutoShowOnCursor.Checked;

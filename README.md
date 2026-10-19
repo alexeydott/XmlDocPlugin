@@ -259,8 +259,8 @@ Use `-Bds` to select the Delphi installation and `-OutputDir` to select another
 BPL directory. Install the resulting `XmlDocPlugin290.bpl` and restart the IDE.
 The Microsoft WebView2 Runtime must also be installed.
 
-The **Editor theme** setting controls the Inspector and Explorer web editors:
-`light`, `dark`, or `auto` (Windows appearance). Changes apply immediately.
+Inspector and Explorer follow the current IDE theme, including native error
+panels. Theme changes also apply to panels that are already open.
 Section expansion choices are saved separately for each editor. Docking is
 stored in the IDE desktop layout and follows the IDE's layout save/restore settings.
 

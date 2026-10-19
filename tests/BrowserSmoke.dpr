@@ -50,7 +50,7 @@ begin
     'const ok=light && auto && document.querySelector(".tiptap")?.textContent.includes("Runtime probe") &&' +
     'getComputedStyle(document.body).backgroundColor==="rgb(30, 30, 30)" &&' +
     '(' + IntToStr(Phase) + '===0 || restored);' +
-    'window.chrome.webview.postMessage(ok?"SMOKE:PASS":"SMOKE:FAIL");},100);');
+    'window.chrome.webview.postMessage(ok?"HOST:LIGHT":"SMOKE:FAIL");},100);');
 end;
 
 procedure TProbe.MessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
@@ -65,6 +65,14 @@ begin
     Msg := string(Text);
   finally
     CoTaskMemFree(Text);
+  end;
+  if Msg='HOST:LIGHT' then begin
+    Browser.HostTheme:='light';Browser.ApplySettings;
+    Browser.ExecuteScript('setTimeout(()=>window.chrome.webview.postMessage(document.documentElement.dataset.theme==="light"?"HOST:DARK":"SMOKE:FAIL"),50);');Exit;
+  end;
+  if Msg='HOST:DARK' then begin
+    Browser.HostTheme:='dark';Browser.ApplySettings;
+    Browser.ExecuteScript('setTimeout(()=>window.chrome.webview.postMessage(document.documentElement.dataset.theme==="dark"?"SMOKE:PASS":"SMOKE:FAIL"),50);');Exit;
   end;
   if Msg.StartsWith('SMOKE:') then
   begin

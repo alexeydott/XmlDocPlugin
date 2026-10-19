@@ -5,15 +5,21 @@
  const pause=ms=>new Promise(r=>setTimeout(r,ms));
  const assert=(test,text)=>{if(!test)throw Error(text);};
  try{
-  let groupCatalog;const receive=window.xmlDocWorkbench.receiveCatalog;window.xmlDocWorkbench.receiveCatalog=data=>{groupCatalog=data;receive(data);};
+  let groupCatalog,analysis,analysisStarted=false;
+  const receive=window.xmlDocWorkbench.receiveCatalog;window.xmlDocWorkbench.receiveCatalog=data=>{groupCatalog=data;receive(data);};
+  const receiveAnalysis=window.xmlDocWorkbench.receiveAnalysis;window.xmlDocWorkbench.receiveAnalysis=data=>{if(data.state==='running')analysisStarted=true;if(analysisStarted)analysis=data;receiveAnalysis(data);};
+  const isGroupCatalog=()=>groupCatalog?.elements.some(e=>e.name==='FromB') && groupCatalog.elements.some(e=>(e.fileName??'').endsWith('Workbench.Sample.pas'));
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});
-  for(let i=0;i<100 && !groupCatalog;i++)await pause(100);
-  let analysis,analysisStarted=false;const receiveAnalysis=window.xmlDocWorkbench.receiveAnalysis;window.xmlDocWorkbench.receiveAnalysis=data=>{if(data.state==='running')analysisStarted=true;if(analysisStarted)analysis=data;receiveAnalysis(data);};
-  // A previous catalog's completion can arrive after its receiveCatalog callback.
-  // Require a fresh running notification before accepting this request's completion.
+  // Ignore queued file/project catalogs from the card navigation. Finish a real
+  // group request before measuring reuse in the following, unchanged request.
+  for(let i=0;i<100 && (!isGroupCatalog() || analysis?.state!=='completed');i++)await pause(100);
+  assert(isGroupCatalog() && analysis?.state==='completed','Initial group analysis did not finish');
+  analysisStarted=false;analysis=undefined;groupCatalog=undefined;
   let lastPulse=performance.now(),maxGap=0;const pulse=setInterval(()=>{const now=performance.now();maxGap=Math.max(maxGap,now-lastPulse);lastPulse=now;},10);const warmStart=performance.now();
-  window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && (!analysisStarted || analysis?.state!=='completed');i++)await pause(100);assert(analysis?.parsed===0 && analysis?.reused>0,'Unchanged modules were not reused: '+JSON.stringify(analysis));
+  window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && (!isGroupCatalog() || !analysisStarted || analysis?.state!=='completed');i++)await pause(100);assert(analysis?.parsed===0 && analysis?.reused>0,'Unchanged modules were not reused: '+JSON.stringify(analysis));
   clearInterval(pulse);
+  assert(groupCatalog && !groupCatalog.errors?.length,'Project catalog reported errors: '+JSON.stringify(groupCatalog?.errors));
+  assert(groupCatalog.elements.some(e=>/ReferenceSources[\\/]SearchOnly\.pas$/i.test(e.fileName??'')),'Bare OTA module alias was not resolved through the unit search path');
   const nativePhases=Object.fromEntries(['preparationMs','validationMs','publicationMs','stopWorkerMs'].map(key=>{assert(Number.isFinite(analysis[key]) && analysis[key]>=0,'Missing native phase timing: '+key);return [key,analysis[key]];}));
   send('analysis-metrics',{warmMs:performance.now()-warmStart,maxUiGapMs:maxGap,...nativePhases});
   const cancelStart=performance.now();

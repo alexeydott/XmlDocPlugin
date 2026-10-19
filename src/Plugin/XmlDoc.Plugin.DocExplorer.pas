@@ -12,6 +12,7 @@ uses
   Winapi.Windows,
   Winapi.Messages,
   Winapi.ActiveX,
+  Vcl.Graphics,
   Vcl.Controls,
   Vcl.ExtCtrls,
   Vcl.Forms,
@@ -142,11 +143,17 @@ begin
 end;
 
 procedure TDocExplorerForm.ApplyIDETheme;
-var Theme: IOTAIDEThemingServices;
+var Theme: IOTAIDEThemingServices;Background:TColor;
 begin
-  if Supports(BorlandIDEServices, IOTAIDEThemingServices, Theme) then
-    Theme.ApplyTheme(Self);
-  ApplyDocumentationErrorTheme(FBrowserError,Color);
+  Background:=clWindow;
+  if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) and Theme.IDEThemingEnabled and Assigned(Theme.StyleServices) then
+    Background:=Theme.StyleServices.GetSystemColor(clWindow);
+  if Color<>Background then Color:=Background;
+  ApplyDocumentationErrorTheme(FBrowserError,Background);
+  if Assigned(FBrowser) and (FBrowser.HostTheme<>DocumentationThemeName(Background)) then begin
+    FBrowser.HostTheme:=DocumentationThemeName(Background);
+    if FBrowserReady then FBrowser.ApplySettings;
+  end;
 end;
 
 procedure TDocExplorerForm.CMStyleChanged(var Message: TMessage);
@@ -202,6 +209,7 @@ begin
 
 
   FBrowser := TXmlDocBrowser.Create(Self);
+  ApplyIDETheme;
   FBrowser.UserDataFolder := LDataDir;
   FBrowser.OnCreateWebViewCompleted := BrowserCreateWebViewCompleted;
   FBrowser.OnNavigationCompleted := BrowserNavigationCompleted;
@@ -665,6 +673,8 @@ var
 begin
   if not Visible then
     Exit;
+
+  ApplyIDETheme;
 
   if FUpdatingSource then
     Exit;
