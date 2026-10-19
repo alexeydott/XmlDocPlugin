@@ -389,7 +389,47 @@ const
   '  "Insert": "Вставить",' +
   '  "See": "Ссылка",' +
   '  "Param": "Параметр",' +
-  '  "TParam": "Параметр типа"' +
+  '  "TParam": "Параметр типа",' +
+  '  "Double-click to go to method": "Дважды щёлкните для перехода к методу",' +
+  '  "Double-click to go to method: {0}": "Дважды щёлкните для перехода к методу: {0}",' +
+  '  "Type: {0}": "Тип: {0}",' +
+  '  "Source changed — reload before applying": "Исходник изменён — перезагрузите перед применением",' +
+  '  "Invalid editor message: {0}": "Некорректное сообщение редактора: {0}",' +
+  '  "Invalid XML — edit the XML source": "Некорректный XML — исправьте XML-код",' +
+  '  "Source changed — request Quick documentation again": "Исходник изменён — повторите запрос быстрой документации",' +
+  '  "Applied selected summaries": "Выбранные описания применены",' +
+  '  "Project closed during analysis — refresh the workspace": "Проект закрыт во время анализа — обновите рабочую область",' +
+  '  "Project modules changed during analysis — refresh the workspace": "Состав модулей изменён во время анализа — обновите рабочую область",' +
+  '  "Source protection changed during publication — refresh the workspace": "Защита исходника изменена перед публикацией результата — обновите рабочую область",' +
+  '  "Source or dependency changed during publication — refresh the workspace": "Исходник или зависимость изменены перед публикацией результата — обновите рабочую область",' +
+  '  "Source changed during analysis — refresh the workspace": "Исходник изменён во время анализа — обновите рабочую область",' +
+  '  "Source protection changed during analysis — refresh the workspace": "Защита исходника изменена во время анализа — обновите рабочую область",' +
+  '  "Project context or a dependency changed during analysis — refresh the workspace": "Контекст проекта или зависимость изменены во время анализа — обновите рабочую область",' +
+  '  "Open a project to configure authoring": "Откройте проект для настройки документации",' +
+  '  "Authoring data is missing": "Отсутствуют данные для работы с документацией",' +
+  '  "Duplicate declaration in batch": "Повторяющееся объявление в группе правок",' +
+  '  "Refresh the project workspace before applying summaries": "Обновите рабочую область проекта перед применением описаний",' +
+  '  "Stale documentation selection": "Выбрана устаревшая версия документации",' +
+  '  "Source changed: {0}": "Исходник изменён: {0}",' +
+  '  "Invalid documentation XML": "Некорректный XML документации",' +
+  '  "Cannot open {0}": "Не удалось открыть {0}",' +
+  '  "Source editor is unavailable": "Редактор исходника недоступен",' +
+  '  "Source changed before apply": "Исходник изменён перед применением",' +
+  '  "Invalid draft identity": "Некорректный идентификатор черновика",' +
+  '  "Draft is invalid": "Некорректный черновик",' +
+  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "У старого черновика нет устойчивой привязки к исходнику. Содержимое сохранено; проверьте его и скопируйте вручную из папки черновиков.",' +
+  '  "Project context is unavailable: {0}": "Контекст проекта недоступен: {0}",' +
+  '  "Declaration changed — the draft has been retained; locate the declaration before recovering it": "Объявление изменено — черновик сохранён; найдите объявление перед восстановлением",' +
+  '  "Element kind for wording": "Вид объявления для шаблона",' +
+  '  "Unit": "модуль",' +
+  '  "Class": "класс",' +
+  '  "Record": "запись",' +
+  '  "Interface": "интерфейс",' +
+  '  "Method": "метод",' +
+  '  "Property": "свойство",' +
+  '  "Field": "поле",' +
+  '  "Type": "тип",' +
+  '  "Constant": "константа"' +
   '}';
  CLocale_zh =
   '{' +
@@ -780,7 +820,47 @@ const
   '  "Insert": "插入",' +
   '  "See": "引用",' +
   '  "Param": "参数",' +
-  '  "TParam": "类型参数"' +
+  '  "TParam": "类型参数",' +
+  '  "Double-click to go to method": "双击跳转到方法",' +
+  '  "Double-click to go to method: {0}": "双击跳转到方法：{0}",' +
+  '  "Type: {0}": "类型：{0}",' +
+  '  "Source changed — reload before applying": "源代码已更改 — 请重新加载后再应用",' +
+  '  "Invalid editor message: {0}": "无效的编辑器消息：{0}",' +
+  '  "Invalid XML — edit the XML source": "XML 无效 — 请编辑 XML 源码",' +
+  '  "Source changed — request Quick documentation again": "源代码已更改 — 请重新请求快速文档",' +
+  '  "Applied selected summaries": "已应用所选摘要",' +
+  '  "Project closed during analysis — refresh the workspace": "分析期间项目已关闭 — 请刷新工作区",' +
+  '  "Project modules changed during analysis — refresh the workspace": "分析期间项目模块已更改 — 请刷新工作区",' +
+  '  "Source protection changed during publication — refresh the workspace": "发布结果时源代码保护已更改 — 请刷新工作区",' +
+  '  "Source or dependency changed during publication — refresh the workspace": "发布结果时源代码或依赖项已更改 — 请刷新工作区",' +
+  '  "Source changed during analysis — refresh the workspace": "分析期间源代码已更改 — 请刷新工作区",' +
+  '  "Source protection changed during analysis — refresh the workspace": "分析期间源代码保护已更改 — 请刷新工作区",' +
+  '  "Project context or a dependency changed during analysis — refresh the workspace": "分析期间项目上下文或依赖项已更改 — 请刷新工作区",' +
+  '  "Open a project to configure authoring": "请打开项目以配置文档编写",' +
+  '  "Authoring data is missing": "缺少文档编写数据",' +
+  '  "Duplicate declaration in batch": "批量操作中有重复声明",' +
+  '  "Refresh the project workspace before applying summaries": "应用摘要前请刷新项目工作区",' +
+  '  "Stale documentation selection": "所选文档已过期",' +
+  '  "Source changed: {0}": "源代码已更改：{0}",' +
+  '  "Invalid documentation XML": "文档 XML 无效",' +
+  '  "Cannot open {0}": "无法打开 {0}",' +
+  '  "Source editor is unavailable": "源代码编辑器不可用",' +
+  '  "Source changed before apply": "应用前源代码已更改",' +
+  '  "Invalid draft identity": "草稿标识无效",' +
+  '  "Draft is invalid": "草稿无效",' +
+  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "此旧版草稿没有稳定的源代码位置。内容已保留，请从草稿文件夹中检查并手动复制。",' +
+  '  "Project context is unavailable: {0}": "项目上下文不可用：{0}",' +
+  '  "Declaration changed — the draft has been retained; locate the declaration before recovering it": "声明已更改 — 草稿已保留；请先找到声明再恢复",' +
+  '  "Element kind for wording": "模板适用的元素种类",' +
+  '  "Unit": "单元",' +
+  '  "Class": "类",' +
+  '  "Record": "记录",' +
+  '  "Interface": "接口",' +
+  '  "Method": "方法",' +
+  '  "Property": "属性",' +
+  '  "Field": "字段",' +
+  '  "Type": "类型",' +
+  '  "Constant": "常量"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1171,7 +1251,47 @@ const
   '  "Insert": "삽입",' +
   '  "See": "참조",' +
   '  "Param": "매개변수",' +
-  '  "TParam": "타입 매개변수"' +
+  '  "TParam": "타입 매개변수",' +
+  '  "Double-click to go to method": "두 번 클릭하여 메서드로 이동",' +
+  '  "Double-click to go to method: {0}": "두 번 클릭하여 메서드로 이동: {0}",' +
+  '  "Type: {0}": "형식: {0}",' +
+  '  "Source changed — reload before applying": "소스가 변경되었습니다 — 적용하기 전에 다시 불러오세요",' +
+  '  "Invalid editor message: {0}": "잘못된 편집기 메시지: {0}",' +
+  '  "Invalid XML — edit the XML source": "잘못된 XML — XML 소스를 수정하세요",' +
+  '  "Source changed — request Quick documentation again": "소스가 변경되었습니다 — 빠른 문서를 다시 요청하세요",' +
+  '  "Applied selected summaries": "선택한 요약을 적용했습니다",' +
+  '  "Project closed during analysis — refresh the workspace": "분석 중 프로젝트가 닫혔습니다 — 작업 영역을 새로 고치세요",' +
+  '  "Project modules changed during analysis — refresh the workspace": "분석 중 프로젝트 모듈이 변경되었습니다 — 작업 영역을 새로 고치세요",' +
+  '  "Source protection changed during publication — refresh the workspace": "결과 게시 중 소스 보호가 변경되었습니다 — 작업 영역을 새로 고치세요",' +
+  '  "Source or dependency changed during publication — refresh the workspace": "결과 게시 중 소스 또는 종속성이 변경되었습니다 — 작업 영역을 새로 고치세요",' +
+  '  "Source changed during analysis — refresh the workspace": "분석 중 소스가 변경되었습니다 — 작업 영역을 새로 고치세요",' +
+  '  "Source protection changed during analysis — refresh the workspace": "분석 중 소스 보호가 변경되었습니다 — 작업 영역을 새로 고치세요",' +
+  '  "Project context or a dependency changed during analysis — refresh the workspace": "분석 중 프로젝트 컨텍스트 또는 종속성이 변경되었습니다 — 작업 영역을 새로 고치세요",' +
+  '  "Open a project to configure authoring": "문서 작성을 구성하려면 프로젝트를 여세요",' +
+  '  "Authoring data is missing": "문서 작성 데이터가 없습니다",' +
+  '  "Duplicate declaration in batch": "일괄 작업에 중복 선언이 있습니다",' +
+  '  "Refresh the project workspace before applying summaries": "요약을 적용하기 전에 프로젝트 작업 영역을 새로 고치세요",' +
+  '  "Stale documentation selection": "선택한 문서가 오래되었습니다",' +
+  '  "Source changed: {0}": "소스가 변경되었습니다: {0}",' +
+  '  "Invalid documentation XML": "문서 XML이 잘못되었습니다",' +
+  '  "Cannot open {0}": "{0}을(를) 열 수 없습니다",' +
+  '  "Source editor is unavailable": "소스 편집기를 사용할 수 없습니다",' +
+  '  "Source changed before apply": "적용 전에 소스가 변경되었습니다",' +
+  '  "Invalid draft identity": "초안 식별자가 잘못되었습니다",' +
+  '  "Draft is invalid": "초안이 잘못되었습니다",' +
+  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "이 이전 형식의 초안에는 안정적인 소스 위치가 없습니다. 내용은 보존되어 있으므로 초안 폴더에서 검토하고 직접 복사하세요.",' +
+  '  "Project context is unavailable: {0}": "프로젝트 컨텍스트를 사용할 수 없습니다: {0}",' +
+  '  "Declaration changed — the draft has been retained; locate the declaration before recovering it": "선언이 변경되었습니다 — 초안은 보존되었습니다. 복구하기 전에 선언을 찾으세요",' +
+  '  "Element kind for wording": "상용구에 적용할 요소 종류",' +
+  '  "Unit": "유닛",' +
+  '  "Class": "클래스",' +
+  '  "Record": "레코드",' +
+  '  "Interface": "인터페이스",' +
+  '  "Method": "메서드",' +
+  '  "Property": "속성",' +
+  '  "Field": "필드",' +
+  '  "Type": "형식",' +
+  '  "Constant": "상수"' +
   '}';
  CLocale_ja =
   '{' +
@@ -1562,5 +1682,45 @@ const
   '  "Insert": "挿入",' +
   '  "See": "参照",' +
   '  "Param": "パラメーター",' +
-  '  "TParam": "型パラメーター"' +
+  '  "TParam": "型パラメーター",' +
+  '  "Double-click to go to method": "ダブルクリックしてメソッドに移動",' +
+  '  "Double-click to go to method: {0}": "ダブルクリックしてメソッドに移動: {0}",' +
+  '  "Type: {0}": "型: {0}",' +
+  '  "Source changed — reload before applying": "ソースが変更されました — 適用前に再読み込みしてください",' +
+  '  "Invalid editor message: {0}": "無効なエディターメッセージ: {0}",' +
+  '  "Invalid XML — edit the XML source": "XML が無効です — XML ソースを修正してください",' +
+  '  "Source changed — request Quick documentation again": "ソースが変更されました — クイックドキュメントを再度要求してください",' +
+  '  "Applied selected summaries": "選択した概要を適用しました",' +
+  '  "Project closed during analysis — refresh the workspace": "解析中にプロジェクトが閉じられました — ワークスペースを更新してください",' +
+  '  "Project modules changed during analysis — refresh the workspace": "解析中にプロジェクトのユニットが変更されました — ワークスペースを更新してください",' +
+  '  "Source protection changed during publication — refresh the workspace": "結果の公開中にソースの保護が変更されました — ワークスペースを更新してください",' +
+  '  "Source or dependency changed during publication — refresh the workspace": "結果の公開中にソースまたは依存関係が変更されました — ワークスペースを更新してください",' +
+  '  "Source changed during analysis — refresh the workspace": "解析中にソースが変更されました — ワークスペースを更新してください",' +
+  '  "Source protection changed during analysis — refresh the workspace": "解析中にソースの保護が変更されました — ワークスペースを更新してください",' +
+  '  "Project context or a dependency changed during analysis — refresh the workspace": "解析中にプロジェクトのコンテキストまたは依存関係が変更されました — ワークスペースを更新してください",' +
+  '  "Open a project to configure authoring": "文書作成を設定するにはプロジェクトを開いてください",' +
+  '  "Authoring data is missing": "文書作成データがありません",' +
+  '  "Duplicate declaration in batch": "一括処理に重複した宣言があります",' +
+  '  "Refresh the project workspace before applying summaries": "概要を適用する前にプロジェクトのワークスペースを更新してください",' +
+  '  "Stale documentation selection": "選択したドキュメントが古くなっています",' +
+  '  "Source changed: {0}": "ソースが変更されました: {0}",' +
+  '  "Invalid documentation XML": "ドキュメントの XML が無効です",' +
+  '  "Cannot open {0}": "{0} を開けません",' +
+  '  "Source editor is unavailable": "ソースエディターを使用できません",' +
+  '  "Source changed before apply": "適用前にソースが変更されました",' +
+  '  "Invalid draft identity": "下書きの識別子が無効です",' +
+  '  "Draft is invalid": "下書きが無効です",' +
+  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "この旧形式の下書きには安定したソース位置がありません。内容は保持されています。下書きフォルダーで確認して手動でコピーしてください。",' +
+  '  "Project context is unavailable: {0}": "プロジェクトのコンテキストを使用できません: {0}",' +
+  '  "Declaration changed — the draft has been retained; locate the declaration before recovering it": "宣言が変更されました — 下書きは保持されています。復元前に宣言を探してください",' +
+  '  "Element kind for wording": "定型文を適用する要素の種類",' +
+  '  "Unit": "ユニット",' +
+  '  "Class": "クラス",' +
+  '  "Record": "レコード",' +
+  '  "Interface": "インターフェース",' +
+  '  "Method": "メソッド",' +
+  '  "Property": "プロパティ",' +
+  '  "Field": "フィールド",' +
+  '  "Type": "型",' +
+  '  "Constant": "定数"' +
   '}';

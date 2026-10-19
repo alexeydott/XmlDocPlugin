@@ -181,6 +181,7 @@ function notifyChanged(): void {
 // ────────────────────────────────────────────
 function renderSignature(el: ElementInfo): void {
   const sig = $('#member-signature')!;
+  sig.removeAttribute('data-ui-placeholder');
   const kind = el.methodKind ?? el.kind;
   const parent = el.qualifiedParent ? escapeHtml(el.qualifiedParent) : '';
   const name = escapeHtml(el.name);
@@ -242,7 +243,8 @@ function renderParams(params: ParamDoc[], elementParams: ElementInfo['params']):
     const owner = currentElement;
     if (owner?.kind === 'method' && (owner.lineNumber ?? 0) > 0) {
       const nameCell = tr.querySelector<HTMLElement>('.td-name')!;
-      nameCell.title = `${sp.type ?? ''}${sp.type ? '\n' : ''}Double-click to go to method`;
+      nameCell.setAttribute('data-ui-title', '');
+      nameCell.title = `Double-click to go to method${sp.type ? ': '+sp.type : ''}`;
       nameCell.style.cursor = 'pointer';
       nameCell.addEventListener('dblclick', event => {
         event.preventDefault();

@@ -16,6 +16,13 @@
    assert(window.__xmlDocLanguageUi===language && document.documentElement.lang===language,'Language did not reach editor: '+language);
    assert(document.querySelector('[data-section=summary]').textContent.includes(caption),'Heading not translated: '+language);
    assert(document.querySelector('#recover-drafts').title===hint,'SVG tooltip not translated: '+language);
+   const previousStatus=window.bridge.status;window.bridge.setStatus('Source changed — reload before applying');
+   await until(()=>document.querySelector('#edit-status').textContent!=='Source changed — reload before applying'||language==='en','Conflict status not translated: '+language);
+   assert(window.bridge.status==='Source changed — reload before applying','Localization changed the bridge protocol');
+   window.bridge.setStatus(previousStatus);
+   const parameter=document.querySelector('.td-name[data-ui-title]');
+   assert(parameter?.textContent===window.xmlDocEditor.get().element.params[0].name,'Parameter identifier changed during localization');
+   await until(()=>language==='en'||!parameter.title.startsWith('Double-click to go to method'),'Parameter navigation tooltip not translated: '+language);
    const script={ru:/[А-Яа-я]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ja:/[\u3040-\u30ff\u3400-\u9fff]/}[language];
    if(script){const native=window.__nativeLocaleAudit;assert(native?.language===language,'Native locale audit missing');for(const key of ['settingsTitle','markerHint','generationTitle','coverageTitle'])assert(script.test(native[key]),'Native text not translated: '+language+' '+key);}
    document.querySelector('[data-action="help"]').click();

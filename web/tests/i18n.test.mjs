@@ -108,3 +108,63 @@ test('tag reference and insertion popovers localize in all languages while prese
  }
  help.hideHelpModal();load('popover.ts').hidePopover();await new Promise(r=>setTimeout(r,0));dom.window.close();
 });
+
+test('initial Inspector and Explorer guidance translates while real signatures stay code',()=>{
+ for(const file of ['index.html','explorer.html']){
+  const dom=new JSDOM(readFileSync(new URL('../'+file,import.meta.url),'utf8'));
+  for(const k of ['window','document','MutationObserver','CustomEvent'])globalThis[k]=dom.window[k];
+  const ui=load('i18n.ts'),header=document.querySelector('#member-signature'),source=header.textContent;
+  for(const code of ['ru','zh','ko','ja','en','ru']){
+   const pack=code==='en'?{}:JSON.parse(readFileSync(new URL('../../resources/locales/'+code+'.json',import.meta.url),'utf8'));
+   ui.setLanguage(code);ui.localizeUi();assert.equal(header.textContent,pack[source]??source);
+  }
+  header.removeAttribute('data-ui-placeholder');header.textContent='Summary';
+  for(const code of ['zh','ko','ja','ru','en']){ui.setLanguage(code);ui.localizeUi();assert.equal(header.textContent,'Summary');}
+  dom.window.close();
+ }
+});
+
+test('protected parameter identifiers retain translated navigation tooltips and generic types',()=>{
+ const dom=new JSDOM('<body><table><tr><td class="td-name" data-ui-title title="Double-click to go to method: TList&lt;Summary&gt;">Summary</td></tr></table><span id="return-type">Type: TList&lt;Value&gt;</span><output>Source changed — reload before applying</output></body>');
+ for(const k of ['window','document','MutationObserver','CustomEvent'])globalThis[k]=dom.window[k];
+ const ui=load('i18n.ts');
+ for(const code of ['ru','zh','ko','ja','en','ja','ru']){
+  ui.setLanguage(code);ui.localizeUi();
+  const pack=code==='en'?{}:JSON.parse(readFileSync(new URL('../../resources/locales/'+code+'.json',import.meta.url),'utf8'));
+  assert.equal(document.querySelector('td').textContent,'Summary');
+  assert.equal(document.querySelector('td').title,(pack['Double-click to go to method: {0}']??'Double-click to go to method: {0}').replace('{0}','TList<Summary>'));
+  assert.equal(document.querySelector('#return-type').textContent,(pack['Type: {0}']??'Type: {0}').replace('{0}','TList<Value>'));
+  assert.equal(document.querySelector('output').textContent,pack['Source changed — reload before applying']??'Source changed — reload before applying');
+ }
+ dom.window.close();
+});
+
+test('native and web edit-result and status literals are translated in every bundled language',()=>{
+ const messages=new Set();
+ for(const file of ['DocInspector','DocExplorer','ProjectDocumentation']){
+  const source=readFileSync(new URL('../../src/Plugin/XmlDoc.Plugin.'+file+'.pas',import.meta.url),'utf8');
+  for(const match of source.matchAll(/EditResult\([^\n]+?,'([^']+)'/g))if(match[1]!=='Invalid editor message: ')messages.add(match[1]);
+  for(const match of source.matchAll(/setStatus\("([^"\n]+)"\)/g))messages.add(match[1]);
+ }
+ for(const file of ['bridge','workbench']){
+  const source=readFileSync(new URL('../src/'+file+'.ts',import.meta.url),'utf8');
+  for(const match of source.matchAll(/setStatus\('([^']+)'\)/g))messages.add(match[1]);
+ }
+ for(const code of ['ru','zh','ko','ja']){
+  const pack=JSON.parse(readFileSync(new URL('../../resources/locales/'+code+'.json',import.meta.url),'utf8'));
+  for(const text of messages)assert.ok(pack[text],code+': missing status '+text);
+ }
+});
+
+test('localized kind and template-section choices keep their configuration values',()=>{
+ const dom=new JSDOM('<body><select id="kinds" aria-label="Element kind for wording"><option value="unit">Unit</option><option value="method">Method</option></select><select id="sections"><option value="summary">Summary</option><option value="param">Parameter</option></select><code>unit method summary param</code></body>');
+ for(const k of ['window','document','MutationObserver','CustomEvent'])globalThis[k]=dom.window[k];
+ const ui=load('i18n.ts');
+ for(const code of ['ru','zh','ko','ja','en','ru']){
+  ui.setLanguage(code);ui.localizeUi();
+  assert.deepEqual(Array.from(document.querySelectorAll('option')).map(o=>o.value),['unit','method','summary','param']);
+  assert.equal(document.querySelector('code').textContent,'unit method summary param');
+  if(code!=='en')for(const option of document.querySelectorAll('option'))assert.notEqual(option.textContent,option.value);
+ }
+ dom.window.close();
+});
