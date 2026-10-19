@@ -2,6 +2,8 @@
  if(window.__xmlDocE2ERunning)return;window.__xmlDocE2ERunning=true;
  const send=(action,extra={})=>window.chrome.webview.postMessage(JSON.stringify({type:'e2e',action,...extra}));
  const pause=ms=>new Promise(r=>setTimeout(r,ms));
+ const until=async(predicate,description)=>{for(let attempt=0;attempt<100;attempt++){if(predicate())return;await pause(50);}throw Error(description+'; status='+window.bridge.status+'; document='+JSON.stringify(window.xmlDocEditor.get().element));};
+ let loads=0;window.addEventListener('documentationLoaded',()=>loads++);
  const assert=(test,text)=>{if(!test)throw Error(text);};
  const editSummary=text=>{const e=document.querySelector('#summary-editor .tiptap');assert(e?.editor,'TipTap editor unavailable');e.editor.chain().focus().selectAll().insertContent(text).run();};
 
@@ -38,13 +40,12 @@
   for(const button of iconButtons)if(button.getClientRects().length)assert(button.getBoundingClientRect().width===30,'Icon button size changed: '+button.id);
   document.body.style.width='';send('assert-resources');
   assert(window.xmlDocEditor.get().element.signature.includes('string'),'String overload was not selected: '+JSON.stringify(window.xmlDocEditor.get().element));
-  editSummary('E2E draft for A');await pause(25);send('switch-second');await pause(900);send('assert-cancelled');
-  assert(window.xmlDocEditor.get().element.qualifiedParent==='TSecond','File switch did not load B');
-  send('switch-sample');await pause(300);
+  editSummary('E2E draft for A');send('switch-second');await until(()=>window.xmlDocEditor.get().element.qualifiedParent==='TSecond','File switch did not load B');send('assert-cancelled');
+  send('switch-sample');await until(()=>window.xmlDocEditor.get().element.qualifiedParent==='TDocumented'&&window.xmlDocEditor.get().element.signature.includes('string'),'Sample was not loaded');
   // Explicitly discard the cancelled draft before testing a fresh edit.
-  document.querySelector('#reload-document').click();await pause(300);
+  const beforeReload=loads;document.querySelector('#reload-document').click();await until(()=>loads>beforeReload,'Reload source did not complete');
   send('arm-explorer');await pause(250);
-  editSummary('E2E applied summary');await pause(950);send('assert-write');await pause(100);send('stale-explorer');await pause(200);send('assert-second-view-conflict');
+  editSummary('E2E applied summary');await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.summary==='E2E applied summary','Fresh browser edit was not acknowledged');send('assert-write');await pause(100);send('stale-explorer');await pause(200);send('assert-second-view-conflict');
   send('undo');await pause(200);send('redo');await pause(200);
   const stale=window.xmlDocEditor.get();send('mutate-signature');await pause(150);
   window.bridge.sendToHost({type:'docUpdated',...stale.element,doc:{...stale.doc,summary:'SHOULD NOT WRITE'}});await pause(150);send('assert-conflict');
@@ -60,6 +61,7 @@
   assert(document.querySelector('#xml-after').textContent.includes('NewName'),'Preview did not map name');document.querySelector('#apply-operation').click();await pause(950);send('assert-sync');
   document.querySelector('#refresh-catalog').click();await pause(600);
   assert(document.querySelectorAll('.catalog-row').length>12,'Project catalog missing');
+  const unfinished=document.querySelector('#catalog-filter');unfinished.value='todo';unfinished.dispatchEvent(new Event('change'));assert(document.querySelectorAll('.catalog-row').length>0,'Unfinished draft filter lost TODO stubs');unfinished.value='all';unfinished.dispatchEvent(new Event('change'));
   const query=document.querySelector('#catalog-query');query.value='TSecond';query.dispatchEvent(new Event('input'));assert(document.querySelectorAll('.catalog-row').length>0,'Project search failed');query.value='';query.dispatchEvent(new Event('input'));
   for(const button of document.querySelectorAll('#workbench button')){
    assert(button.querySelector('svg') && button.title && button.getAttribute('aria-label'),'Remaining textual/dynamic action: '+button.id+' '+button.textContent);
@@ -72,7 +74,15 @@
   assert(first&&second,'Member summaries missing');first.checked=true;second.checked=true;
   document.querySelector('#member-summaries textarea[data-id*="undocumentedfirst"]').value='E2E grid first';
   document.querySelector('#member-summaries textarea[data-id*="undocumentedsecond"]').value='E2E grid second';
-  document.querySelector('#apply-summaries').click();assert(!document.querySelector('#operation-preview').hidden,'Batch edit needs a preview');document.querySelector('#apply-operation').click();await pause(650);send('assert-grid');
+  document.querySelector('#apply-summaries').click();assert(!document.querySelector('#operation-preview').hidden,'Batch edit needs a preview');document.querySelector('#apply-operation').click();await pause(200);
+  for(let attempt=0;document.querySelector('#apply-summaries').disabled&&attempt<100;attempt++)await pause(100);
+  assert(!document.querySelector('#apply-summaries').disabled,'Batch acknowledgement did not settle');send('assert-grid');
+  const repeated=document.querySelector('#member-summaries textarea[data-id*="undocumentedfirst"]');
+  repeated.value='E2E grid first again';repeated.dispatchEvent(new Event('input',{bubbles:true}));
+  document.querySelector('#member-summaries input[data-id*="undocumentedfirst"]').checked=true;
+  document.querySelector('#apply-summaries').click();assert(!document.querySelector('#operation-preview').hidden,'Repeated batch preview missing: '+window.bridge.status);document.querySelector('#apply-operation').click();await pause(200);
+  for(let attempt=0;document.querySelector('#apply-summaries').disabled&&attempt<100;attempt++)await pause(100);
+  assert(!document.querySelector('#apply-summaries').disabled,'Repeated batch acknowledgement did not settle');send('assert-grid-repeat');
   send('switch-sample');await pause(350);
   document.querySelector('#doc-tabs [data-tab=design]').click();
   window.bridge.setPinned(true);window.bridge.sendToHost({type:'pin',pinned:true});

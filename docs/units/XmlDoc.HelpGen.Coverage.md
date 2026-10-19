@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Coverage
+# XmlDoc.HelpGen.Coverage
 
 Documentation coverage analysis and HTML or console reports.
 

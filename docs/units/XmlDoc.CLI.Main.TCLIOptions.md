@@ -1,4 +1,4 @@
-﻿# record `TCLIOptions`
+# record `TCLIOptions`
 
 Command-line generation options.
 
@@ -19,9 +19,11 @@ Command-line generation options.
 | `InterfaceOnly` | field | public |  |
 | `NumericFileNames` | field | public |  |
 | `OutputDir` | field | public |  |
+| `PlaceholderPrefix` | field | public |  |
 | `Platform` | field | public |  |
 | `ProjectPath` | field | public |  |
 | `Quiet` | field | public |  |
+| `ReadyMinPercent` | field | public |  |
 | `SearchPaths` | field | public |  |
 | `SiteName` | field | public |  |
 | `Theme` | field | public |  |
@@ -55,11 +57,15 @@ Command-line generation options.
 
 ### OutputDir
 
+### PlaceholderPrefix
+
 ### Platform
 
 ### ProjectPath
 
 ### Quiet
+
+### ReadyMinPercent
 
 ### SearchPaths
 

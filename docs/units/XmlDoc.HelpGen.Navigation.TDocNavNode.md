@@ -1,4 +1,4 @@
-﻿# class `TDocNavNode`
+# class `TDocNavNode`
 
 ## Members
 

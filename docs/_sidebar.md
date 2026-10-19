@@ -1,4 +1,4 @@
-﻿- **XmlDocPlugin API Reference**
+- **XmlDocPlugin API Reference**
   - [XmlDoc.CLI.Main](units/XmlDoc.CLI.Main.md)
     - **Classes**
       - [TCLIMain](units/XmlDoc.CLI.Main.TCLIMain.md)
@@ -26,9 +26,11 @@
           - [InterfaceOnly](units/XmlDoc.CLI.Main.TCLIOptions.md#interfaceonly)
           - [NumericFileNames](units/XmlDoc.CLI.Main.TCLIOptions.md#numericfilenames)
           - [OutputDir](units/XmlDoc.CLI.Main.TCLIOptions.md#outputdir)
+          - [PlaceholderPrefix](units/XmlDoc.CLI.Main.TCLIOptions.md#placeholderprefix)
           - [Platform](units/XmlDoc.CLI.Main.TCLIOptions.md#platform)
           - [ProjectPath](units/XmlDoc.CLI.Main.TCLIOptions.md#projectpath)
           - [Quiet](units/XmlDoc.CLI.Main.TCLIOptions.md#quiet)
+          - [ReadyMinPercent](units/XmlDoc.CLI.Main.TCLIOptions.md#readyminpercent)
           - [SearchPaths](units/XmlDoc.CLI.Main.TCLIOptions.md#searchpaths)
           - [SiteName](units/XmlDoc.CLI.Main.TCLIOptions.md#sitename)
           - [Theme](units/XmlDoc.CLI.Main.TCLIOptions.md#theme)
@@ -216,7 +218,10 @@
   - [XmlDoc.HelpGen.Coverage](units/XmlDoc.HelpGen.Coverage.md)
     - **Classes**
       - [TDocCoverageReport](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md)
+        - **Constructors**
+          - [Create](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#create)
         - **Fields**
+          - [FPlaceholderPrefix](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#fplaceholderprefix)
           - [FSymbols](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#fsymbols)
         - **Methods**
           - [Analyze](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#analyze)
@@ -228,6 +233,9 @@
           - [GetUndocumented](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#getundocumented)
           - [RenderConsoleReport](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#renderconsolereport)
           - [RenderHTMLReport](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#renderhtmlreport)
+          - [ThresholdFailure](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#thresholdfailure)
+        - **Properties**
+          - [PlaceholderPrefix](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#placeholderprefix)
     - **Records**
       - [TCoverageItem](units/XmlDoc.HelpGen.Coverage.TCoverageItem.md)
         - **Fields**
@@ -541,13 +549,19 @@
           - [FInstance](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#finstance)
           - [FThemes](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#fthemes)
         - **Methods**
+          - [CreateCustomTheme](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#createcustomtheme)
           - [GetAvailableThemes](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#getavailablethemes)
-          - [GetCSS](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#getcss)
+          - [GetCSS](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#m17298e995d6f7048ae1d)
+          - [GetCSS](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#mf2ab16fb6565ff978e09)
           - [Instance](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#instance)
           - [LoadBuiltInThemes](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#loadbuiltinthemes)
           - [LoadCustomThemes](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#loadcustomthemes)
           - [ReleaseInstance](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#releaseinstance)
+          - [Reload](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#reload)
           - [SetCustomThemesDir](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#setcustomthemesdir)
+          - [ThemeName](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#themename)
+        - **Properties**
+          - [CustomThemesDir](units/XmlDoc.HelpGen.ThemeEngine.TThemeEngine.md#customthemesdir)
     - **Records**
       - [TThemeInfo](units/XmlDoc.HelpGen.ThemeEngine.TThemeInfo.md)
         - **Fields**
@@ -884,9 +898,12 @@
           - [FLblPhase](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#flblphase)
           - [FLblProgress](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#flblprogress)
           - [FLblStats](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#flblstats)
+          - [FMinCoverage](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#fmincoverage)
+          - [FMinReady](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#fminready)
           - [FProgress](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#fprogress)
           - [FRbDirectory](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#frbdirectory)
           - [FRbProject](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#frbproject)
+          - [FTheme](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#ftheme)
         - **Methods**
           - [BuildUI](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#buildui)
           - [DoGenerate](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md#dogenerate)
@@ -1001,6 +1018,7 @@
           - [FPreferredLocation](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fpreferredlocation)
           - [FProjectDocs](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fprojectdocs)
           - [FUpdatingSource](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fupdatingsource)
+          - [FWebViewError](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fwebviewerror)
         - **Methods**
           - [ApplyIDETheme](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#applyidetheme)
           - [BrowserCreateWebViewCompleted](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#browsercreatewebviewcompleted)
@@ -1023,6 +1041,7 @@
           - [RefreshFromCurrentEditor](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#refreshfromcurrenteditor)
           - [SaveBounds](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#savebounds)
           - [SendTreeToEditor](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#sendtreetoeditor)
+          - [UpdateErrorDisplay](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#updateerrordisplay)
         - **Properties**
           - [Documentation](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#documentation)
   - [XmlDoc.Plugin.DocInspector](units/XmlDoc.Plugin.DocInspector.md)
@@ -1054,6 +1073,7 @@
           - [FPinned](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fpinned)
           - [FProjectDocs](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fprojectdocs)
           - [FUpdatingSource](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fupdatingsource)
+          - [FWebViewError](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fwebviewerror)
         - **Methods**
           - [ApplyIDETheme](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#applyidetheme)
           - [BrowserCreateWebViewCompleted](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#browsercreatewebviewcompleted)
@@ -1076,6 +1096,7 @@
           - [ParseEditorSource](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#parseeditorsource)
           - [RefreshFromCurrentEditor](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#refreshfromcurrenteditor)
           - [SendToEditor](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#sendtoeditor)
+          - [UpdateErrorDisplay](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#updateerrordisplay)
           - [UpdateFromCursor](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#updatefromcursor)
         - **Properties**
           - [Documentation](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#documentation)
@@ -1173,6 +1194,7 @@
           - [FCompleted](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fcompleted)
           - [FEffective](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#feffective)
           - [FElements](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#felements)
+          - [FFinalValidationMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#ffinalvalidationms)
           - [FIndex](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#findex)
           - [FJobBrowser](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobbrowser)
           - [FJobContexts](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobcontexts)
@@ -1186,6 +1208,7 @@
           - [FJobSnapshots](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobsnapshots)
           - [FJobSources](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobsources)
           - [FJobTemplates](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobtemplates)
+          - [FMaxValidationPauseMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fmaxvalidationpausems)
           - [FOnWorkerCheck](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fonworkercheck)
           - [FPreparationMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fpreparationms)
           - [FPreparePosition](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fprepareposition)
@@ -1228,6 +1251,7 @@
           - [Handle](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#handle)
           - [JobProject](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#jobproject)
           - [Key](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#key)
+          - [ModuleCount](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#modulecount)
           - [Notification](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#notification)
           - [PrepareNext](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#preparenext)
           - [PublishCatalog](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#publishcatalog)
@@ -1240,8 +1264,11 @@
           - [WorkerCheck](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#workercheck)
         - **Properties**
           - [Busy](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#busy)
+          - [FinalValidationMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#finalvalidationms)
           - [LastError](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#lasterror)
+          - [MaxValidationPauseMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#maxvalidationpausems)
           - [OnWorkerCheck](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#onworkercheck)
+          - [PublicationMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#publicationms)
           - [PublishedGeneration](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#publishedgeneration)
           - [Working](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#working)
   - [XmlDoc.Plugin.QuickDocPreview](units/XmlDoc.Plugin.QuickDocPreview.md)
@@ -1272,6 +1299,7 @@
           - [FProjectDir](units/XmlDoc.Plugin.Settings.TPluginSettings.md#fprojectdir)
           - [FRegistryRoot](units/XmlDoc.Plugin.Settings.TPluginSettings.md#fregistryroot)
         - **Methods**
+          - [DocumentationTheme](units/XmlDoc.Plugin.Settings.TPluginSettings.md#documentationtheme)
           - [Instance](units/XmlDoc.Plugin.Settings.TPluginSettings.md#instance)
           - [Load](units/XmlDoc.Plugin.Settings.TPluginSettings.md#load)
           - [LoadDefaults](units/XmlDoc.Plugin.Settings.TPluginSettings.md#loaddefaults)
@@ -1308,6 +1336,7 @@
       - [TGeneralSettings](units/XmlDoc.Plugin.Settings.TGeneralSettings.md)
         - **Fields**
           - [CheckUpdates](units/XmlDoc.Plugin.Settings.TGeneralSettings.md#checkupdates)
+          - [DocumentationTheme](units/XmlDoc.Plugin.Settings.TGeneralSettings.md#documentationtheme)
           - [Language](units/XmlDoc.Plugin.Settings.TGeneralSettings.md#language)
           - [LogLevel](units/XmlDoc.Plugin.Settings.TGeneralSettings.md#loglevel)
           - [LogPath](units/XmlDoc.Plugin.Settings.TGeneralSettings.md#logpath)
@@ -1327,6 +1356,7 @@
           - [IncludePrivate](units/XmlDoc.Plugin.Settings.THelpGenSettings.md#includeprivate)
           - [InterfaceOnly](units/XmlDoc.Plugin.Settings.THelpGenSettings.md#interfaceonly)
           - [OutputDir](units/XmlDoc.Plugin.Settings.THelpGenSettings.md#outputdir)
+          - [ReadyMinPercent](units/XmlDoc.Plugin.Settings.THelpGenSettings.md#readyminpercent)
           - [Title](units/XmlDoc.Plugin.Settings.THelpGenSettings.md#title)
       - [TProjectSettings](units/XmlDoc.Plugin.Settings.TProjectSettings.md)
         - **Fields**
@@ -1351,10 +1381,12 @@
       - [TSettingsDialog](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md)
         - **Fields**
           - [btnCancel](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btncancel)
+          - [btnCreateTheme](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btncreatetheme)
           - [btnOK](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btnok)
           - [chkAutoGenerate](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#chkautogenerate)
           - [chkCollapseEmptySections](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#chkcollapseemptysections)
           - [chkShowSignatureHeader](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#chkshowsignatureheader)
+          - [cmbDocumentationTheme](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#cmbdocumentationtheme)
           - [cmbLanguage](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#cmblanguage)
           - [cmbLogLevel](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#cmbloglevel)
           - [edtPlaceholderPrefix](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#edtplaceholderprefix)
@@ -1374,9 +1406,11 @@
           - [tsGeneral](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#tsgeneral)
           - [tsShortcuts](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#tsshortcuts)
         - **Methods**
+          - [btnCreateThemeClick](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btncreatethemeclick)
           - [btnOKClick](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btnokclick)
           - [FormCreate](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#formcreate)
           - [LoadSettings](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#loadsettings)
+          - [LoadThemes](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#loadthemes)
           - [SaveSettings](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#savesettings)
         - **Properties**
           - [ShortcutsChanged](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#shortcutschanged)
@@ -1529,7 +1563,8 @@
           - [FReused](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#freused)
         - **Methods**
           - [Elements](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#elements)
-          - [IsCurrent](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#iscurrent)
+          - [IsCurrent](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#m51408737a6b16c55e50a)
+          - [IsCurrent](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#m83d86ccded47e796545d)
           - [ResetStatistics](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#resetstatistics)
           - [Revision](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#revision)
           - [Update](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#update)
@@ -1546,6 +1581,18 @@
           - [Dependencies](units/XmlDoc.ProjectIndex.TIndexedModule.md#dependencies)
           - [Elements](units/XmlDoc.ProjectIndex.TIndexedModule.md#elements)
           - [SourceKey](units/XmlDoc.ProjectIndex.TIndexedModule.md#sourcekey)
+      - [TIndexValidation](units/XmlDoc.ProjectIndex.TIndexValidation.md)
+        - **Constructors**
+          - [Create](units/XmlDoc.ProjectIndex.TIndexValidation.md#create)
+        - **Destructors**
+          - [Destroy](units/XmlDoc.ProjectIndex.TIndexValidation.md#destroy)
+        - **Fields**
+          - [FContexts](units/XmlDoc.ProjectIndex.TIndexValidation.md#fcontexts)
+          - [FRevisions](units/XmlDoc.ProjectIndex.TIndexValidation.md#frevisions)
+          - [FSnapshots](units/XmlDoc.ProjectIndex.TIndexValidation.md#fsnapshots)
+        - **Methods**
+          - [ContextKey](units/XmlDoc.ProjectIndex.TIndexValidation.md#contextkey)
+          - [Revision](units/XmlDoc.ProjectIndex.TIndexValidation.md#revision)
   - [XmlDoc.ShortcutValidation](units/XmlDoc.ShortcutValidation.md)
     - **Routines**
       - [DocumentationShortcutConflicts](units/XmlDoc.ShortcutValidation.md#documentationshortcutconflicts)

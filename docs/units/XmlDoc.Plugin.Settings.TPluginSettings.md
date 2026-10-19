@@ -1,4 +1,4 @@
-﻿# class `TPluginSettings`
+# class `TPluginSettings`
 
 Loads and saves global registry preferences and per-project JSON defaults.
 
@@ -12,6 +12,7 @@ Loads and saves global registry preferences and per-project JSON defaults.
 | `FProject` | field | private |  |
 | `FProjectDir` | field | private |  |
 | `FRegistryRoot` | field | private |  |
+| `DocumentationTheme` | method | public | Returns the project theme override, global documentation theme, or default, in that order. |
 | `Instance` | method | public |  |
 | `Load` | method | public | Loads global preferences and applies runtime logging options. |
 | `LoadDefaults` | method | public | Resets global and project preferences to their defaults. |
@@ -40,6 +41,10 @@ Loads preferences from the supplied current-user registry root.
 ### FProjectDir
 
 ### FRegistryRoot
+
+### DocumentationTheme
+
+Returns the project theme override, global documentation theme, or default, in that order.
 
 ### Instance
 

@@ -1,1 +1,1 @@
-﻿# type `TIndentStyle`
+# type `TIndentStyle`

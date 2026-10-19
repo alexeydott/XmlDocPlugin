@@ -244,5 +244,20 @@
   "Property value description...": "Описание значения свойства...",
   "Show more results": "Показать ещё результаты",
   "Theme follows the IDE": "Тема соответствует IDE",
-  "Generate a stub after typing ///": "Создавать заготовку при вводе ///"
+  "Generate a stub after typing ///": "Создавать заготовку при вводе ///",
+  "Default HTML / CHM theme:": "Тема HTML / CHM по умолчанию:",
+  "A project htmlTheme setting can override this default.": "Параметр htmlTheme проекта может переопределить это значение.",
+  "Create CSS theme...": "Создать CSS-тему...",
+  "Create CSS theme": "Создание CSS-темы",
+  "New theme name:": "Имя новой темы:",
+  "Theme saved:": "Тема сохранена:",
+  "The generation dialog shows the effective theme, including any project override.": "В диалоге генерации показана действующая тема с учётом настройки проекта.",
+  "HTML / CHM theme:": "Тема HTML / CHM:",
+  "Minimum comment presence (%):": "Минимальное наличие комментариев (%):",
+  "Minimum ready documentation (%):": "Минимальная готовность документации (%):",
+  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "Наличие учитывает комментарии. Готовность требует полных описаний без заготовок и ошибок. Ноль отключает порог.",
+  "Review current source": "Сравнить с текущим исходником",
+  "Unfinished placeholder documentation": "Незавершённая заготовка документации",
+  "Waiting for the previous bulk update": "Ожидание предыдущей групповой правки",
+  "Baseline updated — preview selected summaries before applying": "Исходная версия обновлена — проверьте выбранные описания перед применением"
 }

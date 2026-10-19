@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.BatchGenDialog
+# XmlDoc.Plugin.BatchGenDialog
 
 IDE documentation generation dialog and output orchestration.
 

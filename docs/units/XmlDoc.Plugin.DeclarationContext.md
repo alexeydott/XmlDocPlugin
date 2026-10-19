@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.DeclarationContext
+# XmlDoc.Plugin.DeclarationContext
 
 Project-aware declaration context for IDE documentation commands.
 

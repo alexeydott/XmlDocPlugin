@@ -1,4 +1,4 @@
-﻿# class `THMTopic`
+# class `THMTopic`
 
 ## Members
 

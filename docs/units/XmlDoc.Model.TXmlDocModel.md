@@ -1,4 +1,4 @@
-﻿# class `TXmlDocModel`
+# class `TXmlDocModel`
 
 Structured documentation model with XML-preserving serialization.
 

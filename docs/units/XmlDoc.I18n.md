@@ -1,4 +1,4 @@
-﻿# XmlDoc.I18n
+# XmlDoc.I18n
 
 Native interface localization with embedded and external JSON translations.
 

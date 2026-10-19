@@ -1,4 +1,4 @@
-﻿# XmlDoc.ParamDict
+# XmlDoc.ParamDict
 
 Persistent parameter-description hints used by documentation stub generation.
 

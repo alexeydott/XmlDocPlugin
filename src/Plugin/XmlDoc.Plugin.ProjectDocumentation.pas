@@ -26,6 +26,7 @@ type
   FPublishedGeneration:UInt64;
   FOnWorkerCheck:TProc;
   FPreparationMs,FValidationMs,FPublicationMs,FStopMs:Double;
+  FFinalValidationMs,FMaxValidationPauseMs:Double;
   FJobError,FJobPayload:string;
   FJobSnapshots:TArray<TSourceSnapshot>;
   FJobContexts:TDictionary<string,string>;
@@ -58,7 +59,7 @@ type
   procedure Catalog(const Scope:string;Browser:TXmlDocBrowser);
   procedure Authoring(Message:TJSONObject;Browser:TXmlDocBrowser);
   procedure QuickDoc(Browser:TXmlDocBrowser);
-  procedure ApplyBatch(Changes:TJSONArray;Browser:TXmlDocBrowser);
+  procedure ApplyBatch(Changes:TJSONArray;Browser:TXmlDocBrowser;const BatchId:string);
  protected
   procedure BeforePublication;virtual;
   procedure Notification(AComponent:TComponent;Operation:TOperation);override;
@@ -67,6 +68,10 @@ type
   property OnWorkerCheck:TProc read FOnWorkerCheck write FOnWorkerCheck;
   property Working:Boolean read WorkerActive;
   property Busy:Boolean read AnalysisBusy;
+  property FinalValidationMs:Double read FFinalValidationMs;
+  property MaxValidationPauseMs:Double read FMaxValidationPauseMs;
+  property PublicationMs:Double read FPublicationMs;
+  function ModuleCount:Integer;
   property PublishedGeneration:UInt64 read FPublishedGeneration;
   property LastError:string read FJobError;
   constructor Create;reintroduce;
@@ -148,9 +153,11 @@ procedure TProjectDocumentation.AnalysisState(const State:string);
 var Json:TJSONObject;
 begin
  if not Assigned(FJobBrowser) then Exit;Json:=TJSONObject.Create;
- try Json.AddPair('state',State);Json.AddPair('completed',TJSONNumber.Create(FJobPosition));Json.AddPair('total',TJSONNumber.Create(Length(FJobFiles)));Json.AddPair('parsed',TJSONNumber.Create(FIndex.Parsed));Json.AddPair('reused',TJSONNumber.Create(FIndex.Reused));Json.AddPair('preparationMs',TJSONNumber.Create(FPreparationMs));Json.AddPair('validationMs',TJSONNumber.Create(FValidationMs));Json.AddPair('publicationMs',TJSONNumber.Create(FPublicationMs));Json.AddPair('stopWorkerMs',TJSONNumber.Create(FStopMs));
+ try Json.AddPair('finalValidationMs',TJSONNumber.Create(FFinalValidationMs));Json.AddPair('maxValidationPauseMs',TJSONNumber.Create(FMaxValidationPauseMs));Json.AddPair('state',State);Json.AddPair('completed',TJSONNumber.Create(FJobPosition));Json.AddPair('total',TJSONNumber.Create(Length(FJobFiles)));Json.AddPair('parsed',TJSONNumber.Create(FIndex.Parsed));Json.AddPair('reused',TJSONNumber.Create(FIndex.Reused));Json.AddPair('preparationMs',TJSONNumber.Create(FPreparationMs));Json.AddPair('validationMs',TJSONNumber.Create(FValidationMs));Json.AddPair('publicationMs',TJSONNumber.Create(FPublicationMs));Json.AddPair('stopWorkerMs',TJSONNumber.Create(FStopMs));
  FJobBrowser.ExecuteScript('window.xmlDocWorkbench?.receiveAnalysis('+Json.ToJSON+');');finally Json.Free;end;
 end;
+function TProjectDocumentation.ModuleCount:Integer;
+begin Result:=Length(FJobFiles);end;
 procedure TProjectDocumentation.CancelAnalysis;
 begin TInterlocked.Exchange(FCancelled,1);FQuickPending:=False;if Assigned(FWorker) then AnalysisState('cancelling') else AnalysisState('cancelled');end;
 procedure TProjectDocumentation.Notification(AComponent:TComponent;Operation:TOperation);
@@ -181,7 +188,7 @@ var Files:TList<string>;Projects:TDictionary<string,IOTAProject>;Services:IOTAMo
   end;finally Context.Free;end;
  end;
 begin
- StopWorker;FPreparationMs:=0;FValidationMs:=0;FPublicationMs:=0;FJobScope:=Scope;FJobOwners.Clear;FJobTemplates.Clear;FValidationContexts.Clear;TInterlocked.Exchange(FCancelled,0);TInterlocked.Exchange(FCompleted,0);FJobError:='';FJobPayload:='';FJobContexts.Clear;
+ StopWorker;FFinalValidationMs:=0;FMaxValidationPauseMs:=0;FPreparationMs:=0;FValidationMs:=0;FPublicationMs:=0;FJobScope:=Scope;FJobOwners.Clear;FJobTemplates.Clear;FValidationContexts.Clear;TInterlocked.Exchange(FCancelled,0);TInterlocked.Exchange(FCompleted,0);FJobError:='';FJobPayload:='';FJobContexts.Clear;
  FAnalysisTimer.Enabled:=False;if Assigned(FJobBrowser) then FJobBrowser.RemoveFreeNotification(Self);FJobBrowser:=Browser;if Assigned(Browser) then Browser.FreeNotification(Self);FJobPosition:=0;FJobParsers.Clear;FJobSources.Clear;FIndex.ResetStatistics;
  Files:=TList<string>.Create;Projects:=TDictionary<string,IOTAProject>.Create;
  try
@@ -249,6 +256,7 @@ procedure TProjectDocumentation.AnalysisTick(Sender:TObject);
 begin
  if not FAnalysisTimer.Enabled then Exit;
  if FPreparing or FPublishing then begin
+  var WasValidation:=FPublishing;var CallbackClock:=TStopwatch.StartNew;
   try
    var Started:=GetTickCount64;
    repeat
@@ -257,6 +265,7 @@ begin
     else if FPublishing then ValidateNext;
    until (not FAnalysisTimer.Enabled) or (not FPreparing and not FPublishing) or (GetTickCount64-Started>=8);
   except on E:Exception do begin FJobError:=E.Message;FPreparing:=False;FPublishing:=False;FAnalysisTimer.Enabled:=False;FQuickPending:=False;AnalysisState('failed');var Text:=TJSONString.Create(E.Message);try FJobBrowser.ExecuteScript('window.bridge.setStatus('+Text.ToJSON+');');finally Text.Free;end;end;end;
+  if WasValidation and (CallbackClock.Elapsed.TotalMilliseconds>FMaxValidationPauseMs) then FMaxValidationPauseMs:=CallbackClock.Elapsed.TotalMilliseconds;
   Exit;
  end;
  if not Assigned(FWorker) then Exit;
@@ -316,7 +325,7 @@ begin
   // Revalidate the index's dependency set, including reused modules whose new
   // parser never ran. Capture buffers again after the incremental validation.
   BeforePublication;
-  var LiveFiles:=TList<string>.Create;
+  var LiveFiles:=TDictionary<string,Boolean>.Create;
   try
    var Services:=BorlandIDEServices as IOTAModuleServices;
    var Projects:=TList<IOTAProject>.Create;
@@ -325,26 +334,31 @@ begin
     else if FJobScope='project' then begin var Project:=Services.GetActiveProject;if Assigned(Project) then Projects.Add(Project);end;
     for var Project in Projects do begin var Context:=ActiveDocumentationContext(Project);
      try for var I:=0 to Project.GetModuleCount-1 do begin var Name:=Project.GetModule(I).FileName;
-      if SameText(ExtractFileExt(Name),'.pas') then begin if Assigned(Context) then Name:=Context.ResolveModuleSource(Name);if not LiveFiles.Contains(Name) then LiveFiles.Add(Name);end;
+      if SameText(ExtractFileExt(Name),'.pas') then begin if Assigned(Context) then Name:=Context.ResolveModuleSource(Name);LiveFiles.AddOrSetValue(LowerCase(Name),True);end;
      end;finally Context.Free;end;
     end;
-    if LiveFiles.Count=0 then begin var Editors:IOTAEditorServices;if Supports(BorlandIDEServices,IOTAEditorServices,Editors) and Assigned(Editors.TopView) then LiveFiles.Add(Editors.TopView.Buffer.FileName);end;
+    if LiveFiles.Count=0 then begin var Editors:IOTAEditorServices;if Supports(BorlandIDEServices,IOTAEditorServices,Editors) and Assigned(Editors.TopView) then LiveFiles.AddOrSetValue(LowerCase(Editors.TopView.Buffer.FileName),True);end;
    finally Projects.Free;end;
    if LiveFiles.Count<>Length(FJobFiles) then raise Exception.Create('Project modules changed during analysis — refresh the workspace');
-   for var FileName in FJobFiles do if not LiveFiles.Contains(FileName) then raise Exception.Create('Project modules changed during analysis — refresh the workspace');
+   for var FileName in FJobFiles do if not LiveFiles.ContainsKey(LowerCase(FileName)) then raise Exception.Create('Project modules changed during analysis — refresh the workspace');
   finally LiveFiles.Free;end;
   var LiveSnapshots:=CurrentSourceSnapshots;FValidationContexts.Clear;
+  var SnapshotSources:=TDictionary<string,string>.Create;
+  var Validation:=TIndexValidation.Create(LiveSnapshots);
+  try
+  for var Snapshot in LiveSnapshots do SnapshotSources.AddOrSetValue(LowerCase(Snapshot.FileName),Snapshot.Source);
   for var FileName in FJobFiles do begin
-   var LiveSource:='';var Found:=False;
-   for var Snapshot in LiveSnapshots do if SameText(Snapshot.FileName,FileName) then begin LiveSource:=Snapshot.Source;Found:=True;Break;end;
-   if not Found then LiveSource:=ReadSourceFile(FileName);
+   var LiveSource:='';if not SnapshotSources.TryGetValue(LowerCase(FileName),LiveSource) then LiveSource:=ReadSourceFile(FileName);
    var Context:=TJSONObject.ParseJSONValue(FJobContexts[LowerCase(FileName)]) as TJSONObject;
    try if SourceEditProtection(FileName)<>Context.GetValue<string>('readOnlyReason','') then raise Exception.Create('Source protection changed during publication — refresh the workspace');finally Context.Free;end;
    var Owner:=JobProject(FileName);var ContextKey:='';if Assigned(Owner) then ContextKey:=LowerCase(Owner.FileName);
    var Parser:TDocParser;
    if not FValidationContexts.TryGetValue(ContextKey,Parser) then begin Parser:=TDocParser.Create;FValidationContexts.Add(ContextKey,Parser);ConfigureCapturedDeclarationContext(Parser,Owner,FileName,LiveSnapshots);Parser.SourceFiles:=FJobFiles;end;
-   if not FIndex.IsCurrent(FileName,LiveSource,Parser) then raise Exception.Create('Source or dependency changed during publication — refresh the workspace');
+   if not FIndex.IsCurrent(FileName,LiveSource,Parser,Validation) then raise Exception.Create('Source or dependency changed during publication — refresh the workspace');
   end;
+  finally Validation.Free;SnapshotSources.Free;end;
+  FFinalValidationMs:=ValidationClock.Elapsed.TotalMilliseconds;
+  if FFinalValidationMs>FMaxValidationPauseMs then FMaxValidationPauseMs:=FFinalValidationMs;
   CheckCancelled;PublishCatalog;FValidationMs:=FValidationMs+ValidationClock.Elapsed.TotalMilliseconds-FPublicationMs;FPublishing:=False;FAnalysisTimer.Enabled:=False;AnalysisState('completed');if FQuickPending then begin FQuickPending:=False;ShowQuickDoc;end;Exit;
  end;
  var PendingFile:=FJobFiles[FValidationPosition];
@@ -437,7 +451,7 @@ begin
  Utf8:=UTF8Encode(Source);if BOM then Utf8:=UTF8String(AnsiChar($EF)+AnsiChar($BB)+AnsiChar($BF))+Utf8;
  Writer:=Editor.CreateUndoableWriter;Writer.CopyTo(0);Writer.DeleteTo(Offset);Writer.Insert(PAnsiChar(Utf8));Writer:=nil;
 end;
-procedure TProjectDocumentation.ApplyBatch(Changes:TJSONArray;Browser:TXmlDocBrowser);
+procedure TProjectDocumentation.ApplyBatch(Changes:TJSONArray;Browser:TXmlDocBrowser;const BatchId:string);
 var Sorted:TList<TJSONObject>;Plans:TDictionary<string,string>;Change,ElementJson,DocJson:TJSONObject;
  E:TCodeElementInfo;Model:TXmlDocModel;FileName,Source,Session:string;Editor:IOTASourceEditor;Actions:IOTAActionServices;
  I:Integer;Plan:TPair<string,string>;Seen:TDictionary<string,Boolean>;
@@ -472,6 +486,8 @@ begin
    if EditorSource(Editor)<>FSources[LowerCase(Plan.Key)] then raise Exception.Create('Source changed before apply');
    ReplaceSource(Editor,Plan.Value);
   end;
+  var Ack:=TJSONObject.Create;
+  try Ack.AddPair('batchId',BatchId);Ack.AddPair('status','applied');var Revisions:=TJSONObject.Create;Ack.AddPair('sourceRevisions',Revisions);for var Written in Plans do Revisions.AddPair(Written.Key,SourceRevision(EditorSource(SourceEditorForFile(Written.Key))));Browser.ExecuteScript('window.xmlDocWorkbench?.receiveBatchResult('+Ack.ToJSON+');');finally Ack.Free;end;
   Browser.ExecuteScript('window.bridge.setStatus("Applied selected summaries");');Catalog('project',Browser);
  finally Seen.Free;Model.Free;Plans.Free;Sorted.Free;end;
 end;
@@ -500,7 +516,7 @@ begin
   end
   else if Kind='cancelAnalysis' then CancelAnalysis
   else if Kind='requestCatalog' then begin FQuickPending:=False;Catalog(Message.GetValue<string>('scope','project'),Browser);end
-  else if Kind='batchUpdated' then ApplyBatch(Message.GetValue<TJSONArray>('changes'),Browser)
+  else if Kind='batchUpdated' then ApplyBatch(Message.GetValue<TJSONArray>('changes'),Browser,Message.GetValue<string>('batchId',''))
   else if Kind='copySelection' then begin
    View:=(BorlandIDEServices as IOTAEditorServices).TopView;
    if Assigned(View) then begin
@@ -535,7 +551,9 @@ begin
     View:=Editor.EditViews[0];Pos.Line:=E.LineNumber;Pos.Col:=1;View.SetCursorPos(Pos);View.MoveViewToCursor;View.Paint;
    finally Parser.Free;end;
   end;
- except on Ex:Exception do begin J:=TJSONString.Create(Ex.Message);try Browser.ExecuteScript('window.bridge.setStatus('+J.ToJSON+');');finally J.Free;end;end;end;
+ except on Ex:Exception do begin
+  if Kind='batchUpdated' then begin var Ack:=TJSONObject.Create;try Ack.AddPair('batchId',Message.GetValue<string>('batchId',''));Ack.AddPair('status','rejected');Browser.ExecuteScript('window.xmlDocWorkbench?.receiveBatchResult('+Ack.ToJSON+');');finally Ack.Free;end;end;
+  J:=TJSONString.Create(Ex.Message);try Browser.ExecuteScript('window.bridge.setStatus('+J.ToJSON+');');finally J.Free;end;end;end;
  finally Recovery.Free;end;
 end;
 end.

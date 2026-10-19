@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Diagnostics
+# XmlDoc.HelpGen.Diagnostics
 
 Project documentation checks, diagnostic reports and baseline comparison.
 

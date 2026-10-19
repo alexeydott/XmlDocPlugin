@@ -1,4 +1,4 @@
-﻿# class `TCLIMain`
+# class `TCLIMain`
 
 Parses command-line options and runs documentation generation and checks.
 
@@ -27,4 +27,4 @@ Parses command-line options and runs documentation generation and checks.
 
 Runs the command and returns its exit code.
 
-**Returns:** 0 on success, 1 for failed documentation or coverage checks, 2 on error.
+**Returns:** 0 on success, 1 for a coverage/readiness threshold failure, 2 on error, 3 for new documentation problems.

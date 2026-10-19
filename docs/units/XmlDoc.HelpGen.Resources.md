@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Resources
+# XmlDoc.HelpGen.Resources
 
 Validated copying of documentation images and example source resources.
 

@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.ProjectDocumentation
+# XmlDoc.Plugin.ProjectDocumentation
 
 Project documentation catalog, background analysis and source update coordination.
 

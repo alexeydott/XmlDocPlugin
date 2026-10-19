@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.Settings
+# XmlDoc.Plugin.Settings
 
 Global registry preferences and per-project JSON generation defaults.
 

@@ -1,4 +1,4 @@
-﻿# XmlDoc.ProjectContext
+# XmlDoc.ProjectContext
 
 Project configuration, search paths and conditional declaration resolution.
 

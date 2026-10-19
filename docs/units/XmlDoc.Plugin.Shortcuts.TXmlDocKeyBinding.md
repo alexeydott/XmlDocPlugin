@@ -1,4 +1,4 @@
-﻿# class `TXmlDocKeyBinding`
+# class `TXmlDocKeyBinding`
 
 Inherits from `TNotifierObject`
 

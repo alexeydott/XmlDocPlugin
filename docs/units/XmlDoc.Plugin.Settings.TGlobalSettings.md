@@ -1,4 +1,4 @@
-﻿# record `TGlobalSettings`
+# record `TGlobalSettings`
 
 Global preferences persisted in the current user's registry.
 

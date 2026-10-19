@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.UndocNavigator
+# XmlDoc.Plugin.UndocNavigator
 
 Source navigation between undocumented declarations.
 

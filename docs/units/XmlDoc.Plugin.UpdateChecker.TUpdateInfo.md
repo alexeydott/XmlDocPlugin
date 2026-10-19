@@ -1,4 +1,4 @@
-﻿# record `TUpdateInfo`
+# record `TUpdateInfo`
 
 Version and download information returned by the legacy update service.
 

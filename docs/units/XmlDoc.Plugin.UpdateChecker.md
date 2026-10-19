@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.UpdateChecker
+# XmlDoc.Plugin.UpdateChecker
 
 Legacy update-service helper; automatic checking is not enabled by the plugin.
 

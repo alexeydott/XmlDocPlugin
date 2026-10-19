@@ -1,4 +1,4 @@
-﻿# XmlDoc.Consts
+# XmlDoc.Consts
 
 Shared declaration metadata and structured documentation records.
 

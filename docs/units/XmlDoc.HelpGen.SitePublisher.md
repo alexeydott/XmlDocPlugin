@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.SitePublisher
+# XmlDoc.HelpGen.SitePublisher
 
 MkDocs, Docusaurus and VitePress project generation.
 

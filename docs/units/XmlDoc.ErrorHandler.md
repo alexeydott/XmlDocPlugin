@@ -1,4 +1,4 @@
-﻿# XmlDoc.ErrorHandler
+# XmlDoc.ErrorHandler
 
 Plugin diagnostics, exception logging and IDE message callbacks.
 

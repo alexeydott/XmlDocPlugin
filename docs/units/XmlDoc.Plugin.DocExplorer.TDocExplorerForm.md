@@ -1,4 +1,4 @@
-﻿# class `TDocExplorerForm`
+# class `TDocExplorerForm`
 
 Inherits from `TDockableForm`
 
@@ -26,6 +26,7 @@ Dockable unit documentation browser and editor with project tools.
 | `FPreferredLocation` | field | private |  |
 | `FProjectDocs` | field | private |  |
 | `FUpdatingSource` | field | private |  |
+| `FWebViewError` | field | private |  |
 | `ApplyIDETheme` | method | protected |  |
 | `BrowserCreateWebViewCompleted` | method | private |  |
 | `BrowserNavigationCompleted` | method | private |  |
@@ -47,6 +48,7 @@ Dockable unit documentation browser and editor with project tools.
 | `RefreshFromCurrentEditor` | method | public | Refreshes from the active source editor. |
 | `SaveBounds` | method | private |  |
 | `SendTreeToEditor` | method | private |  |
+| `UpdateErrorDisplay` | method | private |  |
 | `Documentation` | property | public |  |
 
 ### Create
@@ -84,6 +86,8 @@ Dockable unit documentation browser and editor with project tools.
 ### FProjectDocs
 
 ### FUpdatingSource
+
+### FWebViewError
 
 ### ApplyIDETheme
 
@@ -135,5 +139,7 @@ Refreshes from the active source editor.
 ### SaveBounds
 
 ### SendTreeToEditor
+
+### UpdateErrorDisplay
 
 ### Documentation

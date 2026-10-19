@@ -33,9 +33,10 @@ export function initWorkbench(hooks:Hooks):void {
   if(!element.fileName || !element.symbolId)return;
   bridge.sendToHost({type:'openSymbol',locationId:element.locationId,projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber??1});
  };
+ const visibleXml=()=> (bridge.unappliedXml()??current().doc.unappliedXml)?.xml??editableXml(current().doc);
  const viewXml=(focus=true)=>{
   $('doc-design').classList.add('hidden');$('doc-preview').classList.add('hidden');raw.classList.remove('hidden');
-  xml.value=(bridge.unappliedXml()??current().doc.unappliedXml)?.xml??editableXml(current().doc);if(focus)xml.focus();
+  xml.value=visibleXml();if(focus)xml.focus();
  };
  let recovery:any=null;
  const showRecovery=()=>{
@@ -105,8 +106,8 @@ export function initWorkbench(hooks:Hooks):void {
   return catalog.filter(e=>{
    if(kind && e.kind!==kind)return false;
    if(q && !`${e.signature} ${e.fullName}`.toLowerCase().includes(q) && !(e.searchText??(e.doc.xmlEdited?e.doc.rawXml:e.doc.sourceXml)??modelXml(e.doc)).toLowerCase().includes(q))return false;
-   const problems=['incomplete','links','review'].includes(filter)?analyze(e,e.doc,catalog):[];
-   switch(filter){case 'public':return !e.visibility || ['public','published'].includes(e.visibility);case 'missing':return !e.doc.summary;case 'todo':return /\bTODO\b/i.test(modelXml(e.doc));case 'incomplete':return problems.some(p=>['XD002','XD003','XD004','XD005','XD009','XD010'].includes(p.code));case 'links':return problems.some(p=>p.code==='XD006'||p.code==='XD007');case 'review':return problems.some(p=>!baseline.has(issueKey(e,p)));default:return true;}
+   const problems=['todo','incomplete','links','review'].includes(filter)?analyze(e,e.doc,catalog):[];
+   switch(filter){case 'public':return !e.visibility || ['public','published'].includes(e.visibility);case 'missing':return !e.doc.summary;case 'todo':return problems.some(p=>p.code==='XD008');case 'incomplete':return problems.some(p=>['XD002','XD003','XD004','XD005','XD009','XD010'].includes(p.code));case 'links':return problems.some(p=>p.code==='XD006'||p.code==='XD007');case 'review':return problems.some(p=>!baseline.has(issueKey(e,p)));default:return true;}
   });
  };
  let queueIndex=-1,catalogLimit=100;
@@ -119,8 +120,34 @@ export function initWorkbench(hooks:Hooks):void {
    const check=input.parentElement?.querySelector<HTMLInputElement>('input[type=checkbox]');if(check)edit.selected=check.checked;
   }
  };
- const renderCatalog=(preserveGrid=false)=>{
-  captureGrid();
+ type BatchChange={element:TreeElementInfo;doc:DocModel};
+ const batches=new Map<string,{changes:BatchChange[];applied:boolean;sourceRevisions?:Record<string,string>}>();let batchSerial=0;
+ const sameBase=(a:TreeElementInfo,b:TreeElementInfo)=>JSON.stringify([a.signature,a.params,a.genericParams,a.doc])===JSON.stringify([b.signature,b.params,b.genericParams,b.doc]);
+ const canonicalSummary=(text:string)=>new XMLSerializer().serializeToString(parseXml('<summary>'+text+'</summary>').documentElement);
+ const reconcileBatches=()=>{
+  for(const [id,batch] of batches){
+   if(!batch.applied)continue;let waiting=false;
+   for(const change of batch.changes){
+    const key=bulkKey(change.element),edit=bulkEdits.get(key),live=catalog.find(e=>bulkKey(e)===key);
+    if(!live)continue;
+    const expected=batch.sourceRevisions?.[String(live.fileName).replace(/\\/g,'/').toLowerCase()];
+    if(expected && live.sourceRevision!==expected){if(live.sourceRevision===change.element.sourceRevision)waiting=true;continue;}
+    if(!expected && live.sourceRevision===change.element.sourceRevision && canonicalSummary(live.doc.summary)!==canonicalSummary(change.doc.summary)){waiting=true;continue;}
+    if(edit && canonicalSummary(live.doc.summary)===canonicalSummary(change.doc.summary)){
+     edit.element=live;
+     if(edit.summary===change.doc.summary){edit.summary=live.doc.summary;edit.selected=false;}
+    }
+   }
+   if(!waiting)batches.delete(id);
+  }
+  for(const edit of bulkEdits.values()){
+   const live=catalog.find(e=>bulkKey(e)===bulkKey(edit.element));
+   if(live && sameBase(live,edit.element))edit.element=live;
+  }
+  $<HTMLButtonElement>('apply-summaries').disabled=batches.size>0;
+ };
+ const renderCatalog=(preserveGrid=false,capture=true)=>{
+  if(capture)captureGrid();
   const matches=filtered();
   const results=$('catalog-results');results.replaceChildren();
   for(const old of publicBaseline)if(!catalog.some(e=>e.symbolId===old.symbolId && isPublicApi(e,catalog))){const row=document.createElement('div');row.className='documentation-issue';row.textContent=`XD011 Public declaration removed or signature changed: ${old.name}`;results.append(row);}
@@ -153,7 +180,16 @@ export function initWorkbench(hooks:Hooks):void {
    const key=bulkKey(element);let edit=bulkEdits.get(key);if(!edit || (!edit.selected && edit.summary===edit.element.doc.summary)){edit={element,summary:element.doc.summary,selected:false};bulkEdits.set(key,edit);}
    const row=document.createElement('label');const selected=document.createElement('input');selected.type='checkbox';selected.checked=edit.selected;selected.onchange=()=>{edit!.selected=selected.checked;};selected.dataset.id=element.symbolId;selected.disabled=!!element.readOnly;selected.dataset.sourceLocked=String(!!element.readOnly);
    const name=document.createElement('span');name.textContent=element.signature??element.name;name.dataset.code='';
-   const input=document.createElement('textarea');input.value=edit.summary;input.dataset.key=key;input.oninput=()=>{edit!.summary=input.value;};input.title='Summary XML fragment';input.dataset.id=element.symbolId;input.readOnly=!!element.readOnly;input.dataset.sourceLocked=String(!!element.readOnly);input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);members.append(row);
+   const input=document.createElement('textarea');input.value=edit.summary;input.dataset.key=key;input.oninput=()=>{edit!.summary=input.value;};input.title='Summary XML fragment';input.dataset.id=element.symbolId;input.readOnly=!!element.readOnly;input.dataset.sourceLocked=String(!!element.readOnly);input.setAttribute('aria-label',`Summary for ${element.signature??element.name}`);row.append(selected,name,input);
+   if(element.sourceRevision!==edit.element.sourceRevision || !sameBase(element,edit.element)){
+    const rebase=document.createElement('button');rebase.type='button';rebase.textContent='Review current source';setWorkbenchIcon(rebase,'reload-document');
+    rebase.onclick=event=>{event.preventDefault();captureGrid();const base=element;
+     $('xml-before').textContent=modelXml(base.doc);$('xml-after').textContent=modelXml({...base.doc,summary:edit!.summary});$('operation-preview').hidden=false;
+     applyPreview=()=>{const live=catalog.find(e=>bulkKey(e)===key);if(!live || live.sourceRevision!==base.sourceRevision || !sameBase(live,base)){bridge.setStatus('Source changed — review again');return;}
+      edit!.element=live;bridge.setStatus('Baseline updated — preview selected summaries before applying');renderCatalog();};
+    };row.append(rebase);
+   }
+   members.append(row);
   }
   gridLimit+=100;
   if(gridLimit<gridElements.length){const more=document.createElement('button');more.textContent='Show more results';setWorkbenchIcon(more,'history-forward');more.onclick=()=>{more.remove();appendGrid();};members.append(more);}
@@ -165,6 +201,7 @@ export function initWorkbench(hooks:Hooks):void {
  $('refresh-catalog').onclick=refresh;$('next-problem').onclick=()=>{const list=filtered().filter(e=>!ready(e,e.doc,catalog));if(list.length)open(list[(++queueIndex)%list.length]);};
  $('apply-summaries').onclick=()=>{
   try {
+  if(batches.size){bridge.setStatus('Waiting for the previous bulk update');return;}
   captureGrid();
   const changes=Array.from(bulkEdits.values()).filter(edit=>edit.selected).map(edit=>{
    const e=catalog.find(e=>bulkKey(e)===bulkKey(edit.element));
@@ -177,7 +214,9 @@ export function initWorkbench(hooks:Hooks):void {
   $('xml-before').textContent=changes.map(c=>c.element.signature+'\n'+modelXml(c.element.doc)).join('\n');$('xml-after').textContent=changes.map(c=>c.element.signature+'\n'+modelXml(c.doc)).join('\n');$('operation-preview').hidden=false;
   applyPreview=()=>{
    if(changes.some(c=>{const now=catalog.find(e=>bulkKey(e)===bulkKey(c.element));return !now || now.readOnly || now.sourceRevision!==c.element.sourceRevision || JSON.stringify(now.doc)!==JSON.stringify(c.element.doc);})){bridge.setStatus('Source changed — review selected summaries again');return;}
-   window.dispatchEvent(new CustomEvent('applyDocumentationBatch',{detail:changes}));
+   const batchId=`bulk-${Date.now()}-${++batchSerial}`;
+   batches.set(batchId,{changes:JSON.parse(JSON.stringify(changes)),applied:false});$<HTMLButtonElement>('apply-summaries').disabled=true;
+   window.dispatchEvent(new CustomEvent('applyDocumentationBatch',{detail:{batchId,changes}}));
   };
   }catch(error){bridge.setStatus(String(error));}
  };
@@ -241,7 +280,7 @@ export function initWorkbench(hooks:Hooks):void {
    },receiveRecovery(data:any){recovery=data;},receiveAuthoring(data:any){
     authoring={project:data.project??{},global:data.global??{}};showWording();$<HTMLTextAreaElement>('project-terms').value=(authoring.project.terminology??[]).join('\n');
     (window as any).xmlDocTerminology=[...(authoring.project.terminology??[]),...(authoring.global.terminology??[])];window.dispatchEvent(new CustomEvent('terminologyChanged'));
-   },receiveCatalog(data:{elements:TreeElementInfo[];errors?:string[]}){catalogLimit=100;catalog=data.elements.sort((a,b)=>`${a.unitName}.${a.qualifiedParent}.${a.kind}.${a.signature}`.localeCompare(`${b.unitName}.${b.qualifiedParent}.${b.kind}.${b.signature}`));renderCatalog();inheritance();if(data.errors?.length)bridge.setStatus(data.errors.join('; '));},receiveQuickDoc(data:{query:string;matches:TreeElementInfo[];resolved:boolean;reason?:string}){
+   },receiveBatchResult(data:{batchId:string;status:string;sourceRevisions?:Record<string,string>}){captureGrid();const batch=batches.get(data.batchId);if(!batch)return;if(data.status==='applied'){batch.applied=true;if(data.sourceRevisions)batch.sourceRevisions=Object.fromEntries(Object.entries(data.sourceRevisions).map(([file,revision])=>[file.replace(/\\/g,'/').toLowerCase(),revision]));}else batches.delete(data.batchId);reconcileBatches();renderCatalog(false,false);},receiveCatalog(data:{elements:TreeElementInfo[];errors?:string[]}){captureGrid();catalogLimit=100;catalog=data.elements.sort((a,b)=>`${a.unitName}.${a.qualifiedParent}.${a.kind}.${a.signature}`.localeCompare(`${b.unitName}.${b.qualifiedParent}.${b.kind}.${b.signature}`));reconcileBatches();renderCatalog(false,false);inheritance();if(data.errors?.length)bridge.setStatus(data.errors.join('; '));},receiveQuickDoc(data:{query:string;matches:TreeElementInfo[];resolved:boolean;reason?:string}){
    const panel=$('documentation-problems');panel.replaceChildren();
    const heading=document.createElement('strong');heading.textContent=data.resolved?'Quick documentation':`Choose a declaration for ${data.query}`;panel.append(heading);if(data.reason){const reason=document.createElement("p");reason.textContent=data.reason;panel.append(reason);}
    for(const e of data.matches){const row=document.createElement('div');const title=document.createElement('button');title.textContent=e.signature??e.name;const caption=document.createElement('span');caption.textContent=title.textContent;row.append(caption);title.title='Open source: '+title.textContent;title.textContent='Open source';setWorkbenchIcon(title,'open-source');title.onclick=()=>open(e);const prose=document.createElement('pre');prose.textContent=e.doc.summary+'\n'+(e.doc.params??[]).map(p=>p.name+': '+p.description).join('\n')+'\n'+(e.doc.returns??'');row.append(title,prose);panel.append(row);}
@@ -250,12 +289,13 @@ export function initWorkbench(hooks:Hooks):void {
  window.addEventListener('documentationLoaded',(event)=>{
   const {element,doc}=(event as CustomEvent).detail;
   if(element){const last=history[index];if(!navigating && (last?.symbolId!==element.symbolId || last?.fileName!==element.fileName || last?.locationId!==element.locationId)){history=history.slice(0,index+1);history.push({locationId:element.locationId,projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber});index=history.length-1;}navigating=false;}
-  xml.value=editableXml(doc);$('xml-error').textContent=doc.parseError??'';if(doc.parseError || doc.xmlEdited)viewXml(false);showProblems();inheritance();showWording();spell();showRecovery();
+  xml.value=visibleXml();$('xml-error').textContent=doc.parseError??'';if(doc.parseError || doc.xmlEdited)viewXml(false);showProblems();inheritance();showWording();spell();showRecovery();
   bridge.sendToHost({type:'loadAuthoring'} as any);
   const revision=element?.fileName+'|'+element?.sourceRevision;if(revision!==catalogRevision){catalogRevision=revision;refresh();}
  });
+ window.addEventListener('documentationQualityChanged',()=>{showProblems();renderCatalog();});
  window.addEventListener('documentationChanged',()=>{showProblems();spell();});
  window.addEventListener('docStatus',event=>{$('edit-status').textContent=(event as CustomEvent).detail;});
  window.addEventListener('requestReferencePicker',()=>{$('catalog-query').focus();refresh();});
- window.addEventListener('applyDocumentationBatch',event=>bridge.sendToHost({type:'batchUpdated',changes:(event as CustomEvent).detail} as any));
+ window.addEventListener('applyDocumentationBatch',event=>bridge.sendToHost({type:'batchUpdated',...(event as CustomEvent).detail} as any));
 }

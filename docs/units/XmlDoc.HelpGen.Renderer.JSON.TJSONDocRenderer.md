@@ -1,4 +1,4 @@
-﻿# class `TJSONDocRenderer`
+# class `TJSONDocRenderer`
 
 Inherits from `TInterfacedObject`
 

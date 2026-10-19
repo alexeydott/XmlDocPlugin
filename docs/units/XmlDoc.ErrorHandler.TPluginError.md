@@ -1,4 +1,4 @@
-﻿# record `TPluginError`
+# record `TPluginError`
 
 A plugin diagnostic with context and source location.
 

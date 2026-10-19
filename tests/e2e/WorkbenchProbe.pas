@@ -1,8 +1,8 @@
-﻿unit WorkbenchProbe;
+unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses System.SyncObjs,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TPublicationProbe=class(TProjectDocumentation)
@@ -69,7 +69,8 @@ var Project:IOTAProject;Module:IOTAModule;Services:IOTAModuleServices;I:Integer;
   Result:=FindExit(Child);if Assigned(Result) then Exit;
  end;end;
 begin
- if Finished then Exit;Finished:=True;
+ if Finished then Exit;
+ Finished:=True;
  if LanguageSaved then begin var SavedSettings:=TPluginSettings.Instance.Global;SavedSettings.General.Language:=OriginalLanguage;TPluginSettings.Instance.Global:=SavedSettings;TI18n.Instance.SetLanguage(OriginalLanguage);end;Timer.Enabled:=False;
  Log('Closing Explorer');Explorer.Free;Explorer:=nil;Log('Closing Inspector');Inspector.Free;Inspector:=nil;Log('Closed Inspector');Services:=BorlandIDEServices as IOTAModuleServices;
  Project:=Services.GetActiveProject;if Assigned(Project) then begin
@@ -133,6 +134,9 @@ begin
    else if Action='assert-second-view-conflict' then begin AssertTrue(ExplorerAttempted,'Explorer did not attempt the stale edit');AssertTrue(not EditorSource(SourceEditorForFile(SampleFile)).Contains('EXPLORER STALE SHOULD NOT WRITE'),'Conflicting Explorer edit was applied');Log('PASS simultaneous Inspector and Explorer reject stale revisions');end
    else if Action='assert-grid' then begin
      Source:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(Source.Contains('E2E grid first') and Source.Contains('E2E grid second'),'Selected member summaries were not applied');Log('PASS reviewed multi-member summary update');
+   end
+   else if Action='assert-grid-repeat' then begin
+     Source:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(Source.Contains('E2E grid first again') and Source.Contains('E2E grid second'),'Repeated batch did not use its acknowledged baseline');Log('PASS repeat member summaries after acknowledged batch');
    end
    else if Action='switch-second' then Select(SecondFile,'Run','Integer')
    else if Action='switch-sample' then Select(SampleFile,'Run','string')
@@ -325,6 +329,10 @@ begin
   W:=FindWindowEx(0,W,'#32770',nil);
  end;
  for var I:=0 to Screen.FormCount-1 do begin F:=Screen.Forms[I];
+  if (F.ClassName='TInputQueryForm') and (F.Caption=TI18n.Instance.T('Create CSS theme')) then begin
+    for var J:=0 to F.ComponentCount-1 do if F.Components[J] is TEdit then TEdit(F.Components[J]).Text:='e2e-created';
+    F.ModalResult:=mrOK;
+  end;
   if (F.ClassName='TMessageForm') then begin
    Text:='';for var J:=0 to F.ComponentCount-1 do begin C:=F.Components[J];if C is TLabel then Text:=Text+TLabel(C).Caption;end;
    Log('GENERATION MESSAGE: '+Text);F.ModalResult:=mrOK;
@@ -348,13 +356,21 @@ begin
  Log('PASS native error label theme: '+Form.Caption);
 end;
 procedure TProbe.ExportAll;
-var D:TBatchGenDialog;C:TComponent;B:TButton;T:TTimer;N:Integer;Output:string;Done:Boolean;
+var D:TBatchGenDialog;C:TComponent;B:TButton;T:TTimer;N:Integer;Output,ThemeDirectory,OriginalThemeDirectory:string;Done:Boolean;
 begin
  Output:=TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'documentation');
+ OriginalThemeDirectory:=TThemeEngine.Instance.CustomThemesDir;
+ ThemeDirectory:=TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'created-themes');
+ TThemeEngine.Instance.SetCustomThemesDir(ThemeDirectory);
  D:=TBatchGenDialog.Create(nil);T:=TTimer.Create(nil);
  try
   B:=nil;N:=0;
   for var I:=0 to D.ComponentCount-1 do begin C:=D.Components[I];
+   if C is TComboBox then begin
+    AssertTrue(TComboBox(C).Text=TPluginSettings.Instance.DocumentationTheme,'Generation dialog lost the effective global/project theme');
+    TComboBox(C).ItemIndex:=TComboBox(C).Items.IndexOf('e2e-created');
+    AssertTrue(TComboBox(C).ItemIndex>=0,'New custom theme missing from generation dialog');
+   end;
    if C is TCheckBox then begin
     if TCheckBox(C).Caption=TI18n.Instance.T('Include private members') then TCheckBox(C).Checked:=False
     else TCheckBox(C).Checked:=True;
@@ -365,6 +381,8 @@ begin
    if (C is TButton) and (TButton(C).Caption=TI18n.Instance.T('Generate')) then B:=TButton(C);
   end;
   AssertTrue(Assigned(B),'Generate button unavailable');D.Show;T.Interval:=200;T.OnTimer:=CloseExportMessage;
+  // Change the selected custom CSS after the dialog loaded its initial catalog.
+  TFile.WriteAllText(TPath.Combine(ThemeDirectory,'e2e-created.css'),TThemeEngine.Instance.GetCSS(btHighContrast),TEncoding.UTF8);
   B.Click;T.Enabled:=False;
   Done:=False;
   for var I:=0 to D.ComponentCount-1 do
@@ -372,8 +390,11 @@ begin
   AssertTrue(Done,'Generation did not reach the successful completion phase');
   AssertTrue(TFile.Exists(TPath.Combine(Output,'XmlDocE2E.chm')),'CHM generation did not complete');
   AssertTrue(TFile.Exists(TPath.Combine(Output,'site-vitepress\package.json')),'Site generation did not complete');
+  for var CSSFile in ['assets\style.css','_chm_html\assets\style.css'] do
+    AssertTrue(TFile.ReadAllText(TPath.Combine(Output,CSSFile)).Contains(TThemeEngine.Instance.GetCSS(btHighContrast)),'Generation ignored the selected HTML/CHM theme: '+CSSFile);
+  Log('PASS native generation applies selected custom theme and reloads edited CSS for HTML and CHM');
   Log('PASS all eight formats through installed plugin dialog: '+Output);
- finally T.Free;D.Free;end;
+ finally T.Free;D.Free;TThemeEngine.Instance.SetCustomThemesDir(OriginalThemeDirectory);end;
 end;
 function NativeWindowText(W:HWND):string;
 var C:HWND;Buffer:array[0..4095] of Char;
@@ -415,6 +436,45 @@ begin
  Timer.Enabled:=False;
  try
  case Step of
+  104:begin
+   StressEntered:=TEvent.Create(nil,True,False,'');
+   var Modules:=StrToInt(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'));
+   var SavedActive:=GetActiveProject;
+   for var ProjectNumber:=0 to 1 do begin
+    var Dir:=TPath.Combine(Root,'Benchmark'+ProjectNumber.ToString);ForceDirectories(Dir);
+    var Name:='Benchmark'+ProjectNumber.ToString;
+    var ProjectXml:='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><PropertyGroup><MainSource>'+Name+'.dpr</MainSource><ProjectGuid>'+TGUID.NewGuid.ToString+'</ProjectGuid><ProjectVersion>20.3</ProjectVersion><FrameworkType>None</FrameworkType><AppType>Console</AppType><Config>Debug</Config><Platform>Win32</Platform><DCC_Namespace>System;System.Win;Winapi</DCC_Namespace></PropertyGroup><ItemGroup>';
+    var ProgramText:='program '+Name+';'+sLineBreak+'uses ';
+    TFile.WriteAllText(TPath.Combine(Dir,'Shared.inc'),'{$DEFINE BENCHMARK}',TEncoding.UTF8);
+    for var J:=1 to Modules div 2 do begin
+     var UnitName:='Perf'+ProjectNumber.ToString+'Unit'+J.ToString;
+     var Text:='unit '+UnitName+'; interface {$I Shared.inc} type TItem=class procedure Run; end; implementation procedure TItem.Run; begin end;'+sLineBreak;
+     for var K:=1 to 100 do Text:=Text+'// Representative source payload for publication hashing '+K.ToString+sLineBreak;
+     Text:=Text+'end.';TFile.WriteAllText(TPath.Combine(Dir,UnitName+'.pas'),Text,TEncoding.UTF8);
+     ProjectXml:=ProjectXml+'<DCCReference Include="'+UnitName+'.pas"/>';
+     if J>1 then ProgramText:=ProgramText+','+sLineBreak;ProgramText:=ProgramText+UnitName+' in '+QuotedStr(UnitName+'.pas');
+    end;
+    TFile.WriteAllText(TPath.Combine(Dir,Name+'.dpr'),ProgramText+';'+sLineBreak+'begin end.',TEncoding.UTF8);
+    ProjectXml:=ProjectXml+'</ItemGroup><Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/></Project>';
+    var ProjectFile:=TPath.Combine(Dir,Name+'.dproj');TFile.WriteAllText(ProjectFile,ProjectXml,TEncoding.UTF8);
+    AssertTrue((BorlandIDEServices as IOTAActionServices).OpenProject(ProjectFile,False),'Cannot open publication benchmark project');
+   end;
+   (BorlandIDEServices as IOTAModuleServices).MainProjectGroup.ActiveProject:=SavedActive;
+   ValidationProbe:=TPublicationProbe.Create;StressRound:=0;
+   var Request:=TJSONObject.Create;try Request.AddPair('type','requestCatalog');Request.AddPair('scope','group');ValidationProbe.Handle(Request,Browser);finally Request.Free;end;
+   StressStarted:=GetTickCount64;Step:=105;Timer.Interval:=20;Timer.Enabled:=True;Exit;
+  end;
+  105:begin
+   if ValidationProbe.Busy then begin AssertTrue(GetTickCount64-StressStarted<90000,'Large group publication timed out');Timer.Enabled:=True;Exit;end;
+   AssertTrue(ValidationProbe.LastError='','Benchmark failed: '+ValidationProbe.LastError);
+   AssertTrue(ValidationProbe.ModuleCount>=StrToInt(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES')),'Large group did not include the generated modules: '+ValidationProbe.ModuleCount.ToString);
+   Log('PERF publication round='+StressRound.ToString+' modules='+ValidationProbe.ModuleCount.ToString+' finalFreshMs='+FloatToStr(ValidationProbe.FinalValidationMs)+' maxValidationUiPauseMs='+FloatToStr(ValidationProbe.MaxValidationPauseMs)+' publicationMs='+FloatToStr(ValidationProbe.PublicationMs));
+   if StressRound=0 then begin
+    Inc(StressRound);var Request:=TJSONObject.Create;try Request.AddPair('type','requestCatalog');Request.AddPair('scope','group');ValidationProbe.Handle(Request,Browser);finally Request.Free;end;
+    StressStarted:=GetTickCount64;Timer.Enabled:=True;Exit;
+   end;
+   Log('PASS large-group cold and warm publication measurements');FreeAndNil(ValidationProbe);FreeAndNil(StressEntered);Log('PASS');Finish;Exit;
+  end;
   95:begin
    Log('Starting large-file IDE check');
    var LargeProject:=GetEnvironmentVariable('XMLDOC_E2E_LARGE_PROJECT');var LargeFile:=GetEnvironmentVariable('XMLDOC_E2E_LARGE_SOURCE');
@@ -430,7 +490,7 @@ begin
     try
      var ProjectXml:='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><PropertyGroup><MainSource>SourceLatency.dpr</MainSource><DCC_Define>'+XmlEscape(string.Join(';',Context.Defines))+'</DCC_Define><DCC_IncludePath>'+XmlEscape(ExtractFilePath(LargeProject)+';'+string.Join(';',Context.IncludePaths))+'</DCC_IncludePath><DCC_UnitSearchPath>'+XmlEscape(ExtractFilePath(LargeProject)+';'+string.Join(';',Context.SearchPaths))+'</DCC_UnitSearchPath></PropertyGroup><ItemGroup>';
      for var OriginalFile in Context.SourceFiles+[LargeFile] do if not SameText(ExtractFileExt(OriginalFile),'.dpr') then ProjectXml:=ProjectXml+'<DCCReference Include="'+XmlEscape(OriginalFile)+'"/>';
-     ProjectXml:=ProjectXml+'</ItemGroup></Project>';TFile.WriteAllText(PerformanceProject,ProjectXml,TEncoding.UTF8);TFile.WriteAllText(TPath.Combine(PerformanceRoot,'SourceLatency.dpr'),'program SourceLatency; begin end.',TEncoding.UTF8);
+    ProjectXml:=ProjectXml+'</ItemGroup></Project>';TFile.WriteAllText(PerformanceProject,ProjectXml,TEncoding.UTF8);TFile.WriteAllText(TPath.Combine(PerformanceRoot,'SourceLatency.dpr'),'program SourceLatency; begin end.',TEncoding.UTF8);
     finally Context.Free;end;
     AssertTrue(Assigned(ActiveBefore) and ActiveBefore.FileName.StartsWith(Root,True),'Performance context must belong to the isolated fixture');
     var SavedProject:=TFile.ReadAllBytes(ActiveBefore.FileName);var SavedStamp:=TFile.GetLastWriteTimeUtc(ActiveBefore.FileName);
@@ -576,6 +636,34 @@ begin
     var About:=TAboutDialog.Create(nil);
     try AssertTrue(About.lblVersion.Caption='Version '+GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'About dialog version mismatch');finally About.Free;end;
     Log('PASS loaded BPL and About dialog shared version');
+    var OriginalThemeSettings:=TPluginSettings.Instance.Global;
+    var OldThemeDirectory:=TThemeEngine.Instance.CustomThemesDir;
+    TThemeEngine.Instance.SetCustomThemesDir(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'created-themes'));
+    var ThemeDialog:=TSettingsDialog.Create(nil);
+    try
+      for var ThemeName in ['default','dark','high-contrast','minimal'] do
+        AssertTrue(ThemeDialog.cmbDocumentationTheme.Items.IndexOf(ThemeName)>=0,'Settings theme option missing: '+ThemeName);
+      ThemeDialog.cmbDocumentationTheme.ItemIndex:=ThemeDialog.cmbDocumentationTheme.Items.IndexOf('dark');
+      var ThemeInputTimer:=TTimer.Create(nil);
+      try
+        ThemeInputTimer.Interval:=100;ThemeInputTimer.OnTimer:=CloseExportMessage;
+        ThemeDialog.btnCreateTheme.Click;
+      finally ThemeInputTimer.Free;end;
+      AssertTrue(ThemeDialog.cmbDocumentationTheme.Text='e2e-created','Create CSS theme did not select the new theme');
+      AssertTrue(TFile.ReadAllText(TPath.Combine(TThemeEngine.Instance.CustomThemesDir,'e2e-created.css')).Contains('#1e1e2e'),'Created CSS did not inherit the selected dark palette');
+      ThemeDialog.hotToggleInspector.HotKey:=0;ThemeDialog.hotGenerateStub.HotKey:=0;ThemeDialog.hotGenerateHelp.HotKey:=0;
+      ThemeDialog.hotCoverageReport.HotKey:=0;ThemeDialog.hotNextUndocumented.HotKey:=0;ThemeDialog.hotPreviousUndocumented.HotKey:=0;
+      ThemeDialog.btnOKClick(nil);
+      var ThemeReader:=TPluginSettings.Create;
+      try AssertTrue(ThemeReader.Global.General.DocumentationTheme='e2e-created','Settings did not persist the selected documentation theme');finally ThemeReader.Free;end;
+      var ReopenedThemeDialog:=TSettingsDialog.Create(nil);
+      try AssertTrue(ReopenedThemeDialog.cmbDocumentationTheme.Text='e2e-created','Reopened Settings lost the theme selection');finally ReopenedThemeDialog.Free;end;
+      Log('PASS native Settings CSS creation, theme selection, save and reopen');
+    finally
+      ThemeDialog.Free;TPluginSettings.Instance.Global:=OriginalThemeSettings;TPluginSettings.Instance.Save;
+      TThemeEngine.Instance.SetCustomThemesDir(OldThemeDirectory);
+    end;
+
     Root:=GetEnvironmentVariable('XMLDOC_E2E_FIXTURE');SampleFile:=TPath.Combine(Root,'Units\Workbench.Sample.pas');SecondFile:=TPath.Combine(Root,'Units\Workbench.Second.pas');
     var Settings:=TPluginSettings.Create;
     var SettingsRoot:=TPath.Combine(Root,'settings-fixture');TDirectory.CreateDirectory(SettingsRoot);
@@ -588,7 +676,7 @@ begin
      Log('PASS project settings reset between projects and partial files');
     finally Settings.Free;TDirectory.Delete(SettingsRoot,True);end;
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
-  1:begin ExportAll;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
+  1:begin if (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
   2:begin
     for I:=0 to Inspector.ComponentCount-1 do if Inspector.Components[I] is TXmlDocBrowser then Browser:=TXmlDocBrowser(Inspector.Components[I]);
     AssertTrue(Assigned(Browser),'Browser unavailable');
@@ -601,7 +689,26 @@ begin
     OriginalMessage:=Browser.OnWebMessageReceived;Browser.OnWebMessageReceived:=MessageReceived;
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
-  3:begin Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
+  3:begin
+   if GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1' then begin
+   // A successful parse must not clear a browser failure. Inject the event only
+   // after the real WebView has loaded; recover through its navigation callback.
+   if Assigned(Browser.OnCreateWebViewCompleted) and Assigned(ExplorerBrowser.OnCreateWebViewCompleted) then begin
+    Browser.OnCreateWebViewCompleted(Browser,E_FAIL);ExplorerBrowser.OnCreateWebViewCompleted(ExplorerBrowser,E_FAIL);
+    Inspector.HandleCursorChanged(1,EditorSource(SourceEditorForFile(SampleFile)),SampleFile);
+    Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));
+    for var Panel in [TForm(Inspector),TForm(Explorer)] do begin
+     var ErrorVisible:=False;for var N:=0 to Panel.ComponentCount-1 do if (Panel.Components[N] is TMemo) and (Panel.Components[N].Name='DocumentationError') then ErrorVisible:=TMemo(Panel.Components[N]).Visible and string(TMemo(Panel.Components[N]).Text).Contains('WebView2 could not start');
+     AssertTrue(ErrorVisible,'Successful source parsing hid the browser initialization error');
+    end;
+    AssertTrue(not Browser.Visible and not ExplorerBrowser.Visible,'Failed browser was shown as ready');
+    Browser.OnNavigationCompleted(Browser,True,Default(COREWEBVIEW2_WEB_ERROR_STATUS));ExplorerBrowser.OnNavigationCompleted(ExplorerBrowser,True,Default(COREWEBVIEW2_WEB_ERROR_STATUS));
+    AssertTrue(Browser.Visible and ExplorerBrowser.Visible,'Successful browser recovery did not restore the editor');
+    Log('PASS independent parser/browser diagnostics and browser recovery');
+   end;
+    Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;Exit;
+   end;
+   if StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0 then begin Step:=104;Timer.Enabled:=True;Exit;end;Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
  end;
  if Step<4 then Timer.Enabled:=True;
  except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;

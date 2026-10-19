@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.BatchParser
+# XmlDoc.HelpGen.BatchParser
 
 Batch parsing of source files into documentation units, types and members.
 

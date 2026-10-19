@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.AboutDialog
+# XmlDoc.Plugin.AboutDialog
 
 Plugin information and version display.
 

@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Renderer.CHM
+# XmlDoc.HelpGen.Renderer.CHM
 
 CHM project generation, short-path staging and HTML Help compiler validation.
 

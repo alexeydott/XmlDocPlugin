@@ -1,4 +1,4 @@
-﻿# class `TDocStubGenerator`
+# class `TDocStubGenerator`
 
 Creates documentation stubs from declaration signatures and parameter hints.
 

@@ -1,4 +1,4 @@
-﻿# record `TSitePublishOptions`
+# record `TSitePublishOptions`
 
 Static site publishing options.
 

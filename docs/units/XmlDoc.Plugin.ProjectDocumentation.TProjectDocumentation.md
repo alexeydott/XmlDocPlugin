@@ -1,4 +1,4 @@
-﻿# class `TProjectDocumentation`
+# class `TProjectDocumentation`
 
 Inherits from `TComponent`
 
@@ -13,6 +13,7 @@ Inherits from `TComponent`
 | `FCompleted` | field | private |  |
 | `FEffective` | field | private |  |
 | `FElements` | field | private |  |
+| `FFinalValidationMs` | field | private |  |
 | `FIndex` | field | private |  |
 | `FJobBrowser` | field | private |  |
 | `FJobContexts` | field | private |  |
@@ -26,6 +27,7 @@ Inherits from `TComponent`
 | `FJobSnapshots` | field | private |  |
 | `FJobSources` | field | private |  |
 | `FJobTemplates` | field | private |  |
+| `FMaxValidationPauseMs` | field | private |  |
 | `FOnWorkerCheck` | field | private |  |
 | `FPreparationMs` | field | private |  |
 | `FPreparePosition` | field | private |  |
@@ -67,6 +69,7 @@ Inherits from `TComponent`
 | `Handle` | method | public |  |
 | `JobProject` | method | private |  |
 | `Key` | method | private |  |
+| `ModuleCount` | method | public |  |
 | `Notification` | method | protected |  |
 | `PrepareNext` | method | private |  |
 | `PublishCatalog` | method | private |  |
@@ -78,8 +81,11 @@ Inherits from `TComponent`
 | `WorkerActive` | method | private |  |
 | `WorkerCheck` | method | private |  |
 | `Busy` | property | public |  |
+| `FinalValidationMs` | property | public |  |
 | `LastError` | property | public |  |
+| `MaxValidationPauseMs` | property | public |  |
 | `OnWorkerCheck` | property | public |  |
+| `PublicationMs` | property | public |  |
 | `PublishedGeneration` | property | public |  |
 | `Working` | property | public |  |
 
@@ -96,6 +102,8 @@ Inherits from `TComponent`
 ### FEffective
 
 ### FElements
+
+### FFinalValidationMs
 
 ### FIndex
 
@@ -122,6 +130,8 @@ Inherits from `TComponent`
 ### FJobSources
 
 ### FJobTemplates
+
+### FMaxValidationPauseMs
 
 ### FOnWorkerCheck
 
@@ -205,6 +215,8 @@ Inherits from `TComponent`
 
 ### Key
 
+### ModuleCount
+
 ### Notification
 
 ### PrepareNext
@@ -227,9 +239,15 @@ Inherits from `TComponent`
 
 ### Busy
 
+### FinalValidationMs
+
 ### LastError
 
+### MaxValidationPauseMs
+
 ### OnWorkerCheck
+
+### PublicationMs
 
 ### PublishedGeneration
 

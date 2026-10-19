@@ -114,6 +114,39 @@
         Height = 23
         TabOrder = 1
       end
+      object lblDocumentationTheme: TLabel
+        Left = 16
+        Top = 100
+        Caption = 'Default HTML / CHM theme:'
+      end
+      object cmbDocumentationTheme: TComboBox
+        Left = 232
+        Top = 98
+        Width = 200
+        Height = 23
+        Style = csDropDownList
+        TabOrder = 2
+        ShowHint = True
+        Hint = 'A project htmlTheme setting can override this default.'
+      end
+      object btnCreateTheme: TButton
+        Left = 16
+        Top = 138
+        Width = 190
+        Height = 28
+        Caption = 'Create CSS theme...'
+        TabOrder = 3
+        OnClick = btnCreateThemeClick
+      end
+      object lblThemeOverride: TLabel
+        Left = 16
+        Top = 180
+        Width = 410
+        Height = 48
+        AutoSize = False
+        WordWrap = True
+        Caption = 'The generation dialog shows the effective theme, including any project override.'
+      end
     end
     object tsShortcuts: TTabSheet
       Caption = 'Shortcuts'

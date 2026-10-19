@@ -1,4 +1,4 @@
-﻿# class `TAboutDialog`
+# class `TAboutDialog`
 
 Inherits from `TForm`
 

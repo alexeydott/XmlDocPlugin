@@ -1,4 +1,4 @@
-﻿# class `TDocInspectorForm`
+# class `TDocInspectorForm`
 
 Inherits from `TDockableForm`
 
@@ -31,6 +31,7 @@ Dockable declaration documentation editor hosted in WebView2.
 | `FPinned` | field | private |  |
 | `FProjectDocs` | field | private |  |
 | `FUpdatingSource` | field | private |  |
+| `FWebViewError` | field | private |  |
 | `ApplyIDETheme` | method | protected |  |
 | `BrowserCreateWebViewCompleted` | method | private |  |
 | `BrowserNavigationCompleted` | method | private |  |
@@ -52,6 +53,7 @@ Dockable declaration documentation editor hosted in WebView2.
 | `ParseEditorSource` | method | private |  |
 | `RefreshFromCurrentEditor` | method | public | Refreshes the declaration at the active editor's cursor. |
 | `SendToEditor` | method | private |  |
+| `UpdateErrorDisplay` | method | private |  |
 | `UpdateFromCursor` | method | private |  |
 | `Documentation` | property | public |  |
 
@@ -100,6 +102,8 @@ Dockable declaration documentation editor hosted in WebView2.
 ### FProjectDocs
 
 ### FUpdatingSource
+
+### FWebViewError
 
 ### ApplyIDETheme
 
@@ -152,6 +156,8 @@ Updates the selected declaration after the cursor changes.
 Refreshes the declaration at the active editor's cursor.
 
 ### SendToEditor
+
+### UpdateErrorDisplay
 
 ### UpdateFromCursor
 

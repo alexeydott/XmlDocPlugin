@@ -1,1 +1,1 @@
-﻿# type `TErrorCallback`
+# type `TErrorCallback`

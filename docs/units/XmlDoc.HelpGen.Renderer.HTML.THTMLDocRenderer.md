@@ -1,4 +1,4 @@
-﻿# class `THTMLDocRenderer`
+# class `THTMLDocRenderer`
 
 Inherits from `TInterfacedObject`
 

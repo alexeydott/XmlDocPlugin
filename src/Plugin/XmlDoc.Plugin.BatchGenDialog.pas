@@ -14,7 +14,7 @@ uses
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
-  Vcl.StdCtrls,
+  Vcl.StdCtrls, Vcl.Samples.Spin,
   Vcl.ExtCtrls,
   Vcl.ComCtrls,
   Vcl.Dialogs,
@@ -42,6 +42,8 @@ type
   /// <summary>IDE dialog for project and directory documentation generation.</summary>
   TBatchGenDialog = class(TForm)
   private
+    FMinCoverage,FMinReady:TSpinEdit;
+    FTheme: TComboBox;
     FBtnBrowseDir: TButton;
     FBtnBrowseOutput: TButton;
     FBtnCancel: TButton;
@@ -91,7 +93,7 @@ type
 procedure ShowBatchGenDialog;
 
 implementation
-uses XmlDoc.Plugin.Localization;
+uses XmlDoc.HelpGen.ThemeEngine,XmlDoc.Plugin.Localization;
 
 
 procedure ShowBatchGenDialog;
@@ -357,6 +359,23 @@ begin
 
   Inc(LTop, S(36));
 
+  LLabel := TLabel.Create(Self);
+  LLabel.Parent := LContent;
+  LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.Left := S(24);
+  LLabel.Top := LTop;
+  LLabel.Caption := 'HTML / CHM theme:';
+  FTheme := TComboBox.Create(Self);
+  FTheme.Parent := LContent;
+  FTheme.ScaleForPPI(CurrentPPI);
+  FTheme.SetBounds(S(200), LTop - S(3), S(260), S(24));
+  FTheme.Style := csDropDownList;
+  TThemeEngine.Instance.Reload;
+  for var Name in TThemeEngine.Instance.GetAvailableThemes do FTheme.Items.Add(Name);
+  FTheme.ItemIndex := FTheme.Items.IndexOf(LSettings.DocumentationTheme);
+  if FTheme.ItemIndex < 0 then FTheme.ItemIndex := FTheme.Items.Add(LSettings.DocumentationTheme);
+  Inc(LTop, S(36));
+
   // Output Directory
   LLabel := TLabel.Create(Self);
   LLabel.Parent := LContent;
@@ -443,6 +462,22 @@ begin
   FChkNumericFileNames.SetBounds(S(24), LTop, S(440), S(20));
   FChkNumericFileNames.Caption := 'Use numeric topic file names';
   Inc(LTop, S(28));
+
+  LLabel:=TLabel.Create(Self);LLabel.Parent:=LContent;LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.SetBounds(S(24),LTop+S(0),S(320),S(20));LLabel.Caption:='Minimum comment presence (%):';
+  FMinCoverage:=TSpinEdit.Create(Self);FMinCoverage.Parent:=LContent;FMinCoverage.ScaleForPPI(CurrentPPI);
+  FMinCoverage.SetBounds(S(380),LTop+S(0-3),S(80),S(24));FMinCoverage.MinValue:=0;FMinCoverage.MaxValue:=100;
+  FMinCoverage.Value:=LSettings.Project.HelpGen.CoverageMinPercent;
+  LLabel:=TLabel.Create(Self);LLabel.Parent:=LContent;LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.SetBounds(S(24),LTop+S(36),S(320),S(20));LLabel.Caption:='Minimum ready documentation (%):';
+  FMinReady:=TSpinEdit.Create(Self);FMinReady.Parent:=LContent;FMinReady.ScaleForPPI(CurrentPPI);
+  FMinReady.SetBounds(S(380),LTop+S(36-3),S(80),S(24));FMinReady.MinValue:=0;FMinReady.MaxValue:=100;
+  FMinReady.Value:=LSettings.Project.HelpGen.ReadyMinPercent;
+  Inc(LTop,S(74));
+  LLabel:=TLabel.Create(Self);LLabel.Parent:=LContent;LLabel.ScaleForPPI(CurrentPPI);
+  LLabel.SetBounds(S(24),LTop,S(450),S(44));LLabel.AutoSize:=False;LLabel.WordWrap:=True;
+  LLabel.Caption:='Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.';
+  Inc(LTop,S(50));
 
   // Title
   LLabel := TLabel.Create(Self);
@@ -605,6 +640,8 @@ end;
 
 procedure TBatchGenDialog.SetControlsEnabled(AEnabled: Boolean);
 begin
+  FMinCoverage.Enabled:=AEnabled;FMinReady.Enabled:=AEnabled;
+  FTheme.Enabled := AEnabled;
   FBtnGenerate.Enabled := AEnabled;
   FRbProject.Enabled := AEnabled;
   FRbDirectory.Enabled := AEnabled;
@@ -670,6 +707,8 @@ begin
   FCancelled := False;
   SetControlsEnabled(False);
   try
+    // Pick up external CSS edits even when this dialog stays open between runs.
+    TThemeEngine.Instance.Reload;
     // 소스 경로 결정
     LProjectPath := '';
     if FRbProject.Checked then
@@ -756,7 +795,7 @@ begin
         LRenderOpts.Title := FEdtTitle.Text;
         LRenderOpts.IncludePrivate := FChkIncludePrivate.Checked;
         LRenderOpts.IncludeSearchIndex := FChkSearchIndex.Checked;
-        LRenderOpts.CSSTheme := TPluginSettings.Instance.Project.HelpGen.HTMLTheme;
+        LRenderOpts.CSSTheme := FTheme.Text;
 
         // 형식별 렌더링
         for I := 0 to Length(LFormats) - 1 do
@@ -773,12 +812,13 @@ begin
         end;
 
         // 커버리지
-        if FChkCoverage.Checked or (TPluginSettings.Instance.Project.HelpGen.CoverageMinPercent > 0) then
+        if FChkCoverage.Checked or (FMinCoverage.Value>0) or (FMinReady.Value>0) then
         begin
           FLblPhase.Caption := 'Analyzing coverage...';
           Application.ProcessMessages;
 
           LCoverage := TDocCoverageReport.Create;
+      LCoverage.PlaceholderPrefix:=TPluginSettings.Instance.Global.Stub.PlaceholderPrefix;
           try
             LStats := LCoverage.Analyze(LParser.Units);
             try
@@ -792,9 +832,8 @@ begin
 
             FLblStats.Caption := FLblStats.Caption +
               Format(' | Coverage: %.1f%%', [LStats.CoveragePercent]);
-            if LStats.CoveragePercent < TPluginSettings.Instance.Project.HelpGen.CoverageMinPercent then
-              raise Exception.CreateFmt('Documentation coverage %.1f%% is below the required %d%%',
-                [LStats.CoveragePercent, TPluginSettings.Instance.Project.HelpGen.CoverageMinPercent]);
+            var Failure:=TDocCoverageReport.ThresholdFailure(LStats,FMinCoverage.Value,FMinReady.Value);
+            if Failure<>'' then raise Exception.Create(Failure);
             finally
               LStats.ByKind.Free;
               LStats.ByVisibility.Free;

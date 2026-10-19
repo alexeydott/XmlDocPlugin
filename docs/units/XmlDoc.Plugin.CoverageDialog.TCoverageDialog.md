@@ -1,4 +1,4 @@
-﻿# class `TCoverageDialog`
+# class `TCoverageDialog`
 
 Inherits from `TForm`
 

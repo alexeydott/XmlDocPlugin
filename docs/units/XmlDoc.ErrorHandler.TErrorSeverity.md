@@ -1,3 +1,3 @@
-﻿# type `TErrorSeverity`
+# type `TErrorSeverity`
 
 Diagnostic severity.

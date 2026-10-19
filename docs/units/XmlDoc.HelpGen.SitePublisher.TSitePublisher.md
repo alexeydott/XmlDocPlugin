@@ -1,4 +1,4 @@
-﻿# class `TSitePublisher`
+# class `TSitePublisher`
 
 Creates MkDocs, Docusaurus or VitePress project resources around Markdown output.
 

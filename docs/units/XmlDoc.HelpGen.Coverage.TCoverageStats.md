@@ -1,4 +1,4 @@
-﻿# record `TCoverageStats`
+# record `TCoverageStats`
 
 Documentation coverage statistics.
 

@@ -1,4 +1,4 @@
-﻿# XmlDoc.Markup
+# XmlDoc.Markup
 
 Documentation markup conversion and safe rendering helpers.
 

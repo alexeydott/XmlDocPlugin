@@ -1,4 +1,4 @@
-﻿# interface `IDocRenderer`
+# interface `IDocRenderer`
 
 Common interface for documentation renderers.
 

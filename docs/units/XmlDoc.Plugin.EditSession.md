@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.EditSession
+# XmlDoc.Plugin.EditSession
 
 Documentation write authorization, source revisions and edit acknowledgement state.
 

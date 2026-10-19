@@ -17,6 +17,7 @@ try {
  & .\test-delphi12.ps1 -Bds $Rad13 *> "$EvidenceDir\rad13-tests.log"
  & .\build-cli.ps1 -Bds $Rad13 -Platform Win64 -OutputDir "$EvidenceDir\cli" *> "$EvidenceDir\cli-build.log"
  $cli="$EvidenceDir\cli\Win64\XmlDocGen.exe"
+ & tests/Test-CLIQuality.ps1 -CLI $cli -EvidenceDir "$EvidenceDir\quality-gates"
  $fixture=Join-Path $PSScriptRoot 'e2e\DocumentationWorkbench\XmlDocE2E.dproj'
  $output="$EvidenceDir\documentation"
  & $cli -p $fixture -o $output -f html,chm,md,json,hmxp,mkdocs,docusaurus,vitepress -t XmlDocE2E --site-name XmlDocE2E --numeric-file-names --coverage --check --write-baseline "$EvidenceDir\baseline.json" *> "$EvidenceDir\generate.log"
@@ -42,6 +43,9 @@ try {
  if($LASTEXITCODE -eq 0){throw 'Missing resource was accepted'}
  $missingDiagnostics=Get-Content "$EvidenceDir\missing-output\diagnostics.json" -Raw | ConvertFrom-Json
  if(!($missingDiagnostics.issues | Where-Object code -eq XD013)){throw 'Resource diagnostic was not saved before rendering failed'}
- if(!$SkipIDE){& tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -EvidenceDir "$EvidenceDir\ide"}
+ if(!$SkipIDE){
+  & tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -EvidenceDir "$EvidenceDir\ide"
+  & tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -SkipBuild -DiagnosticsOnly -EvidenceDir "$EvidenceDir\browser-diagnostics"
+ }
  Write-Host "PASS. Evidence: $EvidenceDir"
 } finally {Pop-Location}

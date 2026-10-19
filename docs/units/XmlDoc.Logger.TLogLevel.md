@@ -1,3 +1,3 @@
-﻿# type `TLogLevel`
+# type `TLogLevel`
 
 Logging threshold.

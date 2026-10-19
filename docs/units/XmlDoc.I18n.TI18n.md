@@ -1,4 +1,4 @@
-﻿# class `TI18n`
+# class `TI18n`
 
 Loads native UI translations from JSON locale resources or files.
 

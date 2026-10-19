@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Types
+# XmlDoc.HelpGen.Types
 
 Owned documentation hierarchies for units, types and declarations.
 

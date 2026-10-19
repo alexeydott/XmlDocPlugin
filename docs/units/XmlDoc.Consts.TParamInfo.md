@@ -1,4 +1,4 @@
-﻿# record `TParamInfo`
+# record `TParamInfo`
 
 Parameter signature extracted from source.
 

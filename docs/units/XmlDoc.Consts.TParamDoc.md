@@ -1,4 +1,4 @@
-﻿# record `TParamDoc`
+# record `TParamDoc`
 
 A parameter name and its description.
 

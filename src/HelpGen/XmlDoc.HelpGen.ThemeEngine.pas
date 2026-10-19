@@ -7,7 +7,8 @@ uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
-  System.Generics.Collections;
+  System.Generics.Collections,
+  System.Generics.Defaults;
 
 type
   /// <summary>Built-in documentation theme names.</summary>
@@ -38,18 +39,27 @@ type
     class function Instance: TThemeEngine;
     class procedure ReleaseInstance;
 
-    /// <summary>Returns CSS for the requested theme.</summary>
+    /// <summary>Returns theme CSS; empty or unknown names fall back to default. Names ignore case and surrounding whitespace.</summary>
     /// <param name="AThemeName">Theme name.</param>
     /// <returns>CSS text.</returns>
-    function GetCSS(const AThemeName: string): string;
+    function GetCSS(const AThemeName: string): string; overload;
+    /// <summary>Returns CSS for a built-in theme without string-name conversion by the caller.</summary>
+    function GetCSS(ATheme: TBuiltInTheme): string; overload;
+    /// <summary>Returns the stable configuration name of a built-in theme.</summary>
+    class function ThemeName(ATheme: TBuiltInTheme): string; static;
 
     /// <summary>Lists available themes.</summary>
     /// <returns>Available theme names.</returns>
     function GetAvailableThemes: TArray<string>;
 
-    /// <summary>Sets the directory used to discover custom themes.</summary>
+    /// <summary>Reloads custom CSS from a directory, discarding the previous custom catalog and restoring built-ins first.</summary>
     /// <param name="ADir">Directory path.</param>
     procedure SetCustomThemesDir(const ADir: string);
+    /// <summary>Creates a new UTF-8 CSS theme from an existing palette, rejects invalid or duplicate names, and reloads the catalog.</summary>
+    function CreateCustomTheme(const AName, ABaseTheme: string): string;
+    /// <summary>Reloads built-in and custom themes from disk.</summary>
+    procedure Reload;
+    property CustomThemesDir: string read FCustomThemesDir;
   end;
 
 implementation
@@ -62,7 +72,7 @@ begin
   FThemes := TDictionary<string, TThemeInfo>.Create;
   FCustomThemesDir := TPath.Combine(
     TPath.Combine(GetEnvironmentVariable('APPDATA'), 'XmlDocPlugin'), 'themes');
-  LoadBuiltInThemes;
+  Reload;
 end;
 
 destructor TThemeEngine.Destroy;
@@ -87,12 +97,24 @@ function TThemeEngine.GetCSS(const AThemeName: string): string;
 var
   LInfo: TThemeInfo;
 begin
-  if FThemes.TryGetValue(LowerCase(AThemeName), LInfo) then
+  if FThemes.TryGetValue(LowerCase(Trim(AThemeName)), LInfo) then
     Result := LInfo.CSS
   else if FThemes.TryGetValue('default', LInfo) then
     Result := LInfo.CSS
   else
     Result := '';
+end;
+
+class function TThemeEngine.ThemeName(ATheme: TBuiltInTheme): string;
+const
+  Names: array[TBuiltInTheme] of string = ('default', 'dark', 'high-contrast', 'minimal');
+begin
+  Result := Names[ATheme];
+end;
+
+function TThemeEngine.GetCSS(ATheme: TBuiltInTheme): string;
+begin
+  Result := GetCSS(ThemeName(ATheme));
 end;
 
 function TThemeEngine.GetAvailableThemes: TArray<string>;
@@ -114,7 +136,37 @@ end;
 procedure TThemeEngine.SetCustomThemesDir(const ADir: string);
 begin
   FCustomThemesDir := ADir;
+  Reload;
+end;
+
+procedure TThemeEngine.Reload;
+begin
+  FThemes.Clear;
+  LoadBuiltInThemes;
   LoadCustomThemes;
+end;
+
+function TThemeEngine.CreateCustomTheme(const AName, ABaseTheme: string): string;
+var
+  Name, FileName, CSS: string;
+begin
+  Name := LowerCase(Trim(AName));
+  if (Name = '') or (Name = '.') or (Name = '..') or Name.EndsWith('.') then
+    raise EArgumentException.Create('Enter a valid theme name without a file extension.');
+  for var C in TPath.GetInvalidFileNameChars do
+    if Pos(C, Name) > 0 then
+      raise EArgumentException.Create('Theme names cannot contain path separators or invalid filename characters.');
+  for var Theme := Low(TBuiltInTheme) to High(TBuiltInTheme) do
+    if Name = ThemeName(Theme) then
+      raise EArgumentException.Create('Choose a new name; built-in themes cannot be replaced by this command.');
+  FileName := TPath.Combine(FCustomThemesDir, Name + '.css');
+  if TFile.Exists(FileName) then
+    raise EArgumentException.Create('A theme with this name already exists.');
+  CSS := GetCSS(btDefault) + sLineBreak + GetCSS(ABaseTheme);
+  ForceDirectories(FCustomThemesDir);
+  TFile.WriteAllText(FileName, CSS, TEncoding.UTF8);
+  Reload;
+  Result := FileName;
 end;
 
 procedure TThemeEngine.LoadBuiltInThemes;
@@ -214,7 +266,7 @@ begin
     '  --nav-active-bg: #f0f0f0;' + sLineBreak +
     '}' + sLineBreak +
     'body { font-family: "Georgia", "Times New Roman", serif; ' +
-    'max-width: 900px; margin: 0 auto; }';
+    'max-width: 1200px; margin: 0 auto; }';
   FThemes.AddOrSetValue('minimal', LInfo);
 end;
 
@@ -229,6 +281,7 @@ begin
     Exit;
 
   LFiles := TDirectory.GetFiles(FCustomThemesDir, '*.css');
+  TArray.Sort<string>(LFiles);
   for LFile in LFiles do
   begin
     try

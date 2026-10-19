@@ -11,7 +11,7 @@ type
  public
   constructor Create;
   destructor Destroy;override;
-  procedure Analyze(Units:TObjectList<TUnitDocInfo>;const ProjectDir:string='');
+  procedure Analyze(Units:TObjectList<TUnitDocInfo>;const ProjectDir:string='';const PlaceholderPrefix:string='TODO: ');
   procedure Save(const FileName:string);
   procedure SaveBaseline(const FileName:string);
   function NewIssueCount(const BaselineFile:string):Integer;
@@ -21,12 +21,12 @@ implementation
 uses System.JSON,System.IOUtils,XmlDoc.Model;
 function IssueKey(const Issue:TDocIssue):string;
 var Key:TJSONArray;
-begin Key:=TJSONArray.Create;try Key.Add(Issue.SymbolId);Key.Add(Issue.Code);if Issue.Code='XD001' then Key.Add('Invalid XML') else Key.Add(Issue.Message);Result:=Key.ToJSON;finally Key.Free;end;end;
+begin Key:=TJSONArray.Create;try Key.Add(Issue.SymbolId);Key.Add(Issue.Code);if Issue.Code='XD001' then Key.Add('Invalid XML') else if Issue.Code='XD008' then Key.Add('Unfinished TODO documentation') else Key.Add(Issue.Message);Result:=Key.ToJSON;finally Key.Free;end;end;
 constructor TDocumentationReport.Create;
 begin inherited;FIssues:=TList<TDocIssue>.Create;FSymbols:=TList<TCodeElementInfo>.Create;FPublicSymbols:=TDictionary<string,Boolean>.Create;end;
 destructor TDocumentationReport.Destroy;
 begin FPublicSymbols.Free;FSymbols.Free;FIssues.Free;inherited;end;
-procedure TDocumentationReport.Analyze(Units:TObjectList<TUnitDocInfo>;const ProjectDir:string);
+procedure TDocumentationReport.Analyze(Units:TObjectList<TUnitDocInfo>;const ProjectDir,PlaceholderPrefix:string);
 var U:TUnitDocInfo;T:TTypeDocInfo;E:TElementDocInfo;
  function Accessible(const E:TCodeElementInfo):Boolean;
  begin Result:=(E.Visibility='') or SameText(E.Visibility,'public') or SameText(E.Visibility,'published') or SameText(E.Visibility,'protected');end;
@@ -36,7 +36,7 @@ var U:TUnitDocInfo;T:TTypeDocInfo;E:TElementDocInfo;
  var M:TElementDocInfo;N:TTypeDocInfo;
  begin AddSymbol(Typ.CodeElement,ParentAccessible);ParentAccessible:=ParentAccessible and Accessible(Typ.CodeElement);for M in Typ.Members do AddSymbol(M.CodeElement,ParentAccessible);for N in Typ.NestedTypes do AddType(N,ParentAccessible);end;
  procedure Check(const Code:TCodeElementInfo;Model:TXmlDocModel);
- begin FIssues.AddRange(TDocumentation.Analyze(Code,Model,FSymbols.ToArray,ProjectDir));end;
+ begin FIssues.AddRange(TDocumentation.Analyze(Code,Model,FSymbols.ToArray,ProjectDir,PlaceholderPrefix));end;
  procedure CheckType(Typ:TTypeDocInfo);
  var M:TElementDocInfo;N:TTypeDocInfo;
  begin Check(Typ.CodeElement,Typ.Doc);for M in Typ.Members do Check(M.CodeElement,M.Doc);for N in Typ.NestedTypes do CheckType(N);end;

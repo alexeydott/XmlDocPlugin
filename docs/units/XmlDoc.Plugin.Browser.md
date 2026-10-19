@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.Browser
+# XmlDoc.Plugin.Browser
 
 WebView2 resource hosting, editor settings and persistent section state.
 

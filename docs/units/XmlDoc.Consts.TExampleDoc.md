@@ -1,4 +1,4 @@
-﻿# record `TExampleDoc`
+# record `TExampleDoc`
 
 An example with optional source and region metadata.
 

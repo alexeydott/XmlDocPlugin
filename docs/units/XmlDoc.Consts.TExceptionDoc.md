@@ -1,4 +1,4 @@
-﻿# record `TExceptionDoc`
+# record `TExceptionDoc`
 
 An exception reference and its description.
 

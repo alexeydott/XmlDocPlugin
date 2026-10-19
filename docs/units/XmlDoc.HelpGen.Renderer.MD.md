@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Renderer.MD
+# XmlDoc.HelpGen.Renderer.MD
 
 Markdown reference pages and navigation for units, types and members.
 

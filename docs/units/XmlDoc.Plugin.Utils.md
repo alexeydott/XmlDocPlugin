@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.Utils
+# XmlDoc.Plugin.Utils
 
 IDE theme detection, readable diagnostic colors and UI utilities.
 

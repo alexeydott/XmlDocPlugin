@@ -1,4 +1,4 @@
-﻿# record `TStubSettings`
+# record `TStubSettings`
 
 Automatic stub generation and placeholder options.
 

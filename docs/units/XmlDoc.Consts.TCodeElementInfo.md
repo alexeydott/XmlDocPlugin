@@ -1,4 +1,4 @@
-﻿# record `TCodeElementInfo`
+# record `TCodeElementInfo`
 
 Declaration metadata, documentation and source ranges extracted by the parser.
 

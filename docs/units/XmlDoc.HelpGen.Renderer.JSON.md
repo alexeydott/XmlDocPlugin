@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Renderer.JSON
+# XmlDoc.HelpGen.Renderer.JSON
 
 Machine-readable documentation hierarchy export.
 

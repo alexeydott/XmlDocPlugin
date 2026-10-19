@@ -1,4 +1,4 @@
-﻿# record `TProjectSettings`
+# record `TProjectSettings`
 
 Project preferences loaded from .xmldocplugin.json.
 

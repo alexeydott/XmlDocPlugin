@@ -1,4 +1,4 @@
-﻿# class `TParamDictionary`
+# class `TParamDictionary`
 
 Persistent parameter-description dictionary used by stub generation.
 

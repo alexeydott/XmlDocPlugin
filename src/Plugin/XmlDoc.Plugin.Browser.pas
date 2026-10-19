@@ -125,6 +125,7 @@ begin
   LJson := TJSONObject.Create;
   try
     TI18n.Instance.SetLanguage(TPluginSettings.Instance.Global.General.Language);
+    LJson.AddPair('placeholderPrefix',TPluginSettings.Instance.Global.Stub.PlaceholderPrefix);
     LJson.AddPair('language',TI18n.Instance.CurrentLanguage);
     LJson.AddPair('saveDebounceMs',TJSONNumber.Create(LSettings.SaveDebounceMs));
     if FHostTheme<>'' then LJson.AddPair('theme',FHostTheme) else LJson.AddPair('theme',LSettings.Theme);

@@ -1,4 +1,4 @@
-﻿# class `TXmlDocMenuIntegration`
+# class `TXmlDocMenuIntegration`
 
 Inherits from `TComponent`
 

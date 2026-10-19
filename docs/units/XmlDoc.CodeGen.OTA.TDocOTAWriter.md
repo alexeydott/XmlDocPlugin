@@ -1,4 +1,4 @@
-﻿# class `TDocOTAWriter`
+# class `TDocOTAWriter`
 
 Applies documentation through an undoable IDE source writer.
 

@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.EditorNotifier
+# XmlDoc.Plugin.EditorNotifier
 
 Debounced IDE editor, cursor and source change notifications.
 

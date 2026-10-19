@@ -1,4 +1,4 @@
-﻿# class `TTopicNameMap`
+# class `TTopicNameMap`
 
 ## Members
 

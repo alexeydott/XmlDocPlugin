@@ -92,7 +92,10 @@ A baseline lets existing issues remain while rejecting new ones. Public
 signatures removed or changed since the baseline produce **XD011**. Linked
 resource problems produce **XD013**. Coverage distinguishes comments that exist,
 structurally complete comments and comments that pass readiness checks; TODO
-placeholders do not count as finished documentation.
+placeholders and the configured stub prefix do not count as finished documentation.
+Use `--coverage-min` for comment presence and `--ready-min` for readiness (0–100);
+a failed threshold returns exit code **1**. Pass `--placeholder-prefix` to use the
+same custom marker as your IDE settings.
 
 ## Interface languages
 
@@ -144,7 +147,7 @@ indexed records so inherited comments reflect updated dependencies.
 ### Documentation Engine (HelpGen)
 
 - **Multiple Output Formats** — HTML, Markdown, CHM (Windows Help), JSON, Help & Manual (HMXP)
-- **Theme Engine** — Customizable HTML themes
+- **Theme Engine** — Select default, dark, high-contrast or minimal HTML/CHM themes in Settings; create and customize UTF-8 CSS themes. Project overrides and per-run selection are supported.
 - **Cross-References** — Automatic link generation between types and members
 - **Static Site Publishing** — Generate standalone API documentation sites
 

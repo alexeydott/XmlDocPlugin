@@ -1,3 +1,3 @@
-﻿# type `TScanSource`
+# type `TScanSource`
 
 Supported source discovery modes.

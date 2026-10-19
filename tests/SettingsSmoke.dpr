@@ -10,6 +10,7 @@ uses
 var
   Original, Writer, Reader: TPluginSettings;
   Changed: TGlobalSettings;
+  Project: TProjectSettings;
   Log: TLogger;
   TempDir, FirstPath, SecondPath, RegistryRoot: string;
   Registry: TRegistry;
@@ -52,6 +53,7 @@ begin
     Changed.Stub.PlaceholderPrefix := 'SMOKE: ';
     Changed.Shortcuts.ToggleInspector := 12345;
     Changed.General.Language := 'en';
+    Changed.General.DocumentationTheme := 'dark';
     Changed.General.LogLevel := llError;
     Writer.Global := Changed;
     Writer.Save;
@@ -66,8 +68,22 @@ begin
          (Reader.Global.Stub.PlaceholderPrefix <> 'SMOKE: ') or
          (Reader.Global.Shortcuts.ToggleInspector <> 12345) or
          (Reader.Global.General.Language <> 'en') or
+         (Reader.DocumentationTheme <> 'dark') or
          (TLogger.Instance.Level <> llError) then
         raise Exception.Create('Settings were not loaded by a fresh settings instance');
+      Project := Reader.Project;Project.HelpGen.HTMLTheme := 'minimal';Reader.Project := Project;
+      if Reader.DocumentationTheme <> 'minimal' then raise Exception.Create('Project theme override was ignored');
+      Project.HelpGen.HTMLTheme := '';Reader.Project := Project;
+      if Reader.DocumentationTheme <> 'dark' then raise Exception.Create('Global theme was not restored after clearing project override');
+      ForceDirectories(TempDir);Reader.LoadProject(TempDir);
+      Project:=Reader.Project;Project.HelpGen.CoverageMinPercent:=67;Project.HelpGen.ReadyMinPercent:=43;Reader.Project:=Project;Reader.SaveProject;
+      Reader.LoadProject(TempDir);
+      if (Reader.Project.HelpGen.CoverageMinPercent<>67) or (Reader.Project.HelpGen.ReadyMinPercent<>43) then raise Exception.Create('Independent quality thresholds were not persisted');
+      TFile.WriteAllText(TPath.Combine(TempDir,'.xmldocplugin.json'),'{"helpGen":{"coverageMinPercent":21}}');Reader.LoadProject(TempDir);
+      if (Reader.Project.HelpGen.CoverageMinPercent<>21) or (Reader.Project.HelpGen.ReadyMinPercent<>0) then raise Exception.Create('Missing readiness threshold did not use its default');
+      TFile.Delete(TPath.Combine(TempDir,'.xmldocplugin.json'));TDirectory.Delete(TempDir);
+      Writeln('PASS: independent presence/readiness thresholds persist and reset');
+      Writeln('PASS: theme persistence, project override and global fallback');
       Writeln('PASS: editor, code generation, stub, shortcut, and general settings survive recreation');
     finally
       Reader.Free;
@@ -79,6 +95,7 @@ begin
       if (Reader.Global.Stub.PlaceholderPrefix <> 'SMOKE: ') or
          (Reader.Global.Shortcuts.ToggleInspector <> 12345) or
          (Reader.Global.General.Language <> 'en') or
+         (Reader.DocumentationTheme <> 'dark') or
          (TLogger.Instance.Level <> llError) then
         raise Exception.Create('Missing Editor key prevented loading independent settings');
       Writeln('PASS: independent settings load without an Editor registry key');

@@ -46,7 +46,9 @@ Open **Document → Settings**. The editor theme follows the current IDE theme.
 | General | Collapse empty sections | Starts empty sections collapsed. Sections you explicitly open or close retain their saved state. |
 | General | Show signature header | Shows or hides the selected declaration's signature above its documentation. |
 | Code Generation | Generate a stub after typing /// | Expands a new triple-slash line above an undocumented declaration. Existing comments are not replaced. |
-| Code Generation | Placeholder Prefix | Sets the prefix for generated descriptions that still need writing; defaults to `TODO: `. Applies to menu-generated stubs and the Inspector and Explorer stubs too. |
+| Code Generation | Default HTML / CHM theme | Chooses the global documentation output theme. |
+| Code Generation | Create CSS theme | Saves a new theme based on the selected palette and selects it in the list. Accept Settings to retain that selection. |
+| Code Generation | Placeholder Prefix | Sets the prefix for generated descriptions that still need writing; defaults to `TODO: `. Applies to menu-generated stubs and the Inspector and Explorer stubs too. The configured prefix and legacy `TODO` markers remain unfinished in diagnostics, filters and coverage. An empty prefix retains `TODO: ` when placeholders are enabled. |
 | Shortcuts | Command bindings | Assigns shortcuts after checking for conflicts with IDE commands. |
 | Advanced | Debounce (ms) | Delay before processing editor cursor and source notifications. |
 | Advanced | Save Debounce (ms) | Delay before sending a documentation edit to the IDE source buffer. |
@@ -62,9 +64,7 @@ source-editing implementation rather than the retired formatting preferences.
 Project generation defaults belong in `.xmldocplugin.json` beside the project.
 The `helpGen.defaultFormats` array selects formats initially checked in Generate
 API Documentation (`html`, `chm`, `md`, `json`, `hmxp`, `mkdocs`, `docusaurus`, `vitepress`).
-`helpGen.coverageMinPercent` rejects generation below that percentage; zero disables
-the threshold. The optional coverage report checkbox controls report creation,
-independently of the threshold. The CLI uses its command-line options instead.
+`helpGen.coverageMinPercent` sets **Minimum comment presence (%)**: it counts declarations with a comment, including unfinished comments. `helpGen.readyMinPercent` sets **Minimum ready documentation (%)**: it requires complete descriptions without unfinished placeholders or diagnostic problems. These separate controls are available in Generate API Documentation. Zero disables the corresponding threshold. The optional coverage report checkbox controls report creation independently of the thresholds. The CLI uses its command-line options instead.
 
 ## How editing works
 
@@ -90,7 +90,7 @@ Read-only files, read-only IDE buffers and sources under installed RAD Studio so
 6. Switch to **Preview** to see rendered documentation. Use the **XML** action for the underlying XML fragment, then **Validate and apply XML** to accept a correction.
 7. Wait for **Applied**, inspect the source comment, and save the file in the IDE.
 
-XML fragments omit an enclosing `<doc>` element. Escape literal markup in XML (`&lt;`, `&amp;`). Unknown XML and mixed content are retained; malformed comments remain available in XML view for repair. Preview is useful for appearance, while Problems checks structure and references.
+XML fragments omit an enclosing `<doc>` element. Escape literal markup in XML (`&lt;`, `&amp;`). Unknown XML and mixed content are retained; malformed comments remain available in XML view for repair. Preview is useful for appearance, while Problems checks structure and references. An unapplied XML draft remains visible in XML view when a Design edit is acknowledged; it is separate from the accepted source version until you explicitly apply or discard it.
 
 ## Documentation tools
 
@@ -164,7 +164,9 @@ Quick documentation starts from the source caret. When a name or overload cannot
 3. Select the rows to change and edit their summary XML fragments.
 4. Choose **Preview selected summaries**, review each declaration and before/after comment, and apply.
 
-Only selected summaries are submitted. Other documentation sections remain part of each comment. Protected rows cannot be selected for writing. The source writer rechecks the files before application; refresh and review again if a file or declaration changed.
+Only selected summaries are submitted. Other documentation sections remain part of each comment. Protected rows cannot be selected for writing. The source writer rechecks the files before application. While it acknowledges a batch and refreshes the catalog, you can continue typing; the next text is retained and the next batch uses the acknowledged source version. Filtering or paging does not discard pending text or row selections.
+
+If the source comment changes externally, use the row's **Review current source** icon to compare the current comment with your pending summary. Apply that review to accept the new baseline, then preview and apply the selected summaries. Reviewing the baseline itself does not write to source.
 
 ## Reuse inherited documentation
 
@@ -227,7 +229,7 @@ Replacement is a literal, case-sensitive operation on the **current comment**, n
 
 ## Measure coverage and check problems
 
-Use **Coverage Report → Analyze** for the current project or a selected directory. Inspect the declaration list and source positions rather than relying only on a percentage. Coverage distinguishes a comment that exists, a structurally complete comment and documentation that passes readiness checks; TODO placeholders are unfinished.
+Use **Coverage Report → Analyze** for the current project or a selected directory. Inspect the declaration list and source positions rather than relying only on a percentage. Coverage distinguishes a comment that exists, a structurally complete comment and documentation that passes readiness checks; Generated placeholders using your configured prefix, as well as existing TODO placeholders, are unfinished.
 
 Use **Problems** for the current declaration and project filters for a wider cleanup pass. Typical findings include invalid XML, missing/obsolete parameters, unresolved references, missing result documentation, TODO text, public API changes and missing linked resources.
 
@@ -258,6 +260,36 @@ Numeric names use a shared mapping for files, links and navigation. Names are re
 
 For HTML, use the documentation viewer/server when available rather than assuming every search feature works from a `file:` URL. For generated site projects, follow their generated README preview commands. Check that a link opens the intended overload, not merely an existing page.
 
+### Generated documentation themes
+
+HTML and CHM output support `default`, `dark`, `high-contrast` and `minimal`.
+These output themes are independent of the IDE theme used by Inspector and Explorer.
+Choose the default under **Document → Settings → Code Generation → Default HTML / CHM theme**.
+Use **Create CSS theme...** to give a new theme a name and save a copy of the selected
+palette. The dialog shows its file location; edit that UTF-8 CSS file in your text
+editor to customize it. Reopen Settings or the generation dialog to reload changes.
+Existing themes and built-in names cannot be overwritten through this creation command.
+
+The **Generate API Documentation** dialog displays the effective theme in its
+**HTML / CHM theme** list and allows a different choice for that generation run.
+A nonempty `helpGen.htmlTheme` in the project's `.xmldocplugin.json` overrides
+the global default; an absent or empty value inherits it. Thus existing projects
+with an explicit `default` value continue to use that theme until the override
+is changed or cleared. For the CLI, pass `--theme dark` (or another theme name);
+CLI options are independent of IDE preferences.
+
+Custom themes are UTF-8 `.css` files in `%APPDATA%\XmlDocPlugin\themes`.
+The filename without `.css` is the theme name. A custom stylesheet is appended
+after the base layout and default palette, so it can override only the colors or
+rules it needs. Palette variables include `--bg-primary`, `--bg-nav`,
+`--text-primary`, `--text-link`, `--code-bg` and `--code-text`.
+Theme names ignore case and surrounding spaces; an empty or unknown name uses
+`default`. Custom files with built-in names override those themes.
+
+Markdown and JSON do not carry a CSS theme. Help and Manual uses its project
+styles; MkDocs, Docusaurus and VitePress use their framework themes. The HTML
+`--theme` option does not select themes for those formats.
+
 ## Use the command line
 
 Setup includes the x64 generator at `%LOCALAPPDATA%\Programs\XmlDocPlugin\bin\XmlDocGen.exe`. From the directory containing your project (replace `MyProject.dproj` with its filename):
@@ -280,6 +312,15 @@ For CI checks:
 ```
 
 `--check` writes `diagnostics.json` and returns exit code 3 for new documentation problems. Build a baseline only after reviewing its findings.
+
+For quality gates, distinguish comment presence from readiness:
+
+```powershell
+& $generator -p .\MyProject.dproj -o .\Generated -f html --coverage-min 90 --ready-min 80
+& $generator -p .\MyProject.dproj -o .\Generated -f json --check --placeholder-prefix 'FIXME: '
+```
+
+`--coverage-min` checks comment presence; `--ready-min` checks readiness. Both accept 0–100 and return exit code 1 when their threshold is not met. A nonzero threshold enables coverage analysis even without `--coverage`. Pass `--placeholder-prefix` when CI uses a custom stub prefix; the CLI does not read your IDE preferences. Existing TODO markers remain unfinished with any configured prefix.
 
 ## Troubleshooting
 

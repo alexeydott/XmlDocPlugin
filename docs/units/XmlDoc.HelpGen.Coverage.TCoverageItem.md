@@ -1,4 +1,4 @@
-﻿# record `TCoverageItem`
+# record `TCoverageItem`
 
 Coverage information for a declaration.
 

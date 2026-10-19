@@ -1,4 +1,4 @@
-﻿# class `TCHMDocRenderer`
+# class `TCHMDocRenderer`
 
 Inherits from `TInterfacedObject`
 

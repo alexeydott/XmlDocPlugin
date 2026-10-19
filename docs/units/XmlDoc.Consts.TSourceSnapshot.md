@@ -1,4 +1,4 @@
-﻿# record `TSourceSnapshot`
+# record `TSourceSnapshot`
 
 ## Members
 

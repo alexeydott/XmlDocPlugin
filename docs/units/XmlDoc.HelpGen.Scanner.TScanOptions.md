@@ -1,4 +1,4 @@
-﻿# record `TScanOptions`
+# record `TScanOptions`
 
 Options for project or directory source discovery.
 

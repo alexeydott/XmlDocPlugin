@@ -1,4 +1,4 @@
-﻿# class `TTypeDocInfo`
+# class `TTypeDocInfo`
 
 A documented type and its members.
 

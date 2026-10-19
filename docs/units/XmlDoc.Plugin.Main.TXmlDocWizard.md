@@ -1,4 +1,4 @@
-﻿# class `TXmlDocWizard`
+# class `TXmlDocWizard`
 
 Inherits from `TNotifierObject`
 

@@ -1,5 +1,14 @@
 import type { DocModel, ElementInfo, TreeElementInfo } from './types';
 import { escapeXml } from './xmlCodec';
+let placeholderPrefix='TODO: ';
+export function setPlaceholderPrefix(prefix:string):void {
+ const next=prefix.trim()?prefix:'TODO: ';if(next===placeholderPrefix)return;placeholderPrefix=next;
+ window.dispatchEvent(new CustomEvent('documentationQualityChanged'));
+}
+export function meaningful(text:string):boolean {
+ const prefix=placeholderPrefix.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+ return !!text.trim() && !/\bTODO\b/i.test(text) && !new RegExp('(?:^|>)[\\s]*'+prefix,'i').test(text);
+}
 export interface Issue { code:string; message:string; fix:string; line:number; column:number; }
 const clone=<T>(v:T):T=>JSON.parse(JSON.stringify(v));
 const same=(a:string,b:string)=>a.toLocaleLowerCase()===b.toLocaleLowerCase();
@@ -26,8 +35,8 @@ export function synchronize(element:ElementInfo,doc:DocModel,renames:Record<stri
   ...old.filter(p=>!expected.some(n=>same(n,p.name)))];
  result.params=order((element.params??[]).map(p=>p.name),result.params??[]);
  result.typeParams=order(element.genericParams??[],result.typeParams??[]);
- if(element.kind==='method' && element.returnType && !result.returns)result.returns='TODO: Describe the result.';
- if(element.kind==='property' && !result.value)result.value='TODO: Describe the property value.';
+ if(element.kind==='method' && element.returnType && !result.returns)result.returns=placeholderPrefix+'Describe the result.';
+ if(element.kind==='property' && !result.value)result.value=placeholderPrefix+'Describe the property value.';
  return result;
 }
 export function modelXml(doc:DocModel):string {
@@ -79,7 +88,7 @@ export function analyze(element:ElementInfo,doc:DocModel,catalog:TreeElementInfo
   const nodes=Array.from(d.querySelectorAll(`doc > ${tag}`));
   const seen=new Set<string>();
   for(const node of nodes){const name=node.getAttribute('name')??'';if(!names.some(n=>same(n,name)))add('XD002',`Unknown ${tag} ${name}`,'Map name',`<${tag}`);if(seen.has(name.toLowerCase()))add('XD003',`Duplicate ${tag} ${name}`,'XML');seen.add(name.toLowerCase());}
-  for(const node of nodes)if(!node.textContent?.trim() || /\bTODO\b/i.test(node.textContent??''))add('XD004',`Missing ${tag} description ${node.getAttribute('name')??''}`,'Edit',`<${tag}`);
+  for(const node of nodes)if(!meaningful(node.textContent??''))add('XD004',`Missing ${tag} description ${node.getAttribute('name')??''}`,'Edit',`<${tag}`);
   for(const name of names)if(!seen.has(name.toLowerCase()))add('XD004',`Missing ${tag} ${name}`,'Synchronize');
  }
  for(const node of Array.from(d.querySelectorAll('paramref,typeparamref'))){const name=node.getAttribute('name')??'';const names=node.tagName==='paramref'?(element.params??[]).map(p=>p.name):element.genericParams??[];if(!names.some(n=>same(n,name)))add('XD005',`Unknown ${node.tagName} ${name}`,'Map name',`<${node.tagName}`);}
@@ -90,12 +99,12 @@ export function analyze(element:ElementInfo,doc:DocModel,catalog:TreeElementInfo
   if(matches.size>1)add('XD007',`Ambiguous reference ${ref}`,'Choose reference','cref=');
  }
  if(!doc.summary?.trim())add('XD000','Missing summary description','Edit');
- if(/\bTODO\b/i.test(xml))add('XD008','Unfinished TODO documentation','Edit');
+ if(xml.trim() && !meaningful(xml))add('XD008','Unfinished placeholder documentation','Edit');
  if(doc.returns && (element.kind!=='method' || !element.returnType))add('XD009','Returns is not valid for this declaration','XML');
  if(doc.value && element.kind!=='property')add('XD009','Value is only valid for a property','XML');
  if(element.kind==='unit' && doc.exceptions?.length)add('XD009','Exceptions are not valid for a unit','XML');
- if(element.kind==='method' && element.returnType && !doc.returns)add('XD010','Missing result description','Synchronize');
- if(element.kind==='property' && !doc.value)add('XD010','Missing property value description','Synchronize');
+ if(element.kind==='method' && element.returnType && !meaningful(doc.returns??''))add('XD010','Missing result description','Synchronize');
+ if(element.kind==='property' && !meaningful(doc.value??''))add('XD010','Missing property value description','Synchronize');
  return issues;
 }
 export function inheritDoc(local:DocModel,source:DocModel):DocModel {
@@ -108,7 +117,7 @@ export function inheritDoc(local:DocModel,source:DocModel):DocModel {
  return result;
 }
 export function ready(element:ElementInfo,doc:DocModel,catalog:TreeElementInfo[]=[]):boolean { return !!doc.summary?.trim() && analyze(element,doc,catalog).length===0; }
-export function issueKey(element:ElementInfo,issue:Issue):string {return JSON.stringify([element.symbolId??element.fullName,issue.code,issue.code==='XD001'?'Invalid XML':issue.message]);}
+export function issueKey(element:ElementInfo,issue:Issue):string {return JSON.stringify([element.symbolId??element.fullName,issue.code,issue.code==='XD001'?'Invalid XML':issue.code==='XD008'?'Unfinished TODO documentation':issue.message]);}
 
 /** Replace prose text nodes only. XML names, references and example code remain intact. */
 export function replaceProse(doc:DocModel,find:string,replacement:string):DocModel {

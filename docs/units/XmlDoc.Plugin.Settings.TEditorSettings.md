@@ -1,4 +1,4 @@
-﻿# record `TEditorSettings`
+# record `TEditorSettings`
 
 Editor preferences; legacy fields remain for registry compatibility.
 

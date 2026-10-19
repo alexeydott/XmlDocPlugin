@@ -1,4 +1,4 @@
-﻿# class `TSettingsDialog`
+# class `TSettingsDialog`
 
 Inherits from `TForm`
 
@@ -9,10 +9,12 @@ Dialog for supported global preferences and command shortcuts.
 | Name | Kind | Visibility | Description |
 |------|------|------------|-------------|
 | `btnCancel` | field | public |  |
+| `btnCreateTheme` | field | public |  |
 | `btnOK` | field | public |  |
 | `chkAutoGenerate` | field | public |  |
 | `chkCollapseEmptySections` | field | public |  |
 | `chkShowSignatureHeader` | field | public |  |
+| `cmbDocumentationTheme` | field | public |  |
 | `cmbLanguage` | field | public |  |
 | `cmbLogLevel` | field | public |  |
 | `edtPlaceholderPrefix` | field | public |  |
@@ -31,13 +33,17 @@ Dialog for supported global preferences and command shortcuts.
 | `tsCodeGen` | field | public |  |
 | `tsGeneral` | field | public |  |
 | `tsShortcuts` | field | public |  |
+| `btnCreateThemeClick` | method | public |  |
 | `btnOKClick` | method | public |  |
 | `FormCreate` | method | public |  |
 | `LoadSettings` | method | private |  |
+| `LoadThemes` | method | private |  |
 | `SaveSettings` | method | private |  |
 | `ShortcutsChanged` | property | public |  |
 
 ### btnCancel
+
+### btnCreateTheme
 
 ### btnOK
 
@@ -46,6 +52,8 @@ Dialog for supported global preferences and command shortcuts.
 ### chkCollapseEmptySections
 
 ### chkShowSignatureHeader
+
+### cmbDocumentationTheme
 
 ### cmbLanguage
 
@@ -83,11 +91,15 @@ Dialog for supported global preferences and command shortcuts.
 
 ### tsShortcuts
 
+### btnCreateThemeClick
+
 ### btnOKClick
 
 ### FormCreate
 
 ### LoadSettings
+
+### LoadThemes
 
 ### SaveSettings
 

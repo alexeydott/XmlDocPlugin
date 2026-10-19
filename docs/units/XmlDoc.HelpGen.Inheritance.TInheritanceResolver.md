@@ -1,4 +1,4 @@
-﻿# class `TInheritanceResolver`
+# class `TInheritanceResolver`
 
 ## Members
 

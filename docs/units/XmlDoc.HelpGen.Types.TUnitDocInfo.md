@@ -1,4 +1,4 @@
-﻿# class `TUnitDocInfo`
+# class `TUnitDocInfo`
 
 A documented unit with its types and global declarations.
 

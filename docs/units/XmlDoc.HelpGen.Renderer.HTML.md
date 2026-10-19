@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Renderer.HTML
+# XmlDoc.HelpGen.Renderer.HTML
 
 Static HTML reference pages, navigation, cross-links and search resources.
 

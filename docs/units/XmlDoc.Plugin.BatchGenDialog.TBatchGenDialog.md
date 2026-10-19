@@ -1,4 +1,4 @@
-﻿# class `TBatchGenDialog`
+# class `TBatchGenDialog`
 
 Inherits from `TForm`
 
@@ -34,9 +34,12 @@ IDE dialog for project and directory documentation generation.
 | `FLblPhase` | field | private |  |
 | `FLblProgress` | field | private |  |
 | `FLblStats` | field | private |  |
+| `FMinCoverage` | field | private |  |
+| `FMinReady` | field | private |  |
 | `FProgress` | field | private |  |
 | `FRbDirectory` | field | private |  |
 | `FRbProject` | field | private |  |
+| `FTheme` | field | private |  |
 | `BuildUI` | method | private |  |
 | `DoGenerate` | method | private |  |
 | `GetSelectedFormats` | method | private |  |
@@ -101,11 +104,17 @@ IDE dialog for project and directory documentation generation.
 
 ### FLblStats
 
+### FMinCoverage
+
+### FMinReady
+
 ### FProgress
 
 ### FRbDirectory
 
 ### FRbProject
+
+### FTheme
 
 ### BuildUI
 

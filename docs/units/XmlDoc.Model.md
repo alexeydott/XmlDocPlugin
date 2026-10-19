@@ -1,4 +1,4 @@
-﻿# XmlDoc.Model
+# XmlDoc.Model
 
 Structured XML documentation with JSON transport and preservation of original XML.
 

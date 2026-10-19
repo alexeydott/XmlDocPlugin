@@ -1,4 +1,4 @@
-﻿# class `TProjectContext`
+# class `TProjectContext`
 
 ## Members
 

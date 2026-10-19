@@ -1,4 +1,4 @@
-﻿# record `TCodeGenSettings`
+# record `TCodeGenSettings`
 
 Legacy formatting preferences retained for registry compatibility; not applied to writes.
 

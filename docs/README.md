@@ -1,4 +1,4 @@
-﻿# XmlDocPlugin API Reference
+# XmlDocPlugin API Reference
 
 ## Units
 

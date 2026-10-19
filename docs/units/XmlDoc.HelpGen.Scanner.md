@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Scanner
+# XmlDoc.HelpGen.Scanner
 
 Project and directory discovery of Pascal source files.
 

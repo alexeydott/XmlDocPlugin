@@ -49,12 +49,17 @@ type
   TDocCoverageReport = class
   private
     FSymbols:TArray<TCodeElementInfo>;
+    FPlaceholderPrefix:string;
     procedure CollectSymbols(const Units:TObjectList<TUnitDocInfo>);
     function AnalyzeElement(const AElem: TElementDocInfo): TCoverageItem;
     function AnalyzeType(const AType: TTypeDocInfo): TCoverageItem;
     function AnalyzeUnit(const AUnit: TUnitDocInfo): TCoverageItem;
     function CoverageLevelToString(ALevel: TCoverageLevel): string;
   public
+    /// <summary>Explains failed comment-presence and readiness thresholds separately; empty means both pass.</summary>
+    class function ThresholdFailure(const Stats:TCoverageStats;CoverageMin,ReadyMin:Integer):string;static;
+    constructor Create;
+    property PlaceholderPrefix:string read FPlaceholderPrefix write FPlaceholderPrefix;
     /// <summary>Computes documentation coverage for the supplied units.</summary>
     /// <param name="AUnits">Units to analyze.</param>
     /// <returns>Documentation coverage statistics.</returns>
@@ -81,7 +86,7 @@ implementation
 
 uses XmlDoc.Documentation;
 
-function HasParamDoc(const ADoc: TXmlDocModel; const AParamName: string): Boolean;
+function HasParamDoc(const ADoc: TXmlDocModel; const AParamName, PlaceholderPrefix: string): Boolean;
 var
   I: Integer;
 begin
@@ -90,13 +95,23 @@ begin
   begin
     if SameText(ADoc.Params[I].Name, AParamName) then
     begin
-      Result := TDocumentation.Meaningful(ADoc.Params[I].Description);
+      Result := TDocumentation.Meaningful(ADoc.Params[I].Description,PlaceholderPrefix);
       Exit;
     end;
   end;
 end;
 
 { TDocCoverageReport }
+class function TDocCoverageReport.ThresholdFailure(const Stats:TCoverageStats;CoverageMin,ReadyMin:Integer):string;
+begin
+ if (CoverageMin<0) or (CoverageMin>100) or (ReadyMin<0) or (ReadyMin>100) then raise EArgumentException.Create('Quality thresholds must be between 0 and 100.');
+ Result:='';
+ if Stats.CoveragePercent<CoverageMin then Result:=Format('Comment presence %.1f%% is below the required %d%%.',[Stats.CoveragePercent,CoverageMin]);
+ if Stats.ReadyPercent<ReadyMin then begin if Result<>'' then Result:=Result+sLineBreak;Result:=Result+Format('Ready documentation %.1f%% is below the required %d%%.',[Stats.ReadyPercent,ReadyMin]);end;
+end;
+constructor TDocCoverageReport.Create;
+begin inherited Create;FPlaceholderPrefix:='TODO: ';end;
+
 
 procedure TDocCoverageReport.CollectSymbols(const Units:TObjectList<TUnitDocInfo>);
 var Items:TList<TCodeElementInfo>;U:TUnitDocInfo;T:TTypeDocInfo;E:TElementDocInfo;
@@ -129,7 +144,7 @@ begin
 
   LMissing := TList<string>.Create;
   try
-    if not TDocumentation.Meaningful(AElem.Doc.Summary) then
+    if not TDocumentation.Meaningful(AElem.Doc.Summary,FPlaceholderPrefix) then
       LMissing.Add('summary');
 
     // 메서드: 파라미터와 리턴값 체크
@@ -137,22 +152,22 @@ begin
     begin
       for I := 0 to Length(AElem.CodeElement.Params) - 1 do
       begin
-        if not HasParamDoc(AElem.Doc, AElem.CodeElement.Params[I].Name) then
+        if not HasParamDoc(AElem.Doc, AElem.CodeElement.Params[I].Name,FPlaceholderPrefix) then
           LMissing.Add('param:' + AElem.CodeElement.Params[I].Name);
       end;
 
-      if (AElem.CodeElement.ReturnType <> '') and (not TDocumentation.Meaningful(AElem.Doc.Returns)) then
+      if (AElem.CodeElement.ReturnType <> '') and (not TDocumentation.Meaningful(AElem.Doc.Returns,FPlaceholderPrefix)) then
         LMissing.Add('returns');
     end;
 
     for var Generic in AElem.CodeElement.GenericParams do begin
       var Found:=False;for var Param in AElem.Doc.TypeParams do
-        if SameText(Param.Name,Generic) and TDocumentation.Meaningful(Param.Description) then Found:=True;
+        if SameText(Param.Name,Generic) and TDocumentation.Meaningful(Param.Description,FPlaceholderPrefix) then Found:=True;
       if not Found then LMissing.Add('typeparam:'+Generic);
     end;
-    if (AElem.Kind=dekProperty) and not TDocumentation.Meaningful(AElem.Doc.Value) then LMissing.Add('value');
+    if (AElem.Kind=dekProperty) and not TDocumentation.Meaningful(AElem.Doc.Value,FPlaceholderPrefix) then LMissing.Add('value');
     if AElem.Doc.ParseError<>'' then LMissing.Add('invalid-xml');
-    Result.Ready:=(LMissing.Count=0) and (Length(TDocumentation.Analyze(AElem.CodeElement,AElem.Doc,FSymbols))=0);
+    Result.Ready:=(LMissing.Count=0) and (Length(TDocumentation.Analyze(AElem.CodeElement,AElem.Doc,FSymbols,'',FPlaceholderPrefix))=0);
     Result.MissingTags := LMissing.ToArray;
 
     if LMissing.Count = 0 then

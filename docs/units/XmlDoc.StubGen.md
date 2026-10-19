@@ -1,4 +1,4 @@
-﻿# XmlDoc.StubGen
+# XmlDoc.StubGen
 
 Documentation stub generation from signatures, parameter hints and placeholder options.
 

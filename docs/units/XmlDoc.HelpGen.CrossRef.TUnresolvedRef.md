@@ -1,4 +1,4 @@
-﻿# record `TUnresolvedRef`
+# record `TUnresolvedRef`
 
 A documentation reference that could not be resolved.
 

@@ -1,4 +1,4 @@
-﻿# XmlDoc.Parser
+# XmlDoc.Parser
 
 DelphiAST integration, project-aware conditional parsing and declaration lookup.
 

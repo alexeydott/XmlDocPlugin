@@ -1,4 +1,4 @@
-﻿# class `TProjectScanner`
+# class `TProjectScanner`
 
 Discovers Pascal source files from a project or directory.
 

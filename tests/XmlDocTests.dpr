@@ -1,11 +1,11 @@
-﻿program XmlDocTests;
+program XmlDocTests;
 
 {$APPTYPE CONSOLE}
 uses
   System.SysUtils,
   Winapi.ActiveX,
   DUnitX.TestFramework, DUnitX.Loggers.Console,
-  TestDocModel, TestDocParser, TestDocCodeGen, TestDocStubGen, TestDocHMXP, TestDocCoverage, TestDocPublish, TestDocNavigation, TestDocUnit, TestDocASTCompatibility, TestDocDeclared, TestDocAutomaticDeclared, TestDocImprovements;
+  TestDocModel, TestDocParser, TestDocCodeGen, TestDocStubGen, TestDocHMXP, TestDocCoverage, TestDocPublish, TestDocNavigation, TestDocUnit, TestDocASTCompatibility, TestDocDeclared, TestDocAutomaticDeclared, TestDocImprovements, TestDocThemes, TestDocReview;
 var
   Runner: ITestRunner;
   Results: IRunResults;

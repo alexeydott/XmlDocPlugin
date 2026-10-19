@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.Shortcuts
+# XmlDoc.Plugin.Shortcuts
 
 IDE menu commands, keyboard bindings and callback registration.
 

@@ -1,4 +1,4 @@
-﻿# class `TQuickDocPreview`
+# class `TQuickDocPreview`
 
 Popup preview for quick documentation.
 

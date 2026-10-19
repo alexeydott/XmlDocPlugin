@@ -1,4 +1,4 @@
-﻿# class `TUpdateChecker`
+# class `TUpdateChecker`
 
 Legacy update-service client; not registered or invoked by the plugin.
 

@@ -1,4 +1,4 @@
-﻿# record `TTypeParamDoc`
+# record `TTypeParamDoc`
 
 A generic type parameter and its description.
 

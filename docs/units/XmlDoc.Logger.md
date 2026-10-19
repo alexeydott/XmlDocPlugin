@@ -1,4 +1,4 @@
-﻿# XmlDoc.Logger
+# XmlDoc.Logger
 
 Severity-filtered file logging with rotation and configurable destinations.
 

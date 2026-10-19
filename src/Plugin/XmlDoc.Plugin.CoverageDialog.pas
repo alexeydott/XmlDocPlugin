@@ -76,7 +76,7 @@ type
 procedure ShowCoverageDialog;
 
 implementation
-uses XmlDoc.Plugin.Localization;
+uses XmlDoc.Plugin.Settings,XmlDoc.Plugin.Localization;
 
 
 {$R *.dfm}
@@ -284,6 +284,7 @@ begin
       LParser.ParseAll(LFiles);
 
       LCoverage := TDocCoverageReport.Create;
+      LCoverage.PlaceholderPrefix:=TPluginSettings.Instance.Global.Stub.PlaceholderPrefix;
       try
         LStats := LCoverage.Analyze(LParser.Units);
         try
@@ -441,6 +442,7 @@ begin
       Application.ProcessMessages;
 
       LCoverage := TDocCoverageReport.Create;
+      LCoverage.PlaceholderPrefix:=TPluginSettings.Instance.Global.Stub.PlaceholderPrefix;
       try
         LStats := LCoverage.Analyze(LParser.Units);
         try

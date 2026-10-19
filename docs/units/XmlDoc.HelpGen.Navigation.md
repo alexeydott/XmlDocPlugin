@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Navigation
+# XmlDoc.HelpGen.Navigation
 
 Hierarchical navigation and stable topic filename mapping shared by output formats.
 

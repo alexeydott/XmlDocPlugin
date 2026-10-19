@@ -1,4 +1,4 @@
-﻿# class `TDocParser`
+# class `TDocParser`
 
 Parses Delphi source and locates documentable declarations at a source line.
 

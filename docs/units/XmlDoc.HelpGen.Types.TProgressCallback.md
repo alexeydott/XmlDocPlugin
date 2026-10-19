@@ -1,1 +1,1 @@
-﻿# type `TProgressCallback`
+# type `TProgressCallback`

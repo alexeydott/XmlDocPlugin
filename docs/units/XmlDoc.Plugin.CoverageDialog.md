@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.CoverageDialog
+# XmlDoc.Plugin.CoverageDialog
 
 IDE coverage analysis dialog with source navigation.
 

@@ -63,6 +63,8 @@ type
   TGeneralSettings = record
     /// <summary>Legacy registry value; automatic update checking is not enabled.</summary>
     CheckUpdates: Boolean;
+    /// <summary>Default HTML and CHM output theme; a nonempty project HTMLTheme overrides it.</summary>
+    DocumentationTheme: string;
     Language: string;
     LogLevel: TLogLevel;
     /// <summary>Log destination; an empty string selects the default user log path.</summary>
@@ -82,9 +84,12 @@ type
   THelpGenSettings = record
     /// <summary>Minimum required generation coverage; zero disables the threshold.</summary>
     CoverageMinPercent: Integer;
+    /// <summary>Minimum percentage of fully ready documentation; zero disables the quality gate.</summary>
+    ReadyMinPercent: Integer;
     /// <summary>Initially selected IDE output formats: html, chm, md, json, hmxp, mkdocs, docusaurus or vitepress.</summary>
     DefaultFormats: TArray<string>;
     ExcludePatterns: TArray<string>;
+    /// <summary>Project HTML and CHM theme override; empty inherits the global documentation theme.</summary>
     HTMLTheme: string;
     IncludePrivate: Boolean;
     InterfaceOnly: Boolean;
@@ -134,6 +139,8 @@ type
 
     /// <summary>Saves project preferences while preserving unrelated configuration keys.</summary>
     procedure SaveProject;
+    /// <summary>Returns the project theme override, global documentation theme, or default, in that order.</summary>
+    function DocumentationTheme: string;
 
     property Global: TGlobalSettings read FGlobal write FGlobal;
     property Project: TProjectSettings read FProject write FProject;
@@ -204,6 +211,7 @@ begin
 
   // General
   FGlobal.General.Language := 'auto';
+  FGlobal.General.DocumentationTheme := 'default';
   FGlobal.General.CheckUpdates := True;
   FGlobal.General.LogLevel := llInfo;
   FGlobal.General.LogPath := '';
@@ -296,6 +304,8 @@ begin
 
     if LReg.OpenKey(FRegistryRoot + '\General', False) then
     begin
+      if LReg.ValueExists('DocumentationTheme') then
+        FGlobal.General.DocumentationTheme := LReg.ReadString('DocumentationTheme');
       if LReg.ValueExists('Language') then
         FGlobal.General.Language := LReg.ReadString('Language');
       if LReg.ValueExists('CheckUpdates') then
@@ -362,6 +372,7 @@ begin
 
     if LReg.OpenKey(FRegistryRoot + '\General', True) then
     begin
+      LReg.WriteString('DocumentationTheme', FGlobal.General.DocumentationTheme);
       LReg.WriteString('Language', FGlobal.General.Language);
       LReg.WriteBool('CheckUpdates', FGlobal.General.CheckUpdates);
       LReg.WriteInteger('LogLevel', Ord(FGlobal.General.LogLevel));
@@ -373,6 +384,13 @@ begin
   end;
 end;
 
+function TPluginSettings.DocumentationTheme: string;
+begin
+  Result := Trim(FProject.HelpGen.HTMLTheme);
+  if Result = '' then Result := Trim(FGlobal.General.DocumentationTheme);
+  if Result = '' then Result := 'default';
+end;
+
 procedure TPluginSettings.LoadProjectDefaults;
 begin
   // Project defaults
@@ -382,8 +400,9 @@ begin
   FProject.HelpGen.ExcludePatterns := nil;
   FProject.HelpGen.IncludePrivate := False;
   FProject.HelpGen.InterfaceOnly := True;
-  FProject.HelpGen.HTMLTheme := 'default';
+  FProject.HelpGen.HTMLTheme := '';
   FProject.HelpGen.CoverageMinPercent := 0;
+  FProject.HelpGen.ReadyMinPercent := 0;
 end;
 
 procedure TPluginSettings.LoadProject(const AProjectDir: string);
@@ -424,6 +443,7 @@ begin
           FProject.HelpGen.HTMLTheme := LPath;
         if LHelpGen.TryGetValue<Boolean>('includePrivate', FProject.HelpGen.IncludePrivate) then;
         if LHelpGen.TryGetValue<Boolean>('interfaceOnly', FProject.HelpGen.InterfaceOnly) then;
+        if LHelpGen.TryGetValue<Integer>('readyMinPercent', FProject.HelpGen.ReadyMinPercent) then;
         if LHelpGen.TryGetValue<Integer>('coverageMinPercent', FProject.HelpGen.CoverageMinPercent) then;
 
         LArr := LHelpGen.GetValue<TJSONArray>('defaultFormats');
@@ -477,6 +497,7 @@ begin
     LHelpGen.AddPair('htmlTheme', FProject.HelpGen.HTMLTheme);
     LHelpGen.AddPair('includePrivate', TJSONBool.Create(FProject.HelpGen.IncludePrivate));
     LHelpGen.AddPair('interfaceOnly', TJSONBool.Create(FProject.HelpGen.InterfaceOnly));
+    LHelpGen.AddPair('readyMinPercent', TJSONNumber.Create(FProject.HelpGen.ReadyMinPercent));
     LHelpGen.AddPair('coverageMinPercent', TJSONNumber.Create(FProject.HelpGen.CoverageMinPercent));
 
     LArr := TJSONArray.Create;

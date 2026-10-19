@@ -1,4 +1,4 @@
-﻿# XmlDoc.SourceAccess
+# XmlDoc.SourceAccess
 
 Read-only and protected-source checks for documentation editing.
 

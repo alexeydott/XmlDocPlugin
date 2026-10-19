@@ -1,4 +1,4 @@
-﻿# class `TErrorHandler`
+# class `TErrorHandler`
 
 Collects plugin diagnostics and supports an IDE message callback.
 

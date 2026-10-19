@@ -1,4 +1,4 @@
-﻿# class `TDocumentationReport`
+# class `TDocumentationReport`
 
 ## Members
 

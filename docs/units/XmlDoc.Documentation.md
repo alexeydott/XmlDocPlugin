@@ -1,4 +1,4 @@
-﻿# XmlDoc.Documentation
+# XmlDoc.Documentation
 
 Documentation validation, stable identities, authoring configuration and public API comparison.
 

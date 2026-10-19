@@ -1,4 +1,4 @@
-﻿# record `TShortcutSettings`
+# record `TShortcutSettings`
 
 Keyboard shortcuts for plugin commands.
 

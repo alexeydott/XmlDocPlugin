@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.ThemeEngine
+# XmlDoc.HelpGen.ThemeEngine
 
 Built-in and custom CSS themes for generated HTML documentation.
 

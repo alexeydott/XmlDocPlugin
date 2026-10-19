@@ -1,4 +1,4 @@
-﻿# class `TXmlDocBrowser`
+# class `TXmlDocBrowser`
 
 Inherits from `TEdgeBrowser`
 

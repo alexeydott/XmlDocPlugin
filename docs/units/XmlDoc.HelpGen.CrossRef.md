@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.CrossRef
+# XmlDoc.HelpGen.CrossRef
 
 Documentation cross-reference resolution across units and declarations.
 

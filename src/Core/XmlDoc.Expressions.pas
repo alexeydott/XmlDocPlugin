@@ -6,8 +6,67 @@ function ResolveDocumentationExpression(Parser:TDocParser;const Source:string;Po
  const Symbols:TArray<TCodeElementInfo>;out Query,Reason:string):TArray<TCodeElementInfo>;
 implementation
 uses System.Math,System.Character,System.Generics.Collections,System.RegularExpressions;
-function Identifier(C:Char):Boolean;
-begin Result:=C.IsLetterOrDigit or (C='_') or (C='.');end;
+type
+ TExpressionToken=record
+  Text:string;
+  First,Last:Integer;
+  IsName:Boolean;
+ end;
+function ExtractReference(const Source:string;Position:Integer;out Query,Owner,Member,Reason:string;out AfterMember:Integer):Boolean;
+var Tokens:TList<TExpressionToken>;I,Start,Seed,Last,First,Nesting,Cursor:Integer;Token:TExpressionToken;
+ function NameChar(C:Char):Boolean;
+ begin Result:=C.IsLetterOrDigit or (C='_');end;
+ function At(const Index:Integer;const Text:string):Boolean;
+ begin Result:=(Index>=0) and (Index<Tokens.Count) and (Tokens[Index].Text=Text);end;
+begin
+ Result:=False;Query:='';Owner:='';Member:='';Reason:='';AfterMember:=0;Seed:=-1;
+ Tokens:=TList<TExpressionToken>.Create;
+ try
+  I:=1;
+  while I<=Length(Source) do begin
+   if Source[I].IsWhiteSpace then begin Inc(I);Continue;end;
+   if Source[I]='{' then begin Inc(I);while (I<=Length(Source)) and (Source[I]<>'}') do Inc(I);Inc(I);Continue;end;
+   if (Source[I]='/') and (I<Length(Source)) and (Source[I+1]='/') then begin Inc(I,2);while (I<=Length(Source)) and not CharInSet(Source[I],[#10,#13]) do Inc(I);Continue;end;
+   if (Source[I]='(') and (I<Length(Source)) and (Source[I+1]='*') then begin Inc(I,2);while (I<Length(Source)) and not ((Source[I]='*') and (Source[I+1]=')')) do Inc(I);Inc(I,2);Continue;end;
+   Start:=I;Token:=Default(TExpressionToken);Token.IsName:=Source[I].IsLetter or (Source[I]='_');
+   if Token.IsName then begin Inc(I);while (I<=Length(Source)) and NameChar(Source[I]) do Inc(I);end
+   else if Source[I]=#39 then begin
+    Inc(I);while I<=Length(Source) do begin
+     if Source[I]=#39 then begin Inc(I);if (I<=Length(Source)) and (Source[I]=#39) then Inc(I) else Break;end else Inc(I);
+    end;
+   end else Inc(I);
+   Token.First:=Start;Token.Last:=I-1;Token.Text:=Copy(Source,Start,I-Start);Tokens.Add(Token);
+   if Token.IsName and (Start<=Position) and (Position<I) then Seed:=Tokens.Count-1;
+   if (Seed<0) and Token.IsName and (Start=Position+1) then Seed:=Tokens.Count-1;
+   // Once the caret is passed, keep only enough tokens to finish its qualified name.
+   if (Seed>=0) and (Tokens.Count>Seed+256) then Break;
+  end;
+  if Seed<0 then Exit;
+  Last:=Seed;
+  while Last+1<Tokens.Count do begin
+   Cursor:=Last+1;
+   if At(Cursor,'<') then begin
+    Nesting:=1;Inc(Cursor);while (Cursor<Tokens.Count) and (Nesting>0) do begin if At(Cursor,'<') then Inc(Nesting) else if At(Cursor,'>') then Dec(Nesting);Inc(Cursor);end;
+    if Nesting<>0 then begin Reason:='The receiver expression is incomplete; choose a declaration explicitly.';Exit;end;
+   end;
+   if At(Cursor,'.') and (Cursor+1<Tokens.Count) and Tokens[Cursor+1].IsName then Last:=Cursor+1 else Break;
+  end;
+  First:=Last;Member:=Tokens[Last].Text;AfterMember:=Tokens[Last].Last+1;
+  while At(First-1,'.') do begin
+   Cursor:=First-2;
+   if At(Cursor,'>') then begin
+    Nesting:=1;Dec(Cursor);while (Cursor>=0) and (Nesting>0) do begin if At(Cursor,'>') then Inc(Nesting) else if At(Cursor,'<') then Dec(Nesting);Dec(Cursor);end;
+    if Nesting<>0 then begin Reason:='The receiver expression is incomplete; choose a declaration explicitly.';Exit;end;
+   end;
+   if (Cursor<0) or not Tokens[Cursor].IsName then begin Reason:='The receiver expression is unsupported; choose a declaration explicitly.';Exit;end;
+   First:=Cursor;
+  end;
+  if At(First-1,')') or At(First-1,']') or At(First-1,'^') or At(First-1,'>') then begin Reason:='The receiver expression is unsupported; choose a declaration explicitly.';Exit;end;
+  for I:=First to Last do Query:=Query+Tokens[I].Text;
+  if First<Last then for I:=First to Last-2 do Owner:=Owner+Tokens[I].Text;
+  Result:=True;
+ finally Tokens.Free;end;
+end;
 function SimpleType(const Name:string):string;
 begin
  Result:=LowerCase(Trim(Name));if Result.StartsWith('system.') then Delete(Result,1,7);
@@ -112,17 +171,7 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
 begin
  Result:=nil;Reason:='';Query:='';if not Assigned(Parser) or (Source='') then Exit;
  Position:=EnsureRange(Position,0,Length(Source));First:=Position;Last:=Position+1;UncertainOwners:=False;UncertainCandidate:=False;
- while (First>0) and Identifier(Source[First]) do Dec(First);while (Last<=Length(Source)) and Identifier(Source[Last]) do Inc(Last);
- // Include complete constructed type receivers when scanning backwards.
- while (First>0) and (Source[First]='>') do begin
-  Angle:=1;Dec(First);
-  while (First>0) and (Angle>0) do begin if Source[First]='>' then Inc(Angle) else if Source[First]='<' then Dec(Angle);Dec(First);end;
-  if Angle<>0 then begin Reason:='The receiver expression is incomplete; choose a declaration explicitly.';Exit;end;
-  while (First>0) and Identifier(Source[First]) do Dec(First);
- end;
- Query:=Copy(Source,First+1,Last-First-1);if Query='' then Exit;
- if (First>0) and CharInSet(Source[First],[')',']','^','>']) then begin Reason:='The receiver expression is unsupported; choose a declaration explicitly.';Exit;end;
- Owner:='';Member:=Query;var Dot:=LastDelimiter('.',Query);if Dot>0 then begin Owner:=Copy(Query,1,Dot-1);Member:=Copy(Query,Dot+1,MaxInt);end;
+ if not ExtractReference(Source,Position,Query,Owner,Member,Reason,Last) then Exit;
  Candidates:=TList<TCodeElementInfo>.Create;Best:=TList<TCodeElementInfo>.Create;Args:=TList<string>.Create;Bindings:=TDictionary<string,string>.Create;
  try
   Receiver:=Owner;if Owner<>'' then begin
@@ -150,6 +199,7 @@ begin
    if I>Length(Source) then begin HasCall:=False;Reason:='The argument list is incomplete; overloads are shown without guessing.';end;
   end;
   BestScore:=MaxInt;for var E in Candidates do begin var Value:=Score(E);if Value=MaxInt then Continue;if Value>=10 then UncertainCandidate:=True;if Value<BestScore then begin Best.Clear;BestScore:=Value;end;if Value=BestScore then Best.Add(E);end;
+  if UncertainCandidate then begin Best.Clear;for var E in Candidates do if Score(E)<>MaxInt then Best.Add(E);end;
   if UncertainCandidate then Reason:='Argument types are incomplete; verify the declaration before navigating.';
   if UncertainOwners then Reason:='Generic receiver information is incomplete; choose a declaration explicitly.';
   if Best.Count>1 then Reason:='Several declarations match this context; choose an overload.';Result:=Best.ToArray;

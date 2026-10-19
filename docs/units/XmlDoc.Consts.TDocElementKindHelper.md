@@ -1,4 +1,4 @@
-﻿# record `TDocElementKindHelper`
+# record `TDocElementKindHelper`
 
 Helpers for declaration kind names and JSON metadata.
 

@@ -1,4 +1,4 @@
-﻿# class `TDocCoverageReport`
+# class `TDocCoverageReport`
 
 Analyzes documentation coverage and renders reports.
 
@@ -6,6 +6,8 @@ Analyzes documentation coverage and renders reports.
 
 | Name | Kind | Visibility | Description |
 |------|------|------------|-------------|
+| `Create` | method | public |  |
+| `FPlaceholderPrefix` | field | private |  |
 | `FSymbols` | field | private |  |
 | `Analyze` | method | public | Computes documentation coverage for the supplied units. |
 | `AnalyzeElement` | method | private |  |
@@ -16,6 +18,12 @@ Analyzes documentation coverage and renders reports.
 | `GetUndocumented` | method | public | Returns declarations that need documentation. |
 | `RenderConsoleReport` | method | public | Writes a coverage report to the console. |
 | `RenderHTMLReport` | method | public | Writes an HTML coverage report. |
+| `ThresholdFailure` | method | public | Explains failed comment-presence and readiness thresholds separately; empty means both pass. |
+| `PlaceholderPrefix` | property | public |  |
+
+### Create
+
+### FPlaceholderPrefix
 
 ### FSymbols
 
@@ -67,3 +75,9 @@ Writes an HTML coverage report.
 - **AStats** — Documentation coverage statistics.
 - **AItems** — Coverage entries to include.
 - **AOutputPath** — Destination file path.
+
+### ThresholdFailure
+
+Explains failed comment-presence and readiness thresholds separately; empty means both pass.
+
+### PlaceholderPrefix

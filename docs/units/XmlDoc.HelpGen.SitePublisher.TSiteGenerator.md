@@ -1,3 +1,3 @@
-﻿# type `TSiteGenerator`
+# type `TSiteGenerator`
 
 Supported static site generators.

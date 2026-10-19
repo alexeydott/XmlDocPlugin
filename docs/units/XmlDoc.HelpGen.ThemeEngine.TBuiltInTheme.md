@@ -1,3 +1,3 @@
-﻿# type `TBuiltInTheme`
+# type `TBuiltInTheme`
 
 Built-in documentation theme names.

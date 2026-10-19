@@ -1,4 +1,4 @@
-﻿# class `TIndexedModule`
+# class `TIndexedModule`
 
 ## Members
 

@@ -1,3 +1,3 @@
-﻿# type `TCoverageLevel`
+# type `TCoverageLevel`
 
 Documentation completeness level.

@@ -1,4 +1,4 @@
-﻿# XmlDoc.CodeGen
+# XmlDoc.CodeGen
 
 Documentation comment rendering and source-text replacement.
 

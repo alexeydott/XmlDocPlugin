@@ -1,4 +1,4 @@
-﻿# class `TMarkdownDocRenderer`
+# class `TMarkdownDocRenderer`
 
 Inherits from `TInterfacedObject`
 

@@ -1,4 +1,4 @@
-﻿# record `TDocIssue`
+# record `TDocIssue`
 
 ## Members
 

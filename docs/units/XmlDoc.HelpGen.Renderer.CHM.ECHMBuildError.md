@@ -1,3 +1,3 @@
-﻿# class `ECHMBuildError`
+# class `ECHMBuildError`
 
 Inherits from `Exception`

@@ -1,4 +1,4 @@
-﻿# class `TElementDocInfo`
+# class `TElementDocInfo`
 
 Documentation and signature metadata for a declaration.
 

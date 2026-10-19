@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Renderer.HMXP
+# XmlDoc.HelpGen.Renderer.HMXP
 
 Help and Manual project generation with topic hierarchy and bundled resources.
 

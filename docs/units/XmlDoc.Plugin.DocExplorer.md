@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.DocExplorer
+# XmlDoc.Plugin.DocExplorer
 
 Dockable unit documentation browser and editing host.
 

@@ -1,4 +1,4 @@
-param([string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,
+param([string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
  [ValidateSet('rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
@@ -17,7 +17,7 @@ function Test-Export([string]$Output){
  if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
 }
 $savedEnvironment=@{}
-foreach($name in 'XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+foreach($name in 'XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
 $boundsKey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\XmlDocPlugin\DocExplorer')
 try {foreach($name in 'Left','Top','Width','Height'){
@@ -27,6 +27,9 @@ Push-Location $repo
 try {
  $env:XMLDOC_E2E_LARGE_PROJECT=$LargeProject;$env:XMLDOC_E2E_LARGE_SOURCE=$LargeSource
  $env:XMLDOC_E2E_GROUP_ONLY=if($GroupOnly){'1'}else{''}
+ $env:XMLDOC_E2E_THEMES_ONLY=if($ThemesOnly){'1'}else{''}
+ $env:XMLDOC_E2E_DIAGNOSTICS_ONLY=if($DiagnosticsOnly){'1'}else{''}
+ $env:XMLDOC_E2E_BENCHMARK_MODULES=$BenchmarkModules.ToString()
  $env:XMLDOC_E2E_VERSION=(Get-Content (Join-Path $repo 'installer\Version.txt') -Raw).Trim()
  if($Installed){
   $manifest=Get-Content (Join-Path $build 'manifest.json') -Raw | ConvertFrom-Json
@@ -95,8 +98,8 @@ try {
   Get-Content "$out\runtime.log"
   if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name)"}
   "PASS IDE exit 0: $($t.Name)"
-  Test-Export "$out\documentation"
-  if($Installed -and (Get-Content "$out\documentation\topic-map.json" -Raw) -ne (Get-Content "$EvidenceDir\cli\topic-map.json" -Raw)){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
+  if(($BenchmarkModules -eq 0) -and !$DiagnosticsOnly){Test-Export "$out\documentation"}
+  if($Installed -and !$DiagnosticsOnly -and (Get-Content "$out\documentation\topic-map.json" -Raw) -ne (Get-Content "$EvidenceDir\cli\topic-map.json" -Raw)){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
   # Keep isolated profile and copied sources for reproducible failure analysis.
  }
 } finally {

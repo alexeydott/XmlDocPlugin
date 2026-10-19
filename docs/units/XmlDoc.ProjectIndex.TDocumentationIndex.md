@@ -1,4 +1,4 @@
-﻿# class `TDocumentationIndex`
+# class `TDocumentationIndex`
 
 ## Members
 
@@ -10,6 +10,7 @@
 | `FParsed` | field | private |  |
 | `FReused` | field | private |  |
 | `Elements` | method | public |  |
+| `IsCurrent` | method | public |  |
 | `IsCurrent` | method | public |  |
 | `ResetStatistics` | method | public |  |
 | `Revision` | method | private |  |
@@ -29,6 +30,10 @@
 
 ### Elements
 
+<a id="m51408737a6b16c55e50a"></a>
+### IsCurrent
+
+<a id="m83d86ccded47e796545d"></a>
 ### IsCurrent
 
 ### ResetStatistics

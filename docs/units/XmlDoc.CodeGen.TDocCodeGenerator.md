@@ -1,4 +1,4 @@
-﻿# class `TDocCodeGenerator`
+# class `TDocCodeGenerator`
 
 Renders documentation comments and applies them to source text.
 

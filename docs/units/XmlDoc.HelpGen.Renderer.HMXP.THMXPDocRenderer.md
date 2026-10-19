@@ -1,4 +1,4 @@
-﻿# class `THMXPDocRenderer`
+# class `THMXPDocRenderer`
 
 Inherits from `TInterfacedObject`
 

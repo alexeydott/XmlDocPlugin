@@ -1,4 +1,4 @@
-﻿# record `TRenderOptions`
+# record `TRenderOptions`
 
 Documentation output options shared by renderers.
 
@@ -6,7 +6,7 @@ Documentation output options shared by renderers.
 
 | Name | Kind | Visibility | Description |
 |------|------|------------|-------------|
-| `CSSTheme` | field | public |  |
+| `CSSTheme` | field | public | HTML and CHM CSS theme name; other output formats use their own presentation systems. |
 | `FooterText` | field | public |  |
 | `IncludeInheritanceTree` | field | public |  |
 | `IncludePrivate` | field | public |  |
@@ -20,6 +20,8 @@ Documentation output options shared by renderers.
 | `Title` | field | public |  |
 
 ### CSSTheme
+
+HTML and CHM CSS theme name; other output formats use their own presentation systems.
 
 ### FooterText
 

@@ -1,4 +1,4 @@
-﻿# class `TXmlDocEditorNotifier`
+# class `TXmlDocEditorNotifier`
 
 Inherits from `TNotifierObject`
 

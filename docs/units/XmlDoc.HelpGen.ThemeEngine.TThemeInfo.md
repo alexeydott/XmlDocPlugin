@@ -1,4 +1,4 @@
-﻿# record `TThemeInfo`
+# record `TThemeInfo`
 
 Theme CSS and metadata.
 

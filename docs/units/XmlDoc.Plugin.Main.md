@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.Main
+# XmlDoc.Plugin.Main
 
 IDE wizard registration, command wiring and plugin lifetime management.
 

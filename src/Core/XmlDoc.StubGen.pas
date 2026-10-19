@@ -186,7 +186,10 @@ var
     Result := AText;
     if not AText.StartsWith(CPlaceholderPrefix) then Exit;
     if AIncludePlaceholders then
-      Result := APlaceholderPrefix + Copy(AText, Length(CPlaceholderPrefix) + 1, MaxInt)
+      begin
+        if Trim(APlaceholderPrefix)='' then Result:=AText
+        else Result := APlaceholderPrefix + Copy(AText, Length(CPlaceholderPrefix) + 1, MaxInt);
+      end
     else
       Result := '';
   end;

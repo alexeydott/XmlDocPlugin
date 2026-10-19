@@ -1,4 +1,4 @@
-﻿# class `TCrossRefResolver`
+# class `TCrossRefResolver`
 
 Resolves documentation cref attributes against the parsed symbol catalog.
 

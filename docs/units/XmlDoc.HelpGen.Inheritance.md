@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Inheritance
+# XmlDoc.HelpGen.Inheritance
 
 Effective documentation inherited from base types, members and explicit references.
 

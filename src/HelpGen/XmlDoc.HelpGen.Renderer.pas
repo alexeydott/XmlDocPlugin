@@ -14,6 +14,7 @@ type
   /// <summary>Documentation output options shared by renderers.</summary>
   TRenderOptions = record
     NumericFileNames: Boolean;
+    /// <summary>HTML and CHM CSS theme name; other output formats use their own presentation systems.</summary>
     CSSTheme: string;
     FooterText: string;
     IncludeInheritanceTree: Boolean;

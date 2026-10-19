@@ -23,6 +23,8 @@ type
     chkAutoGenerate: TCheckBox;
     chkCollapseEmptySections: TCheckBox;
     chkShowSignatureHeader: TCheckBox;
+    cmbDocumentationTheme: TComboBox;
+    btnCreateTheme: TButton;
     cmbLanguage: TComboBox;
     cmbLogLevel: TComboBox;
     edtPlaceholderPrefix: TEdit;
@@ -41,12 +43,14 @@ type
     tsGeneral: TTabSheet;
     tsShortcuts: TTabSheet;
 
+    procedure btnCreateThemeClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure btnOKClick(Sender: TObject);
 
   private
     FShortcutsChanged: Boolean;
 
+    procedure LoadThemes(const Selected: string);
     procedure LoadSettings;
     procedure SaveSettings;
 
@@ -60,7 +64,7 @@ function ShowSettingsDialog: Boolean;
 
 implementation
 
-uses XmlDoc.Plugin.Localization, ToolsAPI,Vcl.ActnList,XmlDoc.ShortcutValidation,Vcl.Dialogs;
+uses System.IOUtils,XmlDoc.HelpGen.ThemeEngine,XmlDoc.I18n,XmlDoc.Plugin.Localization, ToolsAPI,Vcl.ActnList,XmlDoc.ShortcutValidation,Vcl.Dialogs;
 
 {$R *.dfm}
 
@@ -97,6 +101,32 @@ begin
   SaveSettings;
 end;
 
+procedure TSettingsDialog.LoadThemes(const Selected: string);
+begin
+  TThemeEngine.Instance.Reload;
+  cmbDocumentationTheme.Items.Clear;
+  for var Name in TThemeEngine.Instance.GetAvailableThemes do
+    cmbDocumentationTheme.Items.Add(Name);
+  cmbDocumentationTheme.ItemIndex := cmbDocumentationTheme.Items.IndexOf(Selected);
+  if cmbDocumentationTheme.ItemIndex < 0 then
+    cmbDocumentationTheme.ItemIndex := cmbDocumentationTheme.Items.Add(Selected);
+end;
+
+procedure TSettingsDialog.btnCreateThemeClick(Sender: TObject);
+var
+  Name, Path: string;
+begin
+  Name := '';
+  if not InputQuery(TI18n.Instance.T('Create CSS theme'), TI18n.Instance.T('New theme name:'), Name) then Exit;
+  try
+    Path := TThemeEngine.Instance.CreateCustomTheme(Name, cmbDocumentationTheme.Text);
+    LoadThemes(TPath.GetFileNameWithoutExtension(Path));
+    ShowMessage(TI18n.Instance.T('Theme saved:') + sLineBreak + Path);
+  except
+    on E: Exception do ShowMessage(E.Message);
+  end;
+end;
+
 procedure TSettingsDialog.LoadSettings;
 var
   LSettings: TGlobalSettings;
@@ -115,6 +145,7 @@ begin
   chkShowSignatureHeader.Checked := LSettings.Editor.ShowSignatureHeader;
 
   // Code Generation
+  LoadThemes(LSettings.General.DocumentationTheme);
   chkAutoGenerate.Checked := LSettings.Stub.AutoGenerate;
   edtPlaceholderPrefix.Text := LSettings.Stub.PlaceholderPrefix;
 
@@ -145,6 +176,7 @@ begin
   LSettings.Editor.ShowSignatureHeader := chkShowSignatureHeader.Checked;
 
   // Code Generation
+  LSettings.General.DocumentationTheme := cmbDocumentationTheme.Text;
   LSettings.Stub.AutoGenerate := chkAutoGenerate.Checked;
   LSettings.Stub.PlaceholderPrefix := edtPlaceholderPrefix.Text;
 

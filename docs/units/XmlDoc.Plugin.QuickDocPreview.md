@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.QuickDocPreview
+# XmlDoc.Plugin.QuickDocPreview
 
 Popup display of quick documentation near the source cursor.
 

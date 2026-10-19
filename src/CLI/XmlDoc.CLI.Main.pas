@@ -28,6 +28,8 @@ type
     SearchPaths,Defines:TArray<string>;
     CoverageEnabled: Boolean;
     CoverageMinPercent: Integer;
+    ReadyMinPercent: Integer;
+    PlaceholderPrefix: string;
     Directory: string;
     ExcludePatterns: TArray<string>;
     Formats: TArray<string>;
@@ -58,7 +60,7 @@ type
 
   public
     /// <summary>Runs the command and returns its exit code.</summary>
-    /// <returns>0 on success, 1 for failed documentation or coverage checks, 2 on error.</returns>
+    /// <returns>0 on success, 1 for a coverage/readiness threshold failure, 2 on error, 3 for new documentation problems.</returns>
     function Run: Integer;
   end;
 
@@ -82,6 +84,7 @@ begin
   FOptions.Title := 'API Reference';
   FOptions.InterfaceOnly := True;
   FOptions.Theme := 'default';
+  FOptions.PlaceholderPrefix := 'TODO: ';
   FOptions.SiteName := 'Documentation';
 
   I := 1;
@@ -153,9 +156,18 @@ begin
       FOptions.CoverageEnabled := True
     else if LArg = '--coverage-min' then
     begin
-      Inc(I);
-      if I <= ParamCount then
-        FOptions.CoverageMinPercent := StrToIntDef(ParamStr(I), 0);
+      Inc(I);if I>ParamCount then raise Exception.Create('Missing value for --coverage-min');
+      FOptions.CoverageMinPercent:=StrToInt(ParamStr(I));FOptions.CoverageEnabled:=True;
+    end
+    else if LArg = '--ready-min' then
+    begin
+      Inc(I);if I>ParamCount then raise Exception.Create('Missing value for --ready-min');
+      FOptions.ReadyMinPercent:=StrToInt(ParamStr(I));FOptions.CoverageEnabled:=True;
+    end
+    else if LArg = '--placeholder-prefix' then
+    begin
+      Inc(I);if I>ParamCount then raise Exception.Create('Missing value for --placeholder-prefix');
+      FOptions.PlaceholderPrefix:=ParamStr(I);
     end
     else if LArg = '--theme' then
     begin
@@ -184,6 +196,9 @@ begin
     PrintHelp;
     Exit;
   end;
+
+  if (FOptions.CoverageMinPercent<0) or (FOptions.CoverageMinPercent>100) or (FOptions.ReadyMinPercent<0) or (FOptions.ReadyMinPercent>100) then raise Exception.Create('Quality thresholds must be between 0 and 100.');
+  if FOptions.CoverageMinPercent>0 then FOptions.CoverageEnabled:=True;
 
   if Length(FOptions.Formats) = 0 then
     FOptions.Formats := TArray<string>.Create('html');
@@ -216,6 +231,8 @@ begin
   WriteLn('  --interface-only           Interface section only');
   WriteLn('  --coverage                 Generate coverage report');
   WriteLn('  --coverage-min <percent>   Minimum coverage (exit code 1 if below)');
+  WriteLn('  --ready-min <percent>      Minimum ready documentation percentage (0..100)');
+  WriteLn('  --placeholder-prefix <s>   Unfinished stub marker; TODO is always recognized');
   WriteLn('  --theme <name>             CSS theme name');
   WriteLn('  --site-name <name>         Site name for static site generators');
   WriteLn('  --quiet                    Suppress progress output');
@@ -348,7 +365,7 @@ begin
 
       if FOptions.CheckDocumentation or (FOptions.WriteBaselineFile<>'') or (FOptions.BaselineFile<>'') then begin
         Diagnostics:=TDocumentationReport.Create;
-        try Diagnostics.Analyze(LParser.Units,LRenderOpts.ProjectDir);
+        try Diagnostics.Analyze(LParser.Units,LRenderOpts.ProjectDir,FOptions.PlaceholderPrefix);
           NewIssues:=Diagnostics.NewIssueCount(FOptions.BaselineFile);
           Diagnostics.Save(TPath.Combine(FOptions.OutputDir,'diagnostics.json'));
           if FOptions.WriteBaselineFile<>'' then Diagnostics.SaveBaseline(FOptions.WriteBaselineFile);
@@ -385,6 +402,7 @@ begin
       if FOptions.CoverageEnabled then
       begin
         LCoverage := TDocCoverageReport.Create;
+        LCoverage.PlaceholderPrefix:=FOptions.PlaceholderPrefix;
         try
           LStats := LCoverage.Analyze(LParser.Units);
           LCoverage.RenderConsoleReport(LStats);
@@ -393,13 +411,8 @@ begin
           LCoverage.RenderHTMLReport(LStats, LItems,
             TPath.Combine(FOptions.OutputDir, 'coverage.html'));
 
-          if (FOptions.CoverageMinPercent > 0) and
-             (LStats.CoveragePercent < FOptions.CoverageMinPercent) then
-          begin
-            WriteLn(Format('Coverage %.1f%% is below minimum %d%%.',
-              [LStats.CoveragePercent, FOptions.CoverageMinPercent]));
-            Result := 1;
-          end;
+          var Failure:=TDocCoverageReport.ThresholdFailure(LStats,FOptions.CoverageMinPercent,FOptions.ReadyMinPercent);
+          if Failure<>'' then begin WriteLn(Failure);Result:=1;end;
         finally
           LStats.ByKind.Free;
           LStats.ByVisibility.Free;

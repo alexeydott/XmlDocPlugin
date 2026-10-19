@@ -1,4 +1,4 @@
-﻿# class `TDocumentation`
+# class `TDocumentation`
 
 ## Members
 

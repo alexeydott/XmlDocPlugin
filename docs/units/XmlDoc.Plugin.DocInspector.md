@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.DocInspector
+# XmlDoc.Plugin.DocInspector
 
 Dockable declaration documentation editor and source synchronization.
 

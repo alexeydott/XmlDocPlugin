@@ -88,3 +88,39 @@ a message loop or closing an unrelated hidden VCL form.
 Quick Documentation is deliberately conservative. Full Delphi overload binding,
 arbitrary MSBuild target execution and compilation of free-form example snippets
 are not substitutes for the Delphi compiler and are not claimed by this suite.
+
+## Editor acknowledgement and quality regressions
+
+The web suite covers unapplied XML remaining visible across Design acknowledgements,
+consecutive member-summary batches, text typed while an acknowledgement is pending,
+external-baseline review and seeded permutations of filtering, rejection and ACK order.
+The native IDE probe applies two consecutive summary batches through actual OTA buffers
+and checks browser initialization diagnostics independently of successful source parsing in a separate isolated IDE run.
+To run the browser failure/recovery scenario separately after building the packages:
+
+```powershell
+.\tests\e2e\Test-E2E.ps1 -SkipBuild -DiagnosticsOnly
+```
+
+Core tests cover trivia around qualified/generic receivers, uncertain generic overload
+candidates, configurable placeholder readiness and fresh dependency validation scopes.
+
+The complete runner also exercises the x64 CLI's presence and readiness gates. To run
+these checks against a particular CLI build:
+
+```powershell
+.\tests\Test-CLIQuality.ps1 -CLI C:\path\to\XmlDocGen.exe
+```
+
+For a reproducible large-group publication measurement:
+
+```powershell
+.\tests\e2e\Test-E2E.ps1 -BenchmarkModules 1000 -Targets rad12-x86,rad13-x86,rad13-x64
+```
+
+This creates two temporary projects with the requested total number of Pascal modules,
+a shared include in each project and source payload in every module. It measures cold
+and warm catalog runs and requires normal IDE shutdown. `finalFreshMs` measures the
+last synchronous source/dependency validation; `maxValidationUiPauseMs` measures the
+longest validation timer callback, including publication if it occurs in that callback.
+It does not claim a bound for arbitrary projects or replace testing a user's real group.

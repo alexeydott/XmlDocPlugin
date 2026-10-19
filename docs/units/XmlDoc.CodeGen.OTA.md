@@ -1,4 +1,4 @@
-﻿# XmlDoc.CodeGen.OTA
+# XmlDoc.CodeGen.OTA
 
 Undoable documentation writes through the IDE source editor.
 

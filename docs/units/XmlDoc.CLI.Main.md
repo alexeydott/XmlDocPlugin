@@ -1,4 +1,4 @@
-﻿# XmlDoc.CLI.Main
+# XmlDoc.CLI.Main
 
 Command-line documentation generation, project analysis and coverage checks.
 

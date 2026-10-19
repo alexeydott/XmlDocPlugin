@@ -1,4 +1,4 @@
-﻿# XmlDoc.Plugin.SettingsDialog
+# XmlDoc.Plugin.SettingsDialog
 
 Supported global editor preferences, stub options and command shortcuts.
 

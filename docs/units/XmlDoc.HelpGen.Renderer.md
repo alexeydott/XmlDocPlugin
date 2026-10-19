@@ -1,4 +1,4 @@
-﻿# XmlDoc.HelpGen.Renderer
+# XmlDoc.HelpGen.Renderer
 
 Common rendering interface and output options.
 

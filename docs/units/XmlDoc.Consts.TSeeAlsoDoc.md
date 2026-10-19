@@ -1,4 +1,4 @@
-﻿# record `TSeeAlsoDoc`
+# record `TSeeAlsoDoc`
 
 A related-symbol reference and optional display text.
 

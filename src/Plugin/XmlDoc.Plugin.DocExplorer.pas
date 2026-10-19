@@ -41,6 +41,7 @@ type
     FBrowserError: TMemo;
     FBrowserReady: Boolean;
     FParseError:string;
+    FWebViewError:string;
     FProjectDocs:TProjectDocumentation;
     FEditSessionId:string;
     FPinned:Boolean;
@@ -57,6 +58,7 @@ type
     procedure BrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HRESULT);
     procedure BrowserNavigationCompleted(Sender: TCustomEdgeBrowser; IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);
     procedure BrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
+    procedure UpdateErrorDisplay;
     function ParseEditorSource(const Source:string):Boolean;
     function BuildElementJson(const AElement: TCodeElementInfo): string;
     function BuildDocJson(const AElement: TCodeElementInfo): string;
@@ -226,13 +228,11 @@ end;
 procedure TDocExplorerForm.BrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HRESULT);
 begin
   FBrowserReady := False;
-  FBrowserError.Visible := Winapi.Windows.Failed(AResult) or (FParseError<>'');
-  if FBrowserError.Visible then FBrowserError.BringToFront;
-  if FParseError<>'' then FBrowserError.Text:=FParseError;
   if Winapi.Windows.Failed(AResult) then
   begin
-    FBrowserError.Text := 'WebView2 could not start (0x' + IntToHex(AResult, 8) +
+    FWebViewError := 'WebView2 could not start (0x' + IntToHex(AResult, 8) +
       '). Install the WebView2 Runtime and place the matching WebView2Loader.dll beside XmlDocPlugin.bpl.';
+    UpdateErrorDisplay;
     Exit;
   end;
   try
@@ -242,8 +242,8 @@ begin
   except
     on E: Exception do
     begin
-      FBrowserError.Text := 'Cannot load the documentation editor: ' + E.Message;
-      FBrowserError.Visible := True;FBrowserError.BringToFront;
+      FWebViewError := 'Cannot load the documentation editor: ' + E.Message;
+      UpdateErrorDisplay;
     end;
   end;
 end;
@@ -252,12 +252,27 @@ procedure TDocExplorerForm.BrowserNavigationCompleted(Sender: TCustomEdgeBrowser
   IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);
 begin
   if not IsSuccess then
-    Exit;
+  begin
+    FBrowserReady:=False;
+    FWebViewError:='Cannot load the documentation editor (navigation error '+IntToStr(Ord(WebErrorStatus))+').';
+    UpdateErrorDisplay;Exit;
+  end;
 
+  FWebViewError:='';
   FBrowserReady := True;
+  UpdateErrorDisplay;
   FBrowser.RestoreSections;
   FPendingLoad := False;
   RefreshFromCurrentEditor;
+end;
+
+procedure TDocExplorerForm.UpdateErrorDisplay;
+var MessageText:string;
+begin
+ MessageText:=FWebViewError;
+ if FParseError<>'' then begin if MessageText<>'' then MessageText:=MessageText+sLineBreak+sLineBreak;MessageText:=MessageText+FParseError;end;
+ if Assigned(FBrowserError) then begin FBrowserError.Text:=MessageText;FBrowserError.Visible:=MessageText<>'';if FBrowserError.Visible then FBrowserError.BringToFront;end;
+ if Assigned(FBrowser) then FBrowser.Visible:=(MessageText='') and FBrowserReady;
 end;
 
 function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
@@ -267,17 +282,14 @@ begin
     if not FDocParser.IsUpToDate(Source) or not SameText(FDocParser.SourceFileName,FCurrentFileName) or (FEditSessionId='') then begin FLastSource:='';FEditSessionId:=TGUID.NewGuid.ToString;end;
     FDocParser.ParseSource(Source,FCurrentFileName);
     FParseError:='';
-    if Assigned(FBrowserError) then FBrowserError.Visible:=False;
-    if Assigned(FBrowser) then FBrowser.Visible:=True;
+    UpdateErrorDisplay;
     Result:=True;
   except
     on E:Exception do begin
       FElements:=nil;FLastSource:='';
       if Assigned(FBrowser) then FBrowser.Visible:=False;
       FParseError:='Cannot parse '+FCurrentFileName+': '+E.Message;
-      if Assigned(FBrowserError) then begin
-        FBrowserError.Text:=FParseError;FBrowserError.Visible:=True;FBrowserError.BringToFront;
-      end;
+      UpdateErrorDisplay;
       Result:=False;
     end;
   end;

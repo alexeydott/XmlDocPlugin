@@ -247,7 +247,22 @@ const
   '  "Property value description...": "Описание значения свойства...",' +
   '  "Show more results": "Показать ещё результаты",' +
   '  "Theme follows the IDE": "Тема соответствует IDE",' +
-  '  "Generate a stub after typing ///": "Создавать заготовку при вводе ///"' +
+  '  "Generate a stub after typing ///": "Создавать заготовку при вводе ///",' +
+  '  "Default HTML / CHM theme:": "Тема HTML / CHM по умолчанию:",' +
+  '  "A project htmlTheme setting can override this default.": "Параметр htmlTheme проекта может переопределить это значение.",' +
+  '  "Create CSS theme...": "Создать CSS-тему...",' +
+  '  "Create CSS theme": "Создание CSS-темы",' +
+  '  "New theme name:": "Имя новой темы:",' +
+  '  "Theme saved:": "Тема сохранена:",' +
+  '  "The generation dialog shows the effective theme, including any project override.": "В диалоге генерации показана действующая тема с учётом настройки проекта.",' +
+  '  "HTML / CHM theme:": "Тема HTML / CHM:",' +
+  '  "Minimum comment presence (%):": "Минимальное наличие комментариев (%):",' +
+  '  "Minimum ready documentation (%):": "Минимальная готовность документации (%):",' +
+  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "Наличие учитывает комментарии. Готовность требует полных описаний без заготовок и ошибок. Ноль отключает порог.",' +
+  '  "Review current source": "Сравнить с текущим исходником",' +
+  '  "Unfinished placeholder documentation": "Незавершённая заготовка документации",' +
+  '  "Waiting for the previous bulk update": "Ожидание предыдущей групповой правки",' +
+  '  "Baseline updated — preview selected summaries before applying": "Исходная версия обновлена — проверьте выбранные описания перед применением"' +
   '}';
  CLocale_zh =
   '{' +
@@ -496,5 +511,20 @@ const
   '  "Property value description...": "属性值说明...",' +
   '  "Show more results": "显示更多结果",' +
   '  "Theme follows the IDE": "主题跟随 IDE",' +
-  '  "Generate a stub after typing ///": "键入 /// 后生成文档存根"' +
+  '  "Generate a stub after typing ///": "键入 /// 后生成文档存根",' +
+  '  "Default HTML / CHM theme:": "默认 HTML / CHM 主题：",' +
+  '  "A project htmlTheme setting can override this default.": "项目的 htmlTheme 设置可以覆盖此默认值。",' +
+  '  "Create CSS theme...": "创建 CSS 主题…",' +
+  '  "Create CSS theme": "创建 CSS 主题",' +
+  '  "New theme name:": "新主题名称：",' +
+  '  "Theme saved:": "主题已保存：",' +
+  '  "The generation dialog shows the effective theme, including any project override.": "生成对话框显示实际生效的主题，包括项目覆盖设置。",' +
+  '  "HTML / CHM theme:": "HTML / CHM 主题：",' +
+  '  "Minimum comment presence (%):": "最低注释覆盖率（%）：",' +
+  '  "Minimum ready documentation (%):": "最低文档就绪率（%）：",' +
+  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "覆盖率统计已有注释；就绪率要求说明完整，且无未完成的占位文本或错误。零表示禁用阈值。",' +
+  '  "Review current source": "检查当前源代码",' +
+  '  "Unfinished placeholder documentation": "文档包含未完成的占位文本",' +
+  '  "Waiting for the previous bulk update": "正在等待上一次批量更新",' +
+  '  "Baseline updated — preview selected summaries before applying": "基准已更新 — 应用前请预览所选摘要"' +
   '}';

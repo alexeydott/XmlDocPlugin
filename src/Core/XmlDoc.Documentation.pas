@@ -9,15 +9,19 @@ type
  end;
  TDocumentation=class
  public
-  class function Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>;const ProjectDir:string=''):TArray<TDocIssue>;static;
+  class function Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>;const ProjectDir:string='';const PlaceholderPrefix:string='TODO: '):TArray<TDocIssue>;static;
   class procedure Synchronize(const Element:TCodeElementInfo;Model:TXmlDocModel;const Renames:TArray<string>);static;
-  class function Meaningful(const Text:string):Boolean;static;
+  class function Meaningful(const Text:string;const PlaceholderPrefix:string='TODO: '):Boolean;static;
  end;
 implementation
 uses XmlDoc.XmlFragments,System.Generics.Collections,System.RegularExpressions,Xml.XMLIntf,Xml.XMLDoc,System.IOUtils,XmlDoc.SourceText;
-class function TDocumentation.Meaningful(const Text:string):Boolean;
-begin Result:=(Trim(Text)<>'') and not TRegEx.IsMatch(Text,'(?i)\bTODO\b');end;
-class function TDocumentation.Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>;const ProjectDir:string):TArray<TDocIssue>;
+class function TDocumentation.Meaningful(const Text:string;const PlaceholderPrefix:string):Boolean;
+begin
+ var Prefix:=Trim(PlaceholderPrefix);if Prefix='' then Prefix:='TODO:';
+ Result:=(Trim(Text)<>'') and not TRegEx.IsMatch(Text,'(?i)\bTODO\b') and
+  not TRegEx.IsMatch(Text,'(?i)(?:^|>)[\s]*'+TRegEx.Escape(Prefix));
+end;
+class function TDocumentation.Analyze(const Element:TCodeElementInfo;Model:TXmlDocModel;const Symbols:TArray<TCodeElementInfo>;const ProjectDir,PlaceholderPrefix:string):TArray<TDocIssue>;
 var Issues:TList<TDocIssue>;Names,Seen:TDictionary<string,Boolean>;D:IXMLDocument;
  P:TParamInfo;G:string;I:Integer;PD:TParamDoc;TP:TTypeParamDoc;
  procedure Add(const Code,Message,Fix:string;const Token:string='');
@@ -80,11 +84,11 @@ begin
    for PD in Model.Params do begin
     if not Names.ContainsKey(LowerCase(PD.Name)) then Add('XD002','Unknown param '+PD.Name,'map-name',PD.Name);
     if Seen.ContainsKey(LowerCase(PD.Name)) then Add('XD003','Duplicate param '+PD.Name,'edit-xml');
-    if not Meaningful(PD.Description) then Add('XD004','Missing param description '+PD.Name,'edit-description',PD.Name);
+    if not Meaningful(PD.Description,PlaceholderPrefix) then Add('XD004','Missing param description '+PD.Name,'edit-description',PD.Name);
     Seen.AddOrSetValue(LowerCase(PD.Name),True);
    end;
    for P in Element.Params do if not Seen.ContainsKey(LowerCase(P.Name)) then Add('XD004','Missing param '+P.Name,'synchronize');
-   for TP in Model.TypeParams do if not Meaningful(TP.Description) then Add('XD004','Missing typeparam description '+TP.Name,'edit-description',TP.Name);
+   for TP in Model.TypeParams do if not Meaningful(TP.Description,PlaceholderPrefix) then Add('XD004','Missing typeparam description '+TP.Name,'edit-description',TP.Name);
    for G in Element.GenericParams do begin
     I:=0;for TP in Model.TypeParams do if SameText(TP.Name,G) then Inc(I);
     if I=0 then Add('XD004','Missing typeparam '+G,'synchronize');
@@ -92,12 +96,12 @@ begin
    end;
    if Trim(Model.Summary)='' then Add('XD000','Missing summary description','edit-description');
    if Model.InheritedFrom.StartsWith('Ambiguous') then Add('XD012',Model.InheritedFrom,'choose-inheritance');
-   if TRegEx.IsMatch(Model.ToXml,'(?i)\bTODO\b') then Add('XD008','Unfinished TODO documentation','edit-description');
+   if not Meaningful(Model.ToXml,PlaceholderPrefix) and (Trim(Model.ToXml)<>'') then Add('XD008','Unfinished placeholder documentation','edit-description');
    if (Model.Returns<>'') and ((Element.Kind<>dekMethod) or (Element.ReturnType='')) then Add('XD009','Returns is not valid for this declaration','edit-xml');
    if (Model.Value<>'') and (Element.Kind<>dekProperty) then Add('XD009','Value is only valid for a property','edit-xml');
    if (Element.Kind=dekUnit) and (Model.Exceptions.Count>0) then Add('XD009','Exceptions are not valid for a unit','edit-xml');
-   if (Element.Kind=dekMethod) and (Element.ReturnType<>'') and not Meaningful(Model.Returns) then Add('XD010','Missing result description','synchronize');
-   if (Element.Kind=dekProperty) and not Meaningful(Model.Value) then Add('XD010','Missing property value description','synchronize');
+   if (Element.Kind=dekMethod) and (Element.ReturnType<>'') and not Meaningful(Model.Returns,PlaceholderPrefix) then Add('XD010','Missing result description','synchronize');
+   if (Element.Kind=dekProperty) and not Meaningful(Model.Value,PlaceholderPrefix) then Add('XD010','Missing property value description','synchronize');
    D:=LoadXMLData('<doc>'+Model.ToXml+'</doc>');Visit(D.DocumentElement);
   end;
   Result:=Issues.ToArray;

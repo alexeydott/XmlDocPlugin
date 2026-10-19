@@ -1,4 +1,4 @@
-﻿# XmlDoc.XmlFragments
+# XmlDoc.XmlFragments
 
 Validated XML fragment loading and serialization helpers.
 

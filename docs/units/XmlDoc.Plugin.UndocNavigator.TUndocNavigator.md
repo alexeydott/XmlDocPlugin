@@ -1,4 +1,4 @@
-﻿# class `TUndocNavigator`
+# class `TUndocNavigator`
 
 Navigates undocumented declarations using the configured plugin shortcuts.
 

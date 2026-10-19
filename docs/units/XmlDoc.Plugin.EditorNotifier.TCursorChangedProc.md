@@ -1,4 +1,4 @@
-﻿# type `TCursorChangedProc`
+# type `TCursorChangedProc`
 
 Callback receiving the cursor and source snapshot.
 

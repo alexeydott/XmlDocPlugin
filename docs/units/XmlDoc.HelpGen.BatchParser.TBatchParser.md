@@ -1,4 +1,4 @@
-﻿# class `TBatchParser`
+# class `TBatchParser`
 
 Parses Pascal files into a unit, type and member documentation hierarchy.
 

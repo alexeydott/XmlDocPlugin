@@ -1,4 +1,4 @@
-﻿# class `TLogger`
+# class `TLogger`
 
 Thread-safe file logger with rotation and configurable severity filtering.
 
