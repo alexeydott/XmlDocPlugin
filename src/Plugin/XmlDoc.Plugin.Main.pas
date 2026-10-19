@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.Main;
+﻿/// <summary>IDE wizard registration, command wiring and plugin lifetime management.</summary>
+unit XmlDoc.Plugin.Main;
 
 interface
 
@@ -15,7 +16,7 @@ uses
   XmlDoc.Plugin.UndocNavigator;
 
 type
-  /// <summary>XmlDoc 플러그인 메인 위저드. IDE 등록/해제 및 메뉴 통합을 담당합니다.</summary>
+  /// <summary>Registers IDE services, menus and editor notifications and owns plugin lifetime.</summary>
   TXmlDocWizard = class(TNotifierObject, IOTAWizard, IOTAMenuWizard)
   private
     FDocExplorer: TDocExplorerForm;
@@ -240,7 +241,7 @@ begin
  try
   try ConfigureDeclarationContext(Parser,nil,FileName);Parser.ParseSource(Source,FileName);except Exit;end;
   Element:=Parser.GetElementAtLine(ALine);if (Element.Name='') or (Trim(Element.ExistingDocXml)<>'') then Exit;
-  Model:=TDocStubGenerator.GenerateStub(Element);
+  Model:=TDocStubGenerator.GenerateStub(Element, TPluginSettings.Instance.Global.Stub.PlaceholderPrefix, TPluginSettings.Instance.Global.Stub.IncludePlaceholders);
   try TDocOTAWriter.ApplyToEditor(Editor,Element,Model);finally Model.Free;end;
  finally Parser.Free;end;
 end;
@@ -280,7 +281,7 @@ begin
     if LElement.ExistingDocXml <> '' then
       Exit;
 
-    LStub := TDocStubGenerator.GenerateStub(LElement);
+    LStub := TDocStubGenerator.GenerateStub(LElement, TPluginSettings.Instance.Global.Stub.PlaceholderPrefix, TPluginSettings.Instance.Global.Stub.IncludePlaceholders);
     try
       TDocOTAWriter.ApplyToEditor(LEditor, LElement, LStub);
     finally

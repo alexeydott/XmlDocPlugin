@@ -1,4 +1,5 @@
-﻿unit XmlDoc.I18n;
+﻿/// <summary>Native interface localization with embedded and external JSON translations.</summary>
+unit XmlDoc.I18n;
 
 interface
 
@@ -10,7 +11,7 @@ uses
   System.Generics.Collections;
 
 type
-  /// <summary>국제화(i18n) 싱글톤. JSON 언어 파일에서 번역 문자열을 로드합니다.</summary>
+  /// <summary>Loads native UI translations from JSON locale resources or files.</summary>
   TI18n = class
   strict private
     class var FInstance: TI18n;
@@ -32,26 +33,26 @@ type
     class function Instance: TI18n;
     class procedure ReleaseInstance;
 
-    /// <summary>번역 문자열을 조회합니다. 키가 없으면 키 자체를 반환합니다.</summary>
-    /// <param name="AKey">dot-separated 키 (예: 'menu.generate_help')</param>
-    /// <returns>번역된 문자열</returns>
+    /// <summary>Looks up a translation, returning the key when no translation exists.</summary>
+    /// <param name="AKey">Dot-separated translation key, for example menu.generate_help.</param>
+    /// <returns>Translated text.</returns>
     function T(const AKey: string): string; overload;
     function TranslateText(const Text:string):string;
     procedure TranslateComponent(Component:TComponent);
     class function NormalizeLanguage(const Language:string):string;static;
 
-    /// <summary>포맷 인자를 포함하는 번역 문자열을 조회합니다.</summary>
-    /// <param name="AKey">dot-separated 키</param>
-    /// <param name="AArgs">포맷 인자 배열</param>
-    /// <returns>포맷된 번역 문자열</returns>
+    /// <summary>Formats a translated message using the supplied arguments.</summary>
+    /// <param name="AKey">Dot-separated translation key.</param>
+    /// <param name="AArgs">Formatting arguments.</param>
+    /// <returns>Formatted translated text.</returns>
     function T(const AKey: string; const AArgs: array of const): string; overload;
 
-    /// <summary>언어를 변경합니다. 'auto'이면 시스템 언어를 감지합니다.</summary>
-    /// <param name="ALang">언어 코드 (예: 'ko', 'en', 'ja', 'auto')</param>
+    /// <summary>Selects a UI language; auto detects the user's locale.</summary>
+    /// <param name="ALang">Language code: en, ko, ja, ru, zh or auto.</param>
     procedure SetLanguage(const ALang: string);
 
-    /// <summary>로케일 파일이 있는 디렉토리를 설정합니다.</summary>
-    /// <param name="ADir">디렉토리 경로</param>
+    /// <summary>Sets the directory used for external locale files.</summary>
+    /// <param name="ADir">Directory path.</param>
     procedure SetLocalesDir(const ADir: string);
 
     property CurrentLanguage: string read FCurrentLanguage;

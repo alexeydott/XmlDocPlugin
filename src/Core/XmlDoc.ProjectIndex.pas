@@ -1,3 +1,4 @@
+/// <summary>Incremental declaration indexing with source and dependency validation.</summary>
 unit XmlDoc.ProjectIndex;
 interface
 uses System.SysUtils,System.Generics.Collections,XmlDoc.Consts,XmlDoc.Parser;

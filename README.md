@@ -230,6 +230,16 @@ docs/           Generated API documentation
 resources/      Built web resources
 ```
 
+## API reference
+
+The [generated API reference](docs/README.md) covers the current units and public
+declarations in `src`. Browse [HTML](docs/index.html) or Markdown pages under
+`docs/units`. Regenerate it with `./build-api-docs.ps1`; staging files and compiler
+outputs remain outside the checkout. The script validates unit coverage, local
+resources and HTML link anchors before replacing generated pages.
+
+See [Settings](docs/user-guide.md#settings) for the supported options and their effects.
+
 ## Building
 
 ### Prerequisites
@@ -238,6 +248,7 @@ resources/      Built web resources
 - Node.js 18+ (for building the web editor)
 - Microsoft Edge WebView2 Runtime (Setup offers to install it when missing)
 - PowerShell 7 (`pwsh`) for build scripts and the offline guide
+- Python 3.9+ for API reference validation (`build-api-docs.ps1`)
 
 ### Build Steps
 

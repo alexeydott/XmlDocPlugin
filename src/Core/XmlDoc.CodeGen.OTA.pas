@@ -1,4 +1,5 @@
-﻿unit XmlDoc.CodeGen.OTA;
+﻿/// <summary>Undoable documentation writes through the IDE source editor.</summary>
+unit XmlDoc.CodeGen.OTA;
 
 interface
 
@@ -11,20 +12,20 @@ uses
   XmlDoc.CodeGen;
 
 type
-  /// <summary>IOTAEditWriter를 사용해 주석을 소스 에디터에 직접 적용합니다 (Undo 지원).</summary>
+  /// <summary>Applies documentation through an undoable IDE source writer.</summary>
   TDocOTAWriter = class
   private
     class function GetEditorPosition(const AEditor: IOTASourceEditor; ALine, ACol: Integer): Integer;
   public
-    /// <summary>IOTAEditWriter를 통해 주석 블록을 소스 에디터에 적용합니다.</summary>
-    /// <param name="AEditor">대상 소스 에디터</param>
-    /// <param name="AElement">대상 코드 요소 정보</param>
-    /// <param name="AModel">적용할 문서 모델</param>
-    /// <returns>성공 여부</returns>
+    /// <summary>Replaces or inserts the selected declaration's comment through an undoable writer.</summary>
+    /// <param name="AEditor">Source editor to modify.</param>
+    /// <param name="AElement">Target declaration and source location.</param>
+    /// <param name="AModel">Documentation model to apply.</param>
+    /// <returns>True if the operation succeeds.</returns>
     class function ApplyToEditor(const AEditor: IOTASourceEditor; const AElement: TCodeElementInfo; const AModel: TXmlDocModel): Boolean;
 
-    /// <summary>현재 탑뷰의 소스 에디터를 반환합니다.</summary>
-    /// <returns>IOTASourceEditor. 없으면 nil</returns>
+    /// <summary>Returns the source editor in the active IDE view.</summary>
+    /// <returns>The source editor, or nil if no source view is active.</returns>
     class function GetCurrentSourceEditor: IOTASourceEditor;
   end;
 

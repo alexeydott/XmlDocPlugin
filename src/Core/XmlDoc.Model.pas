@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Model;
+﻿/// <summary>Structured XML documentation with JSON transport and preservation of original XML.</summary>
+unit XmlDoc.Model;
 
 interface
 
@@ -12,7 +13,7 @@ uses
   XmlDoc.Consts;
 
 type
-  /// <summary>XML Documentation 주석의 구조화된 모델</summary>
+  /// <summary>Structured documentation model with XML-preserving serialization.</summary>
   TXmlDocModel = class
   private
     FExamples: TList<TExampleDoc>;
@@ -49,28 +50,28 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    /// <summary>다른 모델의 내용을 복사합니다.</summary>
-    /// <param name="ASource">복사할 원본 모델</param>
+    /// <summary>Copies documentation and XML metadata from another model.</summary>
+    /// <param name="ASource">Model to copy.</param>
     procedure Assign(ASource: TXmlDocModel);
     procedure MergeMissing(ASource:TXmlDocModel;const SourceSymbol:string);
 
-    /// <summary>모든 필드를 초기화합니다.</summary>
+    /// <summary>Clears documentation fields and source XML metadata.</summary>
     procedure Clear;
 
-    /// <summary>JSON 문자열에서 모델을 로드합니다 (WebView 수신용).</summary>
-    /// <param name="AJson">파싱할 JSON 문자열</param>
+    /// <summary>Loads documentation received from the embedded editor as JSON.</summary>
+    /// <param name="AJson">JSON payload to parse.</param>
     procedure FromJson(const AJson: string);
 
-    /// <summary>XML 문자열에서 모델을 로드합니다.</summary>
-    /// <param name="AXml">파싱할 XML 문자열 (doc 루트 또는 개별 태그들)</param>
+    /// <summary>Loads documentation from an XML fragment.</summary>
+    /// <param name="AXml">XML with a doc root or individual documentation tags.</param>
     procedure LoadFromXml(const AXml: string);
 
-    /// <summary>모델을 XML 문자열로 변환합니다.</summary>
-    /// <returns>XML 문서 주석 형식의 문자열</returns>
+    /// <summary>Serializes documentation while preserving supported original XML metadata.</summary>
+    /// <returns>Documentation XML fragment.</returns>
     function ToXml: string;
 
-    /// <summary>모델을 JSON 문자열로 변환합니다 (WebView 전달용).</summary>
-    /// <returns>JSON 형식 문자열</returns>
+    /// <summary>Serializes documentation for the embedded editor.</summary>
+    /// <returns>JSON representation of the model.</returns>
     function ToJson: string;
 
     property InheritedFrom:string read FInheritedFrom write FInheritedFrom;

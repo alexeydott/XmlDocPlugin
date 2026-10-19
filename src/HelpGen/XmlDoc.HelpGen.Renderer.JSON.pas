@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Renderer.JSON;
+﻿/// <summary>Machine-readable documentation hierarchy export.</summary>
+unit XmlDoc.HelpGen.Renderer.JSON;
 
 interface
 
@@ -15,7 +16,7 @@ uses
   XmlDoc.HelpGen.Renderer;
 
 type
-  /// <summary>기계 판독용 JSON 스키마를 생성합니다.</summary>
+  /// <summary>Serializes the documentation hierarchy as machine-readable JSON.</summary>
   TJSONDocRenderer = class(TInterfacedObject, IDocRenderer)
   private
     function DocModelToJson(const ADoc: TXmlDocModel): TJSONObject;

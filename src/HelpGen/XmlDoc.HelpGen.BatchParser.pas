@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.BatchParser;
+﻿/// <summary>Batch parsing of source files into documentation units, types and members.</summary>
+unit XmlDoc.HelpGen.BatchParser;
 
 interface
 
@@ -12,7 +13,7 @@ uses
   XmlDoc.HelpGen.Types;
 
 type
-  /// <summary>다수의 .pas 파일을 배치 파싱하여 유닛/타입/멤버 문서 계층을 구축합니다.</summary>
+  /// <summary>Parses Pascal files into a unit, type and member documentation hierarchy.</summary>
   TBatchParser = class
   private
     FSymbolIndex: TDictionary<string, TElementDocInfo>;
@@ -33,8 +34,8 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    /// <summary>파일 목록을 모두 파싱합니다.</summary>
-    /// <param name="AFiles">절대 경로 .pas 파일 배열</param>
+    /// <summary>Parses each supplied file using the configured project context.</summary>
+    /// <param name="AFiles">Absolute paths of Pascal source files.</param>
     procedure ParseAll(const AFiles: TArray<string>);
 
     property ParsedElements:TFunc<string,TArray<TCodeElementInfo>> read FParsedElements write FParsedElements;

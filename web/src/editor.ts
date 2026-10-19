@@ -380,9 +380,26 @@ function addSeeAlsoRow(container: HTMLElement, cref = '', description = ''): voi
 // ────────────────────────────────────────────
 // Section Collapsing
 // ────────────────────────────────────────────
-function setupCollapsible(): void {
+export function setupCollapsible(): void {
   const states: Record<string, boolean> = {};
+  let collapseEmpty = false;
+  const applyDefaults = () => {
+    const doc = currentElement ? collectDoc() : currentDoc;
+    const empty: Record<string, boolean> = {
+      'summary-section': !doc.summary?.trim(), 'remarks-section': !doc.remarks?.trim(),
+      'returns-section': !doc.returns?.trim(), 'value-section': !doc.value?.trim(),
+      'params-section': !doc.params?.some(p => p.description?.trim()),
+      'typeparams-section': !doc.typeParams?.some(p => p.description?.trim()),
+      'examples-section': !doc.examples?.length, 'exceptions-section': !doc.exceptions?.length,
+      'seealso-section': !doc.seeAlso?.length,
+    };
+    document.querySelectorAll<HTMLElement>('.doc-section[id]').forEach(section => {
+      section.classList.toggle('collapsed', states[section.id] ?? (collapseEmpty && !!empty[section.id]));
+    });
+  };
+  window.addEventListener('documentationLoaded', applyDefaults);
   (window as any).xmlDocSections = {
+    defaults(enabled: boolean) { collapseEmpty = enabled; applyDefaults(); },
     restore(saved: Record<string, boolean>) {
       document.querySelectorAll<HTMLElement>('.doc-section[id]').forEach(section => {
         if (typeof saved?.[section.id] === 'boolean') {
@@ -550,7 +567,8 @@ export function init(): void {
   };
   darkMode.addEventListener('change', applyTheme);
   (window as any).xmlDocSettings = {
-    apply(settings: { theme: string; fontSize: number; showSignatureHeader: boolean; language?:string; saveDebounceMs?:number }) {
+    apply(settings: { theme: string; fontSize: number; showSignatureHeader: boolean; language?:string; saveDebounceMs?:number; collapseEmptySections?:boolean }) {
+      (window as any).xmlDocSections?.defaults(settings.collapseEmptySections ?? false);
       setLanguage(settings.language??'en');
       bridge.saveDebounceMs=Math.max(0,settings.saveDebounceMs??500);
       theme = ['light', 'dark', 'auto'].includes(settings.theme) ? settings.theme : 'light';

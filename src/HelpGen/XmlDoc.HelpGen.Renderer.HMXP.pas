@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Renderer.HMXP;
+﻿/// <summary>Help and Manual project generation with topic hierarchy and bundled resources.</summary>
+unit XmlDoc.HelpGen.Renderer.HMXP;
 
 interface
 

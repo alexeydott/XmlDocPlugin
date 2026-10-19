@@ -1,4 +1,5 @@
-﻿unit XmlDoc.CLI.Main;
+﻿/// <summary>Command-line documentation generation, project analysis and coverage checks.</summary>
+unit XmlDoc.CLI.Main;
 
 interface
 
@@ -20,7 +21,7 @@ uses
   XmlDoc.HelpGen.Coverage;
 
 type
-  /// <summary>CLI 옵션</summary>
+  /// <summary>Command-line generation options.</summary>
   TCLIOptions = record
     CheckDocumentation:Boolean;
     BaselineFile,WriteBaselineFile,Configuration,Platform:string;
@@ -42,7 +43,7 @@ type
     Verbose: Boolean;
   end;
 
-  /// <summary>커맨드라인 문서 생성기 메인 클래스</summary>
+  /// <summary>Parses command-line options and runs documentation generation and checks.</summary>
   TCLIMain = class
   private
     FOptions: TCLIOptions;
@@ -56,8 +57,8 @@ type
       const ARenderOpts: TRenderOptions);
 
   public
-    /// <summary>CLI 실행. 종료 코드를 반환합니다.</summary>
-    /// <returns>0: 성공, 1: 커버리지 미달, 2: 에러</returns>
+    /// <summary>Runs the command and returns its exit code.</summary>
+    /// <returns>0 on success, 1 for failed documentation or coverage checks, 2 on error.</returns>
     function Run: Integer;
   end;
 

@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.DeclarationContext;
+﻿/// <summary>Project-aware declaration context for IDE documentation commands.</summary>
+unit XmlDoc.Plugin.DeclarationContext;
 interface
 uses XmlDoc.Parser,XmlDoc.Consts,XmlDoc.ProjectContext,ToolsAPI;
 function DocumentationProjectForFile(const FileName:string):IOTAProject;

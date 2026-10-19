@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.EditorNotifier;
+﻿/// <summary>Debounced IDE editor, cursor and source change notifications.</summary>
+unit XmlDoc.Plugin.EditorNotifier;
 
 interface
 
@@ -10,13 +11,13 @@ uses
   DockForm;
 
 type
-  /// <summary>커서 변경 콜백 시그니처</summary>
-  /// <param name="ALine">현재 커서 행 (1-based)</param>
-  /// <param name="ASource">현재 에디터 소스 전체</param>
-  /// <param name="AFileName">현재 파일 이름</param>
+  /// <summary>Callback receiving the cursor and source snapshot.</summary>
+  /// <param name="ALine">One-based current cursor line.</param>
+  /// <param name="ASource">Complete current source snapshot.</param>
+  /// <param name="AFileName">Current source file path.</param>
   TCursorChangedProc = reference to procedure(ALine: Integer; const ASource, AFileName: string);
 
-  /// <summary>에디터 이벤트 감시. 커서 이동 시 디바운싱 적용 후 콜백을 호출합니다.</summary>
+  /// <summary>Observes editor events and debounces source and cursor notifications.</summary>
   TXmlDocEditorNotifier = class(TNotifierObject, INTAEditServicesNotifier)
   private
     FDebounceTimer: TTimer;

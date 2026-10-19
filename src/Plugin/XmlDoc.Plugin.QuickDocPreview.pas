@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.QuickDocPreview;
+﻿/// <summary>Popup display of quick documentation near the source cursor.</summary>
+unit XmlDoc.Plugin.QuickDocPreview;
 
 interface
 
@@ -13,7 +14,7 @@ uses
   XmlDoc.Model;
 
 type
-  /// <summary>Help Insight 스타일의 풍선 도움말 미리보기</summary>
+  /// <summary>Popup preview for quick documentation.</summary>
   TQuickDocPreview = class
   private
     FHintWindow: THintWindow;
@@ -24,13 +25,13 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    /// <summary>풍선 도움말을 표시합니다.</summary>
-    /// <param name="AElement">코드 요소 정보</param>
-    /// <param name="AModel">문서 모델</param>
-    /// <param name="AScreenPos">스크린 좌표</param>
+    /// <summary>Shows a documentation popup at the supplied screen position.</summary>
+    /// <param name="AElement">Declaration metadata.</param>
+    /// <param name="AModel">Documentation to display.</param>
+    /// <param name="AScreenPos">Screen coordinates for the popup.</param>
     procedure ShowPreview(const AElement: TCodeElementInfo; const AModel: TXmlDocModel; AScreenPos: TPoint);
 
-    /// <summary>풍선 도움말을 숨깁니다.</summary>
+    /// <summary>Hides the documentation popup.</summary>
     procedure HidePreview;
 
     property Visible: Boolean read FVisible;

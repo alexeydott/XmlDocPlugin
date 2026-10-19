@@ -1,3 +1,4 @@
+/// <summary>Documentation markup conversion and safe rendering helpers.</summary>
 unit XmlDoc.Markup;
 interface
 uses System.SysUtils;

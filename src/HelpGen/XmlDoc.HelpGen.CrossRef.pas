@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.CrossRef;
+﻿/// <summary>Documentation cross-reference resolution across units and declarations.</summary>
+unit XmlDoc.HelpGen.CrossRef;
 
 interface
 
@@ -11,7 +12,7 @@ uses
   XmlDoc.HelpGen.Types;
 
 type
-  /// <summary>미해결 참조 정보</summary>
+  /// <summary>A documentation reference that could not be resolved.</summary>
   TUnresolvedRef = record
     Cref: string;
     SourceElement: string;
@@ -19,7 +20,7 @@ type
     Line: Integer;
   end;
 
-  /// <summary>see/seealso/exception cref 속성을 실제 심볼 위치로 해석합니다.</summary>
+  /// <summary>Resolves documentation cref attributes against the parsed symbol catalog.</summary>
   TCrossRefResolver = class
   private
     FSymbolIndex: TDictionary<string, TElementDocInfo>;
@@ -30,15 +31,15 @@ type
     constructor Create(ASymbolIndex: TDictionary<string, TElementDocInfo>);
     destructor Destroy; override;
 
-    /// <summary>cref 문자열을 심볼 풀네임으로 해석합니다.</summary>
-    /// <param name="ACref">원본 cref 값</param>
-    /// <param name="AContext">참조가 포함된 요소</param>
-    /// <returns>해석된 풀네임. 실패 시 원본 cref</returns>
+    /// <summary>Resolves a reference in the context of its containing declaration.</summary>
+    /// <param name="ACref">Original cref attribute value.</param>
+    /// <param name="AContext">Declaration containing the reference.</param>
+    /// <returns>Resolved full name, or the original reference if resolution fails.</returns>
     function ResolveReference(const Cref,UnitName:string):string;
     function ResolveCref(const ACref: string; const AContext: TElementDocInfo): string;
 
-    /// <summary>모든 유닛의 문서 모델에서 cref 참조를 일괄 해석합니다.</summary>
-    /// <param name="AUnits">대상 유닛 목록</param>
+    /// <summary>Resolves references across the supplied units.</summary>
+    /// <param name="AUnits">Units to process.</param>
     procedure ResolveAllRefs(const AUnits: TObjectList<TUnitDocInfo>);
 
     property Unresolved: TList<TUnresolvedRef> read FUnresolved;

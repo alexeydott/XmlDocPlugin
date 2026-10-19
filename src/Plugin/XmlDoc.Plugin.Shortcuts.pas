@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.Shortcuts;
+﻿/// <summary>IDE menu commands, keyboard bindings and callback registration.</summary>
+unit XmlDoc.Plugin.Shortcuts;
 
 interface
 
@@ -11,7 +12,7 @@ uses
   XmlDoc.Plugin.Settings;
 
 type
-  /// <summary>IDE 단축키 바인딩. IOTAKeyboardBinding을 구현하여 단축키를 등록합니다.</summary>
+  /// <summary>Registers plugin keyboard commands through IOTAKeyboardBinding.</summary>
   TXmlDocKeyBinding = class(TNotifierObject, IOTAKeyboardBinding)
   private
     procedure DoGenerateHelp(const Context: IOTAKeyContext; KeyCode: TShortcut; var BindingResult: TKeyBindingResult);
@@ -25,7 +26,7 @@ type
     function GetName: string;
   end;
 
-  /// <summary>IDE 메인 메뉴에 XmlDoc 서브메뉴를 추가합니다.</summary>
+  /// <summary>Owns the plugin's IDE menu commands.</summary>
   TXmlDocMenuIntegration = class(TComponent)
   private
     FMiCoverageReport: TMenuItem;
@@ -59,54 +60,54 @@ type
     destructor Destroy; override;
 
     /// <summary>
-    /// <para>IDE 메뉴에 XmlDoc 항목을 추가합니다.</para>
+    /// <para>Adds plugin commands to the IDE menu.</para>
     /// </summary>
     procedure InstallMenu;
-    /// <summary>기존 메뉴 아이템의 ShortCut을 현재 설정값으로 갱신합니다.</summary>
+    /// <summary>Updates menu shortcuts from the current preferences.</summary>
     procedure RefreshShortcuts;
-    /// <summary>IDE 메뉴에서 XmlDoc 항목을 제거합니다.</summary>
+    /// <summary>Removes plugin commands from the IDE menu.</summary>
     procedure UninstallMenu;
   end;
 
-/// <summary>Doc Inspector 토글 콜백을 설정합니다.</summary>
-/// <param name="ACallback">토글 후 Visible 상태를 반환하는 콜백</param>
+/// <summary>Registers the Inspector toggle callback.</summary>
+/// <param name="ACallback">Callback returning visibility after toggling the view.</param>
 procedure SetDocumentationCommandCallback(ACallback:TProc<string>);
 procedure SetToggleInspectorCallback(ACallback: TFunc<Boolean>);
 
-/// <summary>Doc Stub 생성 콜백을 설정합니다.</summary>
-/// <param name="ACallback">생성 시 호출할 콜백</param>
+/// <summary>Registers the stub-generation callback.</summary>
+/// <param name="ACallback">Callback invoked to generate a documentation stub.</param>
 procedure SetGenerateStubCallback(ACallback: TProc);
 
-/// <summary>Help 생성 다이얼로그 콜백을 설정합니다.</summary>
-/// <param name="ACallback">다이얼로그 표시 시 호출할 콜백</param>
+/// <summary>Registers the documentation generation dialog callback.</summary>
+/// <param name="ACallback">Callback invoked to open the dialog.</param>
 procedure SetGenerateHelpCallback(ACallback: TProc);
 
-/// <summary>Coverage Report 콜백을 설정합니다.</summary>
-/// <param name="ACallback">리포트 표시 시 호출할 콜백</param>
+/// <summary>Registers the coverage report callback.</summary>
+/// <param name="ACallback">Callback invoked to open the report.</param>
 procedure SetCoverageReportCallback(ACallback: TProc);
 
-/// <summary>다음 미문서화 요소 이동 콜백을 설정합니다.</summary>
-/// <param name="ACallback">이동 시 호출할 콜백</param>
+/// <summary>Registers navigation to the next undocumented declaration.</summary>
+/// <param name="ACallback">Callback invoked to navigate to a declaration.</param>
 procedure SetNextUndocumentedCallback(ACallback: TProc);
 
-/// <summary>이전 미문서화 요소 이동 콜백을 설정합니다.</summary>
-/// <param name="ACallback">이동 시 호출할 콜백</param>
+/// <summary>Registers navigation to the previous undocumented declaration.</summary>
+/// <param name="ACallback">Callback invoked to navigate to a declaration.</param>
 procedure SetPreviousUndocumentedCallback(ACallback: TProc);
 
-/// <summary>Documentation Explorer 토글 콜백을 설정합니다.</summary>
-/// <param name="ACallback">토글 후 Visible 상태를 반환하는 콜백</param>
+/// <summary>Registers the Documentation Explorer toggle callback.</summary>
+/// <param name="ACallback">Callback returning visibility after toggling the view.</param>
 procedure SetToggleDocExplorerCallback(ACallback: TFunc<Boolean>);
 
-/// <summary>Doc Inspector 표시 상태 확인 콜백을 설정합니다.</summary>
-/// <param name="ACallback">현재 Visible 상태를 반환하는 콜백</param>
+/// <summary>Registers the Inspector visibility callback.</summary>
+/// <param name="ACallback">Callback returning the view's current visibility.</param>
 procedure SetIsInspectorVisibleFunc(ACallback: TFunc<Boolean>);
 
-/// <summary>Documentation Explorer 표시 상태 확인 콜백을 설정합니다.</summary>
-/// <param name="ACallback">현재 Visible 상태를 반환하는 콜백</param>
+/// <summary>Registers the Explorer visibility callback.</summary>
+/// <param name="ACallback">Callback returning the view's current visibility.</param>
 procedure SetIsDocExplorerVisibleFunc(ACallback: TFunc<Boolean>);
 
-/// <summary>Settings 다이얼로그 콜백을 설정합니다.</summary>
-/// <param name="ACallback">다이얼로그 표시 시 호출할 콜백</param>
+/// <summary>Registers the settings dialog callback.</summary>
+/// <param name="ACallback">Callback invoked to open the dialog.</param>
 procedure SetSettingsCallback(ACallback: TProc);
 
 implementation

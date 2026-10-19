@@ -1,4 +1,5 @@
-﻿unit XmlDoc.StubGen;
+﻿/// <summary>Documentation stub generation from signatures, parameter hints and placeholder options.</summary>
+unit XmlDoc.StubGen;
 
 interface
 
@@ -9,17 +10,20 @@ uses
   XmlDoc.Model;
 
 type
-  /// <summary>코드 요소 시그니처를 분석해 문서 스텁을 자동 생성합니다.</summary>
+  /// <summary>Creates documentation stubs from declaration signatures and parameter hints.</summary>
   TDocStubGenerator = class
   private
     class function ExtractParamHint(const AParamName, ATypeName: string): string;
     class function GenerateReturnHint(const AReturnType: string): string;
     class function GenerateSummaryHint(const AElement: TCodeElementInfo): string;
   public
-    /// <summary>코드 요소에 대한 문서 스텁 모델을 생성합니다.</summary>
-    /// <param name="AElement">대상 코드 요소 정보</param>
-    /// <returns>스텁이 채워진 TXmlDocModel (호출자가 Free해야 함)</returns>
-    class function GenerateStub(const AElement: TCodeElementInfo): TXmlDocModel;
+    /// <summary>Creates a documentation stub for a declaration.</summary>
+    /// <param name="AElement">Target declaration and source location.</param>
+    /// <returns>New documentation model owned by the caller.</returns>
+    class function GenerateStub(const AElement: TCodeElementInfo): TXmlDocModel; overload;
+    /// <summary>Creates a stub with a custom placeholder prefix; False leaves placeholder descriptions empty.</summary>
+    class function GenerateStub(const AElement: TCodeElementInfo;
+      const APlaceholderPrefix: string; AIncludePlaceholders: Boolean): TXmlDocModel; overload;
   end;
 
 implementation
@@ -166,11 +170,26 @@ begin
 end;
 
 class function TDocStubGenerator.GenerateStub(const AElement: TCodeElementInfo): TXmlDocModel;
+begin
+  Result := GenerateStub(AElement, CPlaceholderPrefix, True);
+end;
+
+class function TDocStubGenerator.GenerateStub(const AElement: TCodeElementInfo;
+  const APlaceholderPrefix: string; AIncludePlaceholders: Boolean): TXmlDocModel;
 var
   LParamDoc: TParamDoc;
   LTypeParamDoc: TTypeParamDoc;
   I: Integer;
   LHint: string;
+  function Placeholder(const AText: string): string;
+  begin
+    Result := AText;
+    if not AText.StartsWith(CPlaceholderPrefix) then Exit;
+    if AIncludePlaceholders then
+      Result := APlaceholderPrefix + Copy(AText, Length(CPlaceholderPrefix) + 1, MaxInt)
+    else
+      Result := '';
+  end;
 begin
   Result := TXmlDocModel.Create;
 
@@ -179,20 +198,24 @@ begin
     Exit;
 
   // Summary
-  Result.Summary := GenerateSummaryHint(AElement);
+  Result.Summary := Placeholder(GenerateSummaryHint(AElement));
 
   // Params
   for I := 0 to Length(AElement.Params) - 1 do
   begin
     LParamDoc.Name := AElement.Params[I].Name;
     LHint := ExtractParamHint(AElement.Params[I].Name, AElement.Params[I].TypeName);
-    if LHint = '' then
+    if LHint <> '' then
+      LParamDoc.Description := Placeholder(LHint)
+    else
+    begin
       TParamDictionary.Instance.TryGet(AElement.Params[I].Name, LHint);
 
-    if LHint <> '' then
-      LParamDoc.Description := LHint
-    else
-      LParamDoc.Description := CPlaceholderPrefix + AElement.Params[I].Name + ' description';
+      if LHint <> '' then
+        LParamDoc.Description := LHint
+      else
+        LParamDoc.Description := Placeholder(CPlaceholderPrefix + AElement.Params[I].Name + ' description');
+    end;
     Result.Params.Add(LParamDoc);
   end;
 
@@ -200,13 +223,13 @@ begin
   for I := 0 to Length(AElement.GenericParams) - 1 do
   begin
     LTypeParamDoc.Name := AElement.GenericParams[I];
-    LTypeParamDoc.Description := CPlaceholderPrefix + AElement.GenericParams[I] + ' type description';
+    LTypeParamDoc.Description := Placeholder(CPlaceholderPrefix + AElement.GenericParams[I] + ' type description');
     Result.TypeParams.Add(LTypeParamDoc);
   end;
 
   // Returns
   if (AElement.Kind = dekMethod) and (AElement.ReturnType <> '') then
-    Result.Returns := GenerateReturnHint(AElement.ReturnType);
+    Result.Returns := Placeholder(GenerateReturnHint(AElement.ReturnType));
 end;
 
 end.

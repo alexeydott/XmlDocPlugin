@@ -1,0 +1,3 @@
+﻿# type `TErrorSeverity`
+
+Diagnostic severity.

@@ -1,3 +1,4 @@
+/// <summary>Project documentation catalog, background analysis and source update coordination.</summary>
 unit XmlDoc.Plugin.ProjectDocumentation;
 interface
 uses System.Classes,System.SyncObjs,Vcl.ExtCtrls,XmlDoc.Parser,XmlDoc.ProjectIndex,System.SysUtils,System.JSON,System.Generics.Collections,ToolsAPI,XmlDoc.Consts,XmlDoc.Plugin.Browser,XmlDoc.Plugin.QuickDocPreview;

@@ -1,10 +1,12 @@
-﻿unit XmlDoc.Plugin.BatchGenDialog;
+﻿/// <summary>IDE documentation generation dialog and output orchestration.</summary>
+unit XmlDoc.Plugin.BatchGenDialog;
 
 interface
 
 uses
   Winapi.Windows,
   System.SysUtils,
+  System.StrUtils,
   System.Classes,
   System.IOUtils,
   System.Generics.Collections,
@@ -37,7 +39,7 @@ uses
   XmlDoc.Logger;
 
 type
-  /// <summary>일괄 문서 생성 다이얼로그</summary>
+  /// <summary>IDE dialog for project and directory documentation generation.</summary>
   TBatchGenDialog = class(TForm)
   private
     FBtnBrowseDir: TButton;
@@ -85,7 +87,7 @@ type
     constructor Create(AOwner: TComponent); override;
   end;
 
-/// <summary>일괄 생성 다이얼로그를 표시합니다.</summary>
+/// <summary>Opens the documentation generation dialog.</summary>
 procedure ShowBatchGenDialog;
 
 implementation
@@ -171,6 +173,8 @@ begin
       LProjectPath := '';
     end;
   end;
+
+  LSettings.LoadProject(ExtractFileDir(LProjectPath));
 
   LTop := S(16);
 
@@ -264,7 +268,7 @@ begin
   FChkHTML.Width := S(220);
   FChkHTML.Height := S(20);
   FChkHTML.Caption := 'HTML (Multi-page website)';
-  FChkHTML.Checked := True;
+
 
   FChkCHM := TCheckBox.Create(Self);
   FChkCHM.Parent := LContent;
@@ -342,6 +346,15 @@ begin
   FChkVitePress.Width := S(220);
   FChkVitePress.Height := S(20);
   FChkVitePress.Caption := 'VitePress (Vue-based)';
+  FChkHTML.Checked := MatchText('html', LSettings.Project.HelpGen.DefaultFormats);
+  FChkCHM.Checked := MatchText('chm', LSettings.Project.HelpGen.DefaultFormats);
+  FChkMarkdown.Checked := MatchText('md', LSettings.Project.HelpGen.DefaultFormats);
+  FChkJSON.Checked := MatchText('json', LSettings.Project.HelpGen.DefaultFormats);
+  FChkHMXP.Checked := MatchText('hmxp', LSettings.Project.HelpGen.DefaultFormats);
+  FChkMkDocs.Checked := MatchText('mkdocs', LSettings.Project.HelpGen.DefaultFormats);
+  FChkDocusaurus.Checked := MatchText('docusaurus', LSettings.Project.HelpGen.DefaultFormats);
+  FChkVitePress.Checked := MatchText('vitepress', LSettings.Project.HelpGen.DefaultFormats);
+
   Inc(LTop, S(36));
 
   // Output Directory
@@ -760,7 +773,7 @@ begin
         end;
 
         // 커버리지
-        if FChkCoverage.Checked then
+        if FChkCoverage.Checked or (TPluginSettings.Instance.Project.HelpGen.CoverageMinPercent > 0) then
         begin
           FLblPhase.Caption := 'Analyzing coverage...';
           Application.ProcessMessages;
@@ -768,17 +781,26 @@ begin
           LCoverage := TDocCoverageReport.Create;
           try
             LStats := LCoverage.Analyze(LParser.Units);
+            try
 
-            LItems := LCoverage.GetUndocumented(LParser.Units);
-            LCoverage.RenderHTMLReport(LStats, LItems,
-              TPath.Combine(FEdtOutputDir.Text, 'coverage.html'));
+            if FChkCoverage.Checked then
+            begin
+              LItems := LCoverage.GetUndocumented(LParser.Units);
+              LCoverage.RenderHTMLReport(LStats, LItems,
+                TPath.Combine(FEdtOutputDir.Text, 'coverage.html'));
+            end;
 
             FLblStats.Caption := FLblStats.Caption +
               Format(' | Coverage: %.1f%%', [LStats.CoveragePercent]);
+            if LStats.CoveragePercent < TPluginSettings.Instance.Project.HelpGen.CoverageMinPercent then
+              raise Exception.CreateFmt('Documentation coverage %.1f%% is below the required %d%%',
+                [LStats.CoveragePercent, TPluginSettings.Instance.Project.HelpGen.CoverageMinPercent]);
+            finally
+              LStats.ByKind.Free;
+              LStats.ByVisibility.Free;
+              LStats.ByUnit.Free;
+            end;
           finally
-            LStats.ByKind.Free;
-            LStats.ByVisibility.Free;
-            LStats.ByUnit.Free;
             LCoverage.Free;
           end;
         end;

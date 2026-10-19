@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.SettingsDialog;
+﻿/// <summary>Supported global editor preferences, stub options and command shortcuts.</summary>
+unit XmlDoc.Plugin.SettingsDialog;
 
 interface
 
@@ -15,22 +16,15 @@ uses
   XmlDoc.Logger, Vcl.Samples.Spin;
 
 type
-  /// <summary>플러그인 설정 다이얼로그</summary>
+  /// <summary>Dialog for supported global preferences and command shortcuts.</summary>
   TSettingsDialog = class(TForm)
     btnCancel: TButton;
     btnOK: TButton;
     chkAutoGenerate: TCheckBox;
-    chkAutoShowOnCursor: TCheckBox;
-    chkBlankLineAfter: TCheckBox;
-    chkBlankLineBefore: TCheckBox;
-    chkCheckUpdates: TCheckBox;
     chkCollapseEmptySections: TCheckBox;
-    chkOmitEmptyTags: TCheckBox;
     chkShowSignatureHeader: TCheckBox;
-    cmbIndentStyle: TComboBox;
     cmbLanguage: TComboBox;
     cmbLogLevel: TComboBox;
-    cmbTheme: TComboBox;
     edtPlaceholderPrefix: TEdit;
     hotCoverageReport: THotKey;
     hotGenerateHelp: THotKey;
@@ -41,7 +35,6 @@ type
     PageControl: TPageControl;
     spnDebounceMs: TSpinEdit;
     spnFontSize: TSpinEdit;
-    spnIndentSize: TSpinEdit;
     spnSaveDebounceMs: TSpinEdit;
     tsAdvanced: TTabSheet;
     tsCodeGen: TTabSheet;
@@ -61,8 +54,8 @@ type
     property ShortcutsChanged: Boolean read FShortcutsChanged;
   end;
 
-/// <summary>설정 다이얼로그를 표시합니다.</summary>
-/// <returns>True면 설정이 변경됨</returns>
+/// <summary>Opens the plugin settings dialog.</summary>
+/// <returns>True if preferences were accepted and saved.</returns>
 function ShowSettingsDialog: Boolean;
 
 implementation
@@ -111,11 +104,6 @@ begin
   LSettings := TPluginSettings.Instance.Global;
 
   // General
-  // The embedded editor follows the IDE, independent of the old saved preference.
-  cmbTheme.Enabled:=False;cmbTheme.ShowHint:=True;cmbTheme.Hint:='Follows the current IDE theme';
-  cmbTheme.ItemIndex := cmbTheme.Items.IndexOf('auto');
-  if cmbTheme.ItemIndex < 0 then
-    cmbTheme.ItemIndex := 0;
 
   spnFontSize.Value := LSettings.Editor.FontSize;
 
@@ -123,17 +111,10 @@ begin
   if cmbLanguage.ItemIndex < 0 then
     cmbLanguage.ItemIndex := 0;
 
-  chkAutoShowOnCursor.Checked := LSettings.Editor.AutoShowOnCursor;
   chkCollapseEmptySections.Checked := LSettings.Editor.CollapseEmptySections;
   chkShowSignatureHeader.Checked := LSettings.Editor.ShowSignatureHeader;
-  chkCheckUpdates.Checked := LSettings.General.CheckUpdates;
 
   // Code Generation
-  cmbIndentStyle.ItemIndex := Ord(LSettings.CodeGen.IndentStyle);
-  spnIndentSize.Value := LSettings.CodeGen.IndentSize;
-  chkBlankLineBefore.Checked := LSettings.CodeGen.BlankLineBefore;
-  chkBlankLineAfter.Checked := LSettings.CodeGen.BlankLineAfter;
-  chkOmitEmptyTags.Checked := LSettings.CodeGen.OmitEmptyTags;
   chkAutoGenerate.Checked := LSettings.Stub.AutoGenerate;
   edtPlaceholderPrefix.Text := LSettings.Stub.PlaceholderPrefix;
 
@@ -158,20 +139,12 @@ begin
   LSettings := TPluginSettings.Instance.Global;
 
   // General
-  // Retain the previous preference for compatibility; the IDE supplies the active theme.
   LSettings.Editor.FontSize := spnFontSize.Value;
   LSettings.General.Language := cmbLanguage.Text;
-  LSettings.Editor.AutoShowOnCursor := chkAutoShowOnCursor.Checked;
   LSettings.Editor.CollapseEmptySections := chkCollapseEmptySections.Checked;
   LSettings.Editor.ShowSignatureHeader := chkShowSignatureHeader.Checked;
-  LSettings.General.CheckUpdates := chkCheckUpdates.Checked;
 
   // Code Generation
-  LSettings.CodeGen.IndentStyle := TIndentStyle(cmbIndentStyle.ItemIndex);
-  LSettings.CodeGen.IndentSize := spnIndentSize.Value;
-  LSettings.CodeGen.BlankLineBefore := chkBlankLineBefore.Checked;
-  LSettings.CodeGen.BlankLineAfter := chkBlankLineAfter.Checked;
-  LSettings.CodeGen.OmitEmptyTags := chkOmitEmptyTags.Checked;
   LSettings.Stub.AutoGenerate := chkAutoGenerate.Checked;
   LSettings.Stub.PlaceholderPrefix := edtPlaceholderPrefix.Text;
 

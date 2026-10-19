@@ -1,8 +1,15 @@
 ﻿# XmlDoc.Plugin.BatchGenDialog
 
+IDE documentation generation dialog and output orchestration.
+
+## Types
+
+| Type | Kind | Description |
+|------|------|-------------|
+| [`TBatchGenDialog`](XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md) | class | IDE dialog for project and directory documentation generation. |
+
 ## Functions & Procedures
 
 ### ShowBatchGenDialog
 
-일괄 생성 다이얼로그를 표시합니다.
-
+Opens the documentation generation dialog.

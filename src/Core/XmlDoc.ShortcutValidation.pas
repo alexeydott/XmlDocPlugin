@@ -1,3 +1,4 @@
+/// <summary>Detection of conflicts between documentation shortcuts and IDE commands.</summary>
 unit XmlDoc.ShortcutValidation;
 interface
 uses System.SysUtils,System.Classes,Vcl.ActnList,Vcl.Menus;

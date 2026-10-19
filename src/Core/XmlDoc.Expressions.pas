@@ -1,3 +1,4 @@
+/// <summary>Context-sensitive expression and overload resolution for Quick Documentation.</summary>
 unit XmlDoc.Expressions;
 interface
 uses System.SysUtils,XmlDoc.Consts,XmlDoc.Parser;

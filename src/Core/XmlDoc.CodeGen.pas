@@ -1,4 +1,5 @@
-﻿unit XmlDoc.CodeGen;
+﻿/// <summary>Documentation comment rendering and source-text replacement.</summary>
+unit XmlDoc.CodeGen;
 
 interface
 
@@ -10,23 +11,23 @@ uses
   XmlDoc.Model;
 
 type
-  /// <summary>DocModel을 /// 주석 문자열로 변환하여 소스에 삽입합니다.</summary>
+  /// <summary>Renders documentation comments and applies them to source text.</summary>
   TDocCodeGenerator = class
   private
     class function BuildIndent(AIndent: Integer): string;
     class function WrapLine(const APrefix, AText: string; AMaxWidth: Integer): string;
   public
-    /// <summary>모델을 /// 주석 블록 문자열로 변환합니다.</summary>
-    /// <param name="AModel">변환할 문서 모델</param>
-    /// <param name="AIndent">들여쓰기 칸 수 (기본: 2)</param>
-    /// <returns>/// 프리픽스가 포함된 주석 블록 문자열</returns>
+    /// <summary>Renders a model as an indented triple-slash comment block.</summary>
+    /// <param name="AModel">Documentation model to render.</param>
+    /// <param name="AIndent">Number of indentation spaces; defaults to 2.</param>
+    /// <returns>Comment lines prefixed with triple slashes.</returns>
     class function ModelToCommentBlock(const AModel: TXmlDocModel; AIndent: Integer = 2): string;
 
-    /// <summary>주석 블록을 소스 텍스트에 적용합니다 (순수 문자열 기반).</summary>
-    /// <param name="ASource">원본 소스 코드 전체</param>
-    /// <param name="AElement">대상 코드 요소 정보</param>
-    /// <param name="AModel">적용할 문서 모델</param>
-    /// <returns>주석이 적용된 새 소스 코드</returns>
+    /// <summary>Returns source text with the declaration's documentation replaced or inserted.</summary>
+    /// <param name="ASource">Complete original source text.</param>
+    /// <param name="AElement">Target declaration and source location.</param>
+    /// <param name="AModel">Documentation model to apply.</param>
+    /// <returns>Source text with the documentation change applied.</returns>
     class function ApplyToSourceText(const ASource: string; const AElement: TCodeElementInfo; const AModel: TXmlDocModel): string;
   end;
 

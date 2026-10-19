@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.Localization;
+﻿/// <summary>Localization of native plugin controls and menu text.</summary>
+unit XmlDoc.Plugin.Localization;
 interface
 uses System.Classes;
 procedure LocalizePluginUi(Component:TComponent);

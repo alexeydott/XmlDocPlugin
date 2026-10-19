@@ -1,4 +1,5 @@
-﻿unit XmlDoc.SourceText;
+﻿/// <summary>Source encoding detection, file reading and example-resource resolution.</summary>
+unit XmlDoc.SourceText;
 interface
 uses System.SysUtils;
 function DecodeSource(const Bytes:TBytes;Offset,Count:Integer):string;

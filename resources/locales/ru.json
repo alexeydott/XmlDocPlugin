@@ -242,5 +242,7 @@
   "Additional remarks...": "Дополнительные примечания...",
   "Return value description...": "Описание возвращаемого значения...",
   "Property value description...": "Описание значения свойства...",
-  "Show more results": "Показать ещё результаты"
+  "Show more results": "Показать ещё результаты",
+  "Theme follows the IDE": "Тема соответствует IDE",
+  "Generate a stub after typing ///": "Создавать заготовку при вводе ///"
 }

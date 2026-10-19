@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Diagnostics;
+﻿/// <summary>Project documentation checks, diagnostic reports and baseline comparison.</summary>
+unit XmlDoc.HelpGen.Diagnostics;
 interface
 uses System.SysUtils,System.Generics.Collections,XmlDoc.Consts,XmlDoc.Documentation,XmlDoc.HelpGen.Types;
 type

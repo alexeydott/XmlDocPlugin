@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.DocInspector;
+﻿/// <summary>Dockable declaration documentation editor and source synchronization.</summary>
+unit XmlDoc.Plugin.DocInspector;
 
 interface
 
@@ -34,7 +35,7 @@ uses
   XmlDoc.StubGen;
 
 type
-  /// <summary>WebView2 기반 XML 문서 편집기를 호스팅하는 Dockable 패널</summary>
+  /// <summary>Dockable declaration documentation editor hosted in WebView2.</summary>
   TDocInspectorForm = class(TDockableForm)
   private
     FBrowser: TXmlDocBrowser;
@@ -84,19 +85,19 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    /// <summary>에디터 노티파이어에서 커서 변경 시 호출합니다.</summary>
-    /// <param name="ALine">현재 커서 행 (1-based)</param>
-    /// <param name="ASource">에디터 전체 소스</param>
-    /// <param name="AFileName">현재 파일 이름</param>
+    /// <summary>Updates the selected declaration after the cursor changes.</summary>
+    /// <param name="ALine">One-based current cursor line.</param>
+    /// <param name="ASource">Complete editor source snapshot.</param>
+    /// <param name="AFileName">Current source file path.</param>
     procedure HandleCursorChanged(ALine: Integer; const ASource, AFileName: string);
 
-    /// <summary>현재 에디터의 커서 위치에서 즉시 새로고침합니다.</summary>
+    /// <summary>Refreshes the declaration at the active editor's cursor.</summary>
     procedure RefreshFromCurrentEditor;
     procedure ExecuteCommand(const Command:string);
   end;
 
 implementation
-uses XmlDoc.Plugin.Utils,XmlDoc.Plugin.Localization;
+uses XmlDoc.Plugin.Settings,XmlDoc.Plugin.Utils,XmlDoc.Plugin.Localization;
 
 
 {$R XmlDocEditor.res}
@@ -648,7 +649,7 @@ begin
   else
   begin
     FDocModel.Free;
-    FDocModel := TDocStubGenerator.GenerateStub(FCurrentElement);
+    FDocModel := TDocStubGenerator.GenerateStub(FCurrentElement, TPluginSettings.Instance.Global.Stub.PlaceholderPrefix, TPluginSettings.Instance.Global.Stub.IncludePlaceholders);
   end;
 
   FDocModel.IsModified := False;

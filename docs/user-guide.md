@@ -5,6 +5,7 @@ XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API r
 ## Contents
 
 - [Install and open the editor](#install-and-open-the-editor)
+- [Settings](#settings)
 - [How editing works](#how-editing-works)
 - [Write and review a comment](#write-and-review-a-comment)
 - [Documentation tools](#documentation-tools)
@@ -33,6 +34,37 @@ Choose **Document → Settings → General → Language** for the interface lang
 Unavailable translations use English. This changes plugin captions and tooltips,
 not your comments, XML tags or source symbols. The spell-check language in
 Documentation tools is a separate setting. This guide uses the English action names.
+
+## Settings
+
+Open **Document → Settings**. The editor theme follows the current IDE theme.
+
+| Tab | Setting | Effect |
+| --- | --- | --- |
+| General | Font Size | Changes the embedded editor text size. |
+| General | Language | Selects the plugin interface language without translating source identifiers or documentation text. |
+| General | Collapse empty sections | Starts empty sections collapsed. Sections you explicitly open or close retain their saved state. |
+| General | Show signature header | Shows or hides the selected declaration's signature above its documentation. |
+| Code Generation | Generate a stub after typing /// | Expands a new triple-slash line above an undocumented declaration. Existing comments are not replaced. |
+| Code Generation | Placeholder Prefix | Sets the prefix for generated descriptions that still need writing; defaults to `TODO: `. Applies to menu-generated stubs and the Inspector and Explorer stubs too. |
+| Shortcuts | Command bindings | Assigns shortcuts after checking for conflicts with IDE commands. |
+| Advanced | Debounce (ms) | Delay before processing editor cursor and source notifications. |
+| Advanced | Save Debounce (ms) | Delay before sending a documentation edit to the IDE source buffer. |
+| Advanced | Log Level | Minimum severity written to the plugin log; changes take effect when settings are accepted. |
+
+Global preferences are stored under `HKEY_CURRENT_USER\Software\XmlDocPlugin`.
+The default log is `XmlDocPlugin\xmldocplugin.log` beneath the Windows user home directory.
+Legacy automatic-update, automatic-opening and comment-formatting values remain in the
+registry for compatibility, but are not offered as supported controls. Use the
+Document menu to open views. Source indentation and XML preservation follow the
+source-editing implementation rather than the retired formatting preferences.
+
+Project generation defaults belong in `.xmldocplugin.json` beside the project.
+The `helpGen.defaultFormats` array selects formats initially checked in Generate
+API Documentation (`html`, `chm`, `md`, `json`, `hmxp`, `mkdocs`, `docusaurus`, `vitepress`).
+`helpGen.coverageMinPercent` rejects generation below that percentage; zero disables
+the threshold. The optional coverage report checkbox controls report creation,
+independently of the threshold. The CLI uses its command-line options instead.
 
 ## How editing works
 

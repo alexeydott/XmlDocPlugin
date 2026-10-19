@@ -29,7 +29,7 @@
         Top = 16
         Width = 40
         Height = 15
-        Caption = 'Editor theme:'
+        Caption = 'Theme follows the IDE'
       end
       object lblFontSize: TLabel
         Left = 16
@@ -45,20 +45,6 @@
         Height = 15
         Caption = 'Language:'
       end
-      object cmbTheme: TComboBox
-        Left = 232
-        Top = 14
-        Width = 160
-        Height = 23
-        Style = csDropDownList
-        ItemIndex = 0
-        TabOrder = 0
-        Text = 'light'
-        Items.Strings = (
-          'light'
-          'dark'
-          'auto')
-      end
       object spnFontSize: TSpinEdit
         Left = 232
         Top = 46
@@ -66,7 +52,7 @@
         Height = 24
         MaxValue = 32
         MinValue = 8
-        TabOrder = 1
+        TabOrder = 0
         Value = 13
       end
       object cmbLanguage: TComboBox
@@ -76,7 +62,7 @@
         Height = 23
         Style = csDropDownList
         ItemIndex = 0
-        TabOrder = 2
+        TabOrder = 1
         Text = 'auto'
         Items.Strings = (
           'auto'
@@ -86,124 +72,47 @@
           'ru'
           'zh')
       end
-      object chkAutoShowOnCursor: TCheckBox
+      object chkCollapseEmptySections: TCheckBox
         Left = 16
         Top = 118
         Width = 428
         Height = 17
-        Caption = 'Auto show inspector on cursor move'
-        TabOrder = 3
+        Caption = 'Collapse empty sections'
+        TabOrder = 2
       end
-      object chkCollapseEmptySections: TCheckBox
+      object chkShowSignatureHeader: TCheckBox
         Left = 16
         Top = 144
         Width = 428
         Height = 17
-        Caption = 'Collapse empty sections'
-        TabOrder = 4
-      end
-      object chkShowSignatureHeader: TCheckBox
-        Left = 16
-        Top = 170
-        Width = 428
-        Height = 17
         Caption = 'Show signature header'
-        TabOrder = 5
-      end
-      object chkCheckUpdates: TCheckBox
-        Left = 16
-        Top = 196
-        Width = 428
-        Height = 17
-        Caption = 'Check for updates on startup'
-        TabOrder = 6
+        TabOrder = 3
       end
     end
     object tsCodeGen: TTabSheet
       Caption = 'Code Generation'
       ImageIndex = 1
-      object lblIndentStyle: TLabel
-        Left = 16
-        Top = 16
-        Width = 65
-        Height = 15
-        Caption = 'Indent Style:'
-      end
-      object lblIndentSize: TLabel
-        Left = 16
-        Top = 48
-        Width = 60
-        Height = 15
-        Caption = 'Indent Size:'
-      end
       object lblPlaceholderPrefix: TLabel
         Left = 16
-        Top = 264
+        Top = 56
         Width = 97
         Height = 15
         Caption = 'Placeholder Prefix:'
       end
-      object cmbIndentStyle: TComboBox
-        Left = 232
-        Top = 14
-        Width = 120
-        Height = 23
-        Style = csDropDownList
-        ItemIndex = 0
-        TabOrder = 0
-        Text = 'Spaces'
-        Items.Strings = (
-          'Spaces'
-          'Tabs')
-      end
-      object spnIndentSize: TSpinEdit
-        Left = 232
-        Top = 46
-        Width = 80
-        Height = 24
-        MaxValue = 8
-        MinValue = 1
-        TabOrder = 1
-        Value = 2
-      end
-      object chkBlankLineBefore: TCheckBox
-        Left = 16
-        Top = 88
-        Width = 428
-        Height = 17
-        Caption = 'Blank line before XML doc comment'
-        TabOrder = 2
-      end
-      object chkBlankLineAfter: TCheckBox
-        Left = 16
-        Top = 114
-        Width = 428
-        Height = 17
-        Caption = 'Blank line after XML doc comment'
-        TabOrder = 3
-      end
-      object chkOmitEmptyTags: TCheckBox
-        Left = 16
-        Top = 140
-        Width = 428
-        Height = 17
-        Caption = 'Omit empty tags'
-        TabOrder = 4
-      end
       object chkAutoGenerate: TCheckBox
         Left = 16
-        Top = 178
+        Top = 16
         Width = 428
         Height = 17
-        Caption = 'Auto-generate stub on new declaration'
-        TabOrder = 5
+        Caption = 'Generate a stub after typing ///'
+        TabOrder = 0
       end
       object edtPlaceholderPrefix: TEdit
         Left = 232
-        Top = 262
+        Top = 54
         Width = 200
         Height = 23
-        TabOrder = 6
+        TabOrder = 1
       end
     end
     object tsShortcuts: TTabSheet

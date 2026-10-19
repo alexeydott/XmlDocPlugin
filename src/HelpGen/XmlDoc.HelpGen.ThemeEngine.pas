@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.ThemeEngine;
+﻿/// <summary>Built-in and custom CSS themes for generated HTML documentation.</summary>
+unit XmlDoc.HelpGen.ThemeEngine;
 
 interface
 
@@ -9,17 +10,17 @@ uses
   System.Generics.Collections;
 
 type
-  /// <summary>내장 테마 이름</summary>
+  /// <summary>Built-in documentation theme names.</summary>
   TBuiltInTheme = (btDefault, btDark, btHighContrast, btMinimal);
 
-  /// <summary>테마 CSS 정보</summary>
+  /// <summary>Theme CSS and metadata.</summary>
   TThemeInfo = record
     CSS: string;
     Description: string;
     Name: string;
   end;
 
-  /// <summary>HTML 문서 테마 엔진. 4종 내장 테마와 커스텀 테마를 지원합니다.</summary>
+  /// <summary>Provides built-in and custom CSS themes for generated HTML documentation.</summary>
   TThemeEngine = class
   strict private
     class var FInstance: TThemeEngine;
@@ -37,17 +38,17 @@ type
     class function Instance: TThemeEngine;
     class procedure ReleaseInstance;
 
-    /// <summary>테마 이름으로 CSS를 반환합니다.</summary>
-    /// <param name="AThemeName">테마 이름</param>
-    /// <returns>CSS 문자열</returns>
+    /// <summary>Returns CSS for the requested theme.</summary>
+    /// <param name="AThemeName">Theme name.</param>
+    /// <returns>CSS text.</returns>
     function GetCSS(const AThemeName: string): string;
 
-    /// <summary>사용 가능한 테마 목록을 반환합니다.</summary>
-    /// <returns>테마 이름 배열</returns>
+    /// <summary>Lists available themes.</summary>
+    /// <returns>Available theme names.</returns>
     function GetAvailableThemes: TArray<string>;
 
-    /// <summary>커스텀 테마 디렉토리를 설정합니다.</summary>
-    /// <param name="ADir">디렉토리 경로</param>
+    /// <summary>Sets the directory used to discover custom themes.</summary>
+    /// <param name="ADir">Directory path.</param>
     procedure SetCustomThemesDir(const ADir: string);
   end;
 

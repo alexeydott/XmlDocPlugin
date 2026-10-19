@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Consts;
+﻿/// <summary>Shared declaration metadata and structured documentation records.</summary>
+unit XmlDoc.Consts;
 
 interface
 
@@ -6,7 +7,7 @@ uses
   System.SysUtils;
 
 type
-  /// <summary>문서화 대상 코드 요소의 종류</summary>
+  /// <summary>Kinds of declarations supported by the documentation tools.</summary>
   TDocElementKind = (
     dekUnit,
     dekClass,
@@ -19,25 +20,25 @@ type
     dekConstant
   );
 
-  /// <summary>파라미터 문서 정보</summary>
+  /// <summary>A parameter name and its description.</summary>
   TParamDoc = record
     Name: string;
     Description: string;
   end;
 
-  /// <summary>제네릭 타입 파라미터 문서 정보</summary>
+  /// <summary>A generic type parameter and its description.</summary>
   TTypeParamDoc = record
     Name: string;
     Description: string;
   end;
 
-  /// <summary>예외 문서 정보</summary>
+  /// <summary>An exception reference and its description.</summary>
   TExceptionDoc = record
     TypeRef: string;
     Description: string;
   end;
 
-  /// <summary>예제 문서 정보</summary>
+  /// <summary>An example with optional source and region metadata.</summary>
   TExampleDoc = record
     SourceFile,Region:string;
     Title: string;
@@ -45,13 +46,13 @@ type
     Description: string;
   end;
 
-  /// <summary>See Also 문서 정보</summary>
+  /// <summary>A related-symbol reference and optional display text.</summary>
   TSeeAlsoDoc = record
     Cref: string;
     Description: string;
   end;
 
-  /// <summary>파라미터 시그니처 정보 (파서에서 추출)</summary>
+  /// <summary>Parameter signature extracted from source.</summary>
   TParamInfo = record
     Name: string;
     TypeName: string;
@@ -62,7 +63,7 @@ type
     IsOut: Boolean;
   end;
 
-  /// <summary>코드 요소 정보 (파서에서 추출)</summary>
+  /// <summary>Declaration metadata, documentation and source ranges extracted by the parser.</summary>
   TCodeElementInfo = record
     Kind: TDocElementKind;
     Name: string;
@@ -94,7 +95,7 @@ type
     FileName,Source:string;
   end;
 
-  /// <summary>TDocElementKind 유틸리티</summary>
+  /// <summary>Helpers for declaration kind names and JSON metadata.</summary>
   TDocElementKindHelper = record helper for TDocElementKind
     function ToString: string;
     class function FromString(const AValue: string): TDocElementKind; static;

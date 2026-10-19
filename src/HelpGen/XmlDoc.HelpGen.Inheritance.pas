@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Inheritance;
+﻿/// <summary>Effective documentation inherited from base types, members and explicit references.</summary>
+unit XmlDoc.HelpGen.Inheritance;
 interface
 uses System.SysUtils,System.Generics.Collections,XmlDoc.HelpGen.Types;
 type

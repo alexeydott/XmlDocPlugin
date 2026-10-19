@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.EditSession;
+﻿/// <summary>Documentation write authorization, source revisions and edit acknowledgement state.</summary>
+unit XmlDoc.Plugin.EditSession;
 interface
 uses System.SysUtils,System.JSON,ToolsAPI,XmlDoc.Consts;
 function ParseHostMessage(const Text:string):TJSONObject;

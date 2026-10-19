@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Navigation;
+﻿/// <summary>Hierarchical navigation and stable topic filename mapping shared by output formats.</summary>
+unit XmlDoc.HelpGen.Navigation;
 
 interface
 uses System.SysUtils, System.Classes, System.Generics.Collections, System.JSON,

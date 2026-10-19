@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Renderer.HTML;
+﻿/// <summary>Static HTML reference pages, navigation, cross-links and search resources.</summary>
+unit XmlDoc.HelpGen.Renderer.HTML;
 
 interface
 
@@ -15,7 +16,7 @@ uses
   XmlDoc.HelpGen.Renderer;
 
 type
-  /// <summary>다중 페이지 정적 HTML 사이트를 생성합니다.</summary>
+  /// <summary>Renders a static HTML reference with navigation, search and cross-links.</summary>
   THTMLDocRenderer = class(TInterfacedObject, IDocRenderer)
   private
     FOptions: TRenderOptions;

@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.UndocNavigator;
+﻿/// <summary>Source navigation between undocumented declarations.</summary>
+unit XmlDoc.Plugin.UndocNavigator;
 
 interface
 
@@ -10,7 +11,7 @@ uses
   XmlDoc.Parser;
 
 type
-  /// <summary>미문서화 요소 네비게이터. Ctrl+Alt+N/P로 순회합니다.</summary>
+  /// <summary>Navigates undocumented declarations using the configured plugin shortcuts.</summary>
   TUndocNavigator = class
   private
     FCurrentIndex: Integer;
@@ -26,14 +27,14 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    /// <summary>다음 미문서화 요소로 커서를 이동합니다</summary>
+    /// <summary>Moves to the next undocumented declaration.</summary>
     procedure JumpToNext;
 
-    /// <summary>이전 미문서화 요소로 커서를 이동합니다.</summary>
+    /// <summary>Moves to the previous undocumented declaration.</summary>
     procedure JumpToPrevious;
 
-    /// <summary>현재 유닛의 미문서화 상태를 반환합니다.</summary>
-    /// <returns>예: '5/23 undocumented (public)'</returns>
+    /// <summary>Returns an undocumented-declaration count for the active unit.</summary>
+    /// <returns>For example: 5/23 undocumented (public).</returns>
     function GetUnitStatus: string;
   end;
 

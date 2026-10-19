@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.AboutDialog;
+﻿/// <summary>Plugin information and version display.</summary>
+unit XmlDoc.Plugin.AboutDialog;
 
 interface
 

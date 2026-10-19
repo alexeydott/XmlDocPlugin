@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Renderer.MD;
+﻿/// <summary>Markdown reference pages and navigation for units, types and members.</summary>
+unit XmlDoc.HelpGen.Renderer.MD;
 
 interface
 
@@ -15,7 +16,7 @@ uses
   XmlDoc.HelpGen.Renderer;
 
 type
-  /// <summary>GitHub Wiki / GitBook 호환 Markdown 문서를 생성합니다.</summary>
+  /// <summary>Renders Markdown reference pages, navigation and cross-links.</summary>
   TMarkdownDocRenderer = class(TInterfacedObject, IDocRenderer)
   private
     FOptions: TRenderOptions;

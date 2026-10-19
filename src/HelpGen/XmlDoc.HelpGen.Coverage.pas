@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Coverage;
+﻿/// <summary>Documentation coverage analysis and HTML or console reports.</summary>
+unit XmlDoc.HelpGen.Coverage;
 
 interface
 
@@ -12,7 +13,7 @@ uses
   XmlDoc.HelpGen.Types;
 
 type
-  /// <summary>문서화 수준</summary>
+  /// <summary>Documentation completeness level.</summary>
   TCoverageLevel = (
     clNone,
     clSummaryOnly,
@@ -20,7 +21,7 @@ type
     clComplete
   );
 
-  /// <summary>개별 요소 커버리지 정보</summary>
+  /// <summary>Coverage information for a declaration.</summary>
   TCoverageItem = record
     ElementFullName: string;
     Kind: TDocElementKind;
@@ -30,7 +31,7 @@ type
     Ready:Boolean;
   end;
 
-  /// <summary>커버리지 통계</summary>
+  /// <summary>Documentation coverage statistics.</summary>
   TCoverageStats = record
     ByKind: TDictionary<TDocElementKind, Integer>;
     ByUnit: TDictionary<string, Double>;
@@ -44,7 +45,7 @@ type
     TotalElements: Integer;
   end;
 
-  /// <summary>프로젝트 전체의 XML 문서 커버리지를 분석하고 리포트를 생성합니다.</summary>
+  /// <summary>Analyzes documentation coverage and renders reports.</summary>
   TDocCoverageReport = class
   private
     FSymbols:TArray<TCodeElementInfo>;
@@ -54,25 +55,25 @@ type
     function AnalyzeUnit(const AUnit: TUnitDocInfo): TCoverageItem;
     function CoverageLevelToString(ALevel: TCoverageLevel): string;
   public
-    /// <summary>유닛 목록의 문서 커버리지를 분석합니다.</summary>
-    /// <param name="AUnits">분석 대상 유닛 목록</param>
-    /// <returns>커버리지 통계</returns>
+    /// <summary>Computes documentation coverage for the supplied units.</summary>
+    /// <param name="AUnits">Units to analyze.</param>
+    /// <returns>Documentation coverage statistics.</returns>
     function Analyze(const AUnits: TObjectList<TUnitDocInfo>): TCoverageStats;
 
-    /// <summary>문서화되지 않은 요소 목록을 반환합니다.</summary>
-    /// <param name="AUnits">대상 유닛 목록</param>
-    /// <param name="AMinVisibility">최소 가시성 필터 (기본: public)</param>
-    /// <returns>미문서화 요소 배열</returns>
+    /// <summary>Returns declarations that need documentation.</summary>
+    /// <param name="AUnits">Units to process.</param>
+    /// <param name="AMinVisibility">Minimum visibility to include; defaults to public.</param>
+    /// <returns>Declarations that need documentation.</returns>
     function GetUndocumented(const AUnits: TObjectList<TUnitDocInfo>; const AMinVisibility: string = 'public'): TArray<TCoverageItem>;
 
-    /// <summary>콘솔 리포트를 출력합니다.</summary>
-    /// <param name="AStats">커버리지 통계</param>
+    /// <summary>Writes a coverage report to the console.</summary>
+    /// <param name="AStats">Documentation coverage statistics.</param>
     procedure RenderConsoleReport(const AStats: TCoverageStats);
 
-    /// <summary>HTML 리포트를 생성합니다.</summary>
-    /// <param name="AStats">커버리지 통계</param>
-    /// <param name="AItems">커버리지 항목 배열</param>
-    /// <param name="AOutputPath">출력 파일 경로</param>
+    /// <summary>Writes an HTML coverage report.</summary>
+    /// <param name="AStats">Documentation coverage statistics.</param>
+    /// <param name="AItems">Coverage entries to include.</param>
+    /// <param name="AOutputPath">Destination file path.</param>
     procedure RenderHTMLReport(const AStats: TCoverageStats; const AItems: TArray<TCoverageItem>; const AOutputPath: string);
   end;
 

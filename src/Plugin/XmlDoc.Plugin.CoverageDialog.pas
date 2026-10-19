@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.CoverageDialog;
+﻿/// <summary>IDE coverage analysis dialog with source navigation.</summary>
+unit XmlDoc.Plugin.CoverageDialog;
 
 interface
 
@@ -25,14 +26,14 @@ uses
   XmlDoc.HelpGen.Coverage;
 
 type
-  /// <summary>ListView 항목에 연결할 파일/라인 정보</summary>
+  /// <summary>Source location associated with a coverage list item.</summary>
   PCoverageListItem = ^TCoverageListItem;
   TCoverageListItem = record
     FilePath: string;
     LineNumber: Integer;
   end;
 
-  /// <summary>Coverage Report 다이얼로그. 프로젝트의 문서 커버리지를 분석하고 표시합니다.</summary>
+  /// <summary>IDE coverage report with source navigation and project analysis.</summary>
   TCoverageDialog = class(TForm)
     btnAnalyze: TButton;
     btnBrowse: TButton;
@@ -71,7 +72,7 @@ type
     destructor Destroy; override;
   end;
 
-/// <summary>Coverage Report 다이얼로그를 표시합니다.</summary>
+/// <summary>Opens the coverage report dialog.</summary>
 procedure ShowCoverageDialog;
 
 implementation

@@ -20,6 +20,9 @@ type
     procedure EmptyElement_ReturnsEmptyModel;
 
     [Test]
+    procedure CustomPlaceholders;
+
+    [Test]
     procedure Constructor_GeneratesAutoSummary;
 
     [Test]
@@ -399,6 +402,36 @@ begin
   finally
     LModel.Free;
   end;
+end;
+
+procedure TTestDocStubGenerator.CustomPlaceholders;
+var
+  E: TCodeElementInfo;
+  M: TXmlDocModel;
+begin
+  E := MakeElement(dekMethod, 'Compute', 'function');
+  E.ReturnType := 'Integer';
+  SetLength(E.Params, 2);
+  E.Params[0].Name := 'AIndex';
+  E.Params[1].Name := 'AFileName';
+  E.GenericParams := ['T'];
+  M := TDocStubGenerator.GenerateStub(E, 'DESCRIBE: ', True);
+  try
+    Assert.IsTrue(M.Summary.StartsWith('DESCRIBE: '));
+    Assert.IsTrue(M.Params[0].Description.StartsWith('DESCRIBE: '));
+    Assert.AreEqual('File name', M.Params[1].Description);
+    Assert.IsTrue(M.TypeParams[0].Description.StartsWith('DESCRIBE: '));
+    Assert.IsTrue(M.Returns.StartsWith('DESCRIBE: '));
+  finally M.Free; end;
+  M := TDocStubGenerator.GenerateStub(E, '', False);
+  try
+    Assert.AreEqual('', M.Summary);
+    Assert.AreEqual('AIndex', M.Params[0].Name);
+    Assert.AreEqual('', M.Params[0].Description);
+    Assert.AreEqual('File name', M.Params[1].Description);
+    Assert.AreEqual('T', M.TypeParams[0].Name);
+    Assert.AreEqual('', M.Returns);
+  finally M.Free; end;
 end;
 
 initialization

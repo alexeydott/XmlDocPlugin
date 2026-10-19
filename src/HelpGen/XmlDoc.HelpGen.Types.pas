@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Types;
+﻿/// <summary>Owned documentation hierarchies for units, types and declarations.</summary>
+unit XmlDoc.HelpGen.Types;
 
 interface
 
@@ -12,7 +13,7 @@ uses
 type
   TProgressCallback = reference to procedure(ACurrent, ATotal: Integer; const AMessage: string);
 
-  /// <summary>코드 요소 문서 정보</summary>
+  /// <summary>Documentation and signature metadata for a declaration.</summary>
   TElementDocInfo = class
   public
     CodeElement: TCodeElementInfo;
@@ -27,7 +28,7 @@ type
     destructor Destroy; override;
   end;
 
-  /// <summary>타입 문서 정보 (class, record, interface)</summary>
+  /// <summary>A documented type and its members.</summary>
   TTypeDocInfo = class
   public
     CodeElement:TCodeElementInfo;
@@ -45,7 +46,7 @@ type
     destructor Destroy; override;
   end;
 
-  /// <summary>유닛 문서 정보</summary>
+  /// <summary>A documented unit with its types and global declarations.</summary>
   TUnitDocInfo = class
   public
     Constants: TObjectList<TElementDocInfo>;

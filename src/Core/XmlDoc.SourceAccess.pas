@@ -1,4 +1,5 @@
-﻿unit XmlDoc.SourceAccess;
+﻿/// <summary>Read-only and protected-source checks for documentation editing.</summary>
+unit XmlDoc.SourceAccess;
 interface
 function CompilerSourceRoots:TArray<string>;
 function IsCompilerSource(const FileName:string):Boolean;

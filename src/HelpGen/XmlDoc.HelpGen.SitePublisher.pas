@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.SitePublisher;
+﻿/// <summary>MkDocs, Docusaurus and VitePress project generation.</summary>
+unit XmlDoc.HelpGen.SitePublisher;
 
 interface
 
@@ -13,10 +14,10 @@ uses
   XmlDoc.HelpGen.Renderer.MD;
 
 type
-  /// <summary>정적 사이트 생성기 종류</summary>
+  /// <summary>Supported static site generators.</summary>
   TSiteGenerator = (sgMkDocs, sgDocusaurus, sgVitePress);
 
-  /// <summary>사이트 퍼블리시 옵션</summary>
+  /// <summary>Static site publishing options.</summary>
   TSitePublishOptions = record
     AutoBuild: Boolean;
     NumericFileNames: Boolean;
@@ -26,18 +27,18 @@ type
     SiteName: string;
   end;
 
-  /// <summary>MkDocs / Docusaurus / VitePress 프로젝트 구성을 자동 생성합니다.</summary>
+  /// <summary>Creates MkDocs, Docusaurus or VitePress project resources around Markdown output.</summary>
   TSitePublisher = class
   private
     procedure GenerateDocusaurus(const AOutputDir: string; const AOpts: TSitePublishOptions; const AUnits: TObjectList<TUnitDocInfo>);
     procedure GenerateMkDocs(const AOutputDir: string; const AOpts: TSitePublishOptions; const AUnits: TObjectList<TUnitDocInfo>);
     procedure GenerateVitePress(const AOutputDir: string; const AOpts: TSitePublishOptions; const AUnits: TObjectList<TUnitDocInfo>);
   public
-    /// <summary>Markdown 렌더링 후 사이트 프레임워크 설정 파일을 생성합니다.</summary>
-    /// <param name="AUnits">유닛 목록</param>
-    /// <param name="AResolver">교차 참조 해석기</param>
-    /// <param name="AOpts">사이트 퍼블리시 옵션</param>
-    /// <param name="ARenderOpts">렌더링 옵션</param>
+    /// <summary>Renders Markdown and writes the selected site's configuration and resources.</summary>
+    /// <param name="AUnits">Units to render.</param>
+    /// <param name="AResolver">Cross-reference resolver for the parsed units.</param>
+    /// <param name="AOpts">Static site publishing options.</param>
+    /// <param name="ARenderOpts">Documentation output options shared by renderers.</param>
     procedure Publish(const AUnits: TObjectList<TUnitDocInfo>; const AResolver: TCrossRefResolver; const AOpts: TSitePublishOptions; const ARenderOpts: TRenderOptions);
   end;
 

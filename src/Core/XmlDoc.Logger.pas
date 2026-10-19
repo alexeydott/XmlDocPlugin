@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Logger;
+﻿/// <summary>Severity-filtered file logging with rotation and configurable destinations.</summary>
+unit XmlDoc.Logger;
 
 interface
 
@@ -9,10 +10,10 @@ uses
   System.SyncObjs;
 
 type
-  /// <summary>로그 수준</summary>
+  /// <summary>Logging threshold.</summary>
   TLogLevel = (llDebug, llInfo, llWarn, llError, llFatal);
 
-  /// <summary>싱글톤 로거. 파일 로테이션과 스레드 안전을 지원합니다.</summary>
+  /// <summary>Thread-safe file logger with rotation and configurable severity filtering.</summary>
   TLogger = class
   strict private
     class var FInstance: TLogger;
@@ -25,12 +26,15 @@ type
     FWriter: TStreamWriter;
 
     procedure EnsureWriter;
+    procedure SetLogPath(const AValue: string);
     function FormatEntry(ALevel: TLogLevel; const AMsg, AContext: string): string;
     function LevelToString(ALevel: TLogLevel): string;
     procedure RotateIfNeeded;
     procedure WriteEntry(ALevel: TLogLevel; const AMsg, AContext: string);
 
   public
+    /// <summary>Applies the log threshold and closes the writer when the destination changes.</summary>
+    procedure Configure(ALevel: TLogLevel; const APath: string);
     constructor Create;
     destructor Destroy; override;
 
@@ -45,7 +49,7 @@ type
     procedure Warn(const AMsg: string; const AContext: string = '');
 
     property Level: TLogLevel read FLevel write FLevel;
-    property LogPath: string read FLogPath write FLogPath;
+    property LogPath: string read FLogPath write SetLogPath;
   end;
 
 implementation
@@ -92,17 +96,51 @@ begin
   FreeAndNil(FInstance);
 end;
 
-procedure TLogger.EnsureWriter;
+procedure TLogger.SetLogPath(const AValue: string);
 begin
-  if not Assigned(FWriter) then
-  begin
-    FWriter := TStreamWriter.Create(
-      TFileStream.Create(FLogPath, fmOpenWrite or fmShareDenyNone), TEncoding.UTF8
-    );
-    FWriter.OwnStream;
-    FWriter.AutoFlush := True;
-    FWriter.BaseStream.Seek(0, soEnd);
+  Configure(FLevel, AValue);
+end;
+
+procedure TLogger.Configure(ALevel: TLogLevel; const APath: string);
+var
+  LPath: string;
+begin
+  LPath := APath;
+  if LPath = '' then
+    LPath := TPath.Combine(TPath.GetHomePath, 'XmlDocPlugin\xmldocplugin.log');
+  FLock.Enter;
+  try
+    if LPath <> FLogPath then
+    begin
+      FreeAndNil(FWriter);
+      FLogPath := LPath;
+    end;
+    FLevel := ALevel;
+  finally
+    FLock.Leave;
   end;
+end;
+
+procedure TLogger.EnsureWriter;
+var
+  LStream: TFileStream;
+begin
+  if Assigned(FWriter) then Exit;
+  if ExtractFileDir(FLogPath) <> '' then
+    ForceDirectories(ExtractFileDir(FLogPath));
+  if TFile.Exists(FLogPath) then
+    LStream := TFileStream.Create(FLogPath, fmOpenWrite or fmShareDenyNone)
+  else
+    LStream := TFileStream.Create(FLogPath, fmCreate or fmShareDenyNone);
+  try
+    LStream.Seek(0, soEnd);
+    FWriter := TStreamWriter.Create(LStream, TEncoding.UTF8);
+    FWriter.OwnStream;
+  except
+    LStream.Free;
+    raise;
+  end;
+  FWriter.AutoFlush := True;
 end;
 
 function TLogger.FormatEntry(ALevel: TLogLevel;
@@ -168,11 +206,9 @@ end;
 
 procedure TLogger.WriteEntry(ALevel: TLogLevel; const AMsg, AContext: string);
 begin
-  if Ord(ALevel) < Ord(FLevel) then
-    Exit;
-
   FLock.Enter;
   try
+    if Ord(ALevel) < Ord(FLevel) then Exit;
     try
       RotateIfNeeded;
       EnsureWriter;

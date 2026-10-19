@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Renderer.CHM;
+﻿/// <summary>CHM project generation, short-path staging and HTML Help compiler validation.</summary>
+unit XmlDoc.HelpGen.Renderer.CHM;
 
 interface
 uses System.SysUtils, System.Classes, System.IOUtils, System.Generics.Collections,

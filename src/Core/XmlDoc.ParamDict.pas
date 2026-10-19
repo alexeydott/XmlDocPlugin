@@ -1,4 +1,5 @@
-﻿unit XmlDoc.ParamDict;
+﻿/// <summary>Persistent parameter-description hints used by documentation stub generation.</summary>
+unit XmlDoc.ParamDict;
 
 interface
 
@@ -8,7 +9,7 @@ uses
   System.Generics.Collections;
 
 type
-  /// <summary>프로젝트별 파라미터 설명 자동 완성 딕셔너리</summary>
+  /// <summary>Persistent parameter-description dictionary used by stub generation.</summary>
   TParamDictionary = class
   strict private
     class var FInstance: TParamDictionary;
@@ -24,25 +25,25 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    /// <summary>딕셔너리 파일 경로를 설정하고 기존 데이터를 로드합니다.</summary>
-    /// <param name="APath">JSON 파일 경로</param>
+    /// <summary>Selects a dictionary file and loads its existing entries.</summary>
+    /// <param name="APath">JSON file path.</param>
     procedure LoadFromFile(const APath: string);
 
-    /// <summary>파라미터 설명을 등록합니다.</summary>
-    /// <param name="AName">파라미터 이름</param>
-    /// <param name="ADescription">파라미터 설명</param>
+    /// <summary>Adds or updates a parameter description.</summary>
+    /// <param name="AName">Parameter name.</param>
+    /// <param name="ADescription">Parameter description.</param>
     procedure Register(const AName, ADescription: string);
 
-    /// <summary>변경된 내용이 있으면 파일에 저장합니다.</summary>
+    /// <summary>Saves modified dictionary entries.</summary>
     procedure SaveToFile;
 
-    /// <summary>파라미터 설명을 조회합니다.</summary>
-    /// <param name="AName">파라미터 이름</param>
-    /// <param name="ADescription">조회된 설명 (출력)</param>
-    /// <returns>설명이 존재하면 True</returns>
+    /// <summary>Looks up a parameter description.</summary>
+    /// <param name="AName">Parameter name.</param>
+    /// <param name="ADescription">Description returned when an entry exists.</param>
+    /// <returns>True if a description was found.</returns>
     function TryGet(const AName: string; out ADescription: string): Boolean;
 
-    /// <summary>싱글톤 인스턴스를 반환합니다.</summary>
+    /// <summary>Returns the shared dictionary instance.</summary>
     class property Instance: TParamDictionary read GetInstance;
   end;
 

@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.Utils;
+﻿/// <summary>IDE theme detection, readable diagnostic colors and UI utilities.</summary>
+unit XmlDoc.Plugin.Utils;
 
 interface
 uses Vcl.StdCtrls,Vcl.Graphics;

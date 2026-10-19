@@ -245,7 +245,9 @@ const
   '  "Additional remarks...": "Дополнительные примечания...",' +
   '  "Return value description...": "Описание возвращаемого значения...",' +
   '  "Property value description...": "Описание значения свойства...",' +
-  '  "Show more results": "Показать ещё результаты"' +
+  '  "Show more results": "Показать ещё результаты",' +
+  '  "Theme follows the IDE": "Тема соответствует IDE",' +
+  '  "Generate a stub after typing ///": "Создавать заготовку при вводе ///"' +
   '}';
  CLocale_zh =
   '{' +
@@ -492,5 +494,7 @@ const
   '  "Additional remarks...": "其他备注...",' +
   '  "Return value description...": "返回值说明...",' +
   '  "Property value description...": "属性值说明...",' +
-  '  "Show more results": "显示更多结果"' +
+  '  "Show more results": "显示更多结果",' +
+  '  "Theme follows the IDE": "主题跟随 IDE",' +
+  '  "Generate a stub after typing ///": "键入 /// 后生成文档存根"' +
   '}';

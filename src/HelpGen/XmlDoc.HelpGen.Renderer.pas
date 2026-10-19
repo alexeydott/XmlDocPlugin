@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Renderer;
+﻿/// <summary>Common rendering interface and output options.</summary>
+unit XmlDoc.HelpGen.Renderer;
 
 interface
 
@@ -10,7 +11,7 @@ uses
   XmlDoc.HelpGen.CrossRef;
 
 type
-  /// <summary>렌더링 옵션</summary>
+  /// <summary>Documentation output options shared by renderers.</summary>
   TRenderOptions = record
     NumericFileNames: Boolean;
     CSSTheme: string;
@@ -26,7 +27,7 @@ type
     Title: string;
   end;
 
-  /// <summary>문서 렌더러 인터페이스</summary>
+  /// <summary>Common interface for documentation renderers.</summary>
   IDocRenderer = interface
     ['{B3F5C2A1-8D4E-47F9-A2C1-6E3B5D8F1A2C}']
     procedure Render(

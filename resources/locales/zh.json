@@ -242,5 +242,7 @@
   "Additional remarks...": "其他备注...",
   "Return value description...": "返回值说明...",
   "Property value description...": "属性值说明...",
-  "Show more results": "显示更多结果"
+  "Show more results": "显示更多结果",
+  "Theme follows the IDE": "主题跟随 IDE",
+  "Generate a stub after typing ///": "键入 /// 后生成文档存根"
 }

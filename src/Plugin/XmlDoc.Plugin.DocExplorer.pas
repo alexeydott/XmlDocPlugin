@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.DocExplorer;
+﻿/// <summary>Dockable unit documentation browser and editing host.</summary>
+unit XmlDoc.Plugin.DocExplorer;
 
 interface
 
@@ -33,7 +34,7 @@ uses
   XmlDoc.StubGen;
 
 type
-  /// <summary>유닛 전체의 XML 문서를 탐색·편집할 수 있는 도킹 패널 (전체 브라우저 기반)</summary>
+  /// <summary>Dockable unit documentation browser and editor with project tools.</summary>
   TDocExplorerForm = class(TDockableForm)
   private
     FBrowser: TXmlDocBrowser;
@@ -78,18 +79,18 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    /// <summary>에디터 노티파이어에서 파일/소스 변경 시 호출합니다.</summary>
-    /// <param name="AFileName">현재 파일 이름</param>
-    /// <param name="ASource">에디터 전체 소스</param>
+    /// <summary>Updates the view after a source file or editor snapshot changes.</summary>
+    /// <param name="AFileName">Current source file path.</param>
+    /// <param name="ASource">Complete editor source snapshot.</param>
     procedure HandleFileChanged(const AFileName, ASource: string);
 
-    /// <summary>현재 에디터에서 즉시 새로고침합니다.</summary>
+    /// <summary>Refreshes from the active source editor.</summary>
     procedure RefreshFromCurrentEditor;
   end;
 
 implementation
 
-uses XmlDoc.Plugin.Utils,XmlDoc.Plugin.Localization,
+uses XmlDoc.Plugin.Settings,XmlDoc.Plugin.Utils,XmlDoc.Plugin.Localization,
   XmlDoc.Plugin.DocInspector;
 
 const
@@ -421,7 +422,7 @@ begin
   end
   else
   begin
-    LModel := TDocStubGenerator.GenerateStub(AElement);
+    LModel := TDocStubGenerator.GenerateStub(AElement, TPluginSettings.Instance.Global.Stub.PlaceholderPrefix, TPluginSettings.Instance.Global.Stub.IncludePlaceholders);
     try
       Result := LModel.ToJson;
     finally

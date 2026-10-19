@@ -1,4 +1,5 @@
-﻿unit XmlDoc.ErrorHandler;
+﻿/// <summary>Plugin diagnostics, exception logging and IDE message callbacks.</summary>
+unit XmlDoc.ErrorHandler;
 
 interface
 
@@ -10,7 +11,7 @@ uses
   XmlDoc.Logger;
 
 type
-  /// <summary>에러 심각도</summary>
+  /// <summary>Diagnostic severity.</summary>
   TErrorSeverity = (
     esRecoverable,
     esElementSkip,
@@ -18,7 +19,7 @@ type
     esFatal
   );
 
-  /// <summary>플러그인 에러 정보</summary>
+  /// <summary>A plugin diagnostic with context and source location.</summary>
   TPluginError = record
     Context: string;
     ExceptionClass: string;
@@ -31,7 +32,7 @@ type
 
   TErrorCallback = reference to procedure(const AError: TPluginError);
 
-  /// <summary>플러그인 전역 에러 핸들러. IDE 메시지 패널 통합을 지원합니다.</summary>
+  /// <summary>Collects plugin diagnostics and supports an IDE message callback.</summary>
   TErrorHandler = class
   strict private
     class var FInstance: TErrorHandler;
@@ -45,25 +46,25 @@ type
     class function Instance: TErrorHandler;
     class procedure ReleaseInstance;
 
-    /// <summary>예외를 처리하고 로그에 기록합니다.</summary>
-    /// <param name="E">발생한 예외</param>
-    /// <param name="ASeverity">에러 심각도</param>
-    /// <param name="AContext">발생 모듈/메서드 컨텍스트</param>
+    /// <summary>Records an exception as a diagnostic and writes it to the log.</summary>
+    /// <param name="E">Exception being reported.</param>
+    /// <param name="ASeverity">Diagnostic severity.</param>
+    /// <param name="AContext">Module or operation that produced the diagnostic.</param>
     procedure HandleException(E: Exception; ASeverity: TErrorSeverity; const AContext: string);
 
-    /// <summary>IDE 메시지 패널에 메시지를 출력합니다.</summary>
-    /// <param name="AMsg">출력할 메시지</param>
-    /// <param name="AFileName">관련 파일 이름 (선택)</param>
-    /// <param name="ALine">관련 행 번호 (선택)</param>
+    /// <summary>Sends a message to the registered IDE message callback.</summary>
+    /// <param name="AMsg">Message to report.</param>
+    /// <param name="AFileName">Optional source file path.</param>
+    /// <param name="ALine">Optional source line number.</param>
     procedure ReportToIDE(const AMsg: string; const AFileName: string = ''; ALine: Integer = 0);
 
-    /// <summary>에러를 직접 추가합니다.</summary>
-    /// <param name="ASeverity">심각도</param>
-    /// <param name="AMessage">메시지</param>
-    /// <param name="AContext">컨텍스트</param>
+    /// <summary>Adds a diagnostic without an exception object.</summary>
+    /// <param name="ASeverity">Diagnostic severity.</param>
+    /// <param name="AMessage">Diagnostic message.</param>
+    /// <param name="AContext">Diagnostic context.</param>
     procedure AddError(ASeverity: TErrorSeverity; const AMessage, AContext: string);
 
-    /// <summary>에러 목록을 초기화합니다.</summary>
+    /// <summary>Clears collected diagnostics.</summary>
     procedure ClearErrors;
 
     property Errors: TList<TPluginError> read FErrors;

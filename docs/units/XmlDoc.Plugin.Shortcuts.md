@@ -1,44 +1,94 @@
 ﻿# XmlDoc.Plugin.Shortcuts
 
+IDE menu commands, keyboard bindings and callback registration.
+
+## Types
+
+| Type | Kind | Description |
+|------|------|-------------|
+| [`TXmlDocKeyBinding`](XmlDoc.Plugin.Shortcuts.TXmlDocKeyBinding.md) | class | Registers plugin keyboard commands through IOTAKeyboardBinding. |
+| [`TXmlDocMenuIntegration`](XmlDoc.Plugin.Shortcuts.TXmlDocMenuIntegration.md) | class | Owns the plugin's IDE menu commands. |
+
 ## Functions & Procedures
-
-### SetToggleInspectorCallback
-
-Doc Inspector 토글 콜백을 설정합니다.
-
-**Parameters:**
-
-- **ACallback** — 토글 시 호출할 콜백
-
-### SetGenerateStubCallback
-
-Doc Stub 생성 콜백을 설정합니다.
-
-**Parameters:**
-
-- **ACallback** — 생성 시 호출할 콜백
-
-### SetGenerateHelpCallback
-
-Help 생성 다이얼로그 콜백을 설정합니다.
-
-**Parameters:**
-
-- **ACallback** — 다이얼로그 표시 시 호출할 콜백
 
 ### SetCoverageReportCallback
 
-Coverage Report 콜백을 설정합니다.
+Registers the coverage report callback.
 
 **Parameters:**
 
-- **ACallback** — 리포트 표시 시 호출할 콜백
+- **ACallback** — Callback invoked to open the report.
+
+### SetDocumentationCommandCallback
+
+Registers the Inspector toggle callback.
+
+**Parameters:**
+
+- **ACallback** — Callback returning visibility after toggling the view.
+
+### SetGenerateHelpCallback
+
+Registers the documentation generation dialog callback.
+
+**Parameters:**
+
+- **ACallback** — Callback invoked to open the dialog.
+
+### SetGenerateStubCallback
+
+Registers the stub-generation callback.
+
+**Parameters:**
+
+- **ACallback** — Callback invoked to generate a documentation stub.
+
+### SetIsDocExplorerVisibleFunc
+
+Registers the Explorer visibility callback.
+
+**Parameters:**
+
+- **ACallback** — Callback returning the view's current visibility.
+
+### SetIsInspectorVisibleFunc
+
+Registers the Inspector visibility callback.
+
+**Parameters:**
+
+- **ACallback** — Callback returning the view's current visibility.
+
+### SetNextUndocumentedCallback
+
+Registers navigation to the next undocumented declaration.
+
+**Parameters:**
+
+- **ACallback** — Callback invoked to navigate to a declaration.
+
+### SetPreviousUndocumentedCallback
+
+Registers navigation to the previous undocumented declaration.
+
+**Parameters:**
+
+- **ACallback** — Callback invoked to navigate to a declaration.
 
 ### SetSettingsCallback
 
-Settings 다이얼로그 콜백을 설정합니다.
+Registers the settings dialog callback.
 
 **Parameters:**
 
-- **ACallback** — 다이얼로그 표시 시 호출할 콜백
+- **ACallback** — Callback invoked to open the dialog.
 
+### SetToggleDocExplorerCallback
+
+Registers the Documentation Explorer toggle callback.
+
+**Parameters:**
+
+- **ACallback** — Callback returning visibility after toggling the view.
+
+### SetToggleInspectorCallback

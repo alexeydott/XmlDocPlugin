@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.Settings;
+﻿/// <summary>Global registry preferences and per-project JSON generation defaults.</summary>
+unit XmlDoc.Plugin.Settings;
 
 interface
 
@@ -15,35 +16,40 @@ uses
 type
   TIndentStyle = (isSpaces, isTabs);
 
-  /// <summary>에디터 설정</summary>
+  /// <summary>Editor preferences; legacy fields remain for registry compatibility.</summary>
   TEditorSettings = record
+    /// <summary>Legacy registry value; the Inspector opens through its menu command.</summary>
     AutoShowOnCursor: Boolean;
     CollapseEmptySections: Boolean;
     DebounceMs: Integer;
     FontSize: Integer;
     SaveDebounceMs: Integer;
     ShowSignatureHeader: Boolean;
+    /// <summary>Fallback for standalone editor hosts; IDE views follow the IDE theme.</summary>
     Theme: string;
   end;
 
-  /// <summary>코드 생성 설정</summary>
+  /// <summary>Legacy formatting preferences retained for registry compatibility; not applied to writes.</summary>
   TCodeGenSettings = record
     BlankLineAfter: Boolean;
     BlankLineBefore: Boolean;
     IndentSize: Integer;
     IndentStyle: TIndentStyle;
     OmitEmptyTags: Boolean;
+    /// <summary>Legacy formatting preference; not applied to source writes.</summary>
     TagOrder: TArray<string>;
   end;
 
-  /// <summary>스텁 생성 설정</summary>
+  /// <summary>Automatic stub generation and placeholder options.</summary>
   TStubSettings = record
     AutoGenerate: Boolean;
+    /// <summary>Whether generated TODO descriptions are included; signature names and known hints remain.</summary>
     IncludePlaceholders: Boolean;
+    /// <summary>Prefix used for generated placeholder descriptions.</summary>
     PlaceholderPrefix: string;
   end;
 
-  /// <summary>단축키 설정</summary>
+  /// <summary>Keyboard shortcuts for plugin commands.</summary>
   TShortcutSettings = record
     CoverageReport: TShortCut;
     GenerateHelp: TShortCut;
@@ -53,15 +59,17 @@ type
     ToggleInspector: TShortCut;
   end;
 
-  /// <summary>일반 설정</summary>
+  /// <summary>UI language and logging options, plus legacy update preferences.</summary>
   TGeneralSettings = record
+    /// <summary>Legacy registry value; automatic update checking is not enabled.</summary>
     CheckUpdates: Boolean;
     Language: string;
     LogLevel: TLogLevel;
+    /// <summary>Log destination; an empty string selects the default user log path.</summary>
     LogPath: string;
   end;
 
-  /// <summary>전역 설정 (레지스트리)</summary>
+  /// <summary>Global preferences persisted in the current user's registry.</summary>
   TGlobalSettings = record
     CodeGen: TCodeGenSettings;
     Editor: TEditorSettings;
@@ -70,9 +78,11 @@ type
     Stub: TStubSettings;
   end;
 
-  /// <summary>Help 생성 설정</summary>
+  /// <summary>Project documentation generation defaults.</summary>
   THelpGenSettings = record
+    /// <summary>Minimum required generation coverage; zero disables the threshold.</summary>
     CoverageMinPercent: Integer;
+    /// <summary>Initially selected IDE output formats: html, chm, md, json, hmxp, mkdocs, docusaurus or vitepress.</summary>
     DefaultFormats: TArray<string>;
     ExcludePatterns: TArray<string>;
     HTMLTheme: string;
@@ -82,16 +92,17 @@ type
     Title: string;
   end;
 
-  /// <summary>프로젝트 설정 (.xmldocplugin.json)</summary>
+  /// <summary>Project preferences loaded from .xmldocplugin.json.</summary>
   TProjectSettings = record
     HelpGen: THelpGenSettings;
   end;
 
-  /// <summary>플러그인 설정 관리자. 레지스트리(글로벌) + JSON(프로젝트) 이중 저장.</summary>
+  /// <summary>Loads and saves global registry preferences and per-project JSON defaults.</summary>
   TPluginSettings = class
   strict private
     class var FInstance: TPluginSettings;
   private
+    FRegistryRoot: string;
     FGlobal: TGlobalSettings;
     FProject: TProjectSettings;
     FProjectDir: string;
@@ -102,25 +113,26 @@ type
     procedure SaveToRegistry;
 
   public
-    constructor Create;
+    /// <summary>Loads preferences from the supplied current-user registry root.</summary>
+    constructor Create(const ARegistryRoot: string = 'Software\XmlDocPlugin');
 
     class function Instance: TPluginSettings;
     class procedure ReleaseInstance;
 
-    /// <summary>전역 설정을 초기화합니다.</summary>
+    /// <summary>Resets global and project preferences to their defaults.</summary>
     procedure LoadDefaults;
 
-    /// <summary>레지스트리에서 전역 설정을 로드합니다.</summary>
+    /// <summary>Loads global preferences and applies runtime logging options.</summary>
     procedure Load;
 
-    /// <summary>전역 설정을 레지스트리에 저장합니다.</summary>
+    /// <summary>Saves global preferences and applies runtime logging options.</summary>
     procedure Save;
 
-    /// <summary>프로젝트 디렉토리의 설정을 로드합니다.</summary>
-    /// <param name="AProjectDir">프로젝트 루트 디렉토리</param>
+    /// <summary>Loads preferences for the selected project, resetting previous project defaults.</summary>
+    /// <param name="AProjectDir">Project root directory.</param>
     procedure LoadProject(const AProjectDir: string);
 
-    /// <summary>프로젝트 설정을 JSON 파일로 저장합니다.</summary>
+    /// <summary>Saves project preferences while preserving unrelated configuration keys.</summary>
     procedure SaveProject;
 
     property Global: TGlobalSettings read FGlobal write FGlobal;
@@ -131,14 +143,14 @@ type
 implementation
 
 const
-  CRegistryRoot = 'Software\XmlDocPlugin';
   CProjectFileName = '.xmldocplugin.json';
 
 { TPluginSettings }
 
-constructor TPluginSettings.Create;
+constructor TPluginSettings.Create(const ARegistryRoot: string);
 begin
   inherited Create;
+  FRegistryRoot := ARegistryRoot;
   LoadDefaults;
   Load;
 end;
@@ -202,11 +214,13 @@ end;
 procedure TPluginSettings.Load;
 begin
   LoadFromRegistry;
+  TLogger.Instance.Configure(FGlobal.General.LogLevel, FGlobal.General.LogPath);
 end;
 
 procedure TPluginSettings.Save;
 begin
   SaveToRegistry;
+  TLogger.Instance.Configure(FGlobal.General.LogLevel, FGlobal.General.LogPath);
 end;
 
 procedure TPluginSettings.LoadFromRegistry;
@@ -216,8 +230,8 @@ begin
   LReg := TRegistry.Create(KEY_READ);
   try
     LReg.RootKey := HKEY_CURRENT_USER;
-    if not LReg.OpenKey(CRegistryRoot + '\Editor', False) then
-      Exit;
+    if LReg.OpenKey(FRegistryRoot + '\Editor', False) then
+    begin
 
     if LReg.ValueExists('DebounceMs') then
       FGlobal.Editor.DebounceMs := LReg.ReadInteger('DebounceMs');
@@ -235,8 +249,9 @@ begin
       FGlobal.Editor.SaveDebounceMs := LReg.ReadInteger('SaveDebounceMs');
 
     LReg.CloseKey;
+    end;
 
-    if LReg.OpenKey(CRegistryRoot + '\CodeGen', False) then
+    if LReg.OpenKey(FRegistryRoot + '\CodeGen', False) then
     begin
       if LReg.ValueExists('IndentStyle') then
         FGlobal.CodeGen.IndentStyle := TIndentStyle(LReg.ReadInteger('IndentStyle'));
@@ -251,7 +266,7 @@ begin
       LReg.CloseKey;
     end;
 
-    if LReg.OpenKey(CRegistryRoot + '\Stub', False) then
+    if LReg.OpenKey(FRegistryRoot + '\Stub', False) then
     begin
       if LReg.ValueExists('AutoGenerate') then
         FGlobal.Stub.AutoGenerate := LReg.ReadBool('AutoGenerate');
@@ -262,7 +277,7 @@ begin
       LReg.CloseKey;
     end;
 
-    if LReg.OpenKey(CRegistryRoot + '\Shortcuts', False) then
+    if LReg.OpenKey(FRegistryRoot + '\Shortcuts', False) then
     begin
       if LReg.ValueExists('ToggleInspector') then
         FGlobal.Shortcuts.ToggleInspector := LReg.ReadInteger('ToggleInspector');
@@ -279,7 +294,7 @@ begin
       LReg.CloseKey;
     end;
 
-    if LReg.OpenKey(CRegistryRoot + '\General', False) then
+    if LReg.OpenKey(FRegistryRoot + '\General', False) then
     begin
       if LReg.ValueExists('Language') then
         FGlobal.General.Language := LReg.ReadString('Language');
@@ -304,7 +319,7 @@ begin
   try
     LReg.RootKey := HKEY_CURRENT_USER;
 
-    if LReg.OpenKey(CRegistryRoot + '\Editor', True) then
+    if LReg.OpenKey(FRegistryRoot + '\Editor', True) then
     begin
       LReg.WriteInteger('DebounceMs', FGlobal.Editor.DebounceMs);
       LReg.WriteInteger('FontSize', FGlobal.Editor.FontSize);
@@ -316,7 +331,7 @@ begin
       LReg.CloseKey;
     end;
 
-    if LReg.OpenKey(CRegistryRoot + '\CodeGen', True) then
+    if LReg.OpenKey(FRegistryRoot + '\CodeGen', True) then
     begin
       LReg.WriteInteger('IndentStyle', Ord(FGlobal.CodeGen.IndentStyle));
       LReg.WriteInteger('IndentSize', FGlobal.CodeGen.IndentSize);
@@ -326,7 +341,7 @@ begin
       LReg.CloseKey;
     end;
 
-    if LReg.OpenKey(CRegistryRoot + '\Stub', True) then
+    if LReg.OpenKey(FRegistryRoot + '\Stub', True) then
     begin
       LReg.WriteBool('AutoGenerate', FGlobal.Stub.AutoGenerate);
       LReg.WriteBool('IncludePlaceholders', FGlobal.Stub.IncludePlaceholders);
@@ -334,7 +349,7 @@ begin
       LReg.CloseKey;
     end;
 
-    if LReg.OpenKey(CRegistryRoot + '\Shortcuts', True) then
+    if LReg.OpenKey(FRegistryRoot + '\Shortcuts', True) then
     begin
       LReg.WriteInteger('ToggleInspector', FGlobal.Shortcuts.ToggleInspector);
       LReg.WriteInteger('GenerateStub', FGlobal.Shortcuts.GenerateStub);
@@ -345,7 +360,7 @@ begin
       LReg.CloseKey;
     end;
 
-    if LReg.OpenKey(CRegistryRoot + '\General', True) then
+    if LReg.OpenKey(FRegistryRoot + '\General', True) then
     begin
       LReg.WriteString('Language', FGlobal.General.Language);
       LReg.WriteBool('CheckUpdates', FGlobal.General.CheckUpdates);

@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Documentation;
+﻿/// <summary>Documentation validation, stable identities, authoring configuration and public API comparison.</summary>
+unit XmlDoc.Documentation;
 interface
 uses System.SysUtils,XmlDoc.Consts,XmlDoc.Model;
 type

@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Scanner;
+﻿/// <summary>Project and directory discovery of Pascal source files.</summary>
+unit XmlDoc.HelpGen.Scanner;
 
 interface
 
@@ -10,14 +11,14 @@ uses
   System.Masks;
 
 type
-  /// <summary>스캔 소스 유형</summary>
+  /// <summary>Supported source discovery modes.</summary>
   TScanSource = (
     ssProjectFile,
     ssDirectory,
     ssFileList
   );
 
-  /// <summary>프로젝트 스캔 옵션</summary>
+  /// <summary>Options for project or directory source discovery.</summary>
   TScanOptions = record
     Source: TScanSource;
     ProjectPath: string;
@@ -30,7 +31,7 @@ type
     InterfaceOnly: Boolean;
   end;
 
-  /// <summary>프로젝트 파일을 스캔하여 문서화 대상 .pas 파일 목록을 수집합니다.</summary>
+  /// <summary>Discovers Pascal source files from a project or directory.</summary>
   TProjectScanner = class
   private
     FSearchPaths,FDefines:TArray<string>;
@@ -42,9 +43,9 @@ type
     function ScanDirectory(const ADirPath: string): TArray<string>;
 
   public
-    /// <summary>옵션에 따라 .pas 파일 목록을 수집합니다.</summary>
-    /// <param name="AOptions">스캔 옵션</param>
-    /// <returns>절대 경로의 .pas 파일 배열</returns>
+    /// <summary>Collects Pascal source paths using the requested discovery mode.</summary>
+    /// <param name="AOptions">Source discovery options.</param>
+    /// <returns>Absolute paths of discovered Pascal files.</returns>
     function Scan(const AOptions: TScanOptions): TArray<string>;
     property Platform:string read FPlatform;
     property SearchPaths:TArray<string> read FSearchPaths;

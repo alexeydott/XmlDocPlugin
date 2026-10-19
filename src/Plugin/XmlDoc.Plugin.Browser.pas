@@ -1,3 +1,4 @@
+/// <summary>WebView2 resource hosting, editor settings and persistent section state.</summary>
 unit XmlDoc.Plugin.Browser;
 
 interface
@@ -128,6 +129,7 @@ begin
     LJson.AddPair('saveDebounceMs',TJSONNumber.Create(LSettings.SaveDebounceMs));
     if FHostTheme<>'' then LJson.AddPair('theme',FHostTheme) else LJson.AddPair('theme',LSettings.Theme);
     LJson.AddPair('fontSize', TJSONNumber.Create(LSettings.FontSize));
+    LJson.AddPair('collapseEmptySections', TJSONBool.Create(LSettings.CollapseEmptySections));
     LJson.AddPair('showSignatureHeader', TJSONBool.Create(LSettings.ShowSignatureHeader));
     var Payload:=LJson.ToJSON;if Payload=FAppliedSettings then Exit;
     LocalizePluginUi(Owner);FAppliedSettings:=Payload;

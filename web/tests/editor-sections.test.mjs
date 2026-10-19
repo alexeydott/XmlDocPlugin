@@ -1,0 +1,35 @@
+import {JSDOM} from 'jsdom';
+import {readFileSync} from 'node:fs';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {load} from './load.mjs';
+
+test('empty section defaults follow settings and document changes without overriding explicit state',()=>{
+ const dom=new JSDOM(readFileSync(new URL('../index.html',import.meta.url),'utf8'),{pretendToBeVisual:true});
+ for(const name of ['window','document','DOMParser','XMLSerializer','HTMLElement','Element','Node','MutationObserver','CustomEvent','getComputedStyle'])globalThis[name]=name==='getComputedStyle'?dom.window.getComputedStyle.bind(dom.window):dom.window[name];
+ Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true});
+ globalThis.ResizeObserver=class{observe(){} disconnect(){}};
+ const {setupCollapsible,loadDocument,collectDoc}=load('editor.ts');
+ setupCollapsible();
+ const element={kind:'method',name:'Run',symbolId:'run',fileName:'Case.pas',params:[],genericParams:[],returnType:'',lineNumber:10};
+ const collapsed=id=>document.getElementById(id+'-section').classList.contains('collapsed');
+ loadDocument(element,{summary:'Description',remarks:''});
+ window.xmlDocSections.defaults(true);
+ assert.equal(collapsed('summary'),false);
+ assert.equal(collapsed('remarks'),true);
+ const summary=document.querySelector('#summary-editor .tiptap').editor;
+ summary.chain().selectAll().insertContent('Edited').run();
+ const before=collectDoc();
+ window.xmlDocSections.restore({'remarks-section':false,'examples-section':true});
+ window.xmlDocSections.defaults(false);
+ assert.equal(collapsed('remarks'),false);
+ assert.equal(collapsed('examples'),true);
+ assert.equal(collapsed('seealso'),false,'disabling defaults expands automatically collapsed sections');
+ assert.deepEqual(collectDoc(),before,'layout changes never alter document content');
+ assert.equal(summary.can().undo(),true,'layout changes retain undo');
+ loadDocument({...element,symbolId:'next'},{summary:'Next',remarks:'Notes'});
+ window.xmlDocSections.defaults(true);
+ assert.equal(collapsed('remarks'),false,'explicit open state survives selection');
+ assert.equal(collapsed('seealso'),true,'empty defaults apply to a new card');
+ dom.window.close();
+});

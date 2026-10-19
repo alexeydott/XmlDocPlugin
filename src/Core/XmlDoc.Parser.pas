@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Parser;
+﻿/// <summary>DelphiAST integration, project-aware conditional parsing and declaration lookup.</summary>
+unit XmlDoc.Parser;
 
 interface
 
@@ -15,7 +16,7 @@ uses
   XmlDoc.Consts;
 
 type
-  /// <summary>DelphiAST 기반 소스 파서. 커서 위치에서 문서화 대상 코드 요소를 식별합니다.</summary>
+  /// <summary>Parses Delphi source and locates documentable declarations at a source line.</summary>
   TDocParser = class
   private
     FBuilder: TPasSyntaxTreeBuilder;
@@ -54,25 +55,25 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    /// <summary>소스 텍스트를 받아 AST를 (재)구축합니다.</summary>
-    /// <param name="ASource">파싱할 소스 코드 전체</param>
+    /// <summary>Builds the syntax tree for the supplied source and project context.</summary>
+    /// <param name="ASource">Complete source text to parse.</param>
     procedure ParseSource(const ASource: string; const AFileName:string = '');
 
-    /// <summary>지정 행에서 문서화 대상 요소 정보를 반환합니다.</summary>
-    /// <param name="ALine">커서 행 번호 (1-based)</param>
-    /// <returns>코드 요소 정보. 대상이 없으면 Name이 빈 문자열</returns>
+    /// <summary>Finds the declaration at the supplied source line.</summary>
+    /// <param name="ALine">One-based cursor line number.</param>
+    /// <returns>Declaration metadata; Name is empty when no declaration is found.</returns>
     function GetElementAtLine(ALine: Integer): TCodeElementInfo;
 
-    /// <summary>파싱된 모든 문서화 대상 요소를 반환합니다.</summary>
-    /// <returns>코드 요소 정보 배열</returns>
+    /// <summary>Returns all documentable declarations in the parsed source.</summary>
+    /// <returns>Parsed declaration metadata.</returns>
     function GetAllElements: TArray<TCodeElementInfo>;
 
-    /// <summary>AST가 최신 상태인지 확인합니다 (소스 변경 감지).</summary>
-    /// <param name="ASource">비교할 소스 코드</param>
-    /// <returns>변경 없으면 True</returns>
+    /// <summary>Checks whether the supplied source matches the parsed snapshot.</summary>
+    /// <param name="ASource">Source text to compare.</param>
+    /// <returns>True if the source has not changed.</returns>
     function IsUpToDate(const ASource: string): Boolean;
 
-    /// <summary>파싱된 AST 루트 노드</summary>
+    /// <summary>Root of the parsed syntax tree.</summary>
     /// <summary>Returns known visibility, or False when external scope information is unavailable.</summary>
     property OnResolveDeclaration: TResolveDeclarationEvent read FOnResolveDeclaration write SetResolveDeclaration;
     property OnCheck:TProc read FOnCheck write FOnCheck;
@@ -88,7 +89,7 @@ type
     property DependencyProbes:TArray<string> read FDependencyProbes;
     property RootNode: TSyntaxNode read FRootNode;
 
-    /// <summary>마지막으로 파싱한 소스 텍스트</summary>
+    /// <summary>Most recently parsed source snapshot.</summary>
     property SourceText: string read FCachedSource;
   end;
 

@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.UpdateChecker;
+﻿/// <summary>Legacy update-service helper; automatic checking is not enabled by the plugin.</summary>
+unit XmlDoc.Plugin.UpdateChecker;
 
 interface
 
@@ -12,17 +13,17 @@ uses
   XmlDoc.Logger;
 
 type
-  /// <summary>업데이트 정보</summary>
+  /// <summary>Version and download information returned by the legacy update service.</summary>
   TUpdateInfo = record
     DownloadURL: string;
     LatestVersion: string;
     ReleaseNotes: string;
   end;
 
-  /// <summary>업데이트 가용 이벤트</summary>
+  /// <summary>Legacy update-availability callback.</summary>
   TUpdateAvailableEvent = procedure(const AInfo: TUpdateInfo) of object;
 
-  /// <summary>비동기 업데이트 확인기. IDE 시작 시 24시간 간격으로 최신 버전을 확인합니다.</summary>
+  /// <summary>Legacy update-service client; not registered or invoked by the plugin.</summary>
   TUpdateChecker = class
   private
     FCheckURL: string;
@@ -35,10 +36,10 @@ type
   public
     constructor Create(const ACurrentVersion: string);
 
-    /// <summary>비동기로 업데이트를 확인합니다. 24시간 이내 확인 이력이 있으면 건너뜁니다.</summary>
+    /// <summary>Starts a legacy update check, skipping checks made within 24 hours.</summary>
     procedure CheckAsync;
 
-    /// <summary>즉시 업데이트를 확인합니다 (타이머 무시).</summary>
+    /// <summary>Checks the legacy update endpoint immediately.</summary>
     procedure CheckNow;
 
     property CheckURL: string read FCheckURL write FCheckURL;

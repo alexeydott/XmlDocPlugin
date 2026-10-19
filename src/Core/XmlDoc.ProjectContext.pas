@@ -1,4 +1,5 @@
-﻿unit XmlDoc.ProjectContext;
+﻿/// <summary>Project configuration, search paths and conditional declaration resolution.</summary>
+unit XmlDoc.ProjectContext;
 interface
 uses System.SysUtils,System.Generics.Collections;
 type

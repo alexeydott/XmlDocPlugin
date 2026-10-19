@@ -1,4 +1,5 @@
-﻿unit XmlDoc.HelpGen.Resources;
+﻿/// <summary>Validated copying of documentation images and example source resources.</summary>
+unit XmlDoc.HelpGen.Resources;
 interface
 uses System.SysUtils,System.Generics.Collections,XmlDoc.HelpGen.Types;
 function CopyDocumentationImage(const Source,UnitName,ProjectDir,OutputDir,Folder:string;Units:TObjectList<TUnitDocInfo>):string;

@@ -1,3 +1,4 @@
+/// <summary>Validated XML fragment loading and serialization helpers.</summary>
 unit XmlDoc.XmlFragments;
 interface
 uses System.SysUtils,Xml.XMLIntf;
