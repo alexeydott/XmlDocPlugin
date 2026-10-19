@@ -28,6 +28,7 @@ type
     cmbLanguage: TComboBox;
     cmbLogLevel: TComboBox;
     edtPlaceholderPrefix: TEdit;
+    memPlaceholderMarkers: TMemo;
     hotCoverageReport: THotKey;
     hotGenerateHelp: THotKey;
     hotGenerateStub: THotKey;
@@ -148,6 +149,7 @@ begin
   LoadThemes(LSettings.General.DocumentationTheme);
   chkAutoGenerate.Checked := LSettings.Stub.AutoGenerate;
   edtPlaceholderPrefix.Text := LSettings.Stub.PlaceholderPrefix;
+  memPlaceholderMarkers.Lines.Text := LSettings.Stub.PlaceholderMarkers;
 
   // Shortcuts
   hotToggleInspector.HotKey := LSettings.Shortcuts.ToggleInspector;
@@ -179,6 +181,7 @@ begin
   LSettings.General.DocumentationTheme := cmbDocumentationTheme.Text;
   LSettings.Stub.AutoGenerate := chkAutoGenerate.Checked;
   LSettings.Stub.PlaceholderPrefix := edtPlaceholderPrefix.Text;
+  LSettings.Stub.PlaceholderMarkers := memPlaceholderMarkers.Lines.Text;
 
   // Shortcuts
   FShortcutsChanged :=

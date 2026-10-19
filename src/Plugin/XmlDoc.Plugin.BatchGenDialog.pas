@@ -93,7 +93,7 @@ type
 procedure ShowBatchGenDialog;
 
 implementation
-uses XmlDoc.HelpGen.ThemeEngine,XmlDoc.Plugin.Localization;
+uses XmlDoc.HelpGen.ThemeEngine,XmlDoc.Plugin.Localization,XmlDoc.I18n;
 
 
 procedure ShowBatchGenDialog;
@@ -186,7 +186,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(16);
   LLabel.Top := LTop;
-  LLabel.Caption := 'Source:';
+  LLabel.Caption := TI18n.Instance.T('Source:');
   LLabel.Font.Style := [fsBold];
   Inc(LTop, S(22));
 
@@ -200,7 +200,7 @@ begin
   if LProjectPath <> '' then
     FRbProject.Caption := 'Current Project (' + ExtractFileName(LProjectPath) + ')'
   else
-    FRbProject.Caption := 'Current Project (none)';
+    FRbProject.Caption := TI18n.Instance.T('Current Project (none)');
   FRbProject.Checked := LProjectPath <> '';
   FRbProject.Enabled := LProjectPath <> '';
   Inc(LTop, S(24));
@@ -212,7 +212,7 @@ begin
   FRbDirectory.Top := LTop;
   FRbDirectory.Width := S(80);
   FRbDirectory.Height := S(20);
-  FRbDirectory.Caption := 'Directory:';
+  FRbDirectory.Caption := TI18n.Instance.T('Directory:');
   FRbDirectory.Checked := LProjectPath = '';
   Inc(LTop, S(1));
 
@@ -240,7 +240,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(24);
   LLabel.Top := LTop;
-  LLabel.Caption := 'Exclude:';
+  LLabel.Caption := TI18n.Instance.T('Exclude:');
   Inc(LTop, S(18));
 
   FEdtExclude := TEdit.Create(Self);
@@ -258,7 +258,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(16);
   LLabel.Top := LTop;
-  LLabel.Caption := 'Output Format:';
+  LLabel.Caption := TI18n.Instance.T('Output Format:');
   LLabel.Font.Style := [fsBold];
   Inc(LTop, S(22));
 
@@ -269,7 +269,7 @@ begin
   FChkHTML.Top := LTop;
   FChkHTML.Width := S(220);
   FChkHTML.Height := S(20);
-  FChkHTML.Caption := 'HTML (Multi-page website)';
+  FChkHTML.Caption := TI18n.Instance.T('HTML (Multi-page website)');
 
 
   FChkCHM := TCheckBox.Create(Self);
@@ -279,7 +279,7 @@ begin
   FChkCHM.Top := LTop;
   FChkCHM.Width := S(220);
   FChkCHM.Height := S(20);
-  FChkCHM.Caption := 'CHM (Windows Help)';
+  FChkCHM.Caption := TI18n.Instance.T('CHM (Windows Help)');
   Inc(LTop, S(24));
 
   FChkMarkdown := TCheckBox.Create(Self);
@@ -289,7 +289,7 @@ begin
   FChkMarkdown.Top := LTop;
   FChkMarkdown.Width := S(220);
   FChkMarkdown.Height := S(20);
-  FChkMarkdown.Caption := 'Markdown (GitHub Wiki)';
+  FChkMarkdown.Caption := TI18n.Instance.T('Markdown (GitHub Wiki)');
 
   FChkJSON := TCheckBox.Create(Self);
   FChkJSON.Parent := LContent;
@@ -298,7 +298,7 @@ begin
   FChkJSON.Top := LTop;
   FChkJSON.Width := S(220);
   FChkJSON.Height := S(20);
-  FChkJSON.Caption := 'JSON (Machine-readable)';
+  FChkJSON.Caption := TI18n.Instance.T('JSON (Machine-readable)');
   Inc(LTop, S(28));
 
   FChkHMXP := TCheckBox.Create(Self);
@@ -308,7 +308,7 @@ begin
   FChkHMXP.Top := LTop;
   FChkHMXP.Width := S(440);
   FChkHMXP.Height := S(20);
-  FChkHMXP.Caption := 'Help && Manual (HMXP project)';
+  FChkHMXP.Caption := TI18n.Instance.T('Help && Manual (HMXP project)');
   Inc(LTop, S(28));
 
   // Static Site
@@ -317,7 +317,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(24);
   LLabel.Top := LTop;
-  LLabel.Caption := '── Static Site ──';
+  LLabel.Caption := TI18n.Instance.T('── Static Site ──');
   LLabel.Font.Color := clGray;
   Inc(LTop, S(20));
 
@@ -328,7 +328,7 @@ begin
   FChkMkDocs.Top := LTop;
   FChkMkDocs.Width := S(220);
   FChkMkDocs.Height := S(20);
-  FChkMkDocs.Caption := 'MkDocs (Material theme)';
+  FChkMkDocs.Caption := TI18n.Instance.T('MkDocs (Material theme)');
 
   FChkDocusaurus := TCheckBox.Create(Self);
   FChkDocusaurus.Parent := LContent;
@@ -337,7 +337,7 @@ begin
   FChkDocusaurus.Top := LTop;
   FChkDocusaurus.Width := S(220);
   FChkDocusaurus.Height := S(20);
-  FChkDocusaurus.Caption := 'Docusaurus (React-based)';
+  FChkDocusaurus.Caption := TI18n.Instance.T('Docusaurus (React-based)');
   Inc(LTop, S(24));
 
   FChkVitePress := TCheckBox.Create(Self);
@@ -347,7 +347,7 @@ begin
   FChkVitePress.Top := LTop;
   FChkVitePress.Width := S(220);
   FChkVitePress.Height := S(20);
-  FChkVitePress.Caption := 'VitePress (Vue-based)';
+  FChkVitePress.Caption := TI18n.Instance.T('VitePress (Vue-based)');
   FChkHTML.Checked := MatchText('html', LSettings.Project.HelpGen.DefaultFormats);
   FChkCHM.Checked := MatchText('chm', LSettings.Project.HelpGen.DefaultFormats);
   FChkMarkdown.Checked := MatchText('md', LSettings.Project.HelpGen.DefaultFormats);
@@ -364,7 +364,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(24);
   LLabel.Top := LTop;
-  LLabel.Caption := 'HTML / CHM theme:';
+  LLabel.Caption := TI18n.Instance.T('HTML / CHM theme:');
   FTheme := TComboBox.Create(Self);
   FTheme.Parent := LContent;
   FTheme.ScaleForPPI(CurrentPPI);
@@ -382,7 +382,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(16);
   LLabel.Top := LTop;
-  LLabel.Caption := 'Output Directory:';
+  LLabel.Caption := TI18n.Instance.T('Output Directory:');
   LLabel.Font.Style := [fsBold];
   Inc(LTop, S(20));
 
@@ -411,7 +411,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(16);
   LLabel.Top := LTop;
-  LLabel.Caption := 'Options:';
+  LLabel.Caption := TI18n.Instance.T('Options:');
   LLabel.Font.Style := [fsBold];
   Inc(LTop, S(22));
 
@@ -422,7 +422,7 @@ begin
   FChkIncludePrivate.Top := LTop;
   FChkIncludePrivate.Width := S(220);
   FChkIncludePrivate.Height := S(20);
-  FChkIncludePrivate.Caption := 'Include private members';
+  FChkIncludePrivate.Caption := TI18n.Instance.T('Include private members');
   FChkIncludePrivate.Checked := LSettings.Project.HelpGen.IncludePrivate;
 
   FChkSearchIndex := TCheckBox.Create(Self);
@@ -432,7 +432,7 @@ begin
   FChkSearchIndex.Top := LTop;
   FChkSearchIndex.Width := S(220);
   FChkSearchIndex.Height := S(20);
-  FChkSearchIndex.Caption := 'Generate search index';
+  FChkSearchIndex.Caption := TI18n.Instance.T('Generate search index');
   FChkSearchIndex.Checked := True;
   Inc(LTop, S(24));
 
@@ -443,7 +443,7 @@ begin
   FChkInterfaceOnly.Top := LTop;
   FChkInterfaceOnly.Width := S(220);
   FChkInterfaceOnly.Height := S(20);
-  FChkInterfaceOnly.Caption := 'Interface section only';
+  FChkInterfaceOnly.Caption := TI18n.Instance.T('Interface section only');
   FChkInterfaceOnly.Checked := LSettings.Project.HelpGen.InterfaceOnly;
 
   FChkCoverage := TCheckBox.Create(Self);
@@ -453,30 +453,30 @@ begin
   FChkCoverage.Top := LTop;
   FChkCoverage.Width := S(220);
   FChkCoverage.Height := S(20);
-  FChkCoverage.Caption := 'Generate coverage report';
+  FChkCoverage.Caption := TI18n.Instance.T('Generate coverage report');
   Inc(LTop, S(28));
 
   FChkNumericFileNames := TCheckBox.Create(Self);
   FChkNumericFileNames.Parent := LContent;
   FChkNumericFileNames.ScaleForPPI(CurrentPPI);
   FChkNumericFileNames.SetBounds(S(24), LTop, S(440), S(20));
-  FChkNumericFileNames.Caption := 'Use numeric topic file names';
+  FChkNumericFileNames.Caption := TI18n.Instance.T('Use numeric topic file names');
   Inc(LTop, S(28));
 
   LLabel:=TLabel.Create(Self);LLabel.Parent:=LContent;LLabel.ScaleForPPI(CurrentPPI);
-  LLabel.SetBounds(S(24),LTop+S(0),S(320),S(20));LLabel.Caption:='Minimum comment presence (%):';
+  LLabel.SetBounds(S(24),LTop+S(0),S(320),S(20));LLabel.Caption:=TI18n.Instance.T('Minimum comment presence (%):');
   FMinCoverage:=TSpinEdit.Create(Self);FMinCoverage.Parent:=LContent;FMinCoverage.ScaleForPPI(CurrentPPI);
   FMinCoverage.SetBounds(S(380),LTop+S(0-3),S(80),S(24));FMinCoverage.MinValue:=0;FMinCoverage.MaxValue:=100;
   FMinCoverage.Value:=LSettings.Project.HelpGen.CoverageMinPercent;
   LLabel:=TLabel.Create(Self);LLabel.Parent:=LContent;LLabel.ScaleForPPI(CurrentPPI);
-  LLabel.SetBounds(S(24),LTop+S(36),S(320),S(20));LLabel.Caption:='Minimum ready documentation (%):';
+  LLabel.SetBounds(S(24),LTop+S(36),S(320),S(20));LLabel.Caption:=TI18n.Instance.T('Minimum ready documentation (%):');
   FMinReady:=TSpinEdit.Create(Self);FMinReady.Parent:=LContent;FMinReady.ScaleForPPI(CurrentPPI);
   FMinReady.SetBounds(S(380),LTop+S(36-3),S(80),S(24));FMinReady.MinValue:=0;FMinReady.MaxValue:=100;
   FMinReady.Value:=LSettings.Project.HelpGen.ReadyMinPercent;
   Inc(LTop,S(74));
   LLabel:=TLabel.Create(Self);LLabel.Parent:=LContent;LLabel.ScaleForPPI(CurrentPPI);
   LLabel.SetBounds(S(24),LTop,S(450),S(44));LLabel.AutoSize:=False;LLabel.WordWrap:=True;
-  LLabel.Caption:='Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.';
+  LLabel.Caption:=TI18n.Instance.T('Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.');
   Inc(LTop,S(50));
 
   // Title
@@ -485,7 +485,7 @@ begin
   LLabel.ScaleForPPI(CurrentPPI);
   LLabel.Left := S(24);
   LLabel.Top := LTop;
-  LLabel.Caption := 'Title:';
+  LLabel.Caption := TI18n.Instance.T('Title:');
 
   FEdtTitle := TEdit.Create(Self);
   FEdtTitle.Parent := LContent;
@@ -561,7 +561,7 @@ begin
   FBtnGenerate.Top := S(16);
   FBtnGenerate.Width := S(90);
   FBtnGenerate.Height := S(28);
-  FBtnGenerate.Caption := 'Generate';
+  FBtnGenerate.Caption := TI18n.Instance.T('Generate');
   FBtnGenerate.Default := True;
   FBtnGenerate.OnClick := OnGenerateClick;
 
@@ -572,7 +572,7 @@ begin
   FBtnCancel.Top := S(16);
   FBtnCancel.Width := S(90);
   FBtnCancel.Height := S(28);
-  FBtnCancel.Caption := 'Close';
+  FBtnCancel.Caption := TI18n.Instance.T('Close');
   FBtnCancel.Cancel := True;
   FBtnCancel.OnClick := OnCancelClick;
   LContent.VertScrollBar.Range := LTop;
@@ -586,7 +586,7 @@ var
   LDir: string;
 begin
   LDir := FEdtDirectory.Text;
-  if SelectDirectory('Select source directory', '', LDir) then
+  if SelectDirectory(TI18n.Instance.T('Select source directory'), '', LDir) then
     FEdtDirectory.Text := LDir;
 end;
 
@@ -595,7 +595,7 @@ var
   LDir: string;
 begin
   LDir := FEdtOutputDir.Text;
-  if SelectDirectory('Select output directory', '', LDir) then
+  if SelectDirectory(TI18n.Instance.T('Select output directory'), '', LDir) then
     FEdtOutputDir.Text := LDir;
 end;
 
@@ -664,9 +664,9 @@ begin
   FChkNumericFileNames.Enabled := AEnabled;
 
   if AEnabled then
-    FBtnCancel.Caption := 'Close'
+    FBtnCancel.Caption := TI18n.Instance.T('Close')
   else
-    FBtnCancel.Caption := 'Cancel';
+    FBtnCancel.Caption := TI18n.Instance.T('Cancel');
 end;
 
 procedure TBatchGenDialog.UpdateProgress(ACurrent, ATotal: Integer;
@@ -674,7 +674,7 @@ procedure TBatchGenDialog.UpdateProgress(ACurrent, ATotal: Integer;
 begin
   FProgress.Max := ATotal;
   FProgress.Position := ACurrent;
-  FLblPhase.Caption := AMessage;
+  FLblPhase.Caption := TI18n.Instance.TranslateText(AMessage);
   FLblProgress.Caption := Format('%d%%', [Round(ACurrent / ATotal * 100)]);
   Application.ProcessMessages;
 end;
@@ -700,7 +700,7 @@ begin
   LFormats := GetSelectedFormats;
   if Length(LFormats) = 0 then
   begin
-    MessageDlg('Please select at least one output format.', mtWarning, [mbOK], 0);
+    MessageDlg(TI18n.Instance.T('Please select at least one output format.'), mtWarning, [mbOK], 0);
     Exit;
   end;
 
@@ -717,12 +717,12 @@ begin
         LProjectPath := (BorlandIDEServices as IOTAModuleServices).MainProjectGroup
           .ActiveProject.FileName;
       except
-        MessageDlg('No active project found.', mtError, [mbOK], 0);
+        MessageDlg(TI18n.Instance.T('No active project found.'), mtError, [mbOK], 0);
         Exit;
       end;
     end;
 
-    FLblPhase.Caption := 'Scanning source files...';
+    FLblPhase.Caption := TI18n.Instance.T('Scanning source files...');
     FLblStats.Caption := '';
     Application.ProcessMessages;
 
@@ -755,11 +755,11 @@ begin
 
     if Length(LFiles) = 0 then
     begin
-      MessageDlg('No source files found.', mtWarning, [mbOK], 0);
+      MessageDlg(TI18n.Instance.T('No source files found.'), mtWarning, [mbOK], 0);
       Exit;
     end;
 
-    FLblStats.Caption := Format('Found %d source files.', [Length(LFiles)]);
+    FLblStats.Caption := Format(TI18n.Instance.T('Found %d source files.'), [Length(LFiles)]);
     Application.ProcessMessages;
 
     if FCancelled then
@@ -776,7 +776,7 @@ begin
         Exit;
 
       // 교차 참조
-      FLblPhase.Caption := 'Resolving cross-references...';
+      FLblPhase.Caption := TI18n.Instance.T('Resolving cross-references...');
       Application.ProcessMessages;
 
       LResolver := TCrossRefResolver.Create(LParser.SymbolIndex);
@@ -785,7 +785,7 @@ begin
 
         if LResolver.Unresolved.Count > 0 then
           FLblStats.Caption := FLblStats.Caption +
-            Format(' | %d unresolved refs', [LResolver.Unresolved.Count]);
+            Format(TI18n.Instance.T(' | %d unresolved refs'), [LResolver.Unresolved.Count]);
 
         // 렌더링 옵션
         LRenderOpts.NumericFileNames := FChkNumericFileNames.Checked;
@@ -804,7 +804,7 @@ begin
           if FCancelled then
             Exit;
 
-          FLblPhase.Caption := 'Rendering: ' + LFormat;
+          FLblPhase.Caption := TI18n.Instance.T('Rendering: ') + LFormat;
           FProgress.Position := 0;
           Application.ProcessMessages;
 
@@ -814,11 +814,12 @@ begin
         // 커버리지
         if FChkCoverage.Checked or (FMinCoverage.Value>0) or (FMinReady.Value>0) then
         begin
-          FLblPhase.Caption := 'Analyzing coverage...';
+          FLblPhase.Caption := TI18n.Instance.T('Analyzing coverage...');
           Application.ProcessMessages;
 
           LCoverage := TDocCoverageReport.Create;
       LCoverage.PlaceholderPrefix:=TPluginSettings.Instance.Global.Stub.PlaceholderPrefix;
+      LCoverage.PlaceholderMarkers:=TPluginSettings.Instance.Global.Stub.PlaceholderMarkers;
           try
             LStats := LCoverage.Analyze(LParser.Units);
             try
@@ -831,7 +832,7 @@ begin
             end;
 
             FLblStats.Caption := FLblStats.Caption +
-              Format(' | Coverage: %.1f%%', [LStats.CoveragePercent]);
+              Format(TI18n.Instance.T(' | Coverage: %.1f%%'), [LStats.CoveragePercent]);
             var Failure:=TDocCoverageReport.ThresholdFailure(LStats,FMinCoverage.Value,FMinReady.Value);
             if Failure<>'' then raise Exception.Create(Failure);
             finally
@@ -852,17 +853,17 @@ begin
     end;
 
     FProgress.Position := FProgress.Max;
-    FLblPhase.Caption := 'Done!';
+    FLblPhase.Caption := TI18n.Instance.T('Done!');
     FLblProgress.Caption := '100%';
 
-    MessageDlg(Format('Documentation generated successfully in: %s',
+    MessageDlg(Format(TI18n.Instance.T('Documentation generated successfully in: %s'),
       [FEdtOutputDir.Text]), mtInformation, [mbOK], 0);
   except
     on E: Exception do
     begin
       TLogger.Instance.Error('Batch generation failed: ' + E.Message,
         'TBatchGenDialog.DoGenerate');
-      MessageDlg('Error: ' + E.Message, mtError, [mbOK], 0);
+      MessageDlg(TI18n.Instance.T('Error: ') + E.Message, mtError, [mbOK], 0);
     end;
   end;
 

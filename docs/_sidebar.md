@@ -26,6 +26,7 @@
           - [InterfaceOnly](units/XmlDoc.CLI.Main.TCLIOptions.md#interfaceonly)
           - [NumericFileNames](units/XmlDoc.CLI.Main.TCLIOptions.md#numericfilenames)
           - [OutputDir](units/XmlDoc.CLI.Main.TCLIOptions.md#outputdir)
+          - [PlaceholderMarkers](units/XmlDoc.CLI.Main.TCLIOptions.md#placeholdermarkers)
           - [PlaceholderPrefix](units/XmlDoc.CLI.Main.TCLIOptions.md#placeholderprefix)
           - [Platform](units/XmlDoc.CLI.Main.TCLIOptions.md#platform)
           - [ProjectPath](units/XmlDoc.CLI.Main.TCLIOptions.md#projectpath)
@@ -133,6 +134,8 @@
           - [Analyze](units/XmlDoc.Documentation.TDocumentation.md#analyze)
           - [Meaningful](units/XmlDoc.Documentation.TDocumentation.md#meaningful)
           - [Synchronize](units/XmlDoc.Documentation.TDocumentation.md#synchronize)
+    - **Constants**
+      - [CDefaultPlaceholderMarkers](units/XmlDoc.Documentation.md#cdefaultplaceholdermarkers)
     - **Records**
       - [TDocIssue](units/XmlDoc.Documentation.TDocIssue.md)
         - **Fields**
@@ -221,6 +224,7 @@
         - **Constructors**
           - [Create](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#create)
         - **Fields**
+          - [FPlaceholderMarkers](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#fplaceholdermarkers)
           - [FPlaceholderPrefix](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#fplaceholderprefix)
           - [FSymbols](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#fsymbols)
         - **Methods**
@@ -235,6 +239,7 @@
           - [RenderHTMLReport](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#renderhtmlreport)
           - [ThresholdFailure](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#thresholdfailure)
         - **Properties**
+          - [PlaceholderMarkers](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#placeholdermarkers)
           - [PlaceholderPrefix](units/XmlDoc.HelpGen.Coverage.TDocCoverageReport.md#placeholderprefix)
     - **Records**
       - [TCoverageItem](units/XmlDoc.HelpGen.Coverage.TCoverageItem.md)
@@ -956,6 +961,7 @@
           - [btnExportHTML](units/XmlDoc.Plugin.CoverageDialog.TCoverageDialog.md#btnexporthtml)
           - [edtDirectory](units/XmlDoc.Plugin.CoverageDialog.TCoverageDialog.md#edtdirectory)
           - [FCancelled](units/XmlDoc.Plugin.CoverageDialog.TCoverageDialog.md#fcancelled)
+          - [FHasProject](units/XmlDoc.Plugin.CoverageDialog.TCoverageDialog.md#fhasproject)
           - [FItems](units/XmlDoc.Plugin.CoverageDialog.TCoverageDialog.md#fitems)
           - [lblComplete](units/XmlDoc.Plugin.CoverageDialog.TCoverageDialog.md#lblcomplete)
           - [lblDocumented](units/XmlDoc.Plugin.CoverageDialog.TCoverageDialog.md#lbldocumented)
@@ -1373,6 +1379,7 @@
         - **Fields**
           - [AutoGenerate](units/XmlDoc.Plugin.Settings.TStubSettings.md#autogenerate)
           - [IncludePlaceholders](units/XmlDoc.Plugin.Settings.TStubSettings.md#includeplaceholders)
+          - [PlaceholderMarkers](units/XmlDoc.Plugin.Settings.TStubSettings.md#placeholdermarkers)
           - [PlaceholderPrefix](units/XmlDoc.Plugin.Settings.TStubSettings.md#placeholderprefix)
     - **Types**
       - [TIndentStyle](units/XmlDoc.Plugin.Settings.TIndentStyle.md)
@@ -1397,6 +1404,7 @@
           - [hotNextUndocumented](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#hotnextundocumented)
           - [hotPreviousUndocumented](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#hotpreviousundocumented)
           - [hotToggleInspector](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#hottoggleinspector)
+          - [memPlaceholderMarkers](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#memplaceholdermarkers)
           - [PageControl](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#pagecontrol)
           - [spnDebounceMs](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#spndebouncems)
           - [spnFontSize](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#spnfontsize)

@@ -7,6 +7,7 @@ uses
   System.SysUtils,
   System.Classes,
   System.Generics.Collections,
+  XmlDoc.Documentation,
   XmlDoc.HelpGen.Types,
   XmlDoc.HelpGen.Scanner,
   XmlDoc.HelpGen.BatchParser,
@@ -30,6 +31,7 @@ type
     CoverageMinPercent: Integer;
     ReadyMinPercent: Integer;
     PlaceholderPrefix: string;
+    PlaceholderMarkers: string;
     Directory: string;
     ExcludePatterns: TArray<string>;
     Formats: TArray<string>;
@@ -85,6 +87,7 @@ begin
   FOptions.InterfaceOnly := True;
   FOptions.Theme := 'default';
   FOptions.PlaceholderPrefix := 'TODO: ';
+  FOptions.PlaceholderMarkers := CDefaultPlaceholderMarkers;
   FOptions.SiteName := 'Documentation';
 
   I := 1;
@@ -169,6 +172,11 @@ begin
       Inc(I);if I>ParamCount then raise Exception.Create('Missing value for --placeholder-prefix');
       FOptions.PlaceholderPrefix:=ParamStr(I);
     end
+    else if LArg = '--placeholder-marker' then
+    begin
+      Inc(I);if I>ParamCount then raise Exception.Create('Missing value for --placeholder-marker');
+      FOptions.PlaceholderMarkers:=FOptions.PlaceholderMarkers+#10+ParamStr(I);
+    end
     else if LArg = '--theme' then
     begin
       Inc(I);
@@ -232,6 +240,7 @@ begin
   WriteLn('  --coverage                 Generate coverage report');
   WriteLn('  --coverage-min <percent>   Minimum coverage (exit code 1 if below)');
   WriteLn('  --ready-min <percent>      Minimum ready documentation percentage (0..100)');
+  WriteLn('  --placeholder-marker TEXT  Recognize an additional unfinished marker (repeatable)');
   WriteLn('  --placeholder-prefix <s>   Unfinished stub marker; TODO is always recognized');
   WriteLn('  --theme <name>             CSS theme name');
   WriteLn('  --site-name <name>         Site name for static site generators');
@@ -365,7 +374,7 @@ begin
 
       if FOptions.CheckDocumentation or (FOptions.WriteBaselineFile<>'') or (FOptions.BaselineFile<>'') then begin
         Diagnostics:=TDocumentationReport.Create;
-        try Diagnostics.Analyze(LParser.Units,LRenderOpts.ProjectDir,FOptions.PlaceholderPrefix);
+        try Diagnostics.Analyze(LParser.Units,LRenderOpts.ProjectDir,FOptions.PlaceholderPrefix,FOptions.PlaceholderMarkers);
           NewIssues:=Diagnostics.NewIssueCount(FOptions.BaselineFile);
           Diagnostics.Save(TPath.Combine(FOptions.OutputDir,'diagnostics.json'));
           if FOptions.WriteBaselineFile<>'' then Diagnostics.SaveBaseline(FOptions.WriteBaselineFile);
@@ -403,6 +412,7 @@ begin
       begin
         LCoverage := TDocCoverageReport.Create;
         LCoverage.PlaceholderPrefix:=FOptions.PlaceholderPrefix;
+        LCoverage.PlaceholderMarkers:=FOptions.PlaceholderMarkers;
         try
           LStats := LCoverage.Analyze(LParser.Units);
           LCoverage.RenderConsoleReport(LStats);

@@ -1,5 +1,5 @@
 import {setLanguage,translate} from './i18n';
-import {setPlaceholderPrefix,mergeRenderedDoc,sameDocContent} from './docTools';
+import {setPlaceholderMarkers,setPlaceholderPrefix,mergeRenderedDoc,sameDocContent} from './docTools';
 import { applySourceAccess } from './sourceAccess';
 import { Editor,Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
@@ -567,9 +567,10 @@ export function init(): void {
   };
   darkMode.addEventListener('change', applyTheme);
   (window as any).xmlDocSettings = {
-    apply(settings: { theme: string; fontSize: number; showSignatureHeader: boolean; language?:string; saveDebounceMs?:number; collapseEmptySections?:boolean; placeholderPrefix?:string }) {
+    apply(settings: { theme: string; fontSize: number; showSignatureHeader: boolean; language?:string; saveDebounceMs?:number; collapseEmptySections?:boolean; placeholderPrefix?:string; placeholderMarkers?:string }) {
       (window as any).xmlDocSections?.defaults(settings.collapseEmptySections ?? false);
       setPlaceholderPrefix(settings.placeholderPrefix??'TODO: ');
+      if(settings.placeholderMarkers!==undefined)setPlaceholderMarkers(settings.placeholderMarkers);
       setLanguage(settings.language??'en');
       bridge.saveDebounceMs=Math.max(0,settings.saveDebounceMs??500);
       theme = ['light', 'dark', 'auto'].includes(settings.theme) ? settings.theme : 'light';

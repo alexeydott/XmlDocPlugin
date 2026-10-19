@@ -8,3 +8,9 @@ Documentation validation, stable identities, authoring configuration and public 
 |------|------|-------------|
 | [`TDocumentation`](XmlDoc.Documentation.TDocumentation.md) | class |  |
 | [`TDocIssue`](XmlDoc.Documentation.TDocIssue.md) | record |  |
+
+## Constants
+
+### `CDefaultPlaceholderMarkers`
+
+Default unfinished markers shared with resources/placeholder-markers.json.

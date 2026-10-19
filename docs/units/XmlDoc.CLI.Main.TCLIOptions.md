@@ -19,6 +19,7 @@ Command-line generation options.
 | `InterfaceOnly` | field | public |  |
 | `NumericFileNames` | field | public |  |
 | `OutputDir` | field | public |  |
+| `PlaceholderMarkers` | field | public |  |
 | `PlaceholderPrefix` | field | public |  |
 | `Platform` | field | public |  |
 | `ProjectPath` | field | public |  |
@@ -56,6 +57,8 @@ Command-line generation options.
 ### NumericFileNames
 
 ### OutputDir
+
+### PlaceholderMarkers
 
 ### PlaceholderPrefix
 

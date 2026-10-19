@@ -42,7 +42,7 @@ type
 procedure ShowAboutDialog;
 
 implementation
-uses XmlDoc.Plugin.Localization;
+uses XmlDoc.Plugin.Localization,XmlDoc.I18n,XmlDoc.Plugin.Settings;
 
 
 {$R *.dfm}
@@ -57,7 +57,8 @@ begin
   if LVersion = '' then
     LVersion := 'unavailable';
 
-  lblVersion.Caption := 'Version ' + LVersion;
+  TI18n.Instance.SetLanguage(TPluginSettings.Instance.Global.General.Language);
+  lblVersion.Caption := TI18n.Instance.T('Version')+' '+LVersion;
   LocalizePluginUi(Self);
 end;
 

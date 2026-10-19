@@ -50,6 +50,7 @@ type
   private
     FSymbols:TArray<TCodeElementInfo>;
     FPlaceholderPrefix:string;
+    FPlaceholderMarkers:string;
     procedure CollectSymbols(const Units:TObjectList<TUnitDocInfo>);
     function AnalyzeElement(const AElem: TElementDocInfo): TCoverageItem;
     function AnalyzeType(const AType: TTypeDocInfo): TCoverageItem;
@@ -59,6 +60,7 @@ type
     /// <summary>Explains failed comment-presence and readiness thresholds separately; empty means both pass.</summary>
     class function ThresholdFailure(const Stats:TCoverageStats;CoverageMin,ReadyMin:Integer):string;static;
     constructor Create;
+    property PlaceholderMarkers:string read FPlaceholderMarkers write FPlaceholderMarkers;
     property PlaceholderPrefix:string read FPlaceholderPrefix write FPlaceholderPrefix;
     /// <summary>Computes documentation coverage for the supplied units.</summary>
     /// <param name="AUnits">Units to analyze.</param>
@@ -86,7 +88,7 @@ implementation
 
 uses XmlDoc.Documentation;
 
-function HasParamDoc(const ADoc: TXmlDocModel; const AParamName, PlaceholderPrefix: string): Boolean;
+function HasParamDoc(const ADoc: TXmlDocModel; const AParamName, PlaceholderPrefix, PlaceholderMarkers: string): Boolean;
 var
   I: Integer;
 begin
@@ -95,7 +97,7 @@ begin
   begin
     if SameText(ADoc.Params[I].Name, AParamName) then
     begin
-      Result := TDocumentation.Meaningful(ADoc.Params[I].Description,PlaceholderPrefix);
+      Result := TDocumentation.Meaningful(ADoc.Params[I].Description,PlaceholderPrefix,PlaceholderMarkers);
       Exit;
     end;
   end;
@@ -110,7 +112,7 @@ begin
  if Stats.ReadyPercent<ReadyMin then begin if Result<>'' then Result:=Result+sLineBreak;Result:=Result+Format('Ready documentation %.1f%% is below the required %d%%.',[Stats.ReadyPercent,ReadyMin]);end;
 end;
 constructor TDocCoverageReport.Create;
-begin inherited Create;FPlaceholderPrefix:='TODO: ';end;
+begin inherited Create;FPlaceholderPrefix:='TODO: ';FPlaceholderMarkers:=CDefaultPlaceholderMarkers;end;
 
 
 procedure TDocCoverageReport.CollectSymbols(const Units:TObjectList<TUnitDocInfo>);
@@ -144,7 +146,7 @@ begin
 
   LMissing := TList<string>.Create;
   try
-    if not TDocumentation.Meaningful(AElem.Doc.Summary,FPlaceholderPrefix) then
+    if not TDocumentation.Meaningful(AElem.Doc.Summary,FPlaceholderPrefix,FPlaceholderMarkers) then
       LMissing.Add('summary');
 
     // 메서드: 파라미터와 리턴값 체크
@@ -152,22 +154,22 @@ begin
     begin
       for I := 0 to Length(AElem.CodeElement.Params) - 1 do
       begin
-        if not HasParamDoc(AElem.Doc, AElem.CodeElement.Params[I].Name,FPlaceholderPrefix) then
+        if not HasParamDoc(AElem.Doc, AElem.CodeElement.Params[I].Name,FPlaceholderPrefix,FPlaceholderMarkers) then
           LMissing.Add('param:' + AElem.CodeElement.Params[I].Name);
       end;
 
-      if (AElem.CodeElement.ReturnType <> '') and (not TDocumentation.Meaningful(AElem.Doc.Returns,FPlaceholderPrefix)) then
+      if (AElem.CodeElement.ReturnType <> '') and (not TDocumentation.Meaningful(AElem.Doc.Returns,FPlaceholderPrefix,FPlaceholderMarkers)) then
         LMissing.Add('returns');
     end;
 
     for var Generic in AElem.CodeElement.GenericParams do begin
       var Found:=False;for var Param in AElem.Doc.TypeParams do
-        if SameText(Param.Name,Generic) and TDocumentation.Meaningful(Param.Description,FPlaceholderPrefix) then Found:=True;
+        if SameText(Param.Name,Generic) and TDocumentation.Meaningful(Param.Description,FPlaceholderPrefix,FPlaceholderMarkers) then Found:=True;
       if not Found then LMissing.Add('typeparam:'+Generic);
     end;
-    if (AElem.Kind=dekProperty) and not TDocumentation.Meaningful(AElem.Doc.Value,FPlaceholderPrefix) then LMissing.Add('value');
+    if (AElem.Kind=dekProperty) and not TDocumentation.Meaningful(AElem.Doc.Value,FPlaceholderPrefix,FPlaceholderMarkers) then LMissing.Add('value');
     if AElem.Doc.ParseError<>'' then LMissing.Add('invalid-xml');
-    Result.Ready:=(LMissing.Count=0) and (Length(TDocumentation.Analyze(AElem.CodeElement,AElem.Doc,FSymbols,'',FPlaceholderPrefix))=0);
+    Result.Ready:=(LMissing.Count=0) and (Length(TDocumentation.Analyze(AElem.CodeElement,AElem.Doc,FSymbols,'',FPlaceholderPrefix,FPlaceholderMarkers))=0);
     Result.MissingTags := LMissing.ToArray;
 
     if LMissing.Count = 0 then

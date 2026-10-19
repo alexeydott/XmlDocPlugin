@@ -11,7 +11,7 @@ uses
   System.Win.Registry,
   Winapi.Windows,
   Vcl.Menus,
-  XmlDoc.Logger;
+  XmlDoc.Logger, XmlDoc.Documentation;
 
 type
   TIndentStyle = (isSpaces, isTabs);
@@ -47,6 +47,8 @@ type
     IncludePlaceholders: Boolean;
     /// <summary>Prefix used for generated placeholder descriptions.</summary>
     PlaceholderPrefix: string;
+    /// <summary>One unfinished-documentation marker per line, independent of the generated prefix.</summary>
+    PlaceholderMarkers: string;
   end;
 
   /// <summary>Keyboard shortcuts for plugin commands.</summary>
@@ -200,6 +202,7 @@ begin
   FGlobal.Stub.AutoGenerate := False;
   FGlobal.Stub.IncludePlaceholders := True;
   FGlobal.Stub.PlaceholderPrefix := 'TODO: ';
+  FGlobal.Stub.PlaceholderMarkers := CDefaultPlaceholderMarkers;
 
   // Shortcuts
   FGlobal.Shortcuts.ToggleInspector := Vcl.Menus.ShortCut(Ord('D'), [ssCtrl, ssShift]);
@@ -280,6 +283,8 @@ begin
         FGlobal.Stub.AutoGenerate := LReg.ReadBool('AutoGenerate');
       if LReg.ValueExists('IncludePlaceholders') then
         FGlobal.Stub.IncludePlaceholders := LReg.ReadBool('IncludePlaceholders');
+      if LReg.ValueExists('PlaceholderMarkers') then
+        FGlobal.Stub.PlaceholderMarkers := LReg.ReadString('PlaceholderMarkers');
       if LReg.ValueExists('PlaceholderPrefix') then
         FGlobal.Stub.PlaceholderPrefix := LReg.ReadString('PlaceholderPrefix');
       LReg.CloseKey;
@@ -356,6 +361,7 @@ begin
       LReg.WriteBool('AutoGenerate', FGlobal.Stub.AutoGenerate);
       LReg.WriteBool('IncludePlaceholders', FGlobal.Stub.IncludePlaceholders);
       LReg.WriteString('PlaceholderPrefix', FGlobal.Stub.PlaceholderPrefix);
+      LReg.WriteString('PlaceholderMarkers', FGlobal.Stub.PlaceholderMarkers);
       LReg.CloseKey;
     end;
 

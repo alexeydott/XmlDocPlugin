@@ -25,6 +25,7 @@ Dialog for supported global preferences and command shortcuts.
 | `hotNextUndocumented` | field | public |  |
 | `hotPreviousUndocumented` | field | public |  |
 | `hotToggleInspector` | field | public |  |
+| `memPlaceholderMarkers` | field | public |  |
 | `PageControl` | field | public |  |
 | `spnDebounceMs` | field | public |  |
 | `spnFontSize` | field | public |  |
@@ -74,6 +75,8 @@ Dialog for supported global preferences and command shortcuts.
 ### hotPreviousUndocumented
 
 ### hotToggleInspector
+
+### memPlaceholderMarkers
 
 ### PageControl
 

@@ -1,9 +1,9 @@
-unit WorkbenchProbe;
+﻿unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
- Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
+uses XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+ Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TPublicationProbe=class(TProjectDocumentation)
  public
@@ -17,6 +17,7 @@ type TPublicationProbe=class(TProjectDocumentation)
  StressEntered,StressContinue:TEvent;StressChecks:Integer;
  StressRound:Integer;StressGeneration,StressStarted:UInt64;
  LanguageSaved:Boolean;OriginalLanguage:string;
+ PrefixSettingsSaved:Boolean;OriginalPrefixSettings:TGlobalSettings;LastGenerationMessage:string;
  ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
  FormatWait,Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
  procedure ConfirmFormat(Sender:TObject);procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
@@ -71,7 +72,8 @@ var Project:IOTAProject;Module:IOTAModule;Services:IOTAModuleServices;I:Integer;
 begin
  if Finished then Exit;
  Finished:=True;
- if LanguageSaved then begin var SavedSettings:=TPluginSettings.Instance.Global;SavedSettings.General.Language:=OriginalLanguage;TPluginSettings.Instance.Global:=SavedSettings;TI18n.Instance.SetLanguage(OriginalLanguage);end;Timer.Enabled:=False;
+ if PrefixSettingsSaved then begin TPluginSettings.Instance.Global:=OriginalPrefixSettings;TPluginSettings.Instance.Save;PrefixSettingsSaved:=False;end;
+ if LanguageSaved then begin var SavedSettings:=TPluginSettings.Instance.Global;SavedSettings.General.Language:=OriginalLanguage;TPluginSettings.Instance.Global:=SavedSettings;TPluginSettings.Instance.Save;TI18n.Instance.SetLanguage(OriginalLanguage);end;Timer.Enabled:=False;
  Log('Closing Explorer');Explorer.Free;Explorer:=nil;Log('Closing Inspector');Inspector.Free;Inspector:=nil;Log('Closed Inspector');Services:=BorlandIDEServices as IOTAModuleServices;
  Project:=Services.GetActiveProject;if Assigned(Project) then begin
   Log('Closing project '+Project.FileName);Project.CloseModule(True);Log('Closed project');end;
@@ -111,13 +113,34 @@ begin
   if not Assigned(Json) or (Json.GetValue<string>('type','')<>'e2e') then begin if Assigned(OriginalMessage) then OriginalMessage(Sender,Args);Exit;end;
   Action:=Json.GetValue<string>('action','');
   try
-   if Action='language-ui' then begin
+   if Action='prefix-ui' then begin
+    if not PrefixSettingsSaved then begin OriginalPrefixSettings:=TPluginSettings.Instance.Global;PrefixSettingsSaved:=True;end;
+    var Updated:=TPluginSettings.Instance.Global;Updated.Stub.IncludePlaceholders:=True;TPluginSettings.Instance.Global:=Updated;
+    var Dialog:=TSettingsDialog.Create(nil);
+    try Dialog.edtPlaceholderPrefix.Text:=Json.GetValue<string>('prefix');
+     Dialog.memPlaceholderMarkers.Lines.Text:=CDefaultPlaceholderMarkers+#10+'ПРОВЕРИТЬ:';
+     Dialog.hotToggleInspector.HotKey:=0;Dialog.hotGenerateStub.HotKey:=0;Dialog.hotGenerateHelp.HotKey:=0;Dialog.hotCoverageReport.HotKey:=0;Dialog.hotNextUndocumented.HotKey:=0;Dialog.hotPreviousUndocumented.HotKey:=0;
+     Dialog.btnOKClick(nil);
+    finally Dialog.Free;end;
+    var Reader:=TPluginSettings.Create;
+    try AssertTrue(Reader.Global.Stub.PlaceholderPrefix=Json.GetValue<string>('prefix'),'Settings did not persist the custom stub prefix');
+     AssertTrue(Reader.Global.Stub.PlaceholderMarkers.Contains('ПРОВЕРИТЬ:'),'Settings did not persist recognized markers');finally Reader.Free;end;
+    Browser.ApplySettings;ExplorerBrowser.ApplySettings;Select(SampleFile,Json.GetValue<string>('member'),'');
+    Log('PASS custom placeholder prefix saved through Settings: '+Json.GetValue<string>('prefix'));
+   end
+   else if Action='prefix-restore' then begin
+    TPluginSettings.Instance.Global:=OriginalPrefixSettings;TPluginSettings.Instance.Save;PrefixSettingsSaved:=False;
+    Browser.ApplySettings;ExplorerBrowser.ApplySettings;Initial:=EditorSource(SourceEditorForFile(SampleFile));Select(SampleFile,'Run','string');
+    Browser.ExecuteScript('window.__prefixRestored=true');Log('PASS custom prefix settings restored after native editor checks');
+   end
+   else if Action='language-ui' then begin
     var Language:=Json.GetValue<string>('language');AssertTrue((Language='ru') or (Language='zh') or (Language='en'),'Unexpected language');
     var Updated:=TPluginSettings.Instance.Global;if not LanguageSaved then begin OriginalLanguage:=Updated.General.Language;LanguageSaved:=True;end;
     Updated.General.Language:=Language;TPluginSettings.Instance.Global:=Updated;
     var Dialog:=TSettingsDialog.Create(nil);
     try
      AssertTrue(Dialog.cmbLanguage.Items.IndexOf('ru')>=0,'Russian option missing');AssertTrue(Dialog.cmbLanguage.Items.IndexOf('zh')>=0,'Chinese option missing');AssertTrue(Dialog.cmbLanguage.Text=Language,'Selected language changed');
+     AssertTrue(Dialog.memPlaceholderMarkers.Hint=TI18n.Instance.T('One marker per line. The generated prefix and TODO are always recognized.'),'Marker hint not translated');
      AssertTrue(Dialog.Caption=TI18n.Instance.T('XmlDoc Plugin Settings'),'Settings title not translated');if Language<>'en' then AssertTrue(Dialog.Caption<>'XmlDoc Plugin Settings','Native language pack missing');
     finally Dialog.Free;end;
     var Generation:=TBatchGenDialog.Create(nil);try AssertTrue(Generation.Caption=TI18n.Instance.T('Generate API Documentation'),'Generation dialog not translated');finally Generation.Free;end;
@@ -319,13 +342,14 @@ begin
   except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;
  finally Json.Free;end;
 end;
+function NativeWindowText(W:HWND):string;forward;
 procedure TProbe.CloseExportMessage(Sender:TObject);
 var F:TForm;C:TComponent;Text:string;W:HWND;P:DWORD;
 begin
  W:=FindWindowEx(0,0,'#32770',nil);
  while W<>0 do begin
   GetWindowThreadProcessId(W,@P);
-  if P=GetCurrentProcessId then begin Log('GENERATION native completion dialog');PostMessage(W,WM_USER+102,IDOK,0);PostMessage(W,WM_COMMAND,IDOK,0);end;
+  if P=GetCurrentProcessId then begin LastGenerationMessage:=NativeWindowText(W);Log('GENERATION native completion dialog: '+LastGenerationMessage);PostMessage(W,WM_USER+102,IDOK,0);PostMessage(W,WM_COMMAND,IDOK,0);end;
   W:=FindWindowEx(0,W,'#32770',nil);
  end;
  for var I:=0 to Screen.FormCount-1 do begin F:=Screen.Forms[I];
@@ -335,7 +359,7 @@ begin
   end;
   if (F.ClassName='TMessageForm') then begin
    Text:='';for var J:=0 to F.ComponentCount-1 do begin C:=F.Components[J];if C is TLabel then Text:=Text+TLabel(C).Caption;end;
-   Log('GENERATION MESSAGE: '+Text);F.ModalResult:=mrOK;
+   LastGenerationMessage:=Text;Log('GENERATION MESSAGE: '+Text);F.ModalResult:=mrOK;
   end;
  end;
 end;
@@ -386,7 +410,7 @@ begin
   B.Click;T.Enabled:=False;
   Done:=False;
   for var I:=0 to D.ComponentCount-1 do
-    if (D.Components[I] is TLabel) and (TLabel(D.Components[I]).Caption='Done!') then Done:=True;
+    if (D.Components[I] is TLabel) and (TLabel(D.Components[I]).Caption=TI18n.Instance.T('Done!')) then Done:=True;
   AssertTrue(Done,'Generation did not reach the successful completion phase');
   AssertTrue(TFile.Exists(TPath.Combine(Output,'XmlDocE2E.chm')),'CHM generation did not complete');
   AssertTrue(TFile.Exists(TPath.Combine(Output,'site-vitepress\package.json')),'Site generation did not complete');
@@ -394,6 +418,22 @@ begin
     AssertTrue(TFile.ReadAllText(TPath.Combine(Output,CSSFile)).Contains(TThemeEngine.Instance.GetCSS(btHighContrast)),'Generation ignored the selected HTML/CHM theme: '+CSSFile);
   Log('PASS native generation applies selected custom theme and reloads edited CSS for HTML and CHM');
   Log('PASS all eight formats through installed plugin dialog: '+Output);
+  var SpinCount:=0;var ReadyLimit:TSpinEdit;ReadyLimit:=nil;
+  for var I:=0 to D.ComponentCount-1 do if D.Components[I] is TSpinEdit then begin Inc(SpinCount);if SpinCount=2 then ReadyLimit:=TSpinEdit(D.Components[I]);end;
+  AssertTrue((SpinCount=2) and Assigned(ReadyLimit),'Separate presence/readiness controls missing');
+  var OldLogPath:=TLogger.Instance.LogPath;var OldLogLevel:=TLogger.Instance.Level;
+  var GateLog:=TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'readiness-gate.log');
+  TLogger.Instance.Configure(llDebug,GateLog);
+  try
+   ReadyLimit.Value:=100;LastGenerationMessage:='';T.Enabled:=True;B.Click;T.Enabled:=False;
+  finally TLogger.Instance.Configure(OldLogLevel,OldLogPath);end;
+  AssertTrue(TFile.ReadAllText(GateLog).Contains('Ready documentation') and TFile.ReadAllText(GateLog).Contains('below the required 100%'),'Readiness threshold did not reject unfinished fixture; see '+GateLog);
+  Log('PASS native generation rejects unfinished documentation with readiness threshold 100');
+  ReadyLimit.Value:=0;LastGenerationMessage:='';T.Enabled:=True;B.Click;T.Enabled:=False;
+  Done:=False;for var I:=0 to D.ComponentCount-1 do if (D.Components[I] is TLabel) and (TLabel(D.Components[I]).Caption=TI18n.Instance.T('Done!')) then Done:=True;
+  AssertTrue(Done,'Generation did not recover after disabling readiness threshold');
+  Log('PASS native generation succeeds with readiness threshold disabled');
+
  finally T.Free;D.Free;TThemeEngine.Instance.SetCustomThemesDir(OriginalThemeDirectory);end;
 end;
 function NativeWindowText(W:HWND):string;
@@ -634,7 +674,7 @@ begin
     Log('PASS IDE shortcut ownership validation');
     AssertTrue(GetModuleVersion=GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'Loaded BPL version differs from the shared version');
     var About:=TAboutDialog.Create(nil);
-    try AssertTrue(About.lblVersion.Caption='Version '+GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'About dialog version mismatch');finally About.Free;end;
+    try AssertTrue(About.lblVersion.Caption=TI18n.Instance.T('Version')+' '+GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'About dialog version mismatch');finally About.Free;end;
     Log('PASS loaded BPL and About dialog shared version');
     var OriginalThemeSettings:=TPluginSettings.Instance.Global;
     var OldThemeDirectory:=TThemeEngine.Instance.CustomThemesDir;

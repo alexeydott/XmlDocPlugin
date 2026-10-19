@@ -15,6 +15,7 @@ IDE coverage report with source navigation and project analysis.
 | `btnExportHTML` | field | public |  |
 | `edtDirectory` | field | public |  |
 | `FCancelled` | field | private |  |
+| `FHasProject` | field | private |  |
 | `FItems` | field | private |  |
 | `lblComplete` | field | public |  |
 | `lblDocumented` | field | public |  |
@@ -53,6 +54,8 @@ IDE coverage report with source navigation and project analysis.
 ### edtDirectory
 
 ### FCancelled
+
+### FHasProject
 
 ### FItems
 

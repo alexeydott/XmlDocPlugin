@@ -1,13 +1,21 @@
 import type { DocModel, ElementInfo, TreeElementInfo } from './types';
 import { escapeXml } from './xmlCodec';
+import defaultMarkers from '../../resources/placeholder-markers.json';
 let placeholderPrefix='TODO: ';
+let placeholderMarkers=defaultMarkers.join('\n');
+export function setPlaceholderMarkers(markers:string):void {
+ if(markers===placeholderMarkers)return;placeholderMarkers=markers;
+ window.dispatchEvent(new CustomEvent('documentationQualityChanged'));
+}
 export function setPlaceholderPrefix(prefix:string):void {
  const next=prefix.trim()?prefix:'TODO: ';if(next===placeholderPrefix)return;placeholderPrefix=next;
  window.dispatchEvent(new CustomEvent('documentationQualityChanged'));
 }
 export function meaningful(text:string):boolean {
- const prefix=placeholderPrefix.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
- return !!text.trim() && !/\bTODO\b/i.test(text) && !new RegExp('(?:^|>)[\\s]*'+prefix,'i').test(text);
+ return !!text.trim() && !/\bTODO\b/i.test(text) && ![placeholderPrefix,...placeholderMarkers.split(/\r?\n/)].some(marker=>{
+  const prefix=marker.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return !!prefix && new RegExp('(?:^|>)[\\s]*'+prefix,'i').test(text);
+ });
 }
 export interface Issue { code:string; message:string; fix:string; line:number; column:number; }
 const clone=<T>(v:T):T=>JSON.parse(JSON.stringify(v));

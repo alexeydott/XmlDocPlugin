@@ -7,6 +7,7 @@ Analyzes documentation coverage and renders reports.
 | Name | Kind | Visibility | Description |
 |------|------|------------|-------------|
 | `Create` | method | public |  |
+| `FPlaceholderMarkers` | field | private |  |
 | `FPlaceholderPrefix` | field | private |  |
 | `FSymbols` | field | private |  |
 | `Analyze` | method | public | Computes documentation coverage for the supplied units. |
@@ -19,9 +20,12 @@ Analyzes documentation coverage and renders reports.
 | `RenderConsoleReport` | method | public | Writes a coverage report to the console. |
 | `RenderHTMLReport` | method | public | Writes an HTML coverage report. |
 | `ThresholdFailure` | method | public | Explains failed comment-presence and readiness thresholds separately; empty means both pass. |
+| `PlaceholderMarkers` | property | public |  |
 | `PlaceholderPrefix` | property | public |  |
 
 ### Create
+
+### FPlaceholderMarkers
 
 ### FPlaceholderPrefix
 
@@ -79,5 +83,7 @@ Writes an HTML coverage report.
 ### ThresholdFailure
 
 Explains failed comment-presence and readiness thresholds separately; empty means both pass.
+
+### PlaceholderMarkers
 
 ### PlaceholderPrefix

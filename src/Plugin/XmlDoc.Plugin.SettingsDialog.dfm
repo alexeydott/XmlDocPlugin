@@ -3,7 +3,7 @@
   Top = 0
   BorderStyle = bsDialog
   Caption = 'XmlDoc Plugin Settings'
-  ClientHeight = 410
+  ClientHeight = 450
   ClientWidth = 464
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@
     Left = 0
     Top = 0
     Width = 464
-    Height = 365
+    Height = 405
     ActivePage = tsGeneral
     Align = alTop
     TabOrder = 0
@@ -114,33 +114,48 @@
         Height = 23
         TabOrder = 1
       end
+      object lblPlaceholderMarkers: TLabel
+        Left = 16
+        Top = 88
+        Caption = 'Unfinished documentation markers:'
+      end
+      object memPlaceholderMarkers: TMemo
+        Left = 16
+        Top = 110
+        Width = 416
+        Height = 108
+        ScrollBars = ssVertical
+        TabOrder = 2
+        ShowHint = True
+        Hint = 'One marker per line. The generated prefix and TODO are always recognized.'
+      end
       object lblDocumentationTheme: TLabel
         Left = 16
-        Top = 100
+        Top = 236
         Caption = 'Default HTML / CHM theme:'
       end
       object cmbDocumentationTheme: TComboBox
         Left = 232
-        Top = 98
+        Top = 234
         Width = 200
         Height = 23
         Style = csDropDownList
-        TabOrder = 2
+        TabOrder = 3
         ShowHint = True
         Hint = 'A project htmlTheme setting can override this default.'
       end
       object btnCreateTheme: TButton
         Left = 16
-        Top = 138
+        Top = 272
         Width = 190
         Height = 28
         Caption = 'Create CSS theme...'
-        TabOrder = 3
+        TabOrder = 4
         OnClick = btnCreateThemeClick
       end
       object lblThemeOverride: TLabel
         Left = 16
-        Top = 180
+        Top = 310
         Width = 410
         Height = 48
         AutoSize = False
@@ -308,7 +323,7 @@
   end
   object btnOK: TButton
     Left = 296
-    Top = 375
+    Top = 415
     Width = 80
     Height = 28
     Caption = 'OK'
@@ -319,7 +334,7 @@
   end
   object btnCancel: TButton
     Left = 382
-    Top = 375
+    Top = 415
     Width = 80
     Height = 28
     Cancel = True

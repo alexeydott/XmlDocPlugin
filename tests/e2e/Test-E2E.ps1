@@ -94,7 +94,9 @@ try {
   New-ItemProperty $key -Name "$out\WorkbenchProbe.bpl" -Value 'Documentation workbench E2E probe' -Force | Out-Null
   $env:XMLDOC_DRAFT_DIR=Join-Path $out 'drafts';$env:XMLDOC_E2E_FIXTURE=$fixture;$env:XMLDOC_E2E_JS=Join-Path $PSScriptRoot 'WorkbenchProbe.js';$env:XMLDOC_E2E_LOG="$out\runtime.log"
   $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList "-r$profile",'-ns' -PassThru -WindowStyle Hidden
-  if(!$p.WaitForExit(55000) -and !$p.WaitForExit(55000) -and !$p.WaitForExit(55000)){throw "E2E timeout: $($t.Name), test-owned IDE PID $($p.Id)"}
+  # Allow cold IDE startup and repeated generation/quality-gate checks.
+  for($waitAttempt=0;($waitAttempt -lt 6) -and !$p.HasExited;$waitAttempt++){$null=$p.WaitForExit(50000)}
+  if(!$p.HasExited){throw "E2E timeout: $($t.Name), test-owned IDE PID $($p.Id)"}
   Get-Content "$out\runtime.log"
   if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name)"}
   "PASS IDE exit 0: $($t.Name)"

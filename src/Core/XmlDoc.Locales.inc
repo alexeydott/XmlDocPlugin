@@ -262,7 +262,79 @@ const
   '  "Review current source": "Сравнить с текущим исходником",' +
   '  "Unfinished placeholder documentation": "Незавершённая заготовка документации",' +
   '  "Waiting for the previous bulk update": "Ожидание предыдущей групповой правки",' +
-  '  "Baseline updated — preview selected summaries before applying": "Исходная версия обновлена — проверьте выбранные описания перед применением"' +
+  '  "Baseline updated — preview selected summaries before applying": "Исходная версия обновлена — проверьте выбранные описания перед применением",' +
+  '  "Unfinished documentation markers:": "Маркеры незавершённой документации:",' +
+  '  "One marker per line. The generated prefix and TODO are always recognized.": "Один маркер в строке. Текущий префикс и TODO распознаются всегда.",' +
+  '  "Collapse All": "Свернуть всё",' +
+  '  "Expand All": "Развернуть всё",' +
+  '  "Select an element from the tree": "Выберите элемент в дереве",' +
+  '  "Open a .pas file to see the structure": "Откройте файл .pas для просмотра структуры",' +
+  '  "About XmlDoc Plugin": "О плагине XmlDoc",' +
+  '  "Open Source Libraries": "Библиотеки с открытым кодом",' +
+  '  "Version": "Версия",' +
+  '  "Choose a relative project source file": "Выберите исходный файл по относительному пути проекта",' +
+  '  "Insert a reference to this exact overload": "Вставить ссылку на эту перегрузку",' +
+  '  "Invalid summary XML": "Некорректный XML описания",' +
+  '  "Preview copy": "Предпросмотр копирования",' +
+  '  "Section is not empty — wording was not replaced": "Раздел не пуст — текст не заменён",' +
+  '  "Source changed — recover the draft again": "Исходник изменён — восстановите черновик заново",' +
+  '  "Source changed — review again": "Исходник изменён — проверьте изменения заново",' +
+  '  "Source changed — review selected summaries again": "Исходник изменён — проверьте выбранные описания заново",' +
+  '  "Summary XML fragment": "XML-фрагмент описания",' +
+  '  "Unsupported baseline": "Неподдерживаемая базовая версия",' +
+  '  "Wording is for a different element kind": "Шаблон предназначен для другого вида элемента",' +
+  '  "Invalid or ambiguous rename mapping": "Некорректное или неоднозначное сопоставление имён",' +
+  '  "Rename conflicts with an existing description; keep both entries and resolve in XML": "Переименование конфликтует с существующим описанием; сохраните обе записи и исправьте XML",' +
+  '  "Repair XML before replacing text": "Исправьте XML перед заменой текста",' +
+  '  "Open source: {0}": "Открыть исходник: {0}",' +
+  '  "Inherited from {0}": "Унаследовано от {0}",' +
+  '  "Source: {0}": "Исходник: {0}",' +
+  '  "Map {0}:": "Сопоставить {0}:",' +
+  '  "Summary for {0}": "Описание для {0}",' +
+  '  "Choose a declaration for {0}": "Выберите объявление для {0}",' +
+  '  "{0} · saved draft": "{0} · сохранённый черновик",' +
+  '  "Unknown reference {0}": "Неизвестная ссылка {0}",' +
+  '  "Ambiguous reference {0}": "Неоднозначная ссылка {0}",' +
+  '  "Unknown {0} {1}": "Неизвестный {0} {1}",' +
+  '  "Duplicate {0} {1}": "Повторный {0} {1}",' +
+  '  "Missing {0} description {1}": "Нет описания {0} {1}",' +
+  '  "Missing {0} {1}": "Отсутствует {0} {1}",' +
+  '  "XD011 Public declaration removed or signature changed: {0}": "XD011 Публичное объявление удалено или сигнатура изменена: {0}",' +
+  '  "Analyzing coverage...": "Анализ покрытия...",' +
+  '  "Scanning source files...": "Поиск исходных файлов...",' +
+  '  "Resolving cross-references...": "Разрешение перекрёстных ссылок...",' +
+  '  "Rendering: ": "Генерация: ",' +
+  '  "Generating HTML report...": "Создание HTML-отчёта...",' +
+  '  "HTML report exported.": "HTML-отчёт сохранён.",' +
+  '  "Done!": "Готово!",' +
+  '  "Current Project (": "Текущий проект (",' +
+  '  "Found %d source files.": "Найдено исходных файлов: %d.",' +
+  '  " | %d unresolved refs": " | неразрешённых ссылок: %d",' +
+  '  " | Coverage: %.1f%%": " | Покрытие: %.1f%%",' +
+  '  "Documentation generated successfully in: %s": "Документация сохранена в: %s",' +
+  '  "No active project found.": "Нет активного проекта.",' +
+  '  "No source files found.": "Исходные файлы не найдены.",' +
+  '  "Error: ": "Ошибка: ",' +
+  '  "Report saved to: %s": "Отчёт сохранён в: %s",' +
+  '  "Parsing %d files...": "Разбор файлов: %d...",' +
+  '  "Total: %d": "Всего: %d",' +
+  '  "Documented: %d (%.1f%%)": "С документацией: %d (%.1f%%)",' +
+  '  "Complete: %d; ready: %d (%.1f%%)": "Полные: %d; готовые: %d (%.1f%%)",' +
+  '  "Done - %d undocumented items found.": "Готово — без документации: %d.",' +
+  '  "None": "Нет",' +
+  '  "Summary Only": "Только описание",' +
+  '  "Partial": "Частичная",' +
+  '  "Complete": "Полная",' +
+  '  "Unknown": "Неизвестно",' +
+  '  "Analysis running: {0}/{1}; parsed {2}, reused {3}": "Анализ выполняется: {0}/{1}; разобрано {2}, из кэша {3}",' +
+  '  "Analysis cancelling: {0}/{1}; parsed {2}, reused {3}": "Анализ отмена: {0}/{1}; разобрано {2}, из кэша {3}",' +
+  '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "Анализ отменён: {0}/{1}; разобрано {2}, из кэша {3}",' +
+  '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "Анализ ошибка: {0}/{1}; разобрано {2}, из кэша {3}",' +
+  '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "Анализ завершён: {0}/{1}; разобрано {2}, из кэша {3}",' +
+  '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "Анализ {0}: {1}/{2}; разобрано {3}, из кэша {4}",' +
+  '  "Select source directory": "Выберите каталог исходников",' +
+  '  "Select output directory": "Выберите каталог документации",' +
+  '  "Please select at least one output format.": "Выберите хотя бы один формат документации."' +
   '}';
  CLocale_zh =
   '{' +
@@ -526,5 +598,77 @@ const
   '  "Review current source": "检查当前源代码",' +
   '  "Unfinished placeholder documentation": "文档包含未完成的占位文本",' +
   '  "Waiting for the previous bulk update": "正在等待上一次批量更新",' +
-  '  "Baseline updated — preview selected summaries before applying": "基准已更新 — 应用前请预览所选摘要"' +
+  '  "Baseline updated — preview selected summaries before applying": "基准已更新 — 应用前请预览所选摘要",' +
+  '  "Unfinished documentation markers:": "未完成文档标记：",' +
+  '  "One marker per line. The generated prefix and TODO are always recognized.": "每行一个标记。始终识别生成前缀和 TODO。",' +
+  '  "Collapse All": "全部折叠",' +
+  '  "Expand All": "全部展开",' +
+  '  "Select an element from the tree": "从树中选择一个元素",' +
+  '  "Open a .pas file to see the structure": "打开 .pas 文件以查看结构",' +
+  '  "About XmlDoc Plugin": "关于 XmlDoc 插件",' +
+  '  "Open Source Libraries": "开源库",' +
+  '  "Version": "版本",' +
+  '  "Choose a relative project source file": "请选择项目源文件的相对路径",' +
+  '  "Insert a reference to this exact overload": "插入指向此特定重载的引用",' +
+  '  "Invalid summary XML": "摘要 XML 无效",' +
+  '  "Preview copy": "预览复制",' +
+  '  "Section is not empty — wording was not replaced": "节不为空，未替换措辞",' +
+  '  "Source changed — recover the draft again": "源代码已更改，请重新恢复草稿",' +
+  '  "Source changed — review again": "源代码已更改，请重新审阅",' +
+  '  "Source changed — review selected summaries again": "源代码已更改，请重新审阅所选摘要",' +
+  '  "Summary XML fragment": "摘要 XML 片段",' +
+  '  "Unsupported baseline": "不支持的基线",' +
+  '  "Wording is for a different element kind": "措辞适用于其他元素类型",' +
+  '  "Invalid or ambiguous rename mapping": "重命名映射无效或不明确",' +
+  '  "Rename conflicts with an existing description; keep both entries and resolve in XML": "重命名与现有描述冲突；请保留两个条目并在 XML 中解决",' +
+  '  "Repair XML before replacing text": "请先修复 XML 再替换文本",' +
+  '  "Open source: {0}": "打开源代码：{0}",' +
+  '  "Inherited from {0}": "继承自 {0}",' +
+  '  "Source: {0}": "源文件：{0}",' +
+  '  "Map {0}:": "映射 {0}：",' +
+  '  "Summary for {0}": "{0} 的摘要",' +
+  '  "Choose a declaration for {0}": "为 {0} 选择声明",' +
+  '  "{0} · saved draft": "{0} · 已保存的草稿",' +
+  '  "Unknown reference {0}": "未知引用 {0}",' +
+  '  "Ambiguous reference {0}": "引用不明确：{0}",' +
+  '  "Unknown {0} {1}": "未知 {0} {1}",' +
+  '  "Duplicate {0} {1}": "重复的 {0} {1}",' +
+  '  "Missing {0} description {1}": "缺少 {0} 的描述 {1}",' +
+  '  "Missing {0} {1}": "缺少 {0} {1}",' +
+  '  "XD011 Public declaration removed or signature changed: {0}": "XD011 公共声明已删除或签名已更改：{0}",' +
+  '  "Analyzing coverage...": "正在分析覆盖率…",' +
+  '  "Scanning source files...": "正在扫描源文件…",' +
+  '  "Resolving cross-references...": "正在解析交叉引用…",' +
+  '  "Rendering: ": "正在生成：",' +
+  '  "Generating HTML report...": "正在生成 HTML 报告…",' +
+  '  "HTML report exported.": "HTML 报告已导出。",' +
+  '  "Done!": "完成！",' +
+  '  "Current Project (": "当前项目 (",' +
+  '  "Found %d source files.": "找到 %d 个源文件。",' +
+  '  " | %d unresolved refs": " | %d 个未解析的引用",' +
+  '  " | Coverage: %.1f%%": " | 覆盖率：%.1f%%",' +
+  '  "Documentation generated successfully in: %s": "文档已成功生成到：%s",' +
+  '  "No active project found.": "未找到活动项目。",' +
+  '  "No source files found.": "未找到源文件。",' +
+  '  "Error: ": "错误：",' +
+  '  "Report saved to: %s": "报告已保存到：%s",' +
+  '  "Parsing %d files...": "正在解析 %d 个文件…",' +
+  '  "Total: %d": "总计：%d",' +
+  '  "Documented: %d (%.1f%%)": "已有文档：%d (%.1f%%)",' +
+  '  "Complete: %d; ready: %d (%.1f%%)": "完整：%d；就绪：%d (%.1f%%)",' +
+  '  "Done - %d undocumented items found.": "完成，找到 %d 个未记录的项目。",' +
+  '  "None": "无",' +
+  '  "Summary Only": "仅摘要",' +
+  '  "Partial": "部分",' +
+  '  "Complete": "完整",' +
+  '  "Unknown": "未知",' +
+  '  "Analysis running: {0}/{1}; parsed {2}, reused {3}": "分析进行中：{0}/{1}；已解析 {2}，已复用 {3}",' +
+  '  "Analysis cancelling: {0}/{1}; parsed {2}, reused {3}": "分析正在取消：{0}/{1}；已解析 {2}，已复用 {3}",' +
+  '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "分析已取消：{0}/{1}；已解析 {2}，已复用 {3}",' +
+  '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "分析失败：{0}/{1}；已解析 {2}，已复用 {3}",' +
+  '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "分析已完成：{0}/{1}；已解析 {2}，已复用 {3}",' +
+  '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "分析 {0}：{1}/{2}；已解析 {3}，已复用 {4}",' +
+  '  "Select source directory": "选择源文件目录",' +
+  '  "Select output directory": "选择输出目录",' +
+  '  "Please select at least one output format.": "请至少选择一种输出格式。"' +
   '}';

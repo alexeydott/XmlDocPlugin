@@ -92,7 +92,7 @@ A baseline lets existing issues remain while rejecting new ones. Public
 signatures removed or changed since the baseline produce **XD011**. Linked
 resource problems produce **XD013**. Coverage distinguishes comments that exist,
 structurally complete comments and comments that pass readiness checks; TODO
-placeholders and the configured stub prefix do not count as finished documentation.
+placeholders, multilingual unfinished markers and the configured stub prefix do not count as finished documentation. Configure the recognized marker list under **Settings → Code Generation**; the CLI accepts repeatable `--placeholder-marker` options.
 Use `--coverage-min` for comment presence and `--ready-min` for readiness (0–100);
 a failed threshold returns exit code **1**. Pass `--placeholder-prefix` to use the
 same custom marker as your IDE settings.

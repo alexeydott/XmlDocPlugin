@@ -47,6 +47,14 @@ end;
 procedure TDocReviewTests.PlaceholderReadinessAndThresholds;
 var E:TCodeElementInfo;M:TXmlDocModel;Units:TObjectList<TUnitDocInfo>;U:TUnitDocInfo;T:TTypeDocInfo;Coverage:TDocCoverageReport;Stats:TCoverageStats;
 begin
+ for var Marker in CDefaultPlaceholderMarkers.Split([#10]) do begin
+  Assert.IsFalse(TDocumentation.Meaningful('  '+Marker+' description'),'Built-in marker '+Marker);
+  Assert.IsFalse(TDocumentation.Meaningful('<summary>'+Marker+' description</summary>'),'XML marker '+Marker);
+ end;
+ Assert.IsFalse(TDocumentation.Meaningful('[draft].* description','TODO: ','[draft].*'));
+ Assert.IsTrue(TDocumentation.Meaningful('A [draft].* example.','TODO: ','[draft].*'));
+ Assert.IsTrue(TDocumentation.Meaningful('FIXME: complete','TODO: ',''),'Custom list can remove built-in markers');
+ Assert.IsFalse(TDocumentation.Meaningful('TODO: unfinished','TODO: ',''),'Legacy TODO is always recognized');
  E:=Default(TCodeElementInfo);E.Kind:=dekClass;E.Name:='TWidget';E.UnitName:='Widgets';E.FullName:='TWidget';
  for var Prefix in ['TODO: ','FIXME: ','Описание: ','待补充：','[draft].* ',''] do begin
   M:=TDocStubGenerator.GenerateStub(E,Prefix,True);Units:=TObjectList<TUnitDocInfo>.Create(True);Coverage:=TDocCoverageReport.Create;
@@ -67,6 +75,14 @@ begin
     Assert.AreEqual('',TDocCoverageReport.ThresholdFailure(Stats,100,0));
     Assert.IsTrue(TDocCoverageReport.ThresholdFailure(Stats,100,100).Contains('Ready documentation'));
    finally Stats.ByKind.Free;Stats.ByUnit.Free;Stats.ByVisibility.Free;end;
+   Coverage.PlaceholderPrefix:='OTHER: ';Coverage.PlaceholderMarkers:=Prefix;Stats:=Coverage.Analyze(Units);
+   try Assert.AreEqual(50.0,Stats.ReadyPercent,0.001,'Recognized list is independent of generation prefix');
+   finally Stats.ByKind.Free;Stats.ByUnit.Free;Stats.ByVisibility.Free;end;
+   var CustomReport:=TDocumentationReport.Create;
+   try CustomReport.Analyze(Units,'','OTHER: ',Prefix);var MarkerFound:=False;
+    for var Issue in CustomReport.Issues do if Issue.Code='XD008' then MarkerFound:=True;
+    Assert.IsTrue(MarkerFound,'Diagnostics must use the recognized list independently');
+   finally CustomReport.Free;end;
   finally Coverage.Free;Units.Free;M.Free;end;
  end;
 end;

@@ -9,13 +9,24 @@ export function resolveLanguage(code:string):string {
  const base=(code==='auto'?(globalThis.navigator?.language??'en'):code).toLowerCase().replace('_','-').split('-')[0];
  return base in packs?base:'en';
 }
-export function translate(text:string):string {return packs[language][text]??text;}
-const protectedContent=(e:Element)=>!!e.closest('.tiptap,[contenteditable],[data-code],[translate="no"],pre,code,#member-signature,#doc-preview,#tree-content,#template-choice,.td-name');
+const templates=Object.fromEntries(Object.entries(packs).map(([code,pack])=>[code,Object.entries(pack).filter(([key])=>/\{\d+\}/.test(key)).map(([key,value])=>{
+ const names:string[]=[];
+ const pattern=key.split(/(\{\d+\})/).map(part=>/^\{\d+\}$/.test(part)?(names.push(part),'([\\s\\S]*?)'):part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('');
+ return {pattern:new RegExp('^'+pattern+'$'),names,value};
+})]));
+export function translate(text:string):string {
+ const pack=packs[language];if(pack[text]!==undefined)return pack[text];
+ for(const {pattern,names,value} of templates[language]){
+  const match=pattern.exec(text);if(match)return value.replace(/\{\d+\}/g,name=>match[names.indexOf(name)+1]??name);
+ }
+ return text;
+}
+const protectedContent=(e:Element)=>!!e.closest('.tiptap,[contenteditable],[data-code],[translate="no"],pre,code,#member-signature,#doc-preview,#template-choice,.td-name,.symbol-caption,.tree-label') || (!!e.closest('#tree-content') && !e.closest('.tree-empty'));
 export function localizeUi():void {
  observer?.disconnect();
- const walker=document.createTreeWalker(document.body,5,{acceptNode(node){return node.nodeType===1 && protectedContent(node as Element)?2:node.nodeType===3?1:3;}});let node:Node|null;
+ const walker=document.createTreeWalker(document.body,5,{acceptNode(node){return node.nodeType===1 && (node as Element).id==='tree-content'?3:node.nodeType===1 && protectedContent(node as Element)?2:node.nodeType===3?1:3;}});let node:Node|null;
  while((node=walker.nextNode())){
-  const text=node as Text,parent=text.parentElement;if(!parent || protectedContent(parent) || !parent.closest('button,th,.doc-heading,summary,label,.tab,output,option,h4,h5'))continue;
+  const text=node as Text,parent=text.parentElement;if(!parent || protectedContent(parent))continue;
   const saved=texts.get(text),value=text.data;const source=saved && value===saved.translated?saved.source:value;
   const trimmed=source.trim();if(parent.tagName==='OPTION' && !parent.hasAttribute('value'))parent.setAttribute('value',(parent as HTMLOptionElement).value);
   const result=source.replace(trimmed,translate(trimmed));if(result!==value)text.data=result;texts.set(text,{source,translated:result});

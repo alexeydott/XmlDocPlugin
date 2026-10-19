@@ -19,6 +19,20 @@
    assert(JSON.stringify(window.xmlDocEditor.get().doc)===originalDoc,'Language switch modified user documentation');
   }
 
+  const previousSummaries=new Map();
+  for(const [prefix,member,marker] of [['FIXME: ','UndocumentedFirst','ПРОВЕРИТЬ:'],['待补充：','UndocumentedSecond','待完善：'],['TODO: ','UndocumentedFirst','수정 필요:'],['TODO: ','UndocumentedSecond','要修正：']]){
+   send('prefix-ui',{prefix,member});await until(()=>window.xmlDocEditor.get().element.name===member&&(previousSummaries.has(member)?window.xmlDocEditor.get().doc.summary===previousSummaries.get(member):window.xmlDocEditor.get().doc.summary.startsWith(prefix)),'Custom prefix was not used in native stub');
+   assert(document.querySelector('#documentation-problems').textContent.includes('XD008'),'Custom stub was incorrectly treated as ready');
+   const summary=marker+' Pending summary for '+member;editSummary(summary);
+   await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.summary===summary,'Custom stub edit was not acknowledged');
+   assert(document.querySelector('#documentation-problems').textContent.includes('XD008'),'Recognized multilingual marker was incorrectly treated as ready: '+marker);
+   document.querySelector('#refresh-catalog').click();
+   const filter=document.querySelector('#catalog-filter');filter.value='todo';filter.dispatchEvent(new Event('change'));
+   await until(()=>Array.from(document.querySelectorAll('.catalog-row')).some(row=>row.textContent.includes(summary)),'Configured prefix missing from unfinished catalog filter');
+   filter.value='all';filter.dispatchEvent(new Event('change'));previousSummaries.set(member,summary);
+  }
+  send('prefix-restore');await until(()=>window.__prefixRestored&&window.xmlDocEditor.get().element.name==='Run','Prefix settings were not restored');
+
   const iconButtons=document.querySelectorAll('#workbench button[id].workbench-icon');
   assert(iconButtons.length===27,'Documentation tool icons are missing');
   for(const button of iconButtons){

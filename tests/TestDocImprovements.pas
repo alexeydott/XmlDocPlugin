@@ -122,7 +122,9 @@ begin
   I.SetLanguage('zh-CN');I.TranslateComponent(Owner);Assert.AreEqual('摘要',LabelControl.Caption);Assert.AreEqual('恢复草稿',LabelControl.Hint);Assert.AreEqual('Summary',Edit.Text);
   var Plural:=TLabel.Create(Owner);Plural.Caption:='Parameters';I.TranslateComponent(Owner);Assert.AreEqual('参数',Plural.Caption);
   I.SetLanguage('en');I.TranslateComponent(Owner);Assert.AreEqual('Parameters',Plural.Caption);Assert.AreEqual('Summary',LabelControl.Caption);Assert.AreEqual('Recover drafts',LabelControl.Hint);
-  I.SetLanguage('ru');Assert.AreEqual('Документация создана: 5 страниц',I.T('helpgen.complete',[5]));Assert.AreEqual('Missing key',I.T('Missing key'));Assert.AreEqual('Текущий проект (Test.dproj)',I.T('Current Project (Test.dproj)'));
+  I.SetLanguage('ru');Assert.AreEqual('Найдено исходных файлов: 3.',Format(I.T('Found %d source files.'),[3]));Assert.AreEqual('Версия',I.T('Version'));Assert.AreEqual('Анализ покрытия...',I.T('Analyzing coverage...'));
+   I.SetLanguage('zh');Assert.AreEqual('找到 3 个源文件。',Format(I.T('Found %d source files.'),[3]));Assert.AreEqual('版本',I.T('Version'));
+   I.SetLanguage('ru');Assert.AreEqual('Документация создана: 5 страниц',I.T('helpgen.complete',[5]));Assert.AreEqual('Missing key',I.T('Missing key'));Assert.AreEqual('Текущий проект (Test.dproj)',I.T('Current Project (Test.dproj)'));
   for var Round:=0 to 999 do begin if Odd(Round) then I.SetLanguage('zh') else I.SetLanguage('ru');I.TranslateComponent(Owner);Assert.AreEqual('Summary',Edit.Text);end;
  finally Owner.Free;I.Free;end;
 end;

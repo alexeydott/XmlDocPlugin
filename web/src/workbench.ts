@@ -59,7 +59,7 @@ export function initWorkbench(hooks:Hooks):void {
   const container=$('documentation-problems');container.replaceChildren();
   for(const issue of issues()){
    const row=document.createElement('div');row.className='documentation-issue';
-   const text=document.createElement('span');text.textContent=`${issue.code} (${issue.line}:${issue.column}) ${issue.message}`;row.append(text);
+   const text=document.createElement('span');text.textContent=`${issue.code} (${issue.line}:${issue.column}) `;const message=document.createElement('span');message.textContent=issue.message;text.append(message);row.append(text);
    const button=document.createElement('button');button.textContent=issue.fix;setWorkbenchIcon(button,issue.fix==='Choose reference'?'reference':(issue.fix==='Synchronize'||issue.fix==='Map name')?'sync-document':'open-xml');button.onclick=()=>{
     if(issue.fix==='Synchronize')sync();else if(issue.fix==='Choose reference'){$('catalog-query').focus();refresh();}
     else if(issue.fix==='Map name')sync();else viewXml();
@@ -168,7 +168,7 @@ export function initWorkbench(hooks:Hooks):void {
      review(independent);panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);$('documentation-problems').replaceChildren(panel);
    };row.append(copy);
    row.onkeydown=event=>{if(event.key==='Enter')open(element);if(event.key==='ArrowDown')row.nextElementSibling instanceof HTMLElement&&row.nextElementSibling.focus();if(event.key==='ArrowUp')row.previousElementSibling instanceof HTMLElement&&row.previousElementSibling.focus();};
-   const summary=document.createElement('span');summary.textContent=element.doc.summary;row.append(summary);results.append(row);
+   const summary=document.createElement('span');summary.textContent=element.doc.summary;summary.dataset.code='';row.append(summary);results.append(row);
   }
   if(matches.length>catalogLimit){const more=document.createElement('button');more.textContent='Show more results';setWorkbenchIcon(more,'history-forward');more.onclick=()=>{catalogLimit+=100;renderCatalog(true);};results.append(more);}
   if(preserveGrid)return;
@@ -283,7 +283,7 @@ export function initWorkbench(hooks:Hooks):void {
    },receiveBatchResult(data:{batchId:string;status:string;sourceRevisions?:Record<string,string>}){captureGrid();const batch=batches.get(data.batchId);if(!batch)return;if(data.status==='applied'){batch.applied=true;if(data.sourceRevisions)batch.sourceRevisions=Object.fromEntries(Object.entries(data.sourceRevisions).map(([file,revision])=>[file.replace(/\\/g,'/').toLowerCase(),revision]));}else batches.delete(data.batchId);reconcileBatches();renderCatalog(false,false);},receiveCatalog(data:{elements:TreeElementInfo[];errors?:string[]}){captureGrid();catalogLimit=100;catalog=data.elements.sort((a,b)=>`${a.unitName}.${a.qualifiedParent}.${a.kind}.${a.signature}`.localeCompare(`${b.unitName}.${b.qualifiedParent}.${b.kind}.${b.signature}`));reconcileBatches();renderCatalog(false,false);inheritance();if(data.errors?.length)bridge.setStatus(data.errors.join('; '));},receiveQuickDoc(data:{query:string;matches:TreeElementInfo[];resolved:boolean;reason?:string}){
    const panel=$('documentation-problems');panel.replaceChildren();
    const heading=document.createElement('strong');heading.textContent=data.resolved?'Quick documentation':`Choose a declaration for ${data.query}`;panel.append(heading);if(data.reason){const reason=document.createElement("p");reason.textContent=data.reason;panel.append(reason);}
-   for(const e of data.matches){const row=document.createElement('div');const title=document.createElement('button');title.textContent=e.signature??e.name;const caption=document.createElement('span');caption.textContent=title.textContent;row.append(caption);title.title='Open source: '+title.textContent;title.textContent='Open source';setWorkbenchIcon(title,'open-source');title.onclick=()=>open(e);const prose=document.createElement('pre');prose.textContent=e.doc.summary+'\n'+(e.doc.params??[]).map(p=>p.name+': '+p.description).join('\n')+'\n'+(e.doc.returns??'');row.append(title,prose);panel.append(row);}
+   for(const e of data.matches){const row=document.createElement('div');const title=document.createElement('button');title.textContent=e.signature??e.name;const caption=document.createElement('span');caption.dataset.code='';caption.textContent=title.textContent;row.append(caption);title.title='Open source: '+title.textContent;title.textContent='Open source';setWorkbenchIcon(title,'open-source');title.onclick=()=>open(e);const prose=document.createElement('pre');prose.textContent=e.doc.summary+'\n'+(e.doc.params??[]).map(p=>p.name+': '+p.description).join('\n')+'\n'+(e.doc.returns??'');row.append(title,prose);panel.append(row);}
    if(!data.matches.length)panel.append(document.createTextNode('The symbol at the cursor could not be resolved. Use the project symbol picker.'));
   },receiveSelection(code:string){const doc=current().doc;review({...doc,examples:[...(doc.examples??[]),{title:'Selected source',description:'',code}]});}};
  window.addEventListener('documentationLoaded',(event)=>{

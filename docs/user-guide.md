@@ -48,6 +48,7 @@ Open **Document → Settings**. The editor theme follows the current IDE theme.
 | Code Generation | Generate a stub after typing /// | Expands a new triple-slash line above an undocumented declaration. Existing comments are not replaced. |
 | Code Generation | Default HTML / CHM theme | Chooses the global documentation output theme. |
 | Code Generation | Create CSS theme | Saves a new theme based on the selected palette and selects it in the list. Accept Settings to retain that selection. |
+| Code Generation | Unfinished documentation markers | One marker per line, used by diagnostics, readiness, coverage and the draft filter independently of the generated prefix. Defaults include English, Russian, Chinese, Korean and Japanese markers. Edit the list to add project conventions or remove unwanted markers. The current generated prefix and legacy `TODO` are always recognized. |
 | Code Generation | Placeholder Prefix | Sets the prefix for generated descriptions that still need writing; defaults to `TODO: `. Applies to menu-generated stubs and the Inspector and Explorer stubs too. The configured prefix and legacy `TODO` markers remain unfinished in diagnostics, filters and coverage. An empty prefix retains `TODO: ` when placeholders are enabled. |
 | Shortcuts | Command bindings | Assigns shortcuts after checking for conflicts with IDE commands. |
 | Advanced | Debounce (ms) | Delay before processing editor cursor and source notifications. |
@@ -320,7 +321,7 @@ For quality gates, distinguish comment presence from readiness:
 & $generator -p .\MyProject.dproj -o .\Generated -f json --check --placeholder-prefix 'FIXME: '
 ```
 
-`--coverage-min` checks comment presence; `--ready-min` checks readiness. Both accept 0–100 and return exit code 1 when their threshold is not met. A nonzero threshold enables coverage analysis even without `--coverage`. Pass `--placeholder-prefix` when CI uses a custom stub prefix; the CLI does not read your IDE preferences. Existing TODO markers remain unfinished with any configured prefix.
+`--coverage-min` checks comment presence; `--ready-min` checks readiness. Both accept 0–100 and return exit code 1 when their threshold is not met. A nonzero threshold enables coverage analysis even without `--coverage`. Pass `--placeholder-prefix` when CI uses a custom stub prefix; the CLI does not read your IDE preferences. The CLI recognizes the same multilingual defaults. Add other markers with repeatable `--placeholder-marker TEXT` options. It does not read the marker list saved in IDE Settings. Existing TODO markers remain unfinished with any configured prefix.
 
 ## Troubleshooting
 

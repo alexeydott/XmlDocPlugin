@@ -61,6 +61,7 @@ type
     procedure lvItemsDblClick(Sender: TObject);
   private
     FCancelled: Boolean;
+    FHasProject: Boolean;
     FItems: TList<PCoverageListItem>;
 
     procedure ClearItems;
@@ -76,7 +77,7 @@ type
 procedure ShowCoverageDialog;
 
 implementation
-uses XmlDoc.Plugin.Settings,XmlDoc.Plugin.Localization;
+uses XmlDoc.Plugin.Settings,XmlDoc.Plugin.Localization,XmlDoc.I18n;
 
 
 {$R *.dfm}
@@ -216,7 +217,7 @@ var
   LDir: string;
 begin
   LDir := edtDirectory.Text;
-  if SelectDirectory('Select source directory', '', LDir) then
+  if SelectDirectory(TI18n.Instance.T('Select source directory'), '', LDir) then
     edtDirectory.Text := LDir;
 end;
 
@@ -255,13 +256,13 @@ begin
 
   SetControlsEnabled(False);
   try
-    lblPhase.Caption := 'Generating HTML report...';
+    lblPhase.Caption := TI18n.Instance.T('Generating HTML report...');
     Application.ProcessMessages;
 
     try
       LScanOpts := GetScanOptions(rbProject, edtDirectory.Text);
     except
-      MessageDlg('No active project found.', mtError, [mbOK], 0);
+      MessageDlg(TI18n.Instance.T('No active project found.'), mtError, [mbOK], 0);
       Exit;
     end;
 
@@ -285,6 +286,7 @@ begin
 
       LCoverage := TDocCoverageReport.Create;
       LCoverage.PlaceholderPrefix:=TPluginSettings.Instance.Global.Stub.PlaceholderPrefix;
+      LCoverage.PlaceholderMarkers:=TPluginSettings.Instance.Global.Stub.PlaceholderMarkers;
       try
         LStats := LCoverage.Analyze(LParser.Units);
         try
@@ -302,11 +304,11 @@ begin
       LParser.Free;
     end;
 
-    lblPhase.Caption := 'HTML report exported.';
-    MessageDlg(Format('Report saved to: %s', [LOutputPath]), mtInformation, [mbOK], 0);
+    lblPhase.Caption := TI18n.Instance.T('HTML report exported.');
+    MessageDlg(Format(TI18n.Instance.T('Report saved to: %s'), [LOutputPath]), mtInformation, [mbOK], 0);
   except
     on E: Exception do
-      MessageDlg('Error: ' + E.Message, mtError, [mbOK], 0);
+      MessageDlg(TI18n.Instance.T('Error: ') + E.Message, mtError, [mbOK], 0);
   end;
 
   SetControlsEnabled(True);
@@ -330,7 +332,8 @@ begin
     end;
   end;
 
-  if LProjectPath <> '' then
+  FHasProject := LProjectPath <> '';
+  if FHasProject then
   begin
     rbProject.Caption := 'Current Project (' + ExtractFileName(LProjectPath) + ')';
     rbProject.Checked := True;
@@ -338,7 +341,7 @@ begin
   end
   else
   begin
-    rbProject.Caption := 'Current Project (none)';
+    rbProject.Caption := TI18n.Instance.T('Current Project (none)');
     rbProject.Checked := False;
     rbProject.Enabled := False;
     rbDirectory.Checked := True;
@@ -398,13 +401,13 @@ begin
     lvItems.Items.Clear;
     ClearItems;
 
-    lblPhase.Caption := 'Scanning source files...';
+    lblPhase.Caption := TI18n.Instance.T('Scanning source files...');
     Application.ProcessMessages;
 
     try
       LScanOpts := GetScanOptions(rbProject, edtDirectory.Text);
     except
-      MessageDlg('No active project found.', mtError, [mbOK], 0);
+      MessageDlg(TI18n.Instance.T('No active project found.'), mtError, [mbOK], 0);
       Exit;
     end;
 
@@ -422,11 +425,11 @@ begin
 
     if Length(LFiles) = 0 then
     begin
-      MessageDlg('No source files found.', mtWarning, [mbOK], 0);
+      MessageDlg(TI18n.Instance.T('No source files found.'), mtWarning, [mbOK], 0);
       Exit;
     end;
 
-    lblPhase.Caption := Format('Parsing %d files...', [Length(LFiles)]);
+    lblPhase.Caption := Format(TI18n.Instance.T('Parsing %d files...'), [Length(LFiles)]);
     Application.ProcessMessages;
 
     LParser := TBatchParser.Create;
@@ -438,17 +441,18 @@ begin
       if FCancelled then
         Exit;
 
-      lblPhase.Caption := 'Analyzing coverage...';
+      lblPhase.Caption := TI18n.Instance.T('Analyzing coverage...');
       Application.ProcessMessages;
 
       LCoverage := TDocCoverageReport.Create;
       LCoverage.PlaceholderPrefix:=TPluginSettings.Instance.Global.Stub.PlaceholderPrefix;
+      LCoverage.PlaceholderMarkers:=TPluginSettings.Instance.Global.Stub.PlaceholderMarkers;
       try
         LStats := LCoverage.Analyze(LParser.Units);
         try
-          lblTotal.Caption := Format('Total: %d', [LStats.TotalElements]);
-          lblDocumented.Caption := Format('Documented: %d (%.1f%%)', [LStats.Documented, LStats.CoveragePercent]);
-          lblComplete.Caption := Format('Complete: %d; ready: %d (%.1f%%)', [LStats.Complete,LStats.Ready,LStats.ReadyPercent]);
+          lblTotal.Caption := Format(TI18n.Instance.T('Total: %d'), [LStats.TotalElements]);
+          lblDocumented.Caption := Format(TI18n.Instance.T('Documented: %d (%.1f%%)'), [LStats.Documented, LStats.CoveragePercent]);
+          lblComplete.Caption := Format(TI18n.Instance.T('Complete: %d; ready: %d (%.1f%%)'), [LStats.Complete,LStats.Ready,LStats.ReadyPercent]);
           pbCoverage.Position := Round(LStats.CoveragePercent);
           lblPercent.Caption := Format('%.1f%%', [LStats.CoveragePercent]);
 
@@ -467,7 +471,7 @@ begin
             LListItem := lvItems.Items.Add;
             LListItem.Caption := LItem.ElementFullName;
             LListItem.SubItems.Add(LItem.Kind.ToString);
-            LListItem.SubItems.Add(CoverageLevelToStr(LItem.Level));
+            LListItem.SubItems.Add(TI18n.Instance.T(CoverageLevelToStr(LItem.Level)));
             LListItem.SubItems.Add(string.Join(', ', LItem.MissingTags));
             LListItem.Data := LLocItem;
           end;
@@ -484,11 +488,11 @@ begin
     end;
 
     pbProgress.Position := pbProgress.Max;
-    lblPhase.Caption := Format('Done - %d undocumented items found.', [Length(LUndocItems)]);
+    lblPhase.Caption := Format(TI18n.Instance.T('Done - %d undocumented items found.'), [Length(LUndocItems)]);
     btnExportHTML.Enabled := True;
   except
     on E: Exception do
-      MessageDlg('Error: ' + E.Message, mtError, [mbOK], 0);
+      MessageDlg(TI18n.Instance.T('Error: ') + E.Message, mtError, [mbOK], 0);
   end;
 
   finally
@@ -544,22 +548,22 @@ end;
 procedure TCoverageDialog.SetControlsEnabled(AEnabled: Boolean);
 begin
   btnAnalyze.Enabled := AEnabled;
-  rbProject.Enabled := AEnabled and (rbProject.Caption <> 'Current Project (none)');
+  rbProject.Enabled := AEnabled and FHasProject;
   rbDirectory.Enabled := AEnabled;
   edtDirectory.Enabled := AEnabled;
   btnBrowse.Enabled := AEnabled;
 
   if AEnabled then
-    btnClose.Caption := 'Close'
+    btnClose.Caption := TI18n.Instance.T('Close')
   else
-    btnClose.Caption := 'Cancel';
+    btnClose.Caption := TI18n.Instance.T('Cancel');
 end;
 
 procedure TCoverageDialog.UpdateProgress(ACurrent, ATotal: Integer; const AMessage: string);
 begin
   pbProgress.Max := ATotal;
   pbProgress.Position := ACurrent;
-  lblPhase.Caption := AMessage;
+  lblPhase.Caption := TI18n.Instance.TranslateText(AMessage);
   Application.ProcessMessages;
 end;
 

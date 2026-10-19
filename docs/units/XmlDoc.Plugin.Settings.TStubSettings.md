@@ -8,6 +8,7 @@ Automatic stub generation and placeholder options.
 |------|------|------------|-------------|
 | `AutoGenerate` | field | public |  |
 | `IncludePlaceholders` | field | public | Whether generated TODO descriptions are included; signature names and known hints remain. |
+| `PlaceholderMarkers` | field | public | One unfinished-documentation marker per line, independent of the generated prefix. |
 | `PlaceholderPrefix` | field | public | Prefix used for generated placeholder descriptions. |
 
 ### AutoGenerate
@@ -15,6 +16,10 @@ Automatic stub generation and placeholder options.
 ### IncludePlaceholders
 
 Whether generated TODO descriptions are included; signature names and known hints remain.
+
+### PlaceholderMarkers
+
+One unfinished-documentation marker per line, independent of the generated prefix.
 
 ### PlaceholderPrefix
 

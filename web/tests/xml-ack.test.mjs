@@ -24,13 +24,13 @@ test('changing the configured placeholder prefix refreshes unfinished-draft cata
  const element={kind:'class',name:'TWidget',symbolId:'widget',fileName:'Case.pas',params:[],genericParams:[]};
  window.bridge.receive({type:'loadDoc',data:{element,doc:{summary:'Owner'}}});
  window.xmlDocWorkbench.receiveCatalog({elements:[
-  {...element,symbolId:'custom',doc:{summary:'FIXME: Custom unfinished comment'}},
+  {...element,symbolId:'custom',doc:{summary:'CUSTOM: Custom unfinished comment'}},
   {...element,symbolId:'legacy',doc:{summary:'TODO: Legacy unfinished comment'}},
   {...element,symbolId:'complete',doc:{summary:'Represents a widget.'}}
  ]});
  const filter=document.querySelector('#catalog-filter');filter.value='todo';filter.dispatchEvent(new Event('change'));
  assert.equal(document.querySelectorAll('.catalog-row').length,1,'legacy TODO remains visible');
- window.xmlDocSettings.apply({placeholderPrefix:'FIXME: '});
+ window.xmlDocSettings.apply({placeholderPrefix:'CUSTOM: '});
  assert.equal(document.querySelectorAll('.catalog-row').length,2,'both configured and legacy placeholders remain unfinished');
  window.xmlDocSettings.apply({placeholderPrefix:'OTHER: '});assert.equal(document.querySelectorAll('.catalog-row').length,1,'filter reacts to settings without changing the comments');
  window.bridge.cancelPending();dom.window.close();
