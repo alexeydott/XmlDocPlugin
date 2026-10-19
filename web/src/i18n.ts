@@ -1,6 +1,8 @@
 import ru from '../../resources/locales/ru.json';
 import zh from '../../resources/locales/zh.json';
-const packs:Record<string,Record<string,string>>={en:{},ru,zh};
+import ko from '../../resources/locales/ko.json';
+import ja from '../../resources/locales/ja.json';
+const packs:Record<string,Record<string,string>>={en:{},ru,zh,ko,ja};
 let language='en';
 let observer:MutationObserver|null=null;
 const texts=new WeakMap<Text,{source:string;translated:string}>();

@@ -87,7 +87,7 @@ begin
   FCurrentLanguage := 'en';
   LoadDefaults;
   FReverse:=TDictionary<string,string>.Create;
-  for var Json in [CLocale_ru,CLocale_zh] do begin
+  for var Json in [CLocale_ru,CLocale_zh,CLocale_ko,CLocale_ja] do begin
    var Pack:=TJSONObject.ParseJSONValue(Json) as TJSONObject;
    try for var Pair in Pack do FReverse.AddOrSetValue(Pair.JsonValue.Value,Pair.JsonString.Value);finally Pack.Free;end;
   end;
@@ -160,7 +160,8 @@ var
 begin
   FCurrentLanguage := ALang;FLanguageLoaded:=True;
   LoadDefaults;
-  LJson:='';if ALang='ru' then LJson:=CLocale_ru else if ALang='zh' then LJson:=CLocale_zh;
+  LJson:='';if ALang='ru' then LJson:=CLocale_ru else if ALang='zh' then LJson:=CLocale_zh
+  else if ALang='ko' then LJson:=CLocale_ko else if ALang='ja' then LJson:=CLocale_ja;
   Builtin:=TJSONObject.ParseJSONValue(LJson) as TJSONObject;
   try if Assigned(Builtin) then ParseJsonObject(Builtin,'');finally Builtin.Free;end;
 

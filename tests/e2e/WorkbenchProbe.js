@@ -11,11 +11,23 @@
   await pause(300);
   assert(document.querySelector('#workbench'),'Documentation tools missing');
   const originalDoc=JSON.stringify(window.xmlDocEditor.get().doc);
-  for(const [language,caption,hint] of [['ru','Описание','Восстановить черновики'],['zh','摘要','恢复草稿'],['en','Summary','Recover drafts']]){
+  for(const [language,caption,hint] of [['ru','Описание','Восстановить черновики'],['zh','摘要','恢复草稿'],['ko','요약','초안 복구'],['ja','概要','下書きを復元'],['en','Summary','Recover drafts']]){
    send('language-ui',{language});for(let i=0;i<100 && (window.__xmlDocLanguageUi!==language || document.documentElement.lang!==language);i++)await pause(100);
    assert(window.__xmlDocLanguageUi===language && document.documentElement.lang===language,'Language did not reach editor: '+language);
    assert(document.querySelector('[data-section=summary]').textContent.includes(caption),'Heading not translated: '+language);
    assert(document.querySelector('#recover-drafts').title===hint,'SVG tooltip not translated: '+language);
+   const script={ru:/[А-Яа-я]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ja:/[\u3040-\u30ff\u3400-\u9fff]/}[language];
+   if(script){const native=window.__nativeLocaleAudit;assert(native?.language===language,'Native locale audit missing');for(const key of ['settingsTitle','markerHint','generationTitle','coverageTitle'])assert(script.test(native[key]),'Native text not translated: '+language+' '+key);}
+   document.querySelector('[data-action="help"]').click();
+   await until(()=>document.querySelector('.help-modal-title') && (!script || script.test(document.querySelector('.help-modal-title').textContent)),'Tag reference not translated: '+language);
+   const tagNames=Array.from(document.querySelectorAll('.help-tag-name')).map(e=>e.textContent);assert(tagNames.length===14&&tagNames.includes('<summary>')&&tagNames.includes('<see cref>'),'XML tag names were lost');
+   if(script)for(const e of document.querySelectorAll('.help-tag-desc,.help-tag-usage'))assert(script.test(e.textContent),'Tag reference prose not translated: '+language);
+   document.querySelector('.help-modal-close').click();
+   document.querySelector('#summary-editor .tiptap').editor.commands.focus();await pause(50);
+   document.querySelector('[data-action="paramref"]').click();await pause(100);
+   assert(document.querySelector('.popover-item-name')?.textContent===window.xmlDocEditor.get().element.params[0].name,'Parameter picker mismatch: '+language+' '+JSON.stringify({actual:document.querySelector('.popover-item-name')?.textContent,expected:window.xmlDocEditor.get().element.params[0].name,focused:document.querySelector('#summary-editor .tiptap').editor.isFocused,disabled:document.querySelector('[data-action="paramref"]').disabled,active:document.activeElement?.className,popovers:document.querySelectorAll('.popover').length}));
+   document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));
+
    assert(JSON.stringify(window.xmlDocEditor.get().doc)===originalDoc,'Language switch modified user documentation');
   }
 

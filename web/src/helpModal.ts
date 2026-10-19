@@ -122,14 +122,14 @@ function createModal(): HTMLElement {
     card.className = 'help-tag-card';
 
     const titleLine = tag.shortcut
-      ? `<span class="help-tag-name">${tag.tag}</span><kbd class="help-tag-shortcut">${tag.shortcut}</kbd>`
-      : `<span class="help-tag-name">${tag.tag}</span>`;
+      ? `<span class="help-tag-name" data-code>${escapeHtml(tag.tag)}</span><kbd class="help-tag-shortcut">${tag.shortcut}</kbd>`
+      : `<span class="help-tag-name" data-code>${escapeHtml(tag.tag)}</span>`;
 
     card.innerHTML = `
       <div class="help-tag-header">${titleLine}</div>
-      <p class="help-tag-desc">${tag.description}</p>
+      <p class="help-tag-desc">${escapeHtml(tag.description)}</p>
       <pre class="help-tag-example"><code>${escapeHtml(tag.example)}</code></pre>
-      <p class="help-tag-usage">${tag.usage}</p>
+      <p class="help-tag-usage">${escapeHtml(tag.usage)}</p>
     `;
     body.appendChild(card);
   });

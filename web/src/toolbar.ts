@@ -227,7 +227,10 @@ function showParamPopover(anchor: HTMLElement): void {
   params.forEach(p => {
     const item = document.createElement('button');
     item.className = 'popover-list-item';
-    item.innerHTML = `<span class="popover-item-name">${p.name}</span><span class="popover-item-type">${p.type ?? ''}</span>`;
+    item.dataset.code='';
+    const name=document.createElement('span');name.className='popover-item-name';name.textContent=p.name;
+    const type=document.createElement('span');type.className='popover-item-type';type.textContent=p.type??'';
+    item.append(name,type);
     item.addEventListener('click', () => {
       if (!activeEditor) return;
       applyMark(activeEditor, 'paramRef', { name: p.name }, p.name);
@@ -249,6 +252,7 @@ function showTypeParamPopover(anchor: HTMLElement): void {
   typeParams.forEach(name => {
     const item = document.createElement('button');
     item.className = 'popover-list-item';
+    item.dataset.code='';
     item.textContent = name;
     item.addEventListener('click', () => {
       if (!activeEditor) return;

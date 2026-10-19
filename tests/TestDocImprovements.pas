@@ -121,11 +121,16 @@ begin
   I.SetLanguage('ru-RU');Assert.AreEqual('Описание',I.T('inspector.summary'));I.TranslateComponent(Owner);Assert.AreEqual('Описание',LabelControl.Caption);Assert.AreEqual('Summary',Edit.Text);
   I.SetLanguage('zh-CN');I.TranslateComponent(Owner);Assert.AreEqual('摘要',LabelControl.Caption);Assert.AreEqual('恢复草稿',LabelControl.Hint);Assert.AreEqual('Summary',Edit.Text);
   var Plural:=TLabel.Create(Owner);Plural.Caption:='Parameters';I.TranslateComponent(Owner);Assert.AreEqual('参数',Plural.Caption);
-  I.SetLanguage('en');I.TranslateComponent(Owner);Assert.AreEqual('Parameters',Plural.Caption);Assert.AreEqual('Summary',LabelControl.Caption);Assert.AreEqual('Recover drafts',LabelControl.Hint);
+  I.SetLanguage('ko-KR');I.TranslateComponent(Owner);Assert.AreEqual('요약',LabelControl.Caption);Assert.AreEqual('초안 복구',LabelControl.Hint);Assert.AreEqual('API 문서 생성',I.T('Generate API Documentation'));
+   Assert.AreEqual('소스 파일 3개를 찾았습니다.',Format(I.T('Found %d source files.'),[3]));Assert.AreEqual('Summary',Edit.Text);
+   I.SetLanguage('ja-JP');I.TranslateComponent(Owner);Assert.AreEqual('概要',LabelControl.Caption);Assert.AreEqual('下書きを復元',LabelControl.Hint);Assert.AreEqual('API ドキュメントの生成',I.T('Generate API Documentation'));
+   Assert.AreEqual('ソース ファイルが 3 個見つかりました。',Format(I.T('Found %d source files.'),[3]));Assert.AreEqual('Summary',Edit.Text);
+   Assert.AreEqual('TWorker.Run<T> の概要',I.T('Summary for {0}',['TWorker.Run<T>']));
+   I.SetLanguage('en');I.TranslateComponent(Owner);Assert.AreEqual('Parameters',Plural.Caption);Assert.AreEqual('Summary',LabelControl.Caption);Assert.AreEqual('Recover drafts',LabelControl.Hint);
   I.SetLanguage('ru');Assert.AreEqual('Найдено исходных файлов: 3.',Format(I.T('Found %d source files.'),[3]));Assert.AreEqual('Версия',I.T('Version'));Assert.AreEqual('Анализ покрытия...',I.T('Analyzing coverage...'));
    I.SetLanguage('zh');Assert.AreEqual('找到 3 个源文件。',Format(I.T('Found %d source files.'),[3]));Assert.AreEqual('版本',I.T('Version'));
    I.SetLanguage('ru');Assert.AreEqual('Документация создана: 5 страниц',I.T('helpgen.complete',[5]));Assert.AreEqual('Missing key',I.T('Missing key'));Assert.AreEqual('Текущий проект (Test.dproj)',I.T('Current Project (Test.dproj)'));
-  for var Round:=0 to 999 do begin if Odd(Round) then I.SetLanguage('zh') else I.SetLanguage('ru');I.TranslateComponent(Owner);Assert.AreEqual('Summary',Edit.Text);end;
+  for var Round:=0 to 999 do begin case Round mod 4 of 0:I.SetLanguage('ru');1:I.SetLanguage('zh');2:I.SetLanguage('ko');3:I.SetLanguage('ja');end;I.TranslateComponent(Owner);Assert.AreEqual('Summary',Edit.Text);end;
  finally Owner.Free;I.Free;end;
 end;
 procedure TImprovementsTests.QualifiedExpressionIdentity;

@@ -95,7 +95,7 @@ begin
  if Assigned(OriginalExplorerMessage) then OriginalExplorerMessage(Sender,Args);
 end;
 procedure TProbe.MessageReceived(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
-var Buffer:PWideChar;Text,Action,Source:string;Json:TJSONObject;Editor:IOTASourceEditor;EditBuffer:IOTAEditBuffer;Writer:IOTAEditWriter;Offset,UndoMarkers:Integer;Utf8:UTF8String;
+var Buffer:PWideChar;Text,Action,Source,NativeTitle,NativeHint,GenerationTitle,CoverageTitle:string;Json:TJSONObject;Editor:IOTASourceEditor;EditBuffer:IOTAEditBuffer;Writer:IOTAEditWriter;Offset,UndoMarkers:Integer;Utf8:UTF8String;
  procedure AssertParsed(Form:TForm);
  begin
   for var I:=0 to Form.ComponentCount-1 do if (Form.Components[I] is TMemo) and (Form.Components[I].Name='DocumentationError') then
@@ -113,7 +113,17 @@ begin
   if not Assigned(Json) or (Json.GetValue<string>('type','')<>'e2e') then begin if Assigned(OriginalMessage) then OriginalMessage(Sender,Args);Exit;end;
   Action:=Json.GetValue<string>('action','');
   try
-   if Action='prefix-ui' then begin
+   if Action='marker-log' then Log('AUDIT '+Json.GetValue<string>('result'))
+   else if Action='marker-select' then begin Select(SampleFile,'UndocumentedFirst','');Browser.ExecuteScript('window.__markerSelected=true');end
+   else if Action='marker-coverage' then begin
+    var D:=TCoverageDialog.Create(nil);
+    try D.Show;D.btnAnalyze.Click;
+     var Reply:=TJSONObject.Create;try Reply.AddPair('complete',D.lblComplete.Caption);Reply.AddPair('documented',D.lblDocumented.Caption);Reply.AddPair('total',D.lblTotal.Caption);
+      Browser.ExecuteScript('window.__markerCoverage='+Reply.ToJSON);Log('AUDIT coverage '+Reply.ToJSON);
+     finally Reply.Free;end;
+    finally D.Free;end;
+   end
+   else if Action='prefix-ui' then begin
     if not PrefixSettingsSaved then begin OriginalPrefixSettings:=TPluginSettings.Instance.Global;PrefixSettingsSaved:=True;end;
     var Updated:=TPluginSettings.Instance.Global;Updated.Stub.IncludePlaceholders:=True;TPluginSettings.Instance.Global:=Updated;
     var Dialog:=TSettingsDialog.Create(nil);
@@ -134,19 +144,23 @@ begin
     Browser.ExecuteScript('window.__prefixRestored=true');Log('PASS custom prefix settings restored after native editor checks');
    end
    else if Action='language-ui' then begin
-    var Language:=Json.GetValue<string>('language');AssertTrue((Language='ru') or (Language='zh') or (Language='en'),'Unexpected language');
+    var Language:=Json.GetValue<string>('language');AssertTrue((Language='ru') or (Language='zh') or (Language='en') or (Language='ko') or (Language='ja'),'Unexpected language');
     var Updated:=TPluginSettings.Instance.Global;if not LanguageSaved then begin OriginalLanguage:=Updated.General.Language;LanguageSaved:=True;end;
     Updated.General.Language:=Language;TPluginSettings.Instance.Global:=Updated;
     var Dialog:=TSettingsDialog.Create(nil);
     try
-     AssertTrue(Dialog.cmbLanguage.Items.IndexOf('ru')>=0,'Russian option missing');AssertTrue(Dialog.cmbLanguage.Items.IndexOf('zh')>=0,'Chinese option missing');AssertTrue(Dialog.cmbLanguage.Text=Language,'Selected language changed');
+     AssertTrue(Dialog.cmbLanguage.Items.IndexOf('ko')>=0,'Korean option missing');AssertTrue(Dialog.cmbLanguage.Items.IndexOf('ja')>=0,'Japanese option missing');AssertTrue(Dialog.cmbLanguage.Items.IndexOf('ru')>=0,'Russian option missing');AssertTrue(Dialog.cmbLanguage.Items.IndexOf('zh')>=0,'Chinese option missing');AssertTrue(Dialog.cmbLanguage.Text=Language,'Selected language changed');
      AssertTrue(Dialog.memPlaceholderMarkers.Hint=TI18n.Instance.T('One marker per line. The generated prefix and TODO are always recognized.'),'Marker hint not translated');
      AssertTrue(Dialog.Caption=TI18n.Instance.T('XmlDoc Plugin Settings'),'Settings title not translated');if Language<>'en' then AssertTrue(Dialog.Caption<>'XmlDoc Plugin Settings','Native language pack missing');
+     NativeTitle:=Dialog.Caption;NativeHint:=Dialog.memPlaceholderMarkers.Hint;
+     Log('AUDIT native language='+Language+' caption='+Dialog.Caption+' markerHint='+Dialog.memPlaceholderMarkers.Hint);
     finally Dialog.Free;end;
-    var Generation:=TBatchGenDialog.Create(nil);try AssertTrue(Generation.Caption=TI18n.Instance.T('Generate API Documentation'),'Generation dialog not translated');finally Generation.Free;end;
-    var Coverage:=TCoverageDialog.Create(nil);try AssertTrue(Coverage.Caption=TI18n.Instance.T('Documentation Coverage Report'),'Coverage dialog not translated');finally Coverage.Free;end;
+    var Generation:=TBatchGenDialog.Create(nil);try GenerationTitle:=Generation.Caption;if Language<>'en' then AssertTrue(GenerationTitle<>'Generate API Documentation','Generation language pack missing');AssertTrue(Generation.Caption=TI18n.Instance.T('Generate API Documentation'),'Generation dialog not translated');finally Generation.Free;end;
+    var Coverage:=TCoverageDialog.Create(nil);try CoverageTitle:=Coverage.Caption;if Language<>'en' then AssertTrue(CoverageTitle<>'Documentation Coverage Report','Coverage language pack missing');AssertTrue(Coverage.Caption=TI18n.Instance.T('Documentation Coverage Report'),'Coverage dialog not translated');finally Coverage.Free;end;
     var MenuRoot:=(BorlandIDEServices as INTAServices).MainMenu.Items;for var I:=0 to MenuRoot.Count-1 do if MenuRoot[I].Name='XmlDocDocumentMenu' then LocalizePluginUi(MenuRoot[I].Owner);
     AssertTrue(Assigned(FindMenuCommand(MenuRoot,'User Guide')),'Localized guide menu missing');Browser.ApplySettings;ExplorerBrowser.ApplySettings;
+    var LocaleAudit:=TJSONObject.Create;try LocaleAudit.AddPair('language',Language);LocaleAudit.AddPair('settingsTitle',NativeTitle);LocaleAudit.AddPair('markerHint',NativeHint);LocaleAudit.AddPair('generationTitle',GenerationTitle);LocaleAudit.AddPair('coverageTitle',CoverageTitle);Browser.ExecuteScript('window.__nativeLocaleAudit='+LocaleAudit.ToJSON);finally LocaleAudit.Free;end;
+    Inspector.BringToFront;Browser.SetFocus;
     Browser.ExecuteScript('window.__xmlDocLanguageUi="'+Language+'"');Log('PASS native Settings, generation, coverage and menus language '+Language);
    end
    else if Action='arm-explorer' then begin
@@ -662,6 +676,22 @@ begin
    Timer.Enabled:=True;Exit;
   end;
   0:begin
+   if GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'' then begin
+    Root:=GetEnvironmentVariable('XMLDOC_E2E_FIXTURE');SampleFile:=TPath.Combine(Root,'Units\Workbench.Sample.pas');SecondFile:=TPath.Combine(Root,'Units\Workbench.Second.pas');
+    var D:=TSettingsDialog.Create(nil);
+    try
+     if GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')='save' then begin
+      D.memPlaceholderMarkers.Lines.Text:=CDefaultPlaceholderMarkers+#10+'VERIFY-RESTART:'+#10+'[draft].*:';
+      D.edtPlaceholderPrefix.Text:='OTHER: ';
+      D.hotToggleInspector.HotKey:=0;D.hotGenerateStub.HotKey:=0;D.hotGenerateHelp.HotKey:=0;D.hotCoverageReport.HotKey:=0;D.hotNextUndocumented.HotKey:=0;D.hotPreviousUndocumented.HotKey:=0;
+      D.btnOKClick(nil);
+     end;
+     AssertTrue(D.memPlaceholderMarkers.Lines.Text.Replace(#13,'').Trim=(CDefaultPlaceholderMarkers+#10+'VERIFY-RESTART:'+#10+'[draft].*:').Replace(#13,'').Trim,'Marker list was lost across restart');
+     AssertTrue(D.edtPlaceholderPrefix.Text='OTHER: ','Generation prefix was lost across restart');
+     Log('PASS persisted marker Settings phase='+GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')+' process='+GetCurrentProcessId.ToString);
+    finally D.Free;end;
+    AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);Timer.Enabled:=True;Exit;
+   end;
     var Actions:=(BorlandIDEServices as INTAServices).ActionList;var Found:=False;
     for var ActionIndex:=0 to Actions.ActionCount-1 do if Actions.Actions[ActionIndex].Name='XmlDocActionsyncdocument' then Found:=True;
     AssertTrue(Found,'Documentation actions are not registered in the IDE action catalog');AssertTrue(Assigned(FindMenuCommand((BorlandIDEServices as INTAServices).MainMenu.Items,'User Guide')),'Offline User Guide menu missing');Log('PASS IDE action registration and offline User Guide menu');
@@ -716,7 +746,7 @@ begin
      Log('PASS project settings reset between projects and partial files');
     finally Settings.Free;TDirectory.Delete(SettingsRoot,True);end;
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
-  1:begin if (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
+  1:begin if (GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'') or (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
   2:begin
     for I:=0 to Inspector.ComponentCount-1 do if Inspector.Components[I] is TXmlDocBrowser then Browser:=TXmlDocBrowser(Inspector.Components[I]);
     AssertTrue(Assigned(Browser),'Browser unavailable');

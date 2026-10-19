@@ -30,7 +30,8 @@ XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API r
 5. Open this guide from **Document → User Guide** whenever you need instructions.
 
 Choose **Document → Settings → General → Language** for the interface language:
-`en` (English), `ru` (Russian), `zh` (Simplified Chinese), or `auto` (Windows user locale).
+`en` (English), `ru` (Russian), `zh` (Simplified Chinese), `ko` (Korean),
+`ja` (Japanese), or `auto` (Windows user locale). All four translation packs are included.
 Unavailable translations use English. This changes plugin captions and tooltips,
 not your comments, XML tags or source symbols. The spell-check language in
 Documentation tools is a separate setting. This guide uses the English action names.

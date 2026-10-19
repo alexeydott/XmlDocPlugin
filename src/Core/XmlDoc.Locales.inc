@@ -334,7 +334,62 @@ const
   '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "Анализ {0}: {1}/{2}; разобрано {3}, из кэша {4}",' +
   '  "Select source directory": "Выберите каталог исходников",' +
   '  "Select output directory": "Выберите каталог документации",' +
-  '  "Please select at least one output format.": "Выберите хотя бы один формат документации."' +
+  '  "Please select at least one output format.": "Выберите хотя бы один формат документации.",' +
+  '  "Read-only source": "Исходник только для чтения",' +
+  '  "Read-only: RAD Studio system source": "Только чтение: системный исходник RAD Studio",' +
+  '  "Read-only: protected file": "Только чтение: защищённый файл",' +
+  '  "Read-only: IDE source buffer": "Только чтение: буфер исходника IDE",' +
+  '  "Unsaved draft — source may have changed": "Несохранённый черновик — исходник мог измениться",' +
+  '  "The source is read-only. The draft can be viewed but cannot be applied.": "Исходник доступен только для чтения. Черновик можно просматривать, но нельзя применять.",' +
+  '  "Conflict: the source comment changed after this draft was created. Review all three versions before applying.": "Конфликт: исходный комментарий изменён после создания черновика. Перед применением сравните все три версии.",' +
+  '  "The source comment matches the original version. Review the saved draft before applying.": "Исходный комментарий совпадает с оригиналом. Перед применением проверьте сохранённый черновик.",' +
+  '  "The symbol at the cursor could not be resolved. Use the project symbol picker.": "Не удалось разрешить символ под курсором. Используйте список символов проекта.",' +
+  '  "Invalid XML": "Некорректный XML",' +
+  '  "Missing summary description": "Отсутствует описание",' +
+  '  "Missing result description": "Отсутствует описание результата",' +
+  '  "Missing property value description": "Отсутствует описание значения свойства",' +
+  '  "Returns is not valid for this declaration": "Returns недопустим для этого объявления",' +
+  '  "Value is only valid for a property": "Value допустим только для свойства",' +
+  '  "Exceptions are not valid for a unit": "Exceptions недопустимы для модуля",' +
+  '  "Edit": "Править",' +
+  '  "A brief summary description of the element. Required for all documented elements.": "Краткое описание элемента. Обязательно для всех документированных элементов.",' +
+  '  "Write for all public types, methods, properties, and fields.": "Указывайте для всех публичных типов, методов, свойств и полей.",' +
+  '  "Detailed supplementary information beyond the summary. Use for implementation details and caveats.": "Дополнительные сведения к краткому описанию: детали реализации и ограничения.",' +
+  '  "Write when there are complex behaviors or usage caveats.": "Указывайте при сложном поведении или наличии ограничений использования.",' +
+  '  "Description of a method parameter.": "Описание параметра метода.",' +
+  '  "Write one for each parameter of the method.": "Указывайте отдельно для каждого параметра метода.",' +
+  '  "Description of the method return value.": "Описание возвращаемого значения метода.",' +
+  '  "Write only for functions (methods that return a value).": "Указывайте только для функций — методов, возвращающих значение.",' +
+  '  "Description of a property value.": "Описание значения свойства.",' +
+  '  "Write for properties. Similar to <returns>.": "Указывайте для свойств. Аналогично <returns>.",' +
+  '  "Paragraph separator. Used inside summary, remarks, etc. to divide content into paragraphs.": "Разделитель абзацев внутри summary, remarks и других разделов.",' +
+  '  "Use to break long descriptions into logical paragraphs.": "Используйте для разделения длинного описания на логические абзацы.",' +
+  '  "Inline code. Highlights code elements within text.": "Код внутри строки. Выделяет элементы кода в тексте.",' +
+  '  "Use when mentioning variable names, values, or short code snippets.": "Используйте при упоминании переменных, значений и коротких фрагментов кода.",' +
+  '  "Multi-line code block.": "Многострочный блок кода.",' +
+  '  "Use inside <example> to show code samples.": "Используйте внутри <example> для примеров кода.",' +
+  '  "Inline reference link to another type or member.": "Ссылка внутри строки на другой тип или член.",' +
+  '  "Use when referencing other classes, methods, or properties.": "Используйте для ссылок на другие классы, методы и свойства.",' +
+  '  "Inline reference to a parameter name.": "Ссылка внутри строки на имя параметра.",' +
+  '  "Use when mentioning a parameter within description text.": "Используйте при упоминании параметра в описании.",' +
+  '  "Inline reference to a generic type parameter.": "Ссылка внутри строки на параметр generic-типа.",' +
+  '  "Use when mentioning a generic type parameter.": "Используйте при упоминании параметра generic-типа.",' +
+  '  "Documents exceptions that a method may throw.": "Описывает исключения, которые может вызвать метод.",' +
+  '  "Write one for each exception type the method can raise.": "Указывайте отдельно для каждого типа исключения метода.",' +
+  '  "Contains a code usage example.": "Содержит пример использования кода.",' +
+  '  "Write to demonstrate usage with code.": "Указывайте для демонстрации использования в коде.",' +
+  '  "A reference displayed in the \"See Also\" section of the help topic.": "Ссылка, отображаемая в разделе «См. также» темы справки.",' +
+  '  "Use to link related APIs. Unlike <see>, this appears in a separate section.": "Используйте для связанных API. В отличие от <see>, отображается в отдельном разделе.",' +
+  '  "Resource path relative to project": "Путь к ресурсу относительно проекта",' +
+  '  "Alternative text": "Альтернативный текст",' +
+  '  "Insert image": "Вставить изображение",' +
+  '  "Choose a resource inside the project": "Выберите ресурс внутри проекта",' +
+  '  "cref (reference target)": "cref (цель ссылки)",' +
+  '  "e.g. TMyClass.DoWork": "например, TMyClass.DoWork",' +
+  '  "Insert": "Вставить",' +
+  '  "See": "Ссылка",' +
+  '  "Param": "Параметр",' +
+  '  "TParam": "Параметр типа"' +
   '}';
  CLocale_zh =
   '{' +
@@ -670,5 +725,842 @@ const
   '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "分析 {0}：{1}/{2}；已解析 {3}，已复用 {4}",' +
   '  "Select source directory": "选择源文件目录",' +
   '  "Select output directory": "选择输出目录",' +
-  '  "Please select at least one output format.": "请至少选择一种输出格式。"' +
+  '  "Please select at least one output format.": "请至少选择一种输出格式。",' +
+  '  "Read-only source": "源代码只读",' +
+  '  "Read-only: RAD Studio system source": "只读：RAD Studio 系统源代码",' +
+  '  "Read-only: protected file": "只读：受保护的文件",' +
+  '  "Read-only: IDE source buffer": "只读：IDE 源代码缓冲区",' +
+  '  "Unsaved draft — source may have changed": "未保存的草稿，源代码可能已更改",' +
+  '  "The source is read-only. The draft can be viewed but cannot be applied.": "源代码只读。可以查看草稿，但不能应用。",' +
+  '  "Conflict: the source comment changed after this draft was created. Review all three versions before applying.": "冲突：创建草稿后，源代码注释已更改。应用前请比较所有三个版本。",' +
+  '  "The source comment matches the original version. Review the saved draft before applying.": "源代码注释与原始版本一致。应用前请审阅保存的草稿。",' +
+  '  "The symbol at the cursor could not be resolved. Use the project symbol picker.": "无法解析光标处的符号。请使用项目符号选择器。",' +
+  '  "Invalid XML": "无效的 XML",' +
+  '  "Missing summary description": "缺少摘要描述",' +
+  '  "Missing result description": "缺少返回值描述",' +
+  '  "Missing property value description": "缺少属性值描述",' +
+  '  "Returns is not valid for this declaration": "此声明不支持 returns",' +
+  '  "Value is only valid for a property": "value 仅适用于属性",' +
+  '  "Exceptions are not valid for a unit": "unit 不支持 exceptions",' +
+  '  "Edit": "编辑",' +
+  '  "A brief summary description of the element. Required for all documented elements.": "元素的简要描述。所有已记录的元素均需填写。",' +
+  '  "Write for all public types, methods, properties, and fields.": "为所有公共类型、方法、属性和字段填写。",' +
+  '  "Detailed supplementary information beyond the summary. Use for implementation details and caveats.": "摘要之外的详细补充信息。用于说明实现细节和注意事项。",' +
+  '  "Write when there are complex behaviors or usage caveats.": "存在复杂行为或使用注意事项时填写。",' +
+  '  "Description of a method parameter.": "方法参数的描述。",' +
+  '  "Write one for each parameter of the method.": "为方法的每个参数分别填写。",' +
+  '  "Description of the method return value.": "方法返回值的描述。",' +
+  '  "Write only for functions (methods that return a value).": "仅为返回值的函数方法填写。",' +
+  '  "Description of a property value.": "属性值的描述。",' +
+  '  "Write for properties. Similar to <returns>.": "用于属性，类似于 <returns>。",' +
+  '  "Paragraph separator. Used inside summary, remarks, etc. to divide content into paragraphs.": "段落分隔符。在 summary、remarks 等内容中划分段落。",' +
+  '  "Use to break long descriptions into logical paragraphs.": "将较长描述划分为逻辑段落时使用。",' +
+  '  "Inline code. Highlights code elements within text.": "行内代码。突出显示文本中的代码元素。",' +
+  '  "Use when mentioning variable names, values, or short code snippets.": "提及变量名、值或简短代码片段时使用。",' +
+  '  "Multi-line code block.": "多行代码块。",' +
+  '  "Use inside <example> to show code samples.": "在 <example> 中展示示例代码。",' +
+  '  "Inline reference link to another type or member.": "指向其他类型或成员的行内引用链接。",' +
+  '  "Use when referencing other classes, methods, or properties.": "引用其他类、方法或属性时使用。",' +
+  '  "Inline reference to a parameter name.": "参数名的行内引用。",' +
+  '  "Use when mentioning a parameter within description text.": "在描述文本中提及参数时使用。",' +
+  '  "Inline reference to a generic type parameter.": "泛型类型参数的行内引用。",' +
+  '  "Use when mentioning a generic type parameter.": "提及泛型类型参数时使用。",' +
+  '  "Documents exceptions that a method may throw.": "记录方法可能引发的异常。",' +
+  '  "Write one for each exception type the method can raise.": "为方法可能引发的每种异常类型分别填写。",' +
+  '  "Contains a code usage example.": "包含代码使用示例。",' +
+  '  "Write to demonstrate usage with code.": "通过代码展示用法时填写。",' +
+  '  "A reference displayed in the \"See Also\" section of the help topic.": "显示在帮助主题“另请参阅”节中的引用。",' +
+  '  "Use to link related APIs. Unlike <see>, this appears in a separate section.": "用于链接相关 API。与 <see> 不同，它显示在单独的节中。",' +
+  '  "Resource path relative to project": "资源相对于项目的路径",' +
+  '  "Alternative text": "替代文本",' +
+  '  "Insert image": "插入图像",' +
+  '  "Choose a resource inside the project": "请选择项目内的资源",' +
+  '  "cref (reference target)": "cref（引用目标）",' +
+  '  "e.g. TMyClass.DoWork": "例如 TMyClass.DoWork",' +
+  '  "Insert": "插入",' +
+  '  "See": "引用",' +
+  '  "Param": "参数",' +
+  '  "TParam": "类型参数"' +
+  '}';
+ CLocale_ko =
+  '{' +
+  '  "Summary": "요약",' +
+  '  "Parameters": "매개변수",' +
+  '  "Parameter": "매개변수",' +
+  '  "Description": "설명",' +
+  '  "Type Parameters": "타입 매개변수",' +
+  '  "Type Parameter": "타입 매개변수",' +
+  '  "Return Value": "반환값",' +
+  '  "Returns": "반환",' +
+  '  "Value": "값",' +
+  '  "Remarks": "참고 사항",' +
+  '  "Examples": "예제",' +
+  '  "Exceptions": "예외",' +
+  '  "See Also": "관련 항목",' +
+  '  "Design": "디자인",' +
+  '  "Preview": "미리 보기",' +
+  '  "+ Example": "+ 예제",' +
+  '  "+ Exception": "+ 예외",' +
+  '  "+ See Also": "+ 관련 항목",' +
+  '  "Documentation Inspector": "문서 검사기",' +
+  '  "Doc Inspector": "문서 검사기",' +
+  '  "Toggle Doc Inspector": "문서 검사기 표시 전환",' +
+  '  "Documentation Explorer": "문서 탐색기",' +
+  '  "Document": "문서",' +
+  '  "Documentation": "문서",' +
+  '  "Generate Doc Stub": "문서 틀 생성",' +
+  '  "Generate Help...": "도움말 생성...",' +
+  '  "Coverage Report...": "문서화 범위 보고서...",' +
+  '  "Settings...": "설정...",' +
+  '  "User Guide": "사용자 가이드",' +
+  '  "About...": "정보...",' +
+  '  "Next Undocumented": "다음 미문서화 항목",' +
+  '  "Previous Undocumented": "이전 미문서화 항목",' +
+  '  "Open the offline illustrated user guide": "그림이 포함된 오프라인 사용자 가이드 열기",' +
+  '  "XmlDoc Plugin Settings": "XmlDoc 플러그인 설정",' +
+  '  "General": "일반",' +
+  '  "Editor theme:": "편집기 테마:",' +
+  '  "Font Size:": "글꼴 크기:",' +
+  '  "Language:": "언어:",' +
+  '  "Auto show inspector on cursor move": "커서 이동 시 검사기 자동 표시",' +
+  '  "Collapse empty sections": "빈 섹션 접기",' +
+  '  "Show signature header": "시그니처 머리글 표시",' +
+  '  "Check for updates on startup": "시작 시 업데이트 확인",' +
+  '  "Code Generation": "코드 생성",' +
+  '  "Indent Style:": "들여쓰기 방식:",' +
+  '  "Indent Size:": "들여쓰기 크기:",' +
+  '  "Placeholder Prefix:": "자리표시자 접두사:",' +
+  '  "Blank line before XML doc comment": "XML 문서 주석 앞에 빈 줄 삽입",' +
+  '  "Blank line after XML doc comment": "XML 문서 주석 뒤에 빈 줄 삽입",' +
+  '  "Omit empty tags": "빈 태그 생략",' +
+  '  "Auto-generate stub on new declaration": "새 선언에 문서 틀 자동 생성",' +
+  '  "Shortcuts": "바로 가기 키",' +
+  '  "Toggle Inspector:": "검사기 표시 전환:",' +
+  '  "Generate Stub:": "문서 틀 생성:",' +
+  '  "Generate Help:": "도움말 생성:",' +
+  '  "Coverage Report:": "문서화 범위 보고서:",' +
+  '  "Next Undocumented:": "다음 미문서화 항목:",' +
+  '  "Previous Undocumented:": "이전 미문서화 항목:",' +
+  '  "Advanced": "고급",' +
+  '  "Debounce (ms):": "입력 지연(ms):",' +
+  '  "Save Debounce (ms):": "저장 지연(ms):",' +
+  '  "Log Level:": "로그 수준:",' +
+  '  "OK": "확인",' +
+  '  "Cancel": "취소",' +
+  '  "Close": "닫기",' +
+  '  "Analyze": "분석",' +
+  '  "Export HTML": "HTML 내보내기",' +
+  '  "Documentation Coverage Report": "문서화 범위 보고서",' +
+  '  "Source:": "소스:",' +
+  '  "Current Project": "현재 프로젝트",' +
+  '  "Current Project (none)": "현재 프로젝트(없음)",' +
+  '  "Directory:": "디렉터리:",' +
+  '  "Total: -": "전체: -",' +
+  '  "Documented: -": "문서화됨: -",' +
+  '  "Complete: -": "완료: -",' +
+  '  "Element": "요소",' +
+  '  "Kind": "종류",' +
+  '  "Level": "수준",' +
+  '  "Missing Tags": "누락된 태그",' +
+  '  "Generate API Documentation": "API 문서 생성",' +
+  '  "Exclude:": "제외:",' +
+  '  "Output Format:": "출력 형식:",' +
+  '  "HTML (Multi-page website)": "HTML(여러 페이지 웹사이트)",' +
+  '  "CHM (Windows Help)": "CHM(Windows 도움말)",' +
+  '  "Markdown (GitHub Wiki)": "Markdown(GitHub Wiki)",' +
+  '  "JSON (Machine-readable)": "JSON(기계 판독용)",' +
+  '  "Help && Manual (HMXP project)": "Help && Manual(HMXP 프로젝트)",' +
+  '  "── Static Site ──": "── 정적 사이트 ──",' +
+  '  "MkDocs (Material theme)": "MkDocs(Material 테마)",' +
+  '  "Docusaurus (React-based)": "Docusaurus(React 기반)",' +
+  '  "VitePress (Vue-based)": "VitePress(Vue 기반)",' +
+  '  "Output Directory:": "출력 디렉터리:",' +
+  '  "Options:": "옵션:",' +
+  '  "Include private members": "비공개 멤버 포함",' +
+  '  "Generate search index": "검색 인덱스 생성",' +
+  '  "Interface section only": "interface 섹션만",' +
+  '  "Generate coverage report": "문서화 범위 보고서 생성",' +
+  '  "Use numeric topic file names": "숫자 형식의 토픽 파일 이름 사용",' +
+  '  "Title:": "제목:",' +
+  '  "Generate": "생성",' +
+  '  "Documentation tools": "문서 도구",' +
+  '  "Applied": "적용됨",' +
+  '  "Modified": "수정됨",' +
+  '  "Back": "뒤로",' +
+  '  "Forward": "앞으로",' +
+  '  "Back (Alt+Left)": "뒤로(Alt+Left)",' +
+  '  "Forward (Alt+Right)": "앞으로(Alt+Right)",' +
+  '  "Pin": "고정",' +
+  '  "Compact": "간결하게 표시",' +
+  '  "Source": "소스",' +
+  '  "Reload source": "소스 다시 불러오기",' +
+  '  "Recover drafts": "초안 복구",' +
+  '  "Quick documentation": "빠른 문서 보기",' +
+  '  "Synchronize signature": "시그니처 동기화",' +
+  '  "Format": "서식 지정",' +
+  '  "Fold source comments": "소스 주석 접기",' +
+  '  "Problems": "문제",' +
+  '  "Project workspace": "프로젝트 작업 공간",' +
+  '  "Documentation scope": "문서 범위",' +
+  '  "Module": "모듈",' +
+  '  "Project": "프로젝트",' +
+  '  "Project group": "프로젝트 그룹",' +
+  '  "Refresh": "새로 고침",' +
+  '  "Cancel analysis": "분석 취소",' +
+  '  "Reference display text (optional)": "참조 표시 텍스트(선택 사항)",' +
+  '  "Reference display text": "참조 표시 텍스트",' +
+  '  "Find symbol or documentation": "심볼 또는 문서 검색",' +
+  '  "Documentation filter": "문서 필터",' +
+  '  "All symbols": "모든 심볼",' +
+  '  "Public API": "공개 API",' +
+  '  "No documentation": "문서 없음",' +
+  '  "TODO drafts": "TODO 초안",' +
+  '  "Incomplete signature": "불완전한 시그니처",' +
+  '  "Reference problems": "참조 문제",' +
+  '  "New problems": "새 문제",' +
+  '  "Symbol kind": "심볼 종류",' +
+  '  "All kinds": "모든 종류",' +
+  '  "Next problem": "다음 문제",' +
+  '  "Save baseline": "기준 상태 저장",' +
+  '  "Load baseline": "기준 상태 불러오기",' +
+  '  "Project symbols": "프로젝트 심볼",' +
+  '  "Member summaries": "멤버 요약",' +
+  '  "Preview selected summaries": "선택한 요약 미리 보기",' +
+  '  "Inheritance and reusable text": "상속 및 재사용 텍스트",' +
+  '  "Project wording": "프로젝트 문구",' +
+  '  "Global wording": "전역 문구",' +
+  '  "Any element kind": "모든 요소 종류",' +
+  '  "Parameter name pattern (optional)": "매개변수 이름 패턴(선택 사항)",' +
+  '  "Parameter type (optional)": "매개변수 타입(선택 사항)",' +
+  '  "Reusable description": "재사용할 설명",' +
+  '  "Save wording": "문구 저장",' +
+  '  "Saved wording": "저장된 문구",' +
+  '  "Fill empty section": "빈 섹션 채우기",' +
+  '  "Project terminology": "프로젝트 용어",' +
+  '  "Known words, one per line": "알려진 단어(한 줄에 하나씩)",' +
+  '  "Save terminology": "용어 저장",' +
+  '  "Spell-check language": "맞춤법 검사 언어",' +
+  '  "English": "영어",' +
+  '  "Russian": "러시아어",' +
+  '  "Chinese": "중국어",' +
+  '  "Spell check prose": "본문 맞춤법 검사",' +
+  '  "Examples and search": "예제 및 검색",' +
+  '  "Insert selected source as example": "선택한 소스를 예제로 삽입",' +
+  '  "Relative example source file": "예제 소스 파일의 상대 경로",' +
+  '  "Region name (optional)": "영역 이름(선택 사항)",' +
+  '  "Preview linked example": "연결된 예제 미리 보기",' +
+  '  "Find in documentation": "문서에서 찾기",' +
+  '  "Find text": "찾을 텍스트",' +
+  '  "Replacement": "바꿀 텍스트",' +
+  '  "Preview replacement": "바꾸기 미리 보기",' +
+  '  "Review documentation changes": "문서 변경 내용 검토",' +
+  '  "Apply changes": "변경 내용 적용",' +
+  '  "Documentation XML": "문서 XML",' +
+  '  "Validate and apply XML": "XML 검증 및 적용",' +
+  '  "XML is valid": "유효한 XML",' +
+  '  "Reference": "참조",' +
+  '  "Copy documentation": "문서 복사",' +
+  '  "Open source": "소스 열기",' +
+  '  "Copy missing sections": "누락된 섹션 복사",' +
+  '  "Preview synchronization": "동기화 미리 보기",' +
+  '  "Keep unmatched description": "일치하지 않는 설명 유지",' +
+  '  "Choose reference": "참조 선택",' +
+  '  "Synchronize": "동기화",' +
+  '  "Map name": "이름 매핑",' +
+  '  "Documentation checks passed.": "문서 검사를 통과했습니다.",' +
+  '  "No summary yet.": "아직 요약이 없습니다.",' +
+  '  "Recover documentation draft": "문서 초안 복구",' +
+  '  "Original comment": "원본 주석",' +
+  '  "Current source comment": "현재 소스 주석",' +
+  '  "Saved draft": "저장된 초안",' +
+  '  "Apply recovered draft": "복구한 초안 적용",' +
+  '  "Apply draft over current comment": "현재 주석을 초안으로 덮어쓰기",' +
+  '  "Keep draft and close": "초안을 유지하고 닫기",' +
+  '  "Review against current documentation": "현재 문서와 비교 검토",' +
+  '  "No recoverable drafts for this project.": "이 프로젝트에 복구할 초안이 없습니다.",' +
+  '  "Place the cursor on a code element": "코드 요소에 커서를 놓으세요",' +
+  '  "Place cursor on a code element.": "코드 요소에 커서를 놓으세요.",' +
+  '  "Return description...": "반환값 설명...",' +
+  '  "Value description...": "값 설명...",' +
+  '  "Reference (e.g. TMyClass.DoSomething)": "참조(예: TMyClass.DoSomething)",' +
+  '  "Exception type": "예외 타입",' +
+  '  "Example title": "예제 제목",' +
+  '  "Synchronize Documentation": "문서 동기화",' +
+  '  "Documentation Problems": "문서 문제",' +
+  '  "Edit Documentation XML": "문서 XML 편집",' +
+  '  "Quick Documentation at Cursor": "커서 위치의 빠른 문서 보기",' +
+  '  "Pin Documentation": "문서 고정",' +
+  '  "Compact Documentation Inspector": "문서 검사기 간결하게 표시",' +
+  '  "Selected Source as Documentation Example": "선택한 소스를 문서 예제로 사용",' +
+  '  "Format Documentation": "문서 서식 지정",' +
+  '  "Fold Documentation Comments": "문서 주석 접기",' +
+  '  "Output Format": "출력 형식",' +
+  '  "Generating documentation...": "문서 생성 중...",' +
+  '  "Generation complete: {0} pages": "생성 완료: {0}페이지",' +
+  '  "Overall: {0}/{1} ({2}%)": "전체: {0}/{1}({2}%)",' +
+  '  "Undocumented Items": "미문서화 항목",' +
+  '  "Source parsing failed: {0}": "소스 구문 분석 실패: {0}",' +
+  '  "WebView2 runtime is not installed.": "WebView2 런타임이 설치되어 있지 않습니다.",' +
+  '  "HTML Help Workshop is not installed. CHM generation skipped.": "HTML Help Workshop이 설치되어 있지 않습니다. CHM 생성을 건너뜁니다.",' +
+  '  "Bold (Ctrl+B)": "굵게(Ctrl+B)",' +
+  '  "Italic (Ctrl+I)": "기울임꼴(Ctrl+I)",' +
+  '  "Bullet list": "글머리 기호 목록",' +
+  '  "Numbered list": "번호 목록",' +
+  '  "• List": "• 목록",' +
+  '  "1. List": "1. 목록",' +
+  '  "Table": "표",' +
+  '  "Image": "이미지",' +
+  '  "Insert a documentation table": "문서 표 삽입",' +
+  '  "Insert a project resource image": "프로젝트 리소스 이미지 삽입",' +
+  '  "<c> Inline Code (Ctrl+E)": "<c> 인라인 코드(Ctrl+E)",' +
+  '  "<see cref> Type/Member Reference": "<see cref> 타입/멤버 참조",' +
+  '  "<paramref> Parameter Reference": "<paramref> 매개변수 참조",' +
+  '  "<typeparamref> Generic Type Reference": "<typeparamref> 제네릭 타입 참조",' +
+  '  "XML Doc Tag Reference": "XML 문서 태그 참조",' +
+  '  "Remove": "제거",' +
+  '  "Exception type (e.g. EArgumentException)": "예외 타입(예: EArgumentException)",' +
+  '  "Reference (e.g. TMyClass.DoWork)": "참조(예: TMyClass.DoWork)",' +
+  '  "Code example...": "코드 예제...",' +
+  '  "Description...": "설명...",' +
+  '  "Description (optional)...": "설명(선택 사항)...",' +
+  '  "Enter a summary description...": "요약 설명 입력...",' +
+  '  "Additional remarks...": "추가 참고 사항...",' +
+  '  "Return value description...": "반환값 설명...",' +
+  '  "Property value description...": "속성값 설명...",' +
+  '  "Show more results": "결과 더 보기",' +
+  '  "Theme follows the IDE": "테마는 IDE 설정을 따릅니다",' +
+  '  "Generate a stub after typing ///": "/// 입력 후 문서 틀 생성",' +
+  '  "Default HTML / CHM theme:": "기본 HTML / CHM 테마:",' +
+  '  "A project htmlTheme setting can override this default.": "프로젝트의 htmlTheme 설정으로 이 기본값을 재정의할 수 있습니다.",' +
+  '  "Create CSS theme...": "CSS 테마 만들기...",' +
+  '  "Create CSS theme": "CSS 테마 만들기",' +
+  '  "New theme name:": "새 테마 이름:",' +
+  '  "Theme saved:": "테마 저장 위치:",' +
+  '  "The generation dialog shows the effective theme, including any project override.": "생성 대화 상자에 프로젝트 재정의를 반영한 실제 테마가 표시됩니다.",' +
+  '  "HTML / CHM theme:": "HTML / CHM 테마:",' +
+  '  "Minimum comment presence (%):": "최소 주석 보유율(%):",' +
+  '  "Minimum ready documentation (%):": "최소 문서 준비율(%):",' +
+  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "주석 보유율은 주석의 존재를 계산합니다. 준비율은 미완성 자리표시자와 오류가 없는 완전한 설명을 요구합니다. 0은 기준 검사를 비활성화합니다.",' +
+  '  "Review current source": "현재 소스 검토",' +
+  '  "Unfinished placeholder documentation": "미완성 자리표시자 문서",' +
+  '  "Waiting for the previous bulk update": "이전 일괄 변경 완료 대기 중",' +
+  '  "Baseline updated — preview selected summaries before applying": "기준 상태가 갱신되었습니다. 적용 전에 선택한 요약을 미리 확인하세요",' +
+  '  "Unfinished documentation markers:": "미완성 문서 마커:",' +
+  '  "One marker per line. The generated prefix and TODO are always recognized.": "한 줄에 마커 하나씩 입력하세요. 생성 접두사와 TODO는 항상 인식됩니다.",' +
+  '  "Collapse All": "모두 접기",' +
+  '  "Expand All": "모두 펼치기",' +
+  '  "Select an element from the tree": "트리에서 요소를 선택하세요",' +
+  '  "Open a .pas file to see the structure": "구조를 보려면 .pas 파일을 여세요",' +
+  '  "About XmlDoc Plugin": "XmlDoc 플러그인 정보",' +
+  '  "Open Source Libraries": "오픈 소스 라이브러리",' +
+  '  "Version": "버전",' +
+  '  "Choose a relative project source file": "프로젝트 소스 파일의 상대 경로를 선택하세요",' +
+  '  "Insert a reference to this exact overload": "이 정확한 오버로드에 대한 참조 삽입",' +
+  '  "Invalid summary XML": "유효하지 않은 요약 XML",' +
+  '  "Preview copy": "복사 미리 보기",' +
+  '  "Section is not empty — wording was not replaced": "섹션이 비어 있지 않아 문구를 바꾸지 않았습니다",' +
+  '  "Source changed — recover the draft again": "소스가 변경되었습니다. 초안을 다시 복구하세요",' +
+  '  "Source changed — review again": "소스가 변경되었습니다. 다시 검토하세요",' +
+  '  "Source changed — review selected summaries again": "소스가 변경되었습니다. 선택한 요약을 다시 검토하세요",' +
+  '  "Summary XML fragment": "요약 XML 조각",' +
+  '  "Unsupported baseline": "지원하지 않는 기준 상태",' +
+  '  "Wording is for a different element kind": "다른 종류의 요소를 위한 문구입니다",' +
+  '  "Invalid or ambiguous rename mapping": "유효하지 않거나 모호한 이름 매핑",' +
+  '  "Rename conflicts with an existing description; keep both entries and resolve in XML": "이름 변경이 기존 설명과 충돌합니다. 두 항목을 유지하고 XML에서 해결하세요",' +
+  '  "Repair XML before replacing text": "텍스트를 바꾸기 전에 XML을 수정하세요",' +
+  '  "Open source: {0}": "소스 열기: {0}",' +
+  '  "Inherited from {0}": "상속 원본: {0}",' +
+  '  "Source: {0}": "소스: {0}",' +
+  '  "Map {0}:": "{0} 매핑:",' +
+  '  "Summary for {0}": "{0}의 요약",' +
+  '  "Choose a declaration for {0}": "{0}의 선언을 선택하세요",' +
+  '  "{0} · saved draft": "{0} · 저장된 초안",' +
+  '  "Unknown reference {0}": "알 수 없는 참조 {0}",' +
+  '  "Ambiguous reference {0}": "모호한 참조 {0}",' +
+  '  "Unknown {0} {1}": "알 수 없는 {0} {1}",' +
+  '  "Duplicate {0} {1}": "중복된 {0} {1}",' +
+  '  "Missing {0} description {1}": "{0} 설명 누락: {1}",' +
+  '  "Missing {0} {1}": "누락된 {0} {1}",' +
+  '  "XD011 Public declaration removed or signature changed: {0}": "XD011 공개 선언이 제거되었거나 시그니처가 변경됨: {0}",' +
+  '  "Analyzing coverage...": "문서화 범위 분석 중...",' +
+  '  "Scanning source files...": "소스 파일 검색 중...",' +
+  '  "Resolving cross-references...": "상호 참조 확인 중...",' +
+  '  "Rendering: ": "생성 중: ",' +
+  '  "Generating HTML report...": "HTML 보고서 생성 중...",' +
+  '  "HTML report exported.": "HTML 보고서를 내보냈습니다.",' +
+  '  "Done!": "완료!",' +
+  '  "Current Project (": "현재 프로젝트 (",' +
+  '  "Found %d source files.": "소스 파일 %d개를 찾았습니다.",' +
+  '  " | %d unresolved refs": " · 확인되지 않은 참조 %d개",' +
+  '  " | Coverage: %.1f%%": " · 문서화 범위: %.1f%%",' +
+  '  "Documentation generated successfully in: %s": "문서를 생성했습니다. 저장 위치: %s",' +
+  '  "No active project found.": "활성 프로젝트가 없습니다.",' +
+  '  "No source files found.": "소스 파일이 없습니다.",' +
+  '  "Error: ": "오류: ",' +
+  '  "Report saved to: %s": "보고서 저장 위치: %s",' +
+  '  "Parsing %d files...": "파일 %d개 구문 분석 중...",' +
+  '  "Total: %d": "전체: %d",' +
+  '  "Documented: %d (%.1f%%)": "문서화됨: %d(%.1f%%)",' +
+  '  "Complete: %d; ready: %d (%.1f%%)": "완료: %d, 준비됨: %d(%.1f%%)",' +
+  '  "Done - %d undocumented items found.": "완료 - 미문서화 항목 %d개를 찾았습니다.",' +
+  '  "None": "없음",' +
+  '  "Summary Only": "요약만",' +
+  '  "Partial": "일부",' +
+  '  "Complete": "완료",' +
+  '  "Unknown": "알 수 없음",' +
+  '  "Analysis running: {0}/{1}; parsed {2}, reused {3}": "분석 진행 중: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
+  '  "Analysis cancelling: {0}/{1}; parsed {2}, reused {3}": "분석 취소 중: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
+  '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "분석 취소됨: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
+  '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "분석 실패: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
+  '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "분석 완료: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
+  '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "분석 {0}: {1}/{2}, 구문 분석 {3}, 재사용 {4}",' +
+  '  "Select source directory": "소스 디렉터리 선택",' +
+  '  "Select output directory": "출력 디렉터리 선택",' +
+  '  "Please select at least one output format.": "출력 형식을 하나 이상 선택하세요.",' +
+  '  "Read-only source": "읽기 전용 소스",' +
+  '  "Read-only: RAD Studio system source": "읽기 전용: RAD Studio 시스템 소스",' +
+  '  "Read-only: protected file": "읽기 전용: 보호된 파일",' +
+  '  "Read-only: IDE source buffer": "읽기 전용: IDE 소스 버퍼",' +
+  '  "Unsaved draft — source may have changed": "저장되지 않은 초안 — 소스가 변경되었을 수 있습니다",' +
+  '  "The source is read-only. The draft can be viewed but cannot be applied.": "소스는 읽기 전용입니다. 초안은 볼 수 있지만 적용할 수 없습니다.",' +
+  '  "Conflict: the source comment changed after this draft was created. Review all three versions before applying.": "충돌: 초안이 생성된 후 소스 주석이 변경되었습니다. 적용 전에 세 버전을 모두 검토하세요.",' +
+  '  "The source comment matches the original version. Review the saved draft before applying.": "소스 주석이 원본 버전과 일치합니다. 적용 전에 저장된 초안을 검토하세요.",' +
+  '  "The symbol at the cursor could not be resolved. Use the project symbol picker.": "커서 위치의 심볼을 확인할 수 없습니다. 프로젝트 심볼 선택기를 사용하세요.",' +
+  '  "Invalid XML": "유효하지 않은 XML",' +
+  '  "Missing summary description": "요약 설명 누락",' +
+  '  "Missing result description": "반환값 설명 누락",' +
+  '  "Missing property value description": "속성값 설명 누락",' +
+  '  "Returns is not valid for this declaration": "이 선언에는 returns를 사용할 수 없습니다",' +
+  '  "Value is only valid for a property": "value는 속성에만 사용할 수 있습니다",' +
+  '  "Exceptions are not valid for a unit": "unit에는 exceptions를 사용할 수 없습니다",' +
+  '  "Edit": "편집",' +
+  '  "A brief summary description of the element. Required for all documented elements.": "요소의 간단한 요약입니다. 문서화된 모든 요소에 필요합니다.",' +
+  '  "Write for all public types, methods, properties, and fields.": "모든 공개 타입, 메서드, 속성 및 필드에 작성하세요.",' +
+  '  "Detailed supplementary information beyond the summary. Use for implementation details and caveats.": "요약 이외의 자세한 보충 정보입니다. 구현 세부 사항과 주의 사항을 설명합니다.",' +
+  '  "Write when there are complex behaviors or usage caveats.": "동작이 복잡하거나 사용 시 주의 사항이 있으면 작성하세요.",' +
+  '  "Description of a method parameter.": "메서드 매개변수의 설명입니다.",' +
+  '  "Write one for each parameter of the method.": "메서드의 각 매개변수에 하나씩 작성하세요.",' +
+  '  "Description of the method return value.": "메서드 반환값의 설명입니다.",' +
+  '  "Write only for functions (methods that return a value).": "값을 반환하는 함수에만 작성하세요.",' +
+  '  "Description of a property value.": "속성값의 설명입니다.",' +
+  '  "Write for properties. Similar to <returns>.": "속성에 작성하세요. <returns>와 유사합니다.",' +
+  '  "Paragraph separator. Used inside summary, remarks, etc. to divide content into paragraphs.": "단락 구분자입니다. summary, remarks 등의 내용을 단락으로 나눕니다.",' +
+  '  "Use to break long descriptions into logical paragraphs.": "긴 설명을 논리적인 단락으로 나눌 때 사용하세요.",' +
+  '  "Inline code. Highlights code elements within text.": "인라인 코드입니다. 본문 안의 코드 요소를 강조합니다.",' +
+  '  "Use when mentioning variable names, values, or short code snippets.": "변수 이름, 값 또는 짧은 코드 조각을 언급할 때 사용하세요.",' +
+  '  "Multi-line code block.": "여러 줄 코드 블록입니다.",' +
+  '  "Use inside <example> to show code samples.": "코드 예제를 표시하려면 <example> 안에서 사용하세요.",' +
+  '  "Inline reference link to another type or member.": "다른 타입이나 멤버에 대한 인라인 참조 링크입니다.",' +
+  '  "Use when referencing other classes, methods, or properties.": "다른 클래스, 메서드 또는 속성을 참조할 때 사용하세요.",' +
+  '  "Inline reference to a parameter name.": "매개변수 이름에 대한 인라인 참조입니다.",' +
+  '  "Use when mentioning a parameter within description text.": "설명 본문에서 매개변수를 언급할 때 사용하세요.",' +
+  '  "Inline reference to a generic type parameter.": "제네릭 타입 매개변수에 대한 인라인 참조입니다.",' +
+  '  "Use when mentioning a generic type parameter.": "제네릭 타입 매개변수를 언급할 때 사용하세요.",' +
+  '  "Documents exceptions that a method may throw.": "메서드가 발생시킬 수 있는 예외를 문서화합니다.",' +
+  '  "Write one for each exception type the method can raise.": "메서드가 발생시킬 수 있는 각 예외 타입에 하나씩 작성하세요.",' +
+  '  "Contains a code usage example.": "코드 사용 예제를 포함합니다.",' +
+  '  "Write to demonstrate usage with code.": "코드로 사용 방법을 보여줄 때 작성하세요.",' +
+  '  "A reference displayed in the \"See Also\" section of the help topic.": "도움말 토픽의 관련 항목 섹션에 표시되는 참조입니다.",' +
+  '  "Use to link related APIs. Unlike <see>, this appears in a separate section.": "관련 API를 연결할 때 사용하세요. <see>와 달리 별도의 섹션에 표시됩니다.",' +
+  '  "Resource path relative to project": "프로젝트 기준 리소스 상대 경로",' +
+  '  "Alternative text": "대체 텍스트",' +
+  '  "Insert image": "이미지 삽입",' +
+  '  "Choose a resource inside the project": "프로젝트 내부의 리소스를 선택하세요",' +
+  '  "cref (reference target)": "cref(참조 대상)",' +
+  '  "e.g. TMyClass.DoWork": "예: TMyClass.DoWork",' +
+  '  "Insert": "삽입",' +
+  '  "See": "참조",' +
+  '  "Param": "매개변수",' +
+  '  "TParam": "타입 매개변수"' +
+  '}';
+ CLocale_ja =
+  '{' +
+  '  "Summary": "概要",' +
+  '  "Parameters": "パラメーター",' +
+  '  "Parameter": "パラメーター",' +
+  '  "Description": "説明",' +
+  '  "Type Parameters": "型パラメーター",' +
+  '  "Type Parameter": "型パラメーター",' +
+  '  "Return Value": "戻り値",' +
+  '  "Returns": "戻り値",' +
+  '  "Value": "値",' +
+  '  "Remarks": "補足説明",' +
+  '  "Examples": "使用例",' +
+  '  "Exceptions": "例外",' +
+  '  "See Also": "関連項目",' +
+  '  "Design": "デザイン",' +
+  '  "Preview": "プレビュー",' +
+  '  "+ Example": "+ 使用例",' +
+  '  "+ Exception": "+ 例外",' +
+  '  "+ See Also": "+ 関連項目",' +
+  '  "Documentation Inspector": "ドキュメント インスペクター",' +
+  '  "Doc Inspector": "ドキュメント インスペクター",' +
+  '  "Toggle Doc Inspector": "ドキュメント インスペクターの表示切り替え",' +
+  '  "Documentation Explorer": "ドキュメント エクスプローラー",' +
+  '  "Document": "ドキュメント",' +
+  '  "Documentation": "ドキュメント",' +
+  '  "Generate Doc Stub": "ドキュメントのひな形を生成",' +
+  '  "Generate Help...": "ヘルプを生成...",' +
+  '  "Coverage Report...": "文書化率レポート...",' +
+  '  "Settings...": "設定...",' +
+  '  "User Guide": "ユーザー ガイド",' +
+  '  "About...": "バージョン情報...",' +
+  '  "Next Undocumented": "次の未文書化項目",' +
+  '  "Previous Undocumented": "前の未文書化項目",' +
+  '  "Open the offline illustrated user guide": "画像付きのオフライン ユーザー ガイドを開く",' +
+  '  "XmlDoc Plugin Settings": "XmlDoc プラグインの設定",' +
+  '  "General": "全般",' +
+  '  "Editor theme:": "エディターのテーマ:",' +
+  '  "Font Size:": "フォント サイズ:",' +
+  '  "Language:": "言語:",' +
+  '  "Auto show inspector on cursor move": "カーソルの移動時にインスペクターを自動表示",' +
+  '  "Collapse empty sections": "空のセクションを折りたたむ",' +
+  '  "Show signature header": "シグネチャの見出しを表示",' +
+  '  "Check for updates on startup": "起動時に更新を確認",' +
+  '  "Code Generation": "コード生成",' +
+  '  "Indent Style:": "インデント方式:",' +
+  '  "Indent Size:": "インデント幅:",' +
+  '  "Placeholder Prefix:": "プレースホルダーの接頭辞:",' +
+  '  "Blank line before XML doc comment": "XML ドキュメント コメントの前に空行を挿入",' +
+  '  "Blank line after XML doc comment": "XML ドキュメント コメントの後に空行を挿入",' +
+  '  "Omit empty tags": "空のタグを省略",' +
+  '  "Auto-generate stub on new declaration": "新しい宣言にひな形を自動生成",' +
+  '  "Shortcuts": "ショートカット",' +
+  '  "Toggle Inspector:": "インスペクターの表示切り替え:",' +
+  '  "Generate Stub:": "ひな形の生成:",' +
+  '  "Generate Help:": "ヘルプの生成:",' +
+  '  "Coverage Report:": "文書化率レポート:",' +
+  '  "Next Undocumented:": "次の未文書化項目:",' +
+  '  "Previous Undocumented:": "前の未文書化項目:",' +
+  '  "Advanced": "詳細設定",' +
+  '  "Debounce (ms):": "入力の待機時間 (ms):",' +
+  '  "Save Debounce (ms):": "保存の待機時間 (ms):",' +
+  '  "Log Level:": "ログ レベル:",' +
+  '  "OK": "OK",' +
+  '  "Cancel": "キャンセル",' +
+  '  "Close": "閉じる",' +
+  '  "Analyze": "分析",' +
+  '  "Export HTML": "HTML をエクスポート",' +
+  '  "Documentation Coverage Report": "文書化率レポート",' +
+  '  "Source:": "ソース:",' +
+  '  "Current Project": "現在のプロジェクト",' +
+  '  "Current Project (none)": "現在のプロジェクト (なし)",' +
+  '  "Directory:": "ディレクトリ:",' +
+  '  "Total: -": "合計: -",' +
+  '  "Documented: -": "文書化済み: -",' +
+  '  "Complete: -": "完全: -",' +
+  '  "Element": "要素",' +
+  '  "Kind": "種類",' +
+  '  "Level": "レベル",' +
+  '  "Missing Tags": "不足しているタグ",' +
+  '  "Generate API Documentation": "API ドキュメントの生成",' +
+  '  "Exclude:": "除外:",' +
+  '  "Output Format:": "出力形式:",' +
+  '  "HTML (Multi-page website)": "HTML (複数ページの Web サイト)",' +
+  '  "CHM (Windows Help)": "CHM (Windows ヘルプ)",' +
+  '  "Markdown (GitHub Wiki)": "Markdown (GitHub Wiki)",' +
+  '  "JSON (Machine-readable)": "JSON (機械可読形式)",' +
+  '  "Help && Manual (HMXP project)": "Help && Manual (HMXP プロジェクト)",' +
+  '  "── Static Site ──": "── 静的サイト ──",' +
+  '  "MkDocs (Material theme)": "MkDocs (Material テーマ)",' +
+  '  "Docusaurus (React-based)": "Docusaurus (React ベース)",' +
+  '  "VitePress (Vue-based)": "VitePress (Vue ベース)",' +
+  '  "Output Directory:": "出力ディレクトリ:",' +
+  '  "Options:": "オプション:",' +
+  '  "Include private members": "非公開メンバーを含める",' +
+  '  "Generate search index": "検索インデックスを生成",' +
+  '  "Interface section only": "interface セクションのみ",' +
+  '  "Generate coverage report": "文書化率レポートを生成",' +
+  '  "Use numeric topic file names": "数値のトピック ファイル名を使用",' +
+  '  "Title:": "タイトル:",' +
+  '  "Generate": "生成",' +
+  '  "Documentation tools": "ドキュメント ツール",' +
+  '  "Applied": "適用済み",' +
+  '  "Modified": "変更あり",' +
+  '  "Back": "戻る",' +
+  '  "Forward": "進む",' +
+  '  "Back (Alt+Left)": "戻る (Alt+Left)",' +
+  '  "Forward (Alt+Right)": "進む (Alt+Right)",' +
+  '  "Pin": "固定",' +
+  '  "Compact": "コンパクト表示",' +
+  '  "Source": "ソース",' +
+  '  "Reload source": "ソースを再読み込み",' +
+  '  "Recover drafts": "下書きを復元",' +
+  '  "Quick documentation": "クイック ドキュメント",' +
+  '  "Synchronize signature": "シグネチャを同期",' +
+  '  "Format": "整形",' +
+  '  "Fold source comments": "ソース コメントを折りたたむ",' +
+  '  "Problems": "問題",' +
+  '  "Project workspace": "プロジェクト ワークスペース",' +
+  '  "Documentation scope": "ドキュメントの範囲",' +
+  '  "Module": "モジュール",' +
+  '  "Project": "プロジェクト",' +
+  '  "Project group": "プロジェクト グループ",' +
+  '  "Refresh": "更新",' +
+  '  "Cancel analysis": "分析をキャンセル",' +
+  '  "Reference display text (optional)": "参照の表示テキスト (省略可)",' +
+  '  "Reference display text": "参照の表示テキスト",' +
+  '  "Find symbol or documentation": "シンボルまたはドキュメントを検索",' +
+  '  "Documentation filter": "ドキュメントのフィルター",' +
+  '  "All symbols": "すべてのシンボル",' +
+  '  "Public API": "公開 API",' +
+  '  "No documentation": "ドキュメントなし",' +
+  '  "TODO drafts": "TODO の下書き",' +
+  '  "Incomplete signature": "不完全なシグネチャ",' +
+  '  "Reference problems": "参照の問題",' +
+  '  "New problems": "新しい問題",' +
+  '  "Symbol kind": "シンボルの種類",' +
+  '  "All kinds": "すべての種類",' +
+  '  "Next problem": "次の問題",' +
+  '  "Save baseline": "ベースラインを保存",' +
+  '  "Load baseline": "ベースラインを読み込み",' +
+  '  "Project symbols": "プロジェクトのシンボル",' +
+  '  "Member summaries": "メンバーの概要",' +
+  '  "Preview selected summaries": "選択した概要をプレビュー",' +
+  '  "Inheritance and reusable text": "継承と再利用するテキスト",' +
+  '  "Project wording": "プロジェクトの定型文",' +
+  '  "Global wording": "共通の定型文",' +
+  '  "Any element kind": "すべての要素の種類",' +
+  '  "Parameter name pattern (optional)": "パラメーター名のパターン (省略可)",' +
+  '  "Parameter type (optional)": "パラメーターの型 (省略可)",' +
+  '  "Reusable description": "再利用する説明",' +
+  '  "Save wording": "定型文を保存",' +
+  '  "Saved wording": "保存済みの定型文",' +
+  '  "Fill empty section": "空のセクションに挿入",' +
+  '  "Project terminology": "プロジェクトの用語",' +
+  '  "Known words, one per line": "既知の単語を 1 行に 1 つずつ入力",' +
+  '  "Save terminology": "用語を保存",' +
+  '  "Spell-check language": "スペル チェックの言語",' +
+  '  "English": "英語",' +
+  '  "Russian": "ロシア語",' +
+  '  "Chinese": "中国語",' +
+  '  "Spell check prose": "本文のスペル チェック",' +
+  '  "Examples and search": "使用例と検索",' +
+  '  "Insert selected source as example": "選択したソースを使用例として挿入",' +
+  '  "Relative example source file": "使用例のソース ファイルの相対パス",' +
+  '  "Region name (optional)": "リージョン名 (省略可)",' +
+  '  "Preview linked example": "リンクした使用例をプレビュー",' +
+  '  "Find in documentation": "ドキュメント内を検索",' +
+  '  "Find text": "検索するテキスト",' +
+  '  "Replacement": "置換後のテキスト",' +
+  '  "Preview replacement": "置換をプレビュー",' +
+  '  "Review documentation changes": "ドキュメントの変更を確認",' +
+  '  "Apply changes": "変更を適用",' +
+  '  "Documentation XML": "ドキュメント XML",' +
+  '  "Validate and apply XML": "XML を検証して適用",' +
+  '  "XML is valid": "XML は有効です",' +
+  '  "Reference": "参照",' +
+  '  "Copy documentation": "ドキュメントをコピー",' +
+  '  "Open source": "ソースを開く",' +
+  '  "Copy missing sections": "不足しているセクションをコピー",' +
+  '  "Preview synchronization": "同期をプレビュー",' +
+  '  "Keep unmatched description": "一致しない説明を保持",' +
+  '  "Choose reference": "参照を選択",' +
+  '  "Synchronize": "同期",' +
+  '  "Map name": "名前を対応付け",' +
+  '  "Documentation checks passed.": "ドキュメントの検査に合格しました。",' +
+  '  "No summary yet.": "概要がまだありません。",' +
+  '  "Recover documentation draft": "ドキュメントの下書きを復元",' +
+  '  "Original comment": "元のコメント",' +
+  '  "Current source comment": "現在のソース コメント",' +
+  '  "Saved draft": "保存済みの下書き",' +
+  '  "Apply recovered draft": "復元した下書きを適用",' +
+  '  "Apply draft over current comment": "下書きで現在のコメントを上書き",' +
+  '  "Keep draft and close": "下書きを保持して閉じる",' +
+  '  "Review against current documentation": "現在のドキュメントと比較",' +
+  '  "No recoverable drafts for this project.": "このプロジェクトに復元可能な下書きはありません。",' +
+  '  "Place the cursor on a code element": "コード要素にカーソルを置いてください",' +
+  '  "Place cursor on a code element.": "コード要素にカーソルを置いてください。",' +
+  '  "Return description...": "戻り値の説明...",' +
+  '  "Value description...": "値の説明...",' +
+  '  "Reference (e.g. TMyClass.DoSomething)": "参照 (例: TMyClass.DoSomething)",' +
+  '  "Exception type": "例外の型",' +
+  '  "Example title": "使用例のタイトル",' +
+  '  "Synchronize Documentation": "ドキュメントを同期",' +
+  '  "Documentation Problems": "ドキュメントの問題",' +
+  '  "Edit Documentation XML": "ドキュメント XML を編集",' +
+  '  "Quick Documentation at Cursor": "カーソル位置のクイック ドキュメント",' +
+  '  "Pin Documentation": "ドキュメントを固定",' +
+  '  "Compact Documentation Inspector": "ドキュメント インスペクターのコンパクト表示",' +
+  '  "Selected Source as Documentation Example": "選択したソースをドキュメントの使用例として使用",' +
+  '  "Format Documentation": "ドキュメントを整形",' +
+  '  "Fold Documentation Comments": "ドキュメント コメントを折りたたむ",' +
+  '  "Output Format": "出力形式",' +
+  '  "Generating documentation...": "ドキュメントを生成中...",' +
+  '  "Generation complete: {0} pages": "生成完了: {0} ページ",' +
+  '  "Overall: {0}/{1} ({2}%)": "全体: {0}/{1} ({2}%)",' +
+  '  "Undocumented Items": "未文書化の項目",' +
+  '  "Source parsing failed: {0}": "ソースの解析に失敗しました: {0}",' +
+  '  "WebView2 runtime is not installed.": "WebView2 ランタイムがインストールされていません。",' +
+  '  "HTML Help Workshop is not installed. CHM generation skipped.": "HTML Help Workshop がインストールされていないため、CHM の生成をスキップしました。",' +
+  '  "Bold (Ctrl+B)": "太字 (Ctrl+B)",' +
+  '  "Italic (Ctrl+I)": "斜体 (Ctrl+I)",' +
+  '  "Bullet list": "箇条書き",' +
+  '  "Numbered list": "番号付きリスト",' +
+  '  "• List": "• リスト",' +
+  '  "1. List": "1. リスト",' +
+  '  "Table": "表",' +
+  '  "Image": "画像",' +
+  '  "Insert a documentation table": "ドキュメントの表を挿入",' +
+  '  "Insert a project resource image": "プロジェクトのリソース画像を挿入",' +
+  '  "<c> Inline Code (Ctrl+E)": "<c> インライン コード (Ctrl+E)",' +
+  '  "<see cref> Type/Member Reference": "<see cref> 型・メンバーへの参照",' +
+  '  "<paramref> Parameter Reference": "<paramref> パラメーターへの参照",' +
+  '  "<typeparamref> Generic Type Reference": "<typeparamref> ジェネリック型への参照",' +
+  '  "XML Doc Tag Reference": "XML ドキュメント タグのリファレンス",' +
+  '  "Remove": "削除",' +
+  '  "Exception type (e.g. EArgumentException)": "例外の型 (例: EArgumentException)",' +
+  '  "Reference (e.g. TMyClass.DoWork)": "参照 (例: TMyClass.DoWork)",' +
+  '  "Code example...": "コードの使用例...",' +
+  '  "Description...": "説明...",' +
+  '  "Description (optional)...": "説明 (省略可)...",' +
+  '  "Enter a summary description...": "概要を入力...",' +
+  '  "Additional remarks...": "追加の補足説明...",' +
+  '  "Return value description...": "戻り値の説明...",' +
+  '  "Property value description...": "プロパティ値の説明...",' +
+  '  "Show more results": "さらに結果を表示",' +
+  '  "Theme follows the IDE": "テーマは IDE の設定に従います",' +
+  '  "Generate a stub after typing ///": "/// の入力後にひな形を生成",' +
+  '  "Default HTML / CHM theme:": "既定の HTML / CHM テーマ:",' +
+  '  "A project htmlTheme setting can override this default.": "プロジェクトの htmlTheme 設定でこの既定値を上書きできます。",' +
+  '  "Create CSS theme...": "CSS テーマを作成...",' +
+  '  "Create CSS theme": "CSS テーマを作成",' +
+  '  "New theme name:": "新しいテーマ名:",' +
+  '  "Theme saved:": "テーマの保存先:",' +
+  '  "The generation dialog shows the effective theme, including any project override.": "生成ダイアログには、プロジェクトの上書き設定を反映したテーマが表示されます。",' +
+  '  "HTML / CHM theme:": "HTML / CHM テーマ:",' +
+  '  "Minimum comment presence (%):": "コメント記述率の下限 (%):",' +
+  '  "Minimum ready documentation (%):": "完成したドキュメントの割合の下限 (%):",' +
+  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "記述率はコメントの有無を数えます。完成率には、未完成のプレースホルダーやエラーのない完全な説明が必要です。0 を指定すると判定を無効にします。",' +
+  '  "Review current source": "現在のソースを確認",' +
+  '  "Unfinished placeholder documentation": "未完成のプレースホルダーを含むドキュメント",' +
+  '  "Waiting for the previous bulk update": "前の一括更新の完了を待機中",' +
+  '  "Baseline updated — preview selected summaries before applying": "ベースラインを更新しました。適用前に選択した概要をプレビューしてください",' +
+  '  "Unfinished documentation markers:": "未完成のドキュメントのマーカー:",' +
+  '  "One marker per line. The generated prefix and TODO are always recognized.": "マーカーを 1 行に 1 つずつ入力します。生成用の接頭辞と TODO は常に認識されます。",' +
+  '  "Collapse All": "すべて折りたたむ",' +
+  '  "Expand All": "すべて展開",' +
+  '  "Select an element from the tree": "ツリーから要素を選択してください",' +
+  '  "Open a .pas file to see the structure": "構造を表示するには .pas ファイルを開いてください",' +
+  '  "About XmlDoc Plugin": "XmlDoc プラグインについて",' +
+  '  "Open Source Libraries": "オープンソース ライブラリ",' +
+  '  "Version": "バージョン",' +
+  '  "Choose a relative project source file": "プロジェクトのソース ファイルを相対パスで指定してください",' +
+  '  "Insert a reference to this exact overload": "このオーバーロードへの参照を挿入",' +
+  '  "Invalid summary XML": "概要の XML が無効です",' +
+  '  "Preview copy": "コピーをプレビュー",' +
+  '  "Section is not empty — wording was not replaced": "セクションが空でないため、定型文を挿入しませんでした",' +
+  '  "Source changed — recover the draft again": "ソースが変更されました。下書きをもう一度復元してください",' +
+  '  "Source changed — review again": "ソースが変更されました。もう一度確認してください",' +
+  '  "Source changed — review selected summaries again": "ソースが変更されました。選択した概要をもう一度確認してください",' +
+  '  "Summary XML fragment": "概要の XML フラグメント",' +
+  '  "Unsupported baseline": "サポートされていないベースライン",' +
+  '  "Wording is for a different element kind": "この定型文は別の種類の要素用です",' +
+  '  "Invalid or ambiguous rename mapping": "名前の対応付けが無効または曖昧です",' +
+  '  "Rename conflicts with an existing description; keep both entries and resolve in XML": "名前の変更が既存の説明と競合します。両方の項目を保持し、XML で解決してください",' +
+  '  "Repair XML before replacing text": "テキストを置換する前に XML を修正してください",' +
+  '  "Open source: {0}": "ソースを開く: {0}",' +
+  '  "Inherited from {0}": "継承元: {0}",' +
+  '  "Source: {0}": "ソース: {0}",' +
+  '  "Map {0}:": "{0} の対応付け:",' +
+  '  "Summary for {0}": "{0} の概要",' +
+  '  "Choose a declaration for {0}": "{0} の宣言を選択してください",' +
+  '  "{0} · saved draft": "{0} · 保存済みの下書き",' +
+  '  "Unknown reference {0}": "不明な参照 {0}",' +
+  '  "Ambiguous reference {0}": "曖昧な参照 {0}",' +
+  '  "Unknown {0} {1}": "不明な {0} {1}",' +
+  '  "Duplicate {0} {1}": "重複した {0} {1}",' +
+  '  "Missing {0} description {1}": "{0} の説明がありません: {1}",' +
+  '  "Missing {0} {1}": "不足している {0} {1}",' +
+  '  "XD011 Public declaration removed or signature changed: {0}": "XD011 公開宣言が削除されたか、シグネチャが変更されました: {0}",' +
+  '  "Analyzing coverage...": "文書化率を分析中...",' +
+  '  "Scanning source files...": "ソース ファイルを検索中...",' +
+  '  "Resolving cross-references...": "相互参照を解決中...",' +
+  '  "Rendering: ": "生成中: ",' +
+  '  "Generating HTML report...": "HTML レポートを生成中...",' +
+  '  "HTML report exported.": "HTML レポートをエクスポートしました。",' +
+  '  "Done!": "完了!",' +
+  '  "Current Project (": "現在のプロジェクト (",' +
+  '  "Found %d source files.": "ソース ファイルが %d 個見つかりました。",' +
+  '  " | %d unresolved refs": " · 未解決の参照 %d 件",' +
+  '  " | Coverage: %.1f%%": " · 文書化率: %.1f%%",' +
+  '  "Documentation generated successfully in: %s": "ドキュメントを生成しました。保存先: %s",' +
+  '  "No active project found.": "アクティブなプロジェクトがありません。",' +
+  '  "No source files found.": "ソース ファイルがありません。",' +
+  '  "Error: ": "エラー: ",' +
+  '  "Report saved to: %s": "レポートの保存先: %s",' +
+  '  "Parsing %d files...": "%d 個のファイルを解析中...",' +
+  '  "Total: %d": "合計: %d",' +
+  '  "Documented: %d (%.1f%%)": "文書化済み: %d (%.1f%%)",' +
+  '  "Complete: %d; ready: %d (%.1f%%)": "完全: %d、完成: %d (%.1f%%)",' +
+  '  "Done - %d undocumented items found.": "完了 - 未文書化の項目が %d 個見つかりました。",' +
+  '  "None": "なし",' +
+  '  "Summary Only": "概要のみ",' +
+  '  "Partial": "一部",' +
+  '  "Complete": "完全",' +
+  '  "Unknown": "不明",' +
+  '  "Analysis running: {0}/{1}; parsed {2}, reused {3}": "分析中: {0}/{1}、解析 {2}、再利用 {3}",' +
+  '  "Analysis cancelling: {0}/{1}; parsed {2}, reused {3}": "分析をキャンセル中: {0}/{1}、解析 {2}、再利用 {3}",' +
+  '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "分析をキャンセルしました: {0}/{1}、解析 {2}、再利用 {3}",' +
+  '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "分析に失敗しました: {0}/{1}、解析 {2}、再利用 {3}",' +
+  '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "分析完了: {0}/{1}、解析 {2}、再利用 {3}",' +
+  '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "分析 {0}: {1}/{2}、解析 {3}、再利用 {4}",' +
+  '  "Select source directory": "ソース ディレクトリを選択",' +
+  '  "Select output directory": "出力ディレクトリを選択",' +
+  '  "Please select at least one output format.": "出力形式を 1 つ以上選択してください。",' +
+  '  "Read-only source": "読み取り専用のソース",' +
+  '  "Read-only: RAD Studio system source": "読み取り専用: RAD Studio のシステム ソース",' +
+  '  "Read-only: protected file": "読み取り専用: 保護されたファイル",' +
+  '  "Read-only: IDE source buffer": "読み取り専用: IDE のソース バッファー",' +
+  '  "Unsaved draft — source may have changed": "未保存の下書き — ソースが変更された可能性があります",' +
+  '  "The source is read-only. The draft can be viewed but cannot be applied.": "ソースは読み取り専用です。下書きは表示できますが、適用できません。",' +
+  '  "Conflict: the source comment changed after this draft was created. Review all three versions before applying.": "競合: 下書きの作成後にソース コメントが変更されました。適用前に 3 つのバージョンをすべて確認してください。",' +
+  '  "The source comment matches the original version. Review the saved draft before applying.": "ソース コメントは元のバージョンと一致しています。適用前に保存済みの下書きを確認してください。",' +
+  '  "The symbol at the cursor could not be resolved. Use the project symbol picker.": "カーソル位置のシンボルを解決できませんでした。プロジェクトのシンボル選択機能を使用してください。",' +
+  '  "Invalid XML": "無効な XML",' +
+  '  "Missing summary description": "概要の説明がありません",' +
+  '  "Missing result description": "戻り値の説明がありません",' +
+  '  "Missing property value description": "プロパティ値の説明がありません",' +
+  '  "Returns is not valid for this declaration": "この宣言には returns を使用できません",' +
+  '  "Value is only valid for a property": "value はプロパティにのみ使用できます",' +
+  '  "Exceptions are not valid for a unit": "unit には exceptions を使用できません",' +
+  '  "Edit": "編集",' +
+  '  "A brief summary description of the element. Required for all documented elements.": "要素の簡潔な概要です。文書化するすべての要素に必要です。",' +
+  '  "Write for all public types, methods, properties, and fields.": "すべての公開型、メソッド、プロパティ、フィールドに記述します。",' +
+  '  "Detailed supplementary information beyond the summary. Use for implementation details and caveats.": "概要を補足する詳細情報です。実装の詳細や注意事項を記述します。",' +
+  '  "Write when there are complex behaviors or usage caveats.": "動作が複雑な場合や使用上の注意がある場合に記述します。",' +
+  '  "Description of a method parameter.": "メソッドのパラメーターの説明です。",' +
+  '  "Write one for each parameter of the method.": "メソッドの各パラメーターに 1 つずつ記述します。",' +
+  '  "Description of the method return value.": "メソッドの戻り値の説明です。",' +
+  '  "Write only for functions (methods that return a value).": "値を返す関数にのみ記述します。",' +
+  '  "Description of a property value.": "プロパティ値の説明です。",' +
+  '  "Write for properties. Similar to <returns>.": "プロパティに記述します。<returns> に相当します。",' +
+  '  "Paragraph separator. Used inside summary, remarks, etc. to divide content into paragraphs.": "段落の区切りです。summary、remarks などの内容を段落に分けます。",' +
+  '  "Use to break long descriptions into logical paragraphs.": "長い説明を論理的な段落に分ける場合に使用します。",' +
+  '  "Inline code. Highlights code elements within text.": "インライン コードです。文章中のコード要素を強調します。",' +
+  '  "Use when mentioning variable names, values, or short code snippets.": "変数名、値、短いコード断片に言及する場合に使用します。",' +
+  '  "Multi-line code block.": "複数行のコード ブロックです。",' +
+  '  "Use inside <example> to show code samples.": "コード例を示すには <example> 内で使用します。",' +
+  '  "Inline reference link to another type or member.": "別の型やメンバーへのインライン参照リンクです。",' +
+  '  "Use when referencing other classes, methods, or properties.": "別のクラス、メソッド、プロパティを参照する場合に使用します。",' +
+  '  "Inline reference to a parameter name.": "パラメーター名へのインライン参照です。",' +
+  '  "Use when mentioning a parameter within description text.": "説明文の中でパラメーターに言及する場合に使用します。",' +
+  '  "Inline reference to a generic type parameter.": "ジェネリック型パラメーターへのインライン参照です。",' +
+  '  "Use when mentioning a generic type parameter.": "ジェネリック型パラメーターに言及する場合に使用します。",' +
+  '  "Documents exceptions that a method may throw.": "メソッドが発生させる可能性のある例外を記述します。",' +
+  '  "Write one for each exception type the method can raise.": "メソッドが発生させる可能性のある例外の型ごとに 1 つずつ記述します。",' +
+  '  "Contains a code usage example.": "コードの使用例を含みます。",' +
+  '  "Write to demonstrate usage with code.": "コードで使用方法を示す場合に記述します。",' +
+  '  "A reference displayed in the \"See Also\" section of the help topic.": "ヘルプ トピックの「関連項目」セクションに表示する参照です。",' +
+  '  "Use to link related APIs. Unlike <see>, this appears in a separate section.": "関連する API へのリンクに使用します。<see> と異なり、独立したセクションに表示されます。",' +
+  '  "Resource path relative to project": "プロジェクトからのリソースの相対パス",' +
+  '  "Alternative text": "代替テキスト",' +
+  '  "Insert image": "画像を挿入",' +
+  '  "Choose a resource inside the project": "プロジェクト内のリソースを選択してください",' +
+  '  "cref (reference target)": "cref (参照先)",' +
+  '  "e.g. TMyClass.DoWork": "例: TMyClass.DoWork",' +
+  '  "Insert": "挿入",' +
+  '  "See": "参照",' +
+  '  "Param": "パラメーター",' +
+  '  "TParam": "型パラメーター"' +
   '}';

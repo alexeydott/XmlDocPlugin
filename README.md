@@ -100,10 +100,11 @@ same custom marker as your IDE settings.
 ## Interface languages
 
 Choose **Document → Settings → General → Language**. Built-in interface translations
-are English (`en`), Russian (`ru`), and Simplified Chinese (`zh`). `auto` follows the
-Windows user locale; regional codes such as `ru-RU` and `zh-CN` use the corresponding
-language. Missing translations fall back to English. The legacy `ko` and `ja` choices are retained;
-built-in dictionaries currently cover `en`, `ru`, and `zh`.
+are English (`en`), Russian (`ru`), Simplified Chinese (`zh`), Korean (`ko`), and
+Japanese (`ja`). `auto` follows the Windows user locale; regional codes such as
+`ru-RU`, `zh-CN`, `ko-KR`, and `ja-JP` use the corresponding language. All four
+translation packs are bundled; no external language files are required. Unknown
+messages fall back to English.
 
 Language selection applies to plugin menus, settings, generation/coverage dialogs,
 and Inspector/Explorer labels and SVG tooltips. Changes apply to open editors after
