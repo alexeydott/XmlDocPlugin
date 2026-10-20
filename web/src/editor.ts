@@ -234,7 +234,7 @@ function renderParams(params: ParamDoc[], elementParams: ElementInfo['params']):
   $('#params-section')!.classList.remove('hidden');
 
   sigParams.forEach(sp => {
-    const docParam = params.find(p => p.name === sp.name);
+    const docParam = params.find(p => p.name.toLowerCase() === sp.name.toLowerCase());
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="td-name" title="${escapeHtml(sp.type ?? '')}">${escapeHtml(sp.name)}</td>
@@ -268,7 +268,7 @@ function renderTypeParams(typeParams: TypeParamDoc[], genericParams: string[] | 
   $('#typeparams-section')!.classList.remove('hidden');
 
   sigTypeParams.forEach(name => {
-    const docTP = typeParams.find(tp => tp.name === name);
+    const docTP = typeParams.find(tp => tp.name.toLowerCase() === name.toLowerCase());
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="td-name">${escapeHtml(name)}</td>

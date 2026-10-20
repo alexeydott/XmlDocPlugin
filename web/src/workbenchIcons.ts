@@ -5,6 +5,7 @@ const paths: Record<string, string> = {
  'ai-settings': '<path d="m9 3-.6 3-2 .9-2.7-1-2 3.4L4 11v2l-2.3 1.7 2 3.4 2.7-1 2 .9.6 3h4l.6-3 2-.9 2.7 1 2-3.4L18 13v-2l2.3-1.7-2-3.4-2.7 1-2-.9-.6-3Z"/><circle cx="11" cy="12" r="3"/>',
  'ai-describe': '<path d="m7 5-4 4 4 4m6-8 4 4-4 4M4 18h8m-8 3h5m10-9 1.2 3.8L24 17l-3.8 1.2L19 22l-1.2-3.8L14 17l3.8-1.2L19 12Z"/>',
  'ai-rephrase': '<path d="M3 5h15M3 10h10M3 15h5m4 5 2.8-.7L23 11.1 20.9 9 12.7 17.2 12 20Zm7-9 2 2M3 20h5"/>',
+ 'ai-review': '<path d="m7 4-4 5 4 5m6-10 4 5-4 5M10 18l4 4 8-10"/>',
  'save-template': save,
  'save-terms': save,
  'apply-template': '<path d="M4 4h16v16H4V4ZM8 8h8M8 12h4m3 3h6m-3-3v6"/>',

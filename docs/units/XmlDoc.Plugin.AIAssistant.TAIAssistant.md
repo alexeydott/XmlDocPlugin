@@ -16,6 +16,8 @@ Owns request preparation, worker cancellation and source-checked application for
 | `FError` | field | private |  |
 | `FFile` | field | private |  |
 | `FFragments` | field | private |  |
+| `FHasRemarks` | field | private |  |
+| `FHasReturns` | field | private |  |
 | `FOperation` | field | private |  |
 | `FOriginal` | field | private |  |
 | `FOriginalSummary` | field | private |  |
@@ -23,6 +25,7 @@ Owns request preparation, worker cancellation and source-checked application for
 | `FPrepared` | field | private |  |
 | `FReady` | field | private |  |
 | `FRequestId` | field | private |  |
+| `FSectionFragments` | field | private |  |
 | `FSession` | field | private |  |
 | `FTarget` | field | private |  |
 | `FTimer` | field | private |  |
@@ -34,7 +37,9 @@ Owns request preparation, worker cancellation and source-checked application for
 | `IsBusy` | method | private |  |
 | `NewTransport` | method | private |  |
 | `Notification` | method | protected |  |
+| `ProtectSection` | method | private |  |
 | `Reply` | method | private |  |
+| `RestoreSection` | method | private |  |
 | `Stop` | method | private |  |
 | `Tick` | method | private |  |
 | `Busy` | property | public |  |
@@ -56,6 +61,10 @@ Owns request preparation, worker cancellation and source-checked application for
 
 ### FFragments
 
+### FHasRemarks
+
+### FHasReturns
+
 ### FOperation
 
 ### FOriginal
@@ -69,6 +78,8 @@ Owns request preparation, worker cancellation and source-checked application for
 ### FReady
 
 ### FRequestId
+
+### FSectionFragments
 
 ### FSession
 
@@ -92,7 +103,11 @@ Owns request preparation, worker cancellation and source-checked application for
 
 ### Notification
 
+### ProtectSection
+
 ### Reply
+
+### RestoreSection
 
 ### Stop
 

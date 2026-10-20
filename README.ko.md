@@ -150,4 +150,4 @@ Delphi OTA/VCL, WebView2, TipTap/TypeScript/Vite 및
 
 ## AI assistant
 
-- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with TOON context, optional request preview, configurable thinking control and automatic retries, cancellation, HTML cleanup and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).
+- **AI 도우미** — 메서드 문서를 생성하거나 현재 코드와 기존 설명을 비교합니다. 요약, 매개변수, 반환값과 비고를 각각 선택해 적용하고, 선택한 메서드를 대기열로 검토할 수 있습니다. OpenAI 호환 프로필과 프롬프트, TOON 컨텍스트, 요청 미리 보기, 추론 제어, 자동 재시도, 취소와 HTML 정리를 지원합니다. 자세한 내용은 [사용자 가이드](docs/user-guide.md#use-the-ai-assistant)를 참조하세요.

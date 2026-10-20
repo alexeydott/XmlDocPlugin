@@ -47,10 +47,10 @@ test('AI parameter proposals fill missing prose after review and preserve existi
  const fields=document.querySelectorAll('#ai-parameters textarea');assert.equal(fields.length,1);fields[0].value='Reviewed <value>';fields[0].dispatchEvent(new Event('input'));s.click('ai-apply');assert.deepEqual(s.sent.at(-1).parameters,[{name:'Value',description:'Reviewed <value>'}]);s.reply(req,'approved',{summaryXml:'New summary',parameters:[{name:'Value',description:'Reviewed &lt;value&gt;'}]});s.bridge.flush();const updated=s.sent.filter(m=>m.type==='docUpdated').at(-1);assert.equal(updated.doc.params[0].description,'Reviewed &lt;value&gt;');assert.equal(updated.doc.params[1].description,'<see cref="Keep"/>');s.close();
 });
 test('AI icons identify settings, code description and rewriting independently of Format',()=>{
- const s=setup();const buttons=['ai-settings','ai-describe','ai-rephrase'].map(id=>document.getElementById(id));
+ const s=setup();const buttons=['ai-settings','ai-describe','ai-rephrase','ai-review'].map(id=>document.getElementById(id));
  for(const button of buttons){assert.equal(button.dataset.workbenchIcon,button.id);assert.ok(button.querySelector('svg'));assert.ok(button.title);assert.equal(button.title,button.getAttribute('aria-label'));}
- assert.equal(new Set(buttons.map(b=>b.innerHTML)).size,3);assert.notEqual(buttons[1].innerHTML,document.getElementById('format-document').innerHTML);
- for(const language of ['ru','zh','ko','ja']){window.xmlDocSettings.apply({language,fontSize:13,theme:'dark'});for(const button of buttons){assert.notEqual(button.title,{'ai-settings':'AI profiles and prompts','ai-describe':'Describe method from code','ai-rephrase':'Rephrase summary'}[button.id]);}}
+ assert.equal(new Set(buttons.map(b=>b.innerHTML)).size,4);assert.notEqual(buttons[1].innerHTML,document.getElementById('format-document').innerHTML);
+ for(const language of ['ru','zh','ko','ja']){window.xmlDocSettings.apply({language,fontSize:13,theme:'dark'});for(const button of buttons){assert.notEqual(button.title,{'ai-settings':'AI profiles and prompts','ai-describe':'Describe method from code','ai-rephrase':'Rephrase summary','ai-review':'Review documentation against code'}[button.id]);}}
  s.close();
 });
 test('AI proposals replace placeholder parameters and preview XML paragraphs without overwriting completed prose',()=>{
@@ -84,4 +84,101 @@ test('copy missing inherited sections uses the current local summary',()=>{
  // A local change replaces the document object before the host rebuilds the catalog.
  document.querySelector('#summary-editor .tiptap').editor.chain().selectAll().insertContent('New local summary').run();
  copy.click();assert.match(document.querySelector('#xml-after').textContent,/New local summary/);assert.match(document.querySelector('#xml-after').textContent,/Inherited remarks/);s.click('apply-operation');s.bridge.flush();const updated=s.sent.filter(m=>m.type==='docUpdated').at(-1);assert.equal(updated.doc.summary,'New local summary');assert.equal(updated.doc.remarks,'Inherited remarks');s.close();
+});
+
+test('AI sections are accepted independently and unselected invalid summary tokens do not block parameters',()=>{
+ const s=setup();s.element.params=[{name:'A',type:'Integer'},{name:'B',type:'Integer'}];
+ s.bridge.receive({type:'loadDoc',data:{element:s.element,doc:{summary:'Original',remarks:'Keep remarks',params:[{name:'A',description:''},{name:'B',description:''}]}}});
+ const req=s.prepare();s.reply(req,'prepared',{fragments:[{token:'__XMLDOC_x_0__',xml:'<c>Keep</c>'}],previewRequired:true});
+ s.reply(req,'proposal',{fresh:true,summary:'Keep __XMLDOC_x_0__',parameters:[{name:'A',description:'Accept A'},{name:'B',description:'Reject B'}],uncertainties:[]});
+ const proposed=document.getElementById('ai-summary');proposed.value='Missing token';proposed.dispatchEvent(new Event('input'));
+ const summary=document.getElementById('ai-accept-summary');summary.checked=false;summary.dispatchEvent(new Event('change'));
+ const check=document.querySelectorAll('#ai-parameters input[type=checkbox]')[1];check.checked=false;check.dispatchEvent(new Event('change'));
+ assert.equal(document.getElementById('ai-apply').disabled,false);s.click('ai-apply');
+ const submitted=s.sent.filter(m=>m.type==='aiApply').at(-1);assert.equal(submitted.summarySelected,false);assert.deepEqual(submitted.parameters,[{name:'A',description:'Accept A'}]);
+ s.reply(req,'approved',{summaryXml:'Ignored summary',parameters:submitted.parameters});s.bridge.flush();
+ const doc=s.sent.filter(m=>m.type==='docUpdated').at(-1).doc;assert.equal(doc.summary,'Original');assert.equal(doc.remarks,'Keep remarks');assert.equal(doc.params[0].description,'Accept A');assert.equal(doc.params[1].description,'');s.close();
+});
+
+test('AI rejects an approval when the field selection changes after Apply',()=>{
+ const s=setup(),req=s.prepare();s.reply(req,'prepared',{fragments:[],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'Proposed',uncertainties:[]});s.click('ai-apply');
+ const check=document.getElementById('ai-accept-summary');check.checked=false;check.dispatchEvent(new Event('change'));s.reply(req,'approved',{summaryXml:'Must not write'});s.bridge.flush();assert.equal(s.sent.filter(m=>m.type==='docUpdated').length,0);s.close();
+});
+
+test('return and remarks proposals have independent review and application',()=>{
+ const s=setup();s.element.returnType='Integer';s.bridge.receive({type:'loadDoc',data:{element:s.element,doc:{summary:'Original',returns:'Original return',remarks:'Keep remarks'}}});
+ const req=s.prepare();s.reply(req,'prepared',{fragments:[],sectionFragments:{returns:[{token:'__XMLDOC_ret_0__',xml:'<c>$&amp;</c>'}]},previewRequired:true});
+ s.reply(req,'proposal',{fresh:true,summary:'Rejected summary',returns:'Return __XMLDOC_ret_0__',remarks:'Rejected remarks',changes:['Result now includes a checked value.'],uncertainties:[]});
+ for(const id of ['ai-accept-summary','ai-accept-remarks']){const field=document.getElementById(id);field.checked=false;field.dispatchEvent(new Event('change'));}
+ assert.match(document.querySelector('#ai-after').textContent,/<c>\$&amp;<\/c>/);assert.match(document.querySelector('#ai-changes').textContent,/checked value/);s.click('ai-apply');
+ const applied=s.sent.filter(m=>m.type==='aiApply').at(-1);assert.equal(applied.summarySelected,false);assert.equal(applied.returnsSelected,true);assert.equal(applied.remarksSelected,false);
+ s.reply(req,'approved',{summaryXml:'Ignored',returnsXml:'Return <c>$&amp;</c>'});s.bridge.flush();const doc=s.sent.filter(m=>m.type==='docUpdated').at(-1).doc;
+ assert.equal(doc.summary,'Original');assert.equal(doc.returns,'Return <c>$&amp;</c>');assert.equal(doc.remarks,'Keep remarks');s.close();
+});
+
+test('review operation offers existing parameter descriptions without affecting unselected parameters',()=>{
+ const s=setup();s.element.params=[{name:'Value',type:'Integer'}];s.bridge.receive({type:'loadDoc',data:{element:s.element,doc:{summary:'Original',params:[{name:'Value',description:'Old meaning'}]}}});
+ window.xmlDocAI.receive({state:'configuration',profiles:[{id:'p',name:'Profile'}],templates:[{id:'review',name:'Review documentation against code',operation:'review'}]});
+ const operation=document.getElementById('ai-operation');operation.value='review';operation.dispatchEvent(new Event('change'));s.click('ai-prepare');const req=s.sent.filter(m=>m.type==='aiPrepare').at(-1);
+ assert.equal(req.operation,'review');assert.equal(req.documentation.params[0].description,'Old meaning');s.reply(req,'prepared',{fragments:[],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'Minimal correction',parameters:[{name:'Value',description:'Corrected meaning'}],changes:['Value is now used as a count.'],uncertainties:[]});
+ assert.equal(document.querySelector('#ai-parameters textarea').value,'Corrected meaning');s.click('ai-apply');s.reply(req,'approved',{summaryXml:'Minimal correction',parameters:[{name:'Value',description:'Corrected meaning'}]});s.bridge.flush();assert.equal(s.sent.filter(m=>m.type==='docUpdated').at(-1).doc.params[0].description,'Corrected meaning');s.close();
+});
+
+test('AI queue opens each selected method, captures live documentation and cancels late responses',async()=>{
+ const s=setup();const second={...s.element,name:'Second',symbolId:'second',locationId:'second@interface',sourceRevision:'r2',lineNumber:20};
+ window.xmlDocAI.startQueue([s.element,s.element,{...s.element,kind:'class'},second]);
+ let req=s.sent.filter(m=>m.type==='aiPrepare').at(-1);assert.equal(req.symbolId,'run');assert.equal(s.sent.filter(m=>m.type==='docUpdated').length,0);
+ s.reply(req,'prepared',{fragments:[],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'First proposal',uncertainties:[]});
+ s.click('ai-queue-next');assert.equal(s.sent.at(-1).type,'openSymbol');assert.equal(s.sent.at(-1).symbolId,'second');
+ s.reply(req,'approved',{summaryXml:'Late first write'});assert.equal(s.sent.filter(m=>m.type==='docUpdated').length,0);
+ const before=s.sent.filter(m=>m.type==='aiPrepare').length;
+ s.bridge.receive({type:'loadDoc',data:{element:second,doc:{summary:'Live second comment'}}});await Promise.resolve();
+ assert.equal(s.sent.filter(m=>m.type==='aiPrepare').length,before+1);req=s.sent.filter(m=>m.type==='aiPrepare').at(-1);assert.equal(req.summary,'Live second comment');
+ s.click('ai-queue-cancel');s.reply(req,'proposal',{fresh:true,summary:'Cancelled second',uncertainties:[]});assert.equal(document.querySelector('#ai-apply').disabled,true);assert.equal(document.querySelector('#ai-queue').hidden,true);assert.equal(s.sent.filter(m=>m.type==='docUpdated').length,0);s.close();
+});
+
+test('Design edits retain descriptions whose parameter and generic names use different casing',()=>{
+ for(const generic of [false,true]){
+  const s=setup();const element={...s.element,params:generic?[]:[{name:'Value',type:'Integer'},{name:'Other',type:'Integer'}],genericParams:generic?['T','U']:[]};
+  const names=generic?['t','U']:['value','Other'];const key=generic?'typeParams':'params';
+  s.bridge.receive({type:'loadDoc',data:{element,doc:{summary:'Original',[key]:[{name:names[0],description:'Important first description'},{name:names[1],description:'Existing second description'}]}}});
+  const fields=document.querySelectorAll((generic?'#typeparams-body':'#params-body')+' .td-desc');assert.equal(fields[0].textContent,'Important first description');
+  fields[1].querySelector('.tiptap').editor.chain().selectAll().insertContent('Updated second description').run();s.bridge.flush();
+  const doc=s.sent.filter(m=>m.type==='docUpdated').at(-1).doc;assert.equal(doc[key][0].description,'Important first description');assert.equal(doc[key][1].description,'Updated second description');s.close();
+ }
+});
+
+test('all 32 AI field-selection combinations preserve unaccepted source sections',()=>{
+ for(let mask=0;mask<32;mask++){
+  const s=setup();s.element.params=[{name:'A',type:'Integer'},{name:'B',type:'Integer'}];s.element.returnType='Integer';
+  s.bridge.receive({type:'loadDoc',data:{element:s.element,doc:{summary:'Original',returns:'Original return',remarks:'Original remarks',params:[{name:'A',description:''},{name:'B',description:''}]}}});
+  const req=s.prepare();s.reply(req,'prepared',{fragments:[],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'New summary',returns:'New return',remarks:'New remarks',parameters:[{name:'A',description:'New A'},{name:'B',description:'New B'}],uncertainties:[]});
+  const controls=[document.getElementById('ai-accept-summary'),...document.querySelectorAll('#ai-parameters input[type=checkbox]'),document.getElementById('ai-accept-returns'),document.getElementById('ai-accept-remarks')];
+  controls.forEach((c,i)=>{c.checked=!!(mask&(1<<i));c.dispatchEvent(new Event('change'));});
+  assert.equal(document.getElementById('ai-apply').disabled,mask===0,'mask '+mask);
+  if(mask){s.click('ai-apply');const approved={summaryXml:mask&1?'New summary':'Original',parameters:[]};if(mask&2)approved.parameters.push({name:'A',description:'New A'});if(mask&4)approved.parameters.push({name:'B',description:'New B'});if(mask&8)approved.returnsXml='New return';if(mask&16)approved.remarksXml='New remarks';s.reply(req,'approved',approved);s.bridge.flush();
+   const doc=s.sent.filter(m=>m.type==='docUpdated').at(-1).doc;assert.equal(doc.summary,mask&1?'New summary':'Original');assert.equal(doc.returns,mask&8?'New return':'Original return');assert.equal(doc.remarks,mask&16?'New remarks':'Original remarks');assert.equal(doc.params[0].description,mask&2?'New A':'');assert.equal(doc.params[1].description,mask&4?'New B':'');
+  }else{s.click('ai-apply');assert.equal(s.sent.filter(m=>m.type==='aiApply').length,0);}s.close();
+ }
+});
+
+test('AI section choices and review actions localize without translating parameter identifiers',()=>{
+ const s=setup();s.element.params=[{name:'Value',type:'Integer'}];s.bridge.receive({type:'loadDoc',data:{element:s.element,doc:{summary:'Original',params:[{name:'Value',description:''}]}}});
+ const req=s.prepare();s.reply(req,'prepared',{fragments:[],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'User prose',returns:'Result prose',remarks:'Remark prose',parameters:[{name:'Value',description:'Parameter prose'}],uncertainties:[]});
+ for(const language of ['ru','zh','ko','ja']){
+  window.xmlDocSettings.apply({language,fontSize:13,theme:'dark'});
+  assert.notEqual(document.getElementById('ai-review').title,'Review documentation against code');
+  assert.ok(!document.getElementById('ai-proposal').textContent.includes('Accept summary'));
+  const name=document.querySelector('#ai-parameters code');assert.equal(name.textContent,'Value');
+  const check=document.querySelector('#ai-parameters input');assert.ok(check.getAttribute('aria-label').includes('Value'));assert.notEqual(check.getAttribute('aria-label'),'Accept parameter Value');
+  assert.equal(document.getElementById('ai-summary').value,'User prose');assert.equal(document.getElementById('ai-returns').value,'Result prose');
+ }s.close();
+});
+
+test('AI queue does not reuse a document from another project sharing the same unit',async()=>{
+ const s=setup();s.bridge.receive({type:'loadDoc',data:{element:{...s.element,projectFile:'A.dproj'},doc:{summary:'Project A'}}});
+ const target={...s.element,projectFile:'B.dproj'};const before=s.sent.filter(m=>m.type==='aiPrepare').length;
+ window.xmlDocAI.startQueue([target]);assert.equal(s.sent.at(-1).type,'openSymbol');assert.equal(s.sent.at(-1).projectFile,'B.dproj');assert.equal(s.sent.filter(m=>m.type==='aiPrepare').length,before);
+ s.bridge.receive({type:'loadDoc',data:{element:target,doc:{summary:'Project B'}}});await Promise.resolve();
+ const request=s.sent.filter(m=>m.type==='aiPrepare').at(-1);assert.equal(request.projectFile,'B.dproj');assert.equal(request.summary,'Project B');s.click('ai-queue-cancel');s.close();
 });

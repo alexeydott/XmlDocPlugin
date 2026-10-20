@@ -104,13 +104,23 @@ begin
 end;
 function ResolveDocumentationExpression(Parser:TDocParser;const Source:string;Position,Line:Integer;
  const Symbols:TArray<TCodeElementInfo>;out Query,Reason:string):TArray<TCodeElementInfo>;
-var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string;Args:TList<string>;Candidates,Best:TList<TCodeElementInfo>;HasCall,InString,UncertainOwners,UncertainCandidate,ImplicitSelf,UnknownScope,HasTypeArguments:Boolean;Bindings:TDictionary<string,string>;
+var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string;Args:TList<string>;Candidates,Best:TList<TCodeElementInfo>;HasCall,InString,UncertainOwners,MissingAncestors,UncertainCandidate,ImplicitSelf,UnknownScope,HasTypeArguments:Boolean;Bindings:TDictionary<string,string>;
  function ExpressionType(const Expression:string):string;
- var Text:string;
+ var Text,Digits:string;Magnitude:UInt64;Negative:Boolean;
  begin
   Text:=Trim(Expression);Result:='';if Text='' then Exit;
-  if TRegEx.IsMatch(Text,'^[+-]?(?:\d+|\$[0-9a-fA-F]+)$') then Exit('Integer');
-  if TRegEx.IsMatch(Text,'^[+-]?\d+\.\d+(?:[Ee][+-]?\d+)?$') then Exit('Double');
+  if TRegEx.IsMatch(Text,'^[+-]?(?:[0-9]+|\$[0-9a-fA-F]+)$') then begin
+   Digits:=Text;Negative:=Digits[1]='-';if CharInSet(Digits[1],['+','-']) then Delete(Digits,1,1);
+   if not TryStrToUInt64(Digits,Magnitude) then Exit;
+   if Negative then begin
+    if Magnitude<=UInt64(High(Integer))+1 then Exit('Integer');
+    if Magnitude<=UInt64(High(Int64))+1 then Exit('Int64');Exit;
+   end;
+   if Magnitude<=UInt64(High(Integer)) then Exit('Integer');
+   if Magnitude<=UInt64(High(Cardinal)) then Exit('Cardinal');
+   if Magnitude<=UInt64(High(Int64)) then Exit('Int64');Exit('UInt64');
+  end;
+  if TRegEx.IsMatch(Text,'^[+-]?[0-9]+(?:\.[0-9]+(?:[Ee][+-]?[0-9]+)?|[Ee][+-]?[0-9]+)$') then Exit('Double');
   if (Text[1]=#39) and (Text[Length(Text)]=#39) then Exit('string');
   if SameText(Text,'True') or SameText(Text,'False') then Exit('Boolean');Result:=Parser.BindingType(Text,Line);
  end;
@@ -164,10 +174,21 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
      if I<Parts.Count then Part:=Parts[I] else begin Part:=Current.GenericParams[I];UncertainOwners:=True;end;
      Bindings.AddOrSetValue(Id+#0+LowerCase(Current.GenericParams[I]),Part);
     end;
-    if Current.Ancestor<>'' then begin Concrete:=Substitute(Current.Ancestor,Id);if FindType(Concrete,Current.UnitName,Parent) then Pending.Add(TPair<TCodeElementInfo,string>.Create(Parent,Concrete)) else UncertainOwners:=True;end;
-    for var Name in Current.Implements do begin Concrete:=Substitute(Name,Id);if FindType(Concrete,Current.UnitName,Parent) then Pending.Add(TPair<TCodeElementInfo,string>.Create(Parent,Concrete)) else UncertainOwners:=True;end;
+    if Current.Ancestor<>'' then begin Concrete:=Substitute(Current.Ancestor,Id);if FindType(Concrete,Current.UnitName,Parent) then Pending.Add(TPair<TCodeElementInfo,string>.Create(Parent,Concrete)) else MissingAncestors:=True;end;
+    for var Name in Current.Implements do begin Concrete:=Substitute(Name,Id);if FindType(Concrete,Current.UnitName,Parent) then Pending.Add(TPair<TCodeElementInfo,string>.Create(Parent,Concrete)) else MissingAncestors:=True;end;
    end;Result:=Seen.ToArray;
   finally Parts.Free;Seen.Free;Pending.Free;end;
+ end;
+ function CallableKey(const E:TCodeElementInfo):string;
+ var Id:string;
+ begin
+  Id:=LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent);
+  Result:=LowerCase(E.Name)+'`'+IntToStr(Length(E.GenericParams));
+  for var P in E.Params do Result:=Result+';'+SimpleType(Substitute(P.TypeName,Id))+':'+BoolToStr(P.IsConst)+BoolToStr(P.IsVar)+BoolToStr(P.IsOut);
+ end;
+ function OwnerRank(const E:TCodeElementInfo;const Names:TArray<string>):Integer;
+ begin
+  Result:=MaxInt;for var I:=0 to High(Names) do if SameText(LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent),Names[I]) then Exit(I);
  end;
  function Score(const E:TCodeElementInfo):Integer;
  var Required,Cost:Integer;Actual,Expected:string;
@@ -178,7 +199,9 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
    Actual:=SimpleType(ExpressionType(Args[I]));Expected:=SimpleType(Substitute(E.Params[I].TypeName,LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent)));Cost:=0;
    if Actual='' then Cost:=10 else if Actual<>Expected then begin
     if (Actual='integer') and ((Expected='int64') or (Expected='nativeint')) then Cost:=1
+    else if (Actual='cardinal') and ((Expected='int64') or (Expected='uint64')) then Cost:=1
     else if (Actual='integer') and (Expected='double') then Cost:=2
+    else if ((Actual='cardinal') or (Actual='int64') or (Actual='uint64')) and (Expected='double') then Cost:=2
     else if (Actual='string') and (Expected='ansistring') then Cost:=1
     else begin
      var Unknown:=UncertainOwners;for var Name in E.GenericParams do if TRegEx.IsMatch(Expected,'(?i)(?<![\p{L}\p{N}_])'+TRegEx.Escape(Name)+'(?![\p{L}\p{N}_])') then Unknown:=True;
@@ -189,7 +212,7 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
  end;
 begin
  Result:=nil;Reason:='';Query:='';if not Assigned(Parser) or (Source='') then Exit;
- Position:=EnsureRange(Position,0,Length(Source));First:=Position;Last:=Position+1;UncertainOwners:=False;UncertainCandidate:=False;
+ Position:=EnsureRange(Position,0,Length(Source));First:=Position;Last:=Position+1;UncertainOwners:=False;MissingAncestors:=False;UncertainCandidate:=False;
  if not ExtractReference(Source,Position,Query,Owner,Member,Reason,Last,HasTypeArguments) then Exit;
  Candidates:=TList<TCodeElementInfo>.Create;Best:=TList<TCodeElementInfo>.Create;Args:=TList<string>.Create;Bindings:=TDictionary<string,string>.Create;
  try
@@ -212,6 +235,17 @@ begin
   if ImplicitSelf and (Length(OwnerNames)>0) and (Candidates.Count=0) then
    for var E in Symbols do if SameText(E.Name,Member) and (E.QualifiedParent='') then
     for var Local in Parser.GetAllElements do if (Local.Kind=dekUnit) and SameText(Local.UnitName,E.UnitName) then begin Candidates.Add(E);Break;end;
+  // An implementation on the receiver or its class base satisfies the same
+  // inherited/interface signature; those prototypes are not extra overloads.
+  for var I:=Candidates.Count-1 downto 0 do begin
+   for var J:=0 to Candidates.Count-1 do if (I<>J) and
+    (OwnerRank(Candidates[J],OwnerNames)<OwnerRank(Candidates[I],OwnerNames)) and
+    (CallableKey(Candidates[J])=CallableKey(Candidates[I])) then begin
+     var Decl:TCodeElementInfo;
+     if FindType(Candidates[J].UnitName+'.'+Candidates[J].QualifiedParent,Candidates[J].UnitName,Decl) and
+       (Decl.Kind in [dekClass,dekRecord]) then begin Candidates.Delete(I);Break;end;
+    end;
+  end;
   UnknownScope:=False;
   if ImplicitSelf and (Length(OwnerNames)=0) and (Candidates.Count>0) then
    for var E in Candidates do if (E.QualifiedParent<>'') or not SameText(E.FileName+#0+E.QualifiedParent,Candidates[0].FileName+#0+Candidates[0].QualifiedParent) then UnknownScope:=True;
@@ -240,6 +274,7 @@ begin
   if UncertainCandidate then begin Best.Clear;for var E in Candidates do if Score(E)<>MaxInt then Best.Add(E);end;
   if UncertainCandidate then Reason:='Argument types are incomplete; verify the declaration before navigating.';
   if UncertainOwners then Reason:='Generic receiver information is incomplete; choose a declaration explicitly.';
+  if MissingAncestors and (BestScore<>0) then Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';
   if Best.Count>1 then Reason:='Several declarations match this context; choose an overload.';Result:=Best.ToArray;
  finally Bindings.Free;Args.Free;Best.Free;Candidates.Free;end;
 end;

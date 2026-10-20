@@ -1,11 +1,11 @@
-﻿/// <summary>Shared request, context, transport and reviewable proposal contracts for AI documentation.</summary>
+/// <summary>Shared request, context, transport and reviewable proposal contracts for AI documentation.</summary>
 unit XmlDoc.AI.Contracts;
 interface
 uses System.SysUtils;
 type
  /// <summary>Reports invalid AI configuration, context, transport or response data without accepting a proposal.</summary>
  EAIError=class(Exception);
- TAIOperation=(aoDescribe,aoRephrase);
+ TAIOperation=(aoDescribe,aoRephrase,aoReview);
  TAIContext=record
   Signature,Code,Documentation,Parameters,ReturnType,TypeContext,ProjectTerms,UserInstruction,Fingerprint:string;
  end;
@@ -30,11 +30,13 @@ type
  end;
  /// <summary>Plain parameter prose returned by a provider; the host validates declaration names before applying it.</summary>
  TAIParameter=record Name,Description:string;end;
- /// <summary>Reviewable summary, optional parameter descriptions and explicit uncertainties.</summary>
+ /// <summary>Independently reviewable summary, parameter, return and remark proposals with correction reasons and uncertainties.</summary>
  TAIProposal=record
   Summary:string;
+  Returns,Remarks:string;
+  HasReturns,HasRemarks:Boolean;
   Parameters:TArray<TAIParameter>;
-  Uncertainties:TArray<string>;
+  Uncertainties,Changes:TArray<string>;
  end;
 implementation
 class function TAIProfile.Defaults:TAIProfile;

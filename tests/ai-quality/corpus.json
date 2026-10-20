@@ -1,8 +1,272 @@
 {
- "version": 1,
- "cases": [
-  {"id":"anchor","file":"src/Core/XmlDoc.Consts.pas","method":"MemberAnchor","existingFacts":["overload"],"facts":[{"id":"overload","pattern":"overload"},{"id":"hash","pattern":"hash|SHA"},{"id":"fallback","pattern":"otherwise|fallback|non.overload|original name"}],"unsupported":[{"id":"collision-free","pattern":"guarantees? (?:a )?unique|collision.free"}],"uncertainties":["collision guarantees are not established"]},
-  {"id":"resource","file":"src/Core/XmlDoc.SourceText.pas","method":"ResolveDocumentationResource","existingFacts":["relative"],"facts":[{"id":"relative","pattern":"relative"},{"id":"traversal","pattern":"parent|traversal|\\.\\."},{"id":"absolute","pattern":"absolute|full path"}],"unsupported":[{"id":"existence","pattern":"(?:checks?|verifies?|ensures?) (?:that )?(?:the )?file exists"},{"id":"creates","pattern":"creates? (?:the )?(?:resource )?file"}],"uncertainties":["the returned resource need not exist"]},
-  {"id":"decode","file":"src/Core/XmlDoc.SourceText.pas","method":"DecodeSource","existingFacts":["bom"],"facts":[{"id":"bom","pattern":"BOM|byte.order"},{"id":"utf8","pattern":"UTF.?8"},{"id":"fallback","pattern":"default|code.?page|fallback"}],"unsupported":[{"id":"all-encodings","pattern":"all (?:possible )?encodings|always succeeds|never (?:fails|throws)"}],"uncertainties":["behavior depends on the default code page for unmarked input"]}
- ]
+  "version": 1,
+  "cases": [
+    {
+      "id": "anchor",
+      "file": "src/Core/XmlDoc.Consts.pas",
+      "method": "MemberAnchor",
+      "existingFacts": [
+        "overload"
+      ],
+      "facts": [
+        {
+          "id": "overload",
+          "pattern": "(?:overload)|(?:перегруз)"
+        },
+        {
+          "id": "hash",
+          "pattern": "(?:hash|SHA)|(?:хеш|хэш)"
+        },
+        {
+          "id": "fallback",
+          "pattern": "(?:otherwise|fallback|non.overload|original name)|(?:иначе|исходн.*имя|неперегруж)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "collision-free",
+          "pattern": "(?:guarantees? (?:a )?unique|collision.free)|(?:(?<!не )гарантир[а-яё]*.{0,30}уникаль)"
+        }
+      ],
+      "uncertainties": [
+        "collision guarantees are not established"
+      ]
+    },
+    {
+      "id": "resource",
+      "file": "src/Core/XmlDoc.SourceText.pas",
+      "method": "ResolveDocumentationResource",
+      "existingFacts": [
+        "relative"
+      ],
+      "facts": [
+        {
+          "id": "relative",
+          "pattern": "(?:relative)|(?:относительн)"
+        },
+        {
+          "id": "traversal",
+          "pattern": "(?:parent|traversal|\\.\\.)|(?:родительск|обход|\\.\\.)"
+        },
+        {
+          "id": "absolute",
+          "pattern": "(?:absolute|full path)|(?:абсолютн|полный путь)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "existence",
+          "pattern": "(?:(?:checks?|verifies?|ensures?) (?:that )?(?:the )?file exists)|(?:(?<!не )провер[а-яё]*.{0,40}существован)"
+        },
+        {
+          "id": "creates",
+          "pattern": "(?:creates? (?:the )?(?:resource )?file)|(?:(?<!не )созда[её]т.{0,20}файл)"
+        }
+      ],
+      "uncertainties": [
+        "the returned resource need not exist"
+      ]
+    },
+    {
+      "id": "decode",
+      "file": "src/Core/XmlDoc.SourceText.pas",
+      "method": "DecodeSource",
+      "existingFacts": [
+        "bom"
+      ],
+      "facts": [
+        {
+          "id": "bom",
+          "pattern": "(?:BOM|byte.order)|(?:маркер.*порядка.*байт)"
+        },
+        {
+          "id": "utf8",
+          "pattern": "(?:UTF.?8)|(?:UTF.?8)"
+        },
+        {
+          "id": "fallback",
+          "pattern": "(?:default|code.?page|fallback)|(?:кодовой страниц|по умолчанию|резервн)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "all-encodings",
+          "pattern": "(?:all (?:possible )?encodings|always succeeds|never (?:fails|throws))|(?:(?<!не )всегда успеш|любые кодировки|все возможные кодировки)"
+        }
+      ],
+      "uncertainties": [
+        "behavior depends on the default code page for unmarked input"
+      ]
+    },
+    {
+      "id": "consume",
+      "file": "tests/ai-quality/QualityCases.pas",
+      "method": "TryConsume",
+      "existingFacts": [
+        "var-update"
+      ],
+      "facts": [
+        {
+          "id": "out-reset",
+          "pattern": "(?:(?:Used|output).{0,50}(?:zero|0)|(?:zero|0).{0,50}(?:Used|output))|(?:Used.{0,40}(?:нул|0)|обнул)"
+        },
+        {
+          "id": "early-exit",
+          "pattern": "(?:(?:non.?positive|Requested.{0,30}(?:<=|less than|zero))|(?:insufficient|not enough|Remaining.{0,25}Requested))|(?:неположительн|недостаточ|не хватает)"
+        },
+        {
+          "id": "var-update",
+          "pattern": "(?:(?:decreas|reduc|subtract|deduct|уменьш).{0,60}(?:Remaining|remain|остат)|(?:Remaining|remain).{0,60}(?:decreas|reduc|subtract|deduct))|(?:уменьш|вычит)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "consumes-on-failure",
+          "pattern": "(?:(?:always|even on failure).{0,30}(?:decreas|reduc|consum))|(?:даже при (?:ошибке|неудаче).{0,40}уменьш)"
+        }
+      ],
+      "uncertainties": [
+        "Do not infer concurrency, complexity or ownership guarantees."
+      ]
+    },
+    {
+      "id": "positive",
+      "file": "tests/ai-quality/QualityCases.pas",
+      "method": "RequirePositive",
+      "existingFacts": [],
+      "facts": [
+        {
+          "id": "throws",
+          "pattern": "EArgumentOutOfRangeException"
+        },
+        {
+          "id": "condition",
+          "pattern": "(?:(?:non.?positive|less than or equal to zero|<=\\s*0|not positive))|(?:неположительн|меньше или равн.*нул)"
+        },
+        {
+          "id": "unchanged",
+          "pattern": "(?:(?:unchanged|same|original).{0,30}(?:value|input)|returns.{0,15}(?:the )?(?:input|Value))|(?:исходн|без изменен)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "all-exceptions",
+          "pattern": "(?:(?:never throws|no exceptions))|(?:никогда не (?:выбрасывает|бросает))"
+        }
+      ],
+      "uncertainties": [
+        "Do not infer concurrency, complexity or ownership guarantees."
+      ]
+    },
+    {
+      "id": "normalize-integer",
+      "file": "tests/ai-quality/QualityCases.pas",
+      "method": "Normalize",
+      "existingFacts": [],
+      "facts": [
+        {
+          "id": "negative",
+          "pattern": "(?:negative|less than zero|<\\s*0)|(?:отрицательн)"
+        },
+        {
+          "id": "zero",
+          "pattern": "(?:zero|\\b0\\b)|(?:ноль|нул)"
+        },
+        {
+          "id": "unchanged",
+          "pattern": "(?:unchanged|otherwise|non.?negative|original)|(?:иначе|исходн|неотрицательн)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "absolute",
+          "pattern": "(?:absolute value)|(?:абсолютн[а-яё]* значен)"
+        }
+      ],
+      "uncertainties": [
+        "Do not infer concurrency, complexity or ownership guarantees."
+      ],
+      "parameterType": "Integer"
+    },
+    {
+      "id": "normalize-string",
+      "file": "tests/ai-quality/QualityCases.pas",
+      "method": "Normalize",
+      "existingFacts": [],
+      "facts": [
+        {
+          "id": "trim",
+          "pattern": "(?:leading.{0,40}trailing|trim)|(?:начал.{0,30}конц|обрез)"
+        },
+        {
+          "id": "whitespace",
+          "pattern": "(?:white.?space|spaces?)|(?:пробел|пробельн)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "internal",
+          "pattern": "(?:removes? all (?:white.?space|spaces?))|(?:удаляет все пробелы)"
+        }
+      ],
+      "uncertainties": [
+        "Do not infer concurrency, complexity or ownership guarantees."
+      ],
+      "parameterType": "string"
+    },
+    {
+      "id": "conditional-scale",
+      "file": "tests/ai-quality/QualityCases.pas",
+      "method": "Scale",
+      "existingFacts": [],
+      "facts": [
+        {
+          "id": "double",
+          "pattern": "(?:(?:double|twice|multiply.{0,20}(?:two|2)|multiplies.{0,20}(?:two|2)))|(?:удва|два|вдвое)"
+        },
+        {
+          "id": "include",
+          "pattern": "(?:QUALITY_FAST|conditional|compile.?time|include)|(?:компиляц|условн|включаем)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "runtime-flag",
+          "pattern": "(?:runtime (?:flag|setting))|(?:флаг.{0,30}(?:во время выполнения|динамически))"
+        }
+      ],
+      "uncertainties": [
+        "Do not infer concurrency, complexity or ownership guarantees."
+      ]
+    },
+    {
+      "id": "generic-pick",
+      "file": "tests/ai-quality/QualityCases.pas",
+      "method": "Pick",
+      "existingFacts": [],
+      "facts": [
+        {
+          "id": "bounds",
+          "pattern": "(?:index|bounds|range)|(?:индекс|границ|диапазон)"
+        },
+        {
+          "id": "default",
+          "pattern": "(?:default|reset|initializ)|(?:по умолчанию|обнул)"
+        },
+        {
+          "id": "result",
+          "pattern": "(?:false|true|success)|(?:успех|ложь|истин)"
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "throws-bounds",
+          "pattern": "(?:throws.{0,30}(?:index|bounds|range))|(?:(?<!не )выбрасывает.{0,30}(?:индекс|границ|диапазон))"
+        }
+      ],
+      "uncertainties": [
+        "Do not infer concurrency, complexity or ownership guarantees."
+      ]
+    }
+  ]
 }

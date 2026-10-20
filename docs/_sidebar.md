@@ -59,7 +59,12 @@
           - [Defaults](units/XmlDoc.AI.Contracts.TAIProfile.md#defaults)
       - [TAIProposal](units/XmlDoc.AI.Contracts.TAIProposal.md)
         - **Fields**
+          - [Changes](units/XmlDoc.AI.Contracts.TAIProposal.md#changes)
+          - [HasRemarks](units/XmlDoc.AI.Contracts.TAIProposal.md#hasremarks)
+          - [HasReturns](units/XmlDoc.AI.Contracts.TAIProposal.md#hasreturns)
           - [Parameters](units/XmlDoc.AI.Contracts.TAIProposal.md#parameters)
+          - [Remarks](units/XmlDoc.AI.Contracts.TAIProposal.md#remarks)
+          - [Returns](units/XmlDoc.AI.Contracts.TAIProposal.md#returns)
           - [Summary](units/XmlDoc.AI.Contracts.TAIProposal.md#summary)
           - [Uncertainties](units/XmlDoc.AI.Contracts.TAIProposal.md#uncertainties)
     - **Types**
@@ -71,6 +76,13 @@
       - [ExecuteAI](units/XmlDoc.AI.OpenAI.md#executeai)
       - [ParseAIResponse](units/XmlDoc.AI.OpenAI.md#parseairesponse)
       - [ValidateAIProfileIdentity](units/XmlDoc.AI.OpenAI.md#validateaiprofileidentity)
+  - [XmlDoc.AI.ProfileStore](units/XmlDoc.AI.ProfileStore.md)
+    - **Routines**
+      - [AIConfigurationPath](units/XmlDoc.AI.ProfileStore.md#aiconfigurationpath)
+      - [AICredentialTarget](units/XmlDoc.AI.ProfileStore.md#aicredentialtarget)
+      - [AIProfileFromJson](units/XmlDoc.AI.ProfileStore.md#aiprofilefromjson)
+      - [LoadAIConfiguration](units/XmlDoc.AI.ProfileStore.md#loadaiconfiguration)
+      - [ReadAIKey](units/XmlDoc.AI.ProfileStore.md#readaikey)
   - [XmlDoc.AI.Prompts](units/XmlDoc.AI.Prompts.md)
     - **Records**
       - [TAIPrompt](units/XmlDoc.AI.Prompts.TAIPrompt.md)
@@ -1025,6 +1037,8 @@
           - [FError](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ferror)
           - [FFile](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ffile)
           - [FFragments](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ffragments)
+          - [FHasRemarks](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fhasremarks)
+          - [FHasReturns](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fhasreturns)
           - [FOperation](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#foperation)
           - [FOriginal](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#foriginal)
           - [FOriginalSummary](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#foriginalsummary)
@@ -1032,6 +1046,7 @@
           - [FPrepared](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fprepared)
           - [FReady](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fready)
           - [FRequestId](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#frequestid)
+          - [FSectionFragments](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fsectionfragments)
           - [FSession](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fsession)
           - [FTarget](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ftarget)
           - [FTimer](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ftimer)
@@ -1044,7 +1059,9 @@
           - [IsBusy](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#isbusy)
           - [NewTransport](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#newtransport)
           - [Notification](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#notification)
+          - [ProtectSection](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#protectsection)
           - [Reply](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#reply)
+          - [RestoreSection](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#restoresection)
           - [Stop](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#stop)
           - [Tick](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#tick)
         - **Properties**

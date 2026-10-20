@@ -562,7 +562,25 @@ const
   'аче добавляет инструкцию в промпт. Поддержка зависит от провайдера.",' +
   '  "Automatic retries (0-10)": "Автоповторы (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "Повторы после первой попытки; 0 отключает повторы. Только временные ошибки.",' +
-  '  "Automatic retries must be between 0 and 10": "Число автоповторов должно быть от 0 до 10"' +
+  '  "Automatic retries must be between 0 and 10": "Число автоповторов должно быть от 0 до 10",' +
+  '  "Accept summary": "Принять описание",' +
+  '  "Accept parameter {0}": "Принять параметр {0}",' +
+  '  "Accept return description": "Принять описание результата",' +
+  '  "Accept remarks": "Принять примечания",' +
+  '  "Suggested return description": "Предлагаемое описание результата",' +
+  '  "Suggested remarks": "Предлагаемые примечания",' +
+  '  "Reasons for documentation changes": "Причины изменений документации",' +
+  '  "Review documentation against code": "Проверить документацию по коду",' +
+  '  "Apply selected documentation": "Применить выбранные разделы",' +
+  '  "Queue selected methods for AI": "Добавить выбранные методы в очередь AI",' +
+  '  "Skip and open next method": "Пропустить и открыть следующий метод",' +
+  '  "Cancel AI queue": "Отменить очередь AI",' +
+  '  "AI queue: {0}/{1}": "Очередь AI: {0}/{1}",' +
+  '  "AI queue completed": "Очередь AI завершена",' +
+  '  "Select writable methods for the AI queue": "Выберите доступные для записи методы для очереди AI",' +
+  '  "The queued method could not be opened. Skip it or cancel the queue.": "Не удалось открыть метод из очереди. Пропустите его или отмените очередь.",' +
+  '  "AI response requires a text summary": "Ответ AI должен содержать текстовое поле summary",' +
+  '  "AI response requires an uncertainties array": "Ответ AI должен содержать массив uncertainties"' +
   '}';
  CLocale_zh =
   '{' +
@@ -1122,7 +1140,25 @@ const
   '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "优先使用受支持的非推理模型，否则添加提示词指令。具体支持取决于提供商。",' +
   '  "Automatic retries (0-10)": "自动重试次数 (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "首次尝试后的重试次数；0 表示禁用。仅重试临时错误。",' +
-  '  "Automatic retries must be between 0 and 10": "自动重试次数必须介于 0 和 10 之间"' +
+  '  "Automatic retries must be between 0 and 10": "自动重试次数必须介于 0 和 10 之间",' +
+  '  "Accept summary": "接受摘要",' +
+  '  "Accept parameter {0}": "接受参数 {0}",' +
+  '  "Accept return description": "接受返回值描述",' +
+  '  "Accept remarks": "接受备注",' +
+  '  "Suggested return description": "建议的返回值描述",' +
+  '  "Suggested remarks": "建议的备注",' +
+  '  "Reasons for documentation changes": "文档修改原因",' +
+  '  "Review documentation against code": "根据代码检查文档",' +
+  '  "Apply selected documentation": "应用所选文档部分",' +
+  '  "Queue selected methods for AI": "将所选方法加入 AI 队列",' +
+  '  "Skip and open next method": "跳过并打开下一个方法",' +
+  '  "Cancel AI queue": "取消 AI 队列",' +
+  '  "AI queue: {0}/{1}": "AI 队列：{0}/{1}",' +
+  '  "AI queue completed": "AI 队列已完成",' +
+  '  "Select writable methods for the AI queue": "请选择可编辑的方法加入 AI 队列",' +
+  '  "The queued method could not be opened. Skip it or cancel the queue.": "无法打开队列中的方法。请跳过或取消队列。",' +
+  '  "AI response requires a text summary": "AI 响应必须包含文本 summary 字段",' +
+  '  "AI response requires an uncertainties array": "AI 响应必须包含 uncertainties 数组"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1684,7 +1720,25 @@ const
   '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "지원되는 비추론 모델이 있으면 사용하고, 없으면 프롬프트 지침을 추가합니다. 지원 여부는 제공업체에 따라 다릅니다.",' +
   '  "Automatic retries (0-10)": "자동 재시도 횟수 (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "첫 시도 이후의 재시도 횟수입니다. 0이면 비활성화됩니다. 일시적 오류만 재시도합니다.",' +
-  '  "Automatic retries must be between 0 and 10": "자동 재시도 횟수는 0에서 10 사이여야 합니다"' +
+  '  "Automatic retries must be between 0 and 10": "자동 재시도 횟수는 0에서 10 사이여야 합니다",' +
+  '  "Accept summary": "요약 적용",' +
+  '  "Accept parameter {0}": "매개변수 {0} 적용",' +
+  '  "Accept return description": "반환값 설명 적용",' +
+  '  "Accept remarks": "설명 적용",' +
+  '  "Suggested return description": "제안된 반환값 설명",' +
+  '  "Suggested remarks": "제안된 설명",' +
+  '  "Reasons for documentation changes": "문서 변경 이유",' +
+  '  "Review documentation against code": "코드와 문서 비교",' +
+  '  "Apply selected documentation": "선택한 문서 적용",' +
+  '  "Queue selected methods for AI": "선택한 메서드를 AI 대기열에 추가",' +
+  '  "Skip and open next method": "건너뛰고 다음 메서드 열기",' +
+  '  "Cancel AI queue": "AI 대기열 취소",' +
+  '  "AI queue: {0}/{1}": "AI 대기열: {0}/{1}",' +
+  '  "AI queue completed": "AI 대기열 완료",' +
+  '  "Select writable methods for the AI queue": "AI 대기열에 추가할 편집 가능한 메서드를 선택하세요",' +
+  '  "The queued method could not be opened. Skip it or cancel the queue.": "대기열의 메서드를 열 수 없습니다. 건너뛰거나 대기열을 취소하세요.",' +
+  '  "AI response requires a text summary": "AI 응답에는 summary 텍스트 필드가 필요합니다",' +
+  '  "AI response requires an uncertainties array": "AI 응답에는 uncertainties 배열이 필요합니다"' +
   '}';
  CLocale_ja =
   '{' +
@@ -2245,5 +2299,23 @@ const
   '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "対応する非推論モデルがあれば使用し、なければプロンプトに指示を追加します。対応状況はプロバイダーによって異なります。",' +
   '  "Automatic retries (0-10)": "自動再試行回数 (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "初回の試行後の再試行回数です。0 で無効。一時的なエラーのみ再試行します。",' +
-  '  "Automatic retries must be between 0 and 10": "自動再試行回数は 0 から 10 の間で指定してください"' +
+  '  "Automatic retries must be between 0 and 10": "自動再試行回数は 0 から 10 の間で指定してください",' +
+  '  "Accept summary": "概要を適用",' +
+  '  "Accept parameter {0}": "パラメーター {0} を適用",' +
+  '  "Accept return description": "戻り値の説明を適用",' +
+  '  "Accept remarks": "補足説明を適用",' +
+  '  "Suggested return description": "提案された戻り値の説明",' +
+  '  "Suggested remarks": "提案された補足説明",' +
+  '  "Reasons for documentation changes": "ドキュメントの変更理由",' +
+  '  "Review documentation against code": "コードとドキュメントを照合",' +
+  '  "Apply selected documentation": "選択したドキュメントを適用",' +
+  '  "Queue selected methods for AI": "選択したメソッドを AI キューに追加",' +
+  '  "Skip and open next method": "スキップして次のメソッドを開く",' +
+  '  "Cancel AI queue": "AI キューをキャンセル",' +
+  '  "AI queue: {0}/{1}": "AI キュー: {0}/{1}",' +
+  '  "AI queue completed": "AI キューが完了しました",' +
+  '  "Select writable methods for the AI queue": "AI キューに追加する編集可能なメソッドを選択してください",' +
+  '  "The queued method could not be opened. Skip it or cancel the queue.": "キュー内のメソッドを開けませんでした。スキップするかキューをキャンセルしてください。",' +
+  '  "AI response requires a text summary": "AI 応答には summary テキストフィールドが必要です",' +
+  '  "AI response requires an uncertainties array": "AI 応答には uncertainties 配列が必要です"' +
   '}';

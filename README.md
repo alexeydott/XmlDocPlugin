@@ -127,7 +127,7 @@ embedded dictionaries for consistency before compiling.
 ### AI assistant
 ![AI documentation review with parameter descriptions](docs/assets/user-guide/ai-proposal.png)
 
-Review summaries and parameters before Apply. Configure profiles, thinking control and automatic retries in [AI settings](docs/user-guide.md#configure-a-connection).
+Accept summary, individual parameters, returns and remarks separately; review documentation against code or process a selected-method queue. Configure profiles, thinking control and automatic retries in [AI settings](docs/user-guide.md#configure-a-connection).
 
 ## Features
 
@@ -142,7 +142,7 @@ indexed records so inherited comments reflect updated dependencies.
 
 ### IDE Plugin (BPL)
 
-- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with TOON context, optional request preview, configurable thinking control and automatic retries, cancellation, HTML cleanup and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).
+- **AI assistant** — Describe methods, review comments against current code, accept individual sections, or process a selected-method queue using configurable OpenAI-compatible profiles and prompts, with TOON context, optional request preview, configurable thinking control and automatic retries, cancellation, HTML cleanup and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).
 
 
 - **Doc Inspector** — A docking panel that provides real-time editing of XML documentation for the code element at the cursor position

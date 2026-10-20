@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Force $EvidenceDir | Out-Null
 Push-Location $repo
 try {
  & tests/Test-Version.ps1
+ & tests/ai-quality/Test-Quality.ps1 -Bds @($Rad11,$Rad12,$Rad13) -EvidenceDir "$EvidenceDir\ai-quality"
  & npm test --prefix web *> "$EvidenceDir\web-tests.log"
  if($LASTEXITCODE){throw 'Browser unit and fuzz tests failed'}
  & tests/Test-AIToon.ps1 -Bds $Rad11 -EvidenceDir "$EvidenceDir\toon-rad11"

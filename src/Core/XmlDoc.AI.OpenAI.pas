@@ -8,7 +8,7 @@ function BuildAIRequest(const Profile:TAIProfile;const Prompt:TAIPrompt;const Co
 function ParseAIResponse(const Response:TAIHttpResponse):TAIProposal;
 function ExecuteAI(const Transport:IAITransport;const Request:TAIHttpRequest;const WaitRetry:TProc<Integer>=nil):TAIProposal;
 implementation
-uses System.JSON,System.Classes,System.Net.URLClient,XmlDoc.AI.Text;
+uses System.JSON,System.Classes,System.StrUtils,System.Net.URLClient,XmlDoc.AI.Text;
 procedure ValidateAIProfileIdentity(const Profile:TAIProfile;const Existing:TArray<TAIProfile>);
 var URL:string;UnchangedConnection:Boolean;
 begin
@@ -46,9 +46,9 @@ begin
  if Profile.Authorization='bearer' then begin
   if (Trim(Key)='') or Key.Contains(#10) or Key.Contains(#13) then raise EAIError.Create('API key is required');Result.Authorization:='Bearer '+Key;
  end else if Profile.Authorization<>'none' then raise EAIError.Create('Unsupported authorization mode');
- if (Trim(Context.Signature)='') or ((Prompt.Operation=aoDescribe) and (Trim(Context.Code)='')) then raise EAIError.Create('Method implementation is required');
+ if (Trim(Context.Signature)='') or ((Prompt.Operation<>aoRephrase) and (Trim(Context.Code)='')) then raise EAIError.Create('Method implementation is required');
  if (Prompt.Operation=aoRephrase) and (Trim(Context.Documentation)='') then raise EAIError.Create('Summary is empty');
- if (Prompt.Operation=aoDescribe) and (not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'implementation') or
+ if (Prompt.Operation<>aoRephrase) and (not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'implementation') or
    not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'signature')) then raise EAIError.Create('Template must include signature and implementation');
  if (Prompt.Operation=aoRephrase) and not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'documentation') then raise EAIError.Create('Template must include existing documentation');
  SystemText:=ExpandPrompt(Prompt.SystemText,Context,Profile.Language);UserText:=ExpandPrompt(Prompt.UserText,Context,Profile.Language);
@@ -115,9 +115,18 @@ begin
   if Trim(Message.GetValue<string>('content'))='' then raise EAIError.Create('AI message content is missing');
   Value:=CheckedJSON(Message.GetValue<string>('content'));
   if not (Value is TJSONObject) then raise EAIError.Create('Invalid proposal JSON');Content:=Value as TJSONObject;
-  if ((Content.Count<>2) and (Content.Count<>3)) or not (Content.GetValue('summary') is TJSONString) or not (Content.GetValue('uncertainties') is TJSONArray) then raise EAIError.Create('Invalid proposal contract');
+  for var Pair in Content do if not MatchText(Pair.JsonString.Value,['summary','uncertainties','parameters','returns','remarks','changes']) then raise EAIError.Create('Invalid proposal contract');
+  if not (Content.GetValue('summary') is TJSONString) then raise EAIError.Create('AI response requires a text summary');
+  if not (Content.GetValue('uncertainties') is TJSONArray) then raise EAIError.Create('AI response requires an uncertainties array');
+  Result.HasReturns:=Assigned(Content.GetValue('returns'));Result.HasRemarks:=Assigned(Content.GetValue('remarks'));
+  if Result.HasReturns then begin if not (Content.GetValue('returns') is TJSONString) then raise EAIError.Create('Invalid proposal contract');Result.Returns:=CleanAIText(Content.GetValue<string>('returns'));end;
+  if Result.HasRemarks then begin if not (Content.GetValue('remarks') is TJSONString) then raise EAIError.Create('Invalid proposal contract');Result.Remarks:=CleanAIText(Content.GetValue<string>('remarks'));end;
+  if Assigned(Content.GetValue('changes')) then begin
+   if not (Content.GetValue('changes') is TJSONArray) then raise EAIError.Create('Invalid proposal contract');
+   for var Item in Content.GetValue<TJSONArray>('changes') do begin if not (Item is TJSONString) then raise EAIError.Create('Invalid proposal contract');Result.Changes:=Result.Changes+[Item.Value];end;
+  end;
   Result.Summary:=CleanAIText(Content.GetValue<string>('summary'));if Trim(Result.Summary)='' then raise EAIError.Create('AI summary is empty');
-  if Content.Count=3 then begin
+  if Assigned(Content.GetValue('parameters')) then begin
    var Parameters:=Content.GetValue<TJSONArray>('parameters');
    for var Item in Parameters do begin
     if not (Item is TJSONObject) or (TJSONObject(Item).Count<>2) or not (TJSONObject(Item).GetValue('name') is TJSONString) or not (TJSONObject(Item).GetValue('description') is TJSONString) then raise EAIError.Create('Invalid proposal contract');

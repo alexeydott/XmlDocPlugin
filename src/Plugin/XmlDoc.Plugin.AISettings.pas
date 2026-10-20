@@ -1,4 +1,4 @@
-﻿/// <summary>Persists connection profiles and prompt overrides while keeping API keys in Windows Credential Manager.</summary>
+/// <summary>Persists connection profiles and prompt overrides while keeping API keys in Windows Credential Manager.</summary>
 unit XmlDoc.Plugin.AISettings;
 interface
 uses System.SysUtils,System.JSON,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
@@ -15,9 +15,9 @@ procedure SaveAIPrompts(Prompts:TJSONArray;const ProjectDir:string);
 procedure ShowAISettings(const ProjectDir:string='');
 implementation
 uses ToolsAPI,System.Classes,System.IOUtils,System.Hash,System.StrUtils,Winapi.Windows,Winapi.WinCred,Vcl.Forms,Vcl.StdCtrls,Vcl.ExtCtrls,Vcl.Controls,Vcl.ComCtrls,Vcl.Dialogs,
- XmlDoc.AI.OpenAI,XmlDoc.Plugin.Localization,XmlDoc.I18n;
+ XmlDoc.AI.ProfileStore,XmlDoc.AI.OpenAI,XmlDoc.Plugin.Localization,XmlDoc.I18n;
 function AIConfigurationPath:string;
-begin Result:=GetEnvironmentVariable('XMLDOC_AI_CONFIG');if Result='' then Result:=TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'),'XmlDocPlugin\ai.json') else Result:=TPath.GetFullPath(Result);end;
+begin Result:=XmlDoc.AI.ProfileStore.AIConfigurationPath;end;
 function ReadConfigObject(const Path:string):TJSONObject;
 var Value:TJSONValue;
 begin
@@ -26,14 +26,7 @@ begin
  Result:=Value as TJSONObject;
 end;
 function LoadAIConfiguration:TJSONObject;
-var Value:TJSONValue;
-begin
- Result:=nil;Value:=nil;
- if TFile.Exists(AIConfigurationPath) then begin
-  Result:=ReadConfigObject(AIConfigurationPath);
- end else Result:=TJSONObject.Create.AddPair('version',TJSONNumber.Create(1)).AddPair('profiles',TJSONArray.Create);
- try if (Result.GetValue<Integer>('version',0)<>1) or not (Result.GetValue('profiles') is TJSONArray) then raise EAIError.Create('Unsupported AI configuration version');except Result.Free;raise;end;
-end;
+begin Result:=XmlDoc.AI.ProfileStore.LoadAIConfiguration;end;
 procedure AtomicJson(const Path:string;Value:TJSONObject);
 var Temp:string;
 begin
@@ -43,28 +36,16 @@ end;
 procedure SaveAIConfiguration(Config:TJSONObject);
 begin AtomicJson(AIConfigurationPath,Config);end;
 function AIProfileFromJson(Json:TJSONObject):TAIProfile;
-begin
- Result:=TAIProfile.Defaults;Result.Id:=Json.GetValue<string>('id','');Result.Name:=Json.GetValue<string>('name','Default');
- Result.Endpoint:=Json.GetValue<string>('endpoint',Result.Endpoint);Result.RequestPath:=Json.GetValue<string>('path',Result.RequestPath);
- Result.Model:=Json.GetValue<string>('model','');Result.Language:=Json.GetValue<string>('language',Result.Language);
- Result.Authorization:=Json.GetValue<string>('authorization',Result.Authorization);Result.TimeoutMs:=Json.GetValue<Integer>('timeoutMs',Result.TimeoutMs);
- Result.MaxContextChars:=Json.GetValue<Integer>('maxContextChars',Result.MaxContextChars);Result.MaxResponseBytes:=Json.GetValue<Integer>('maxResponseBytes',Result.MaxResponseBytes);
- Result.OutputLimitParameter:=Json.GetValue<string>('outputLimitParameter','');Result.MaxOutputTokens:=Json.GetValue<Integer>('maxOutputTokens',0);Result.JsonMode:=Json.GetValue<Boolean>('jsonMode',False);Result.DisableThinking:=Json.GetValue<Boolean>('disableThinking',False);Result.RetryCount:=Json.GetValue<Integer>('retryCount',3);
-end;
+begin Result:=XmlDoc.AI.ProfileStore.AIProfileFromJson(Json);end;
 function AIProfileJson(const Profile:TAIProfile):TJSONObject;
 begin
  Result:=TJSONObject.Create.AddPair('id',Profile.Id).AddPair('name',Profile.Name).AddPair('endpoint',Profile.Endpoint).AddPair('path',Profile.RequestPath).AddPair('model',Profile.Model).AddPair('language',Profile.Language).AddPair('authorization',Profile.Authorization);
  Result.AddPair('timeoutMs',TJSONNumber.Create(Profile.TimeoutMs)).AddPair('maxContextChars',TJSONNumber.Create(Profile.MaxContextChars)).AddPair('maxResponseBytes',TJSONNumber.Create(Profile.MaxResponseBytes)).AddPair('outputLimitParameter',Profile.OutputLimitParameter).AddPair('maxOutputTokens',TJSONNumber.Create(Profile.MaxOutputTokens)).AddPair('jsonMode',TJSONBool.Create(Profile.JsonMode)).AddPair('disableThinking',TJSONBool.Create(Profile.DisableThinking)).AddPair('retryCount',TJSONNumber.Create(Profile.RetryCount));
 end;
 function AICredentialTarget(const Profile:TAIProfile):string;
-begin Result:='XmlDocPlugin/AI/'+THashSHA2.GetHashString(Profile.Id+#0+AIRequestURL(Profile.Endpoint,Profile.RequestPath));end;
+begin Result:=XmlDoc.AI.ProfileStore.AICredentialTarget(Profile);end;
 function ReadAIKey(const Profile:TAIProfile):string;
-var Credential:PCREDENTIALW;Name:string;
-begin
- Result:='';Name:=AICredentialTarget(Profile);
- if CredReadW(PChar(Name),CRED_TYPE_GENERIC,0,Credential) then
- try SetString(Result,PChar(Credential.CredentialBlob),Credential.CredentialBlobSize div SizeOf(Char));finally CredFree(Credential);end;
-end;
+begin Result:=XmlDoc.AI.ProfileStore.ReadAIKey(Profile);end;
 procedure WriteAIKey(const Profile:TAIProfile;const Key:string);
 var Credential:CREDENTIALW;Name,User:string;
 begin
@@ -87,19 +68,19 @@ begin
    if not (Value is TJSONObject) then raise EAIError.Create('Invalid AI template');var Item:=Value as TJSONObject;
    for var Key in ['id','name','operation','system','user'] do if not (Item.GetValue(Key) is TJSONString) then raise EAIError.Create('Invalid AI template');
    if (Item.Count<>5) or (Item.GetValue<string>('id')='') or (Item.GetValue<string>('name')='') or (Length(Item.GetValue<string>('id'))>128) or (IDs.IndexOf(Item.GetValue<string>('id'))>=0) then raise EAIError.Create('Invalid AI template');
-   if (Item.GetValue<string>('operation')<>'describe') and (Item.GetValue<string>('operation')<>'rephrase') then raise EAIError.Create('Invalid AI template');
+   if not MatchText(Item.GetValue<string>('operation'),['describe','rephrase','review']) then raise EAIError.Create('Invalid AI template');
    if Trim(Item.GetValue<string>('user'))='' then raise EAIError.Create('Invalid AI template');
    IDs.Add(Item.GetValue<string>('id'));ExpandPrompt(Item.GetValue<string>('system'),Context,'validation');ExpandPrompt(Item.GetValue<string>('user'),Context,'validation');
   end;
  finally IDs.Free;end;
 end;
 function AIPrompts(const ProjectDir:string):TJSONArray;
-var Config:TJSONObject;Global,Local:TJSONArray;FileName,Id:string;ReplaceIndex:Integer;
+var Config:TJSONObject;Global,Local:TJSONArray;FileName,Id:string;ReplaceIndex:Integer;VisitedGlobal:Boolean;
 begin
- Result:=TJSONArray.Create;Result.AddElement(PromptJson(aoDescribe));Result.AddElement(PromptJson(aoRephrase));
+ Result:=TJSONArray.Create;Result.AddElement(PromptJson(aoDescribe));Result.AddElement(PromptJson(aoRephrase));Result.AddElement(PromptJson(aoReview));VisitedGlobal:=False;
  try
   for var Scope in ['',ProjectDir] do begin
-   if (Scope='') and (ProjectDir='') and (Result.Count>2) then Break;
+   if Scope='' then begin if VisitedGlobal then Continue;VisitedGlobal:=True;end;
    Config:=nil;
    try
     if Scope='' then Config:=LoadAIConfiguration else begin FileName:=TPath.Combine(Scope,'.xmldocplugin.json');if TFile.Exists(FileName) then Config:=ReadConfigObject(FileName);end;
@@ -194,7 +175,8 @@ begin
  Page:=TTabSheet.Create(Self);Page.ScaleForPPI(96);Page.PageControl:=Pages;Page.Caption:='Prompt templates';PromptScroll:=TScrollBox.Create(Self);PromptScroll.ScaleForPPI(96);PromptScroll.Name:='AIPromptsScroll';PromptScroll.Parent:=Page;PromptScroll.Align:=alClient;PromptScroll.BorderStyle:=bsNone;TemplateList:=TComboBox.Create(Self);TemplateList.ScaleForPPI(96);TemplateList.Parent:=Page;TemplateList.SetBounds(16,12,370,24);TemplateList.Style:=csDropDownList;TemplateList.OnChange:=TemplateChanged;
  for var Item in Templates do TemplateList.Items.Add(TI18n.Instance.T((Item as TJSONObject).GetValue<string>('name')));
  AddButton(Page,'Duplicate template',410,10,NewTemplate);AddButton(Page,'Restore built-in',600,10,ResetTemplate);
- TemplateName:=TEdit.Create(Self);TemplateName.ScaleForPPI(96);TemplateName.Parent:=Page;TemplateName.SetBounds(16,52,370,24);Operation:=TComboBox.Create(Self);Operation.ScaleForPPI(96);Operation.Parent:=Page;Operation.SetBounds(410,52,200,24);Operation.Style:=csDropDownList;Operation.Items.Add(TI18n.Instance.T('Describe method from code'));Operation.Items.Add(TI18n.Instance.T('Rephrase summary'));
+ TemplateName:=TEdit.Create(Self);TemplateName.ScaleForPPI(96);TemplateName.Parent:=Page;TemplateName.SetBounds(16,52,370,24);Operation:=TComboBox.Create(Self);Operation.ScaleForPPI(96);Operation.Parent:=Page;Operation.SetBounds(410,52,200,24);Operation.Style:=csDropDownList;Operation.Items.Add(TI18n.Instance.T('Describe method from code'));Operation.Items.Add(TI18n.Instance.T('Rephrase summary'));Operation.Items.Add(TI18n.Instance.T('Review documentation against code'));
+ Canvas.Font.Assign(Operation.Font);for var CaptionText in Operation.Items do begin var RequiredWidth:=Canvas.TextWidth(CaptionText)+36;if RequiredWidth>Operation.Width then Operation.Width:=RequiredWidth;end;
  SystemPrompt:=TMemo.Create(Self);SystemPrompt.ScaleForPPI(96);SystemPrompt.Name:='AISystemPrompt';SystemPrompt.Parent:=Page;SystemPrompt.SetBounds(16,92,780,135);SystemPrompt.ScrollBars:=ssVertical;SystemPrompt.Hint:='System instruction';SystemPrompt.ShowHint:=True;
  UserPrompt:=TMemo.Create(Self);UserPrompt.ScaleForPPI(96);UserPrompt.Name:='AIUserPrompt';UserPrompt.Parent:=Page;UserPrompt.SetBounds(16,240,780,245);UserPrompt.ScrollBars:=ssVertical;UserPrompt.Hint:='User prompt';UserPrompt.ShowHint:=True;
  ProjectScope:=TCheckBox.Create(Self);ProjectScope.ScaleForPPI(96);ProjectScope.Parent:=Page;ProjectScope.SetBounds(16,500,780,24);ProjectScope.Caption:='Save templates as project overrides';ProjectScope.Enabled:=ProjectDir<>'';
@@ -332,7 +314,7 @@ procedure TAISettingsForm.ClearKey(Sender:TObject);
 begin if Profiles.ItemIndex>=0 then WriteAIKey(AIProfileFromJson(Config.GetValue<TJSONArray>('profiles')[Profiles.ItemIndex] as TJSONObject),'');KeyEdit.Clear;end;
 procedure TAISettingsForm.TemplateChanged(Sender:TObject);
 var P:TJSONObject;
-begin if TemplateList.ItemIndex<0 then Exit;P:=Templates[TemplateList.ItemIndex] as TJSONObject;TemplateName.Text:=P.GetValue<string>('name');if P.GetValue<string>('operation')='describe' then Operation.ItemIndex:=0 else Operation.ItemIndex:=1;SystemPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('system'));UserPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('user'));end;
+begin if TemplateList.ItemIndex<0 then Exit;P:=Templates[TemplateList.ItemIndex] as TJSONObject;TemplateName.Text:=P.GetValue<string>('name');if P.GetValue<string>('operation')='describe' then Operation.ItemIndex:=0 else if P.GetValue<string>('operation')='review' then Operation.ItemIndex:=2 else Operation.ItemIndex:=1;SystemPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('system'));UserPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('user'));end;
 procedure TAISettingsForm.NewTemplate(Sender:TObject);
 var P:TJSONObject;
 begin P:=Templates[TemplateList.ItemIndex].Clone as TJSONObject;P.RemovePair('id').Free;P.AddPair('id',TGUID.NewGuid.ToString);P.RemovePair('name').Free;P.AddPair('name',TemplateName.Text+' (copy)');Templates.AddElement(P);TemplateList.Items.Add(P.GetValue<string>('name'));TemplateList.ItemIndex:=Templates.Count-1;TemplateChanged(nil);end;
@@ -344,7 +326,7 @@ var Context:TAIContext;P:TJSONObject;
 begin
  try
   Context:=Default(TAIContext);Context.Signature:='validation';Context.Code:='validation';ExpandPrompt(SystemPrompt.Text,Context,'validation');ExpandPrompt(UserPrompt.Text,Context,'validation');
-  P:=Templates[TemplateList.ItemIndex] as TJSONObject;P.RemovePair('name').Free;P.AddPair('name',TemplateName.Text);P.RemovePair('operation').Free;P.AddPair('operation',IfThen(Operation.ItemIndex=0,'describe','rephrase'));P.RemovePair('system').Free;P.AddPair('system',SystemPrompt.Text);P.RemovePair('user').Free;P.AddPair('user',UserPrompt.Text);
+  P:=Templates[TemplateList.ItemIndex] as TJSONObject;P.RemovePair('name').Free;P.AddPair('name',TemplateName.Text);P.RemovePair('operation').Free;var BuiltIn:=TAIPrompt.BuiltIn(TAIOperation(Operation.ItemIndex));P.AddPair('operation',BuiltIn.Id);P.RemovePair('system').Free;P.AddPair('system',SystemPrompt.Text);P.RemovePair('user').Free;P.AddPair('user',UserPrompt.Text);
   SaveAIPrompts(Templates,IfThen(ProjectScope.Checked,ProjectDir,''));TemplateList.Items[TemplateList.ItemIndex]:=TemplateName.Text;
  except on E:Exception do ShowMessage(TI18n.Instance.T(E.Message));end;
 end;

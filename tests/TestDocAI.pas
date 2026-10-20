@@ -17,6 +17,8 @@ type [TestFixture] TDocAITests=class
  [Test] procedure ToonMethodRequests;
  [Test] procedure HTMLProseCleanup;
  [Test] procedure ReviewRegressionContracts;
+ [Test] procedure IndependentSectionProposals;
+ [Test] procedure XMLSectionRoundTrips;
  end;
 implementation
 uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.AI.Text,XmlDoc.AI.Toon,XmlDoc.Model,XmlDoc.SourceAccess;
@@ -201,7 +203,7 @@ begin
  try
   for var Value in Corpus.GetValue<TJSONArray>('cases') do begin
    var Item:=Value as TJSONObject;var FileName:=TPath.GetFullPath(Item.GetValue<string>('file'));Parser.ParseSource(TFile.ReadAllText(FileName,TEncoding.UTF8),FileName);Count:=0;
-   for var Element in Parser.GetAllElements do if (Element.Name=Item.GetValue<string>('method')) and (Element.SourceSection='interface') then begin
+   for var Element in Parser.GetAllElements do if (Element.Name=Item.GetValue<string>('method')) and (Element.SourceSection='interface') and ((Item.GetValue<string>('parameterType','')='') or ((Length(Element.Params)>0) and SameText(Element.Params[0].TypeName,Item.GetValue<string>('parameterType','')))) then begin
     Context:=CaptureMethodContext(Parser,Element,'','','');Assert.IsTrue(Context.Code.Contains(Item.GetValue<string>('method')));Assert.IsTrue(Context.Code.EndsWith(';'));Inc(Count);
    end;
    Assert.AreEqual(1,Count,Item.GetValue<string>('id'));
@@ -260,6 +262,37 @@ begin
  Assert.AreEqual('22.0',RADVersionForCompiler(35));Assert.AreEqual('23.0',RADVersionForCompiler(36));Assert.AreEqual('37.0',RADVersionForCompiler(37));
  Assert.IsTrue(TFile.Exists(TPath.Combine(CurrentRADRoot,'source\rtl\sys\System.pas')));
  Assert.IsTrue(IsCompilerSource(TPath.Combine(CurrentRADRoot,'source\rtl\sys\System.pas')));
+end;
+procedure TDocAITests.IndependentSectionProposals;
+var Payload,Envelope:TJSONObject;Response:TAIHttpResponse;Proposal:TAIProposal;Context:TAIContext;Profile:TAIProfile;
+begin
+ Payload:=TJSONObject.Create.AddPair('summary','Supported summary').AddPair('returns','<p>Computed result.</p>').AddPair('remarks','Side effect established by code.').AddPair('changes',TJSONArray.Create(TJSONString.Create('The return value is now checked.'))).AddPair('uncertainties',TJSONArray.Create);
+ try
+  Envelope:=TJSONObject.Create.AddPair('choices',TJSONArray.Create(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',TJSONObject.Create.AddPair('content',Payload.ToJSON))));
+  try Response.Status:=200;Response.Body:=Envelope.ToJSON;Proposal:=ParseAIResponse(Response);finally Envelope.Free;end;
+  Assert.IsTrue(Proposal.HasReturns and Proposal.HasRemarks);Assert.AreEqual('Computed result.',Proposal.Returns);Assert.AreEqual('Side effect established by code.',Proposal.Remarks);Assert.AreEqual<NativeInt>(1,Length(Proposal.Changes));
+  Payload.AddPair('unexpected','must not be accepted');Envelope:=TJSONObject.Create.AddPair('choices',TJSONArray.Create(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',TJSONObject.Create.AddPair('content',Payload.ToJSON))));
+  try Response.Body:=Envelope.ToJSON;Assert.WillRaise(procedure begin ParseAIResponse(Response);end,EAIError);finally Envelope.Free;end;
+ finally Payload.Free;end;
+ Context:=Default(TAIContext);Context.Signature:='function Run:Integer';Context.Code:='begin Result:=1;end;';Profile:=TAIProfile.Defaults;Profile.Model:='test';Profile.Authorization:='none';
+ BuildAIRequest(Profile,TAIPrompt.BuiltIn(aoReview),Context,'');Context.Code:='';
+ Assert.WillRaise(procedure begin BuildAIRequest(Profile,TAIPrompt.BuiltIn(aoReview),Context,'');end,EAIError);
+ Assert.IsTrue(TAIPrompt.BuiltIn(aoReview).SystemText.Contains('minimal necessary corrections'));
+end;
+procedure TDocAITests.XMLSectionRoundTrips;
+var Fragments:TArray<TAIProtectedFragment>;Protected,Restored,Source,Tag:string;Seed:Cardinal;
+begin
+ for Source in ['<para-note role="x">Keep this contract.</para-note>','<para2>Keep</para2>','<br2>Keep</br2>','<b><para>A</para><para>B</para></b>'] do begin
+  Protected:=ProtectSummary(Source,Fragments);Restored:=RestoreSummary(Protected,Fragments);Assert.AreEqual(Source,Restored,False);
+ end;
+ Protected:=ProtectSummary('First<br/>Second',Fragments);Restored:=RestoreSummary(Protected,Fragments);
+ Assert.AreEqual(Restored,RestoreSummary(ProtectSummary('First<br></br>Second',Fragments),Fragments));
+ Seed:=919;
+ for var Round:=0 to 199 do begin
+  Seed:=Seed*1664525+1013904223;Tag:='para-'+UIntToStr(Seed);if Odd(Round) then Tag:='br'+UIntToStr(Seed);
+  Source:='<'+Tag+' role="keep">Contract '+UIntToStr(Seed)+'</'+Tag+'>';
+  Protected:=ProtectSummary(Source,Fragments);Assert.AreEqual(Source,RestoreSummary(Protected,Fragments),False);
+ end;
 end;
 initialization TDUnitX.RegisterTestFixture(TDocAITests);
 end.

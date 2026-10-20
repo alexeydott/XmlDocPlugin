@@ -7,6 +7,7 @@
 | [XmlDoc.AI.Context](units/XmlDoc.AI.Context.md) | Captures the exact method implementation and project dependencies used by an AI request. |
 | [XmlDoc.AI.Contracts](units/XmlDoc.AI.Contracts.md) | Shared request, context, transport and reviewable proposal contracts for AI documentation. |
 | [XmlDoc.AI.OpenAI](units/XmlDoc.AI.OpenAI.md) | Validates profiles, builds OpenAI-compatible requests and checks JSON proposal responses. |
+| [XmlDoc.AI.ProfileStore](units/XmlDoc.AI.ProfileStore.md) | Reads AI profiles and scoped credentials without IDE or form dependencies. |
 | [XmlDoc.AI.Prompts](units/XmlDoc.AI.Prompts.md) | Built-in description and rephrasing prompts, variable expansion and protected XML tokens. |
 | [XmlDoc.AI.Text](units/XmlDoc.AI.Text.md) | Removes provider HTML from AI prose and emits safe XML paragraphs without executing markup. |
 | [XmlDoc.AI.Toon](units/XmlDoc.AI.Toon.md) | Lossless TOON encoding of the string, object and array shapes used by AI method context. |

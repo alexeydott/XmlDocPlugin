@@ -1,4 +1,4 @@
-﻿unit WorkbenchProbe;
+unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
@@ -119,7 +119,7 @@ begin
 end;
 function TAIProbeTransport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
 begin
- if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('TDocumented.NoBody') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
+ if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('TDocumented.NoBody') and not Request.Body.Contains('TDocumented.Calculate') and not Request.Body.Contains('TSecond.Run') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
  if Request.Body.Contains('XML rephrase fixture') and
    (not Request.Body.Contains('Editable prose') or not Request.Body.Contains('bold wording')) then
    raise Exception.Create('Formatting markup hid editable prose from the AI request');
@@ -127,12 +127,20 @@ begin
  for var I:=0 to Steps do begin if TInterlocked.CompareExchange(FCancelled,0,0)<>0 then raise Exception.Create('AI request cancelled');Sleep(10);end;
  var Summary:='Returns immediately when the supplied value is empty.';var Seen:=TStringList.Create;var Root:=TJSONObject.Create;
  try
-  for var Match in TRegEx.Matches(Request.Body,'__XMLDOC_[0-9a-fA-F]+_[0-9]+__') do if Seen.IndexOf(Match.Value)<0 then begin Seen.Add(Match.Value);Summary:=Summary+' '+Match.Value;end;
+  var SummaryPrefix:='';for var Match in TRegEx.Matches(Request.Body,'__XMLDOC_[0-9a-fA-F]+_[0-9]+__') do begin
+   var Prefix:=Copy(Match.Value,1,LastDelimiter('_',Copy(Match.Value,1,Length(Match.Value)-2)));
+   if SummaryPrefix='' then SummaryPrefix:=Prefix;
+   if (Prefix=SummaryPrefix) and (Seen.IndexOf(Match.Value)<0) then begin Seen.Add(Match.Value);Summary:=Summary+' '+Match.Value;end;end;
   if Request.Body.Contains('HTML cleanup fixture') then begin
    Summary:='<p class="provider">First <b>formatted</b> paragraph.</p><p>Second paragraph.</p><script>providerHtmlFixture()</script><style>.provider{color:red}</style>';
    for var Token in Seen do Summary:=Summary+Token;
   end;
   var Content:=TJSONObject.Create.AddPair('summary',Summary).AddPair('uncertainties',TJSONArray.Create(TJSONString.Create('Ownership is not specified.'))).AddPair('parameters',TJSONArray.Create(TJSONObject.Create.AddPair('name','Value').AddPair('description','Input text to process.')));
+  if Request.Body.Contains('TDocumented.Calculate') then begin
+   Content.RemovePair('summary').Free;Content.AddPair('summary','Proposed calculation summary.');
+   Content.RemovePair('parameters').Free;Content.AddPair('parameters',TJSONArray.Create(TJSONObject.Create.AddPair('name','Value').AddPair('description','Reviewed first operand.'),TJSONObject.Create.AddPair('name','Other').AddPair('description','Proposed second operand.')));
+   Content.AddPair('returns','The sum of Value and Other.').AddPair('remarks','Proposed calculation remarks.').AddPair('changes',TJSONArray.Create(TJSONString.Create('The result is computed by Value + Other.')));
+  end;
   try var Choices:=TJSONArray.Create;Root.AddPair('choices',Choices);Choices.AddElement(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',TJSONObject.Create.AddPair('content',Content.ToJSON)));Result.Status:=200;Result.Body:=Root.ToJSON;finally Content.Free;end;
  finally Root.Free;Seen.Free;end;
 end;
@@ -455,7 +463,7 @@ begin
     var Templates:=AIPrompts('');
     try
      var Custom:=Templates[0].Clone as TJSONObject;Custom.RemovePair('id').Free;Custom.AddPair('id','custom-describe');Custom.RemovePair('name').Free;Custom.AddPair('name','Detailed description');Templates.AddElement(Custom);SaveAIPrompts(Templates,'');SaveAIPrompts(Templates,Root);
-     var Reloaded:=AIPrompts(Root);try AssertTrue(Reloaded.Count=3,'Project/global AI templates did not merge');finally Reloaded.Free;end;
+     var Reloaded:=AIPrompts(Root);try AssertTrue(Reloaded.Count=4,'Project/global AI templates did not merge');finally Reloaded.Free;end;
      var Previous:=TFile.ReadAllText(AIConfigurationPath);Custom.RemovePair('user').Free;Custom.AddPair('user','{{unknown_variable}}');var Rejected:=False;
      try SaveAIPrompts(Templates,'');except on E:Exception do Rejected:=True;end;AssertTrue(Rejected and (TFile.ReadAllText(AIConfigurationPath)=Previous),'Invalid prompt changed saved configuration');
     finally Templates.Free;end;
@@ -519,6 +527,24 @@ begin
     end;
     AssertTrue(ReviewPos.Line>0,'Quick documentation review call missing');ReviewEditor.EditViews[0].SetCursorPos(ReviewPos);
     Inspector.HandleCursorChanged(ReviewPos.Line,ReviewSource,SampleFile);Browser.ExecuteScript('window.__reviewQuickReady=true;');
+   end
+   else if Action='review-calculate-checked' then begin
+    var CalcSource:=EditorSource(SourceEditorForFile(SampleFile));
+    AssertTrue(CalcSource.Contains('Adds two numbers.') and CalcSource.Contains('Reviewed first operand.') and CalcSource.Contains('Keep second parameter description.') and CalcSource.Contains('The sum of Value and Other.') and CalcSource.Contains('Keep local calculation remarks.'),'Independent AI selections did not reach OTA intact');
+    AssertTrue(not CalcSource.Contains('Proposed calculation summary.') and not CalcSource.Contains('Proposed second operand.') and not CalcSource.Contains('Proposed calculation remarks.'),'An unselected AI field was written');
+    Browser.ExecuteScript('window.__reviewCalculateChecked=true');Log('PASS independent AI summary, parameter, returns and remarks selection through OTA');
+   end
+   else if Action='review-queue-start' then begin
+    var P:=TDocParser.Create;try P.ParseSource(EditorSource(SourceEditorForFile(SecondFile)),SecondFile);
+     for var E in P.GetAllElements do if (E.Name='Run') and (E.SourceSection='interface') then begin
+      var Data:=TJSONObject.Create.AddPair('kind','method').AddPair('name',E.Name).AddPair('fileName',SecondFile).AddPair('symbolId',E.SymbolId).AddPair('lineNumber',TJSONNumber.Create(E.LineNumber));
+      try Browser.ExecuteScript('window.xmlDocAI.startQueue([window.xmlDocEditor.get().element,'+Data.ToJSON+']);');finally Data.Free;end;Break;
+     end;
+    finally P.Free;end;
+   end
+   else if Action='review-queue-checked' then begin
+    AssertTrue(EditorSource(SourceEditorForFile(SecondFile))=SecondInitial,'The queue applied an unreviewed proposal to another method');
+    Browser.ExecuteScript('window.__reviewQueueChecked=true');Log('PASS AI queue navigates methods, supports cancellation and never auto-applies');
    end
    else if Action='ai-close-pending' then begin
     Select(SampleFile,'Run','string');Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));

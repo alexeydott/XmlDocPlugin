@@ -1,7 +1,7 @@
-﻿/// <summary>Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE.</summary>
+/// <summary>Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE.</summary>
 unit XmlDoc.Plugin.AIAssistant;
 interface
-uses System.Classes,System.SysUtils,System.JSON,Vcl.ExtCtrls,XmlDoc.Plugin.Browser,XmlDoc.Parser,XmlDoc.Consts,
+uses System.Classes,System.SysUtils,System.JSON,System.Generics.Collections,Vcl.ExtCtrls,XmlDoc.Plugin.Browser,XmlDoc.Parser,XmlDoc.Consts,
  XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
 type
  /// <summary>Executes a prepared request outside the UI thread and exposes its proposal or error after completion.</summary>
@@ -19,12 +19,15 @@ type
  private
   FTimer:TTimer;FWorker:TAIWorker;FBrowser:TXmlDocBrowser;
   FPrepared:TAIHttpRequest;FContext:TAIContext;FFragments:TArray<TAIProtectedFragment>;
+  FSectionFragments:TDictionary<string,TArray<TAIProtectedFragment>>;FHasReturns,FHasRemarks:Boolean;
   FOriginal:TJSONObject;FRequestId,FFile,FSession,FError,FOriginalSummary:string;FTarget:TCodeElementInfo;
   FReady,FCheckOnly:Boolean;FOperation:TAIOperation;FParameterNames:TArray<string>;FTransportFactory:TFunc<IAITransport>;
   function NewTransport:IAITransport;
   function IsBusy:Boolean;
   function Capture(const Summary,Instruction:string):TAIContext;
   function Fresh:Boolean;
+  function ProtectSection(const Name,Text:string):string;
+  function RestoreSection(const Name,Text:string):string;
   procedure Reply(Value:TJSONObject);
   procedure Tick(Sender:TObject);
   procedure Stop;
@@ -58,9 +61,15 @@ begin Result:=Assigned(FWorker) and not FWorker.Finished;end;
 function TAIAssistant.NewTransport:IAITransport;
 begin if Assigned(FTransportFactory) then Result:=FTransportFactory() else Result:=TAIHTTPTransport.Create;end;
 constructor TAIAssistant.Create(AOwner:TComponent);
-begin inherited;FTimer:=TTimer.Create(Self);FTimer.Enabled:=False;FTimer.Interval:=30;FTimer.OnTimer:=Tick;end;
+begin inherited;FSectionFragments:=TDictionary<string,TArray<TAIProtectedFragment>>.Create;FTimer:=TTimer.Create(Self);FTimer.Enabled:=False;FTimer.Interval:=30;FTimer.OnTimer:=Tick;end;
 destructor TAIAssistant.Destroy;
-begin Stop;FOriginal.Free;inherited;end;
+begin Stop;FOriginal.Free;FSectionFragments.Free;inherited;end;
+function TAIAssistant.ProtectSection(const Name,Text:string):string;
+var Fragments:TArray<TAIProtectedFragment>;
+begin Result:=ProtectSummary(Text,Fragments);FSectionFragments.AddOrSetValue(LowerCase(Name),Fragments);end;
+function TAIAssistant.RestoreSection(const Name,Text:string):string;
+var Fragments:TArray<TAIProtectedFragment>;
+begin FSectionFragments.TryGetValue(LowerCase(Name),Fragments);Result:=RestoreSummary(Text,Fragments);end;
 procedure TAIAssistant.Stop;
 begin
  FTimer.Enabled:=False;if Assigned(FWorker) then begin FWorker.Cancel;FWorker.WaitFor;FreeAndNil(FWorker);end;
@@ -85,7 +94,7 @@ begin
    Config:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(ProjectDir,'.xmldocplugin.json'),TEncoding.UTF8)) as TJSONObject;
    if Assigned(Config) and Assigned(Config.GetValue('authoring.terminology')) then Terms:=Config.GetValue('authoring.terminology').ToJSON;
   end;end;
-  Result:=CaptureMethodContext(P,Found,Summary,Terms,Instruction,FOperation=aoDescribe);
+  Result:=CaptureMethodContext(P,Found,Summary,Terms,Instruction,FOperation<>aoRephrase);
  finally Config.Free;P.Free;end;
 end;
 function TAIAssistant.Fresh:Boolean;
@@ -108,16 +117,24 @@ begin
   if FWorker.Error<>'' then begin Reply(TJSONObject.Create.AddPair('state','error').AddPair('message',FWorker.Error));Exit;end;
   if FCheckOnly then begin Reply(TJSONObject.Create.AddPair('state','checked'));Exit;end;
   RestoreSummary(FWorker.Proposal.Summary,FFragments);
-  if FOperation=aoDescribe then for var Parameter in FWorker.Proposal.Parameters do begin
+  if FOperation<>aoRephrase then for var Parameter in FWorker.Proposal.Parameters do begin
    var Found:=False;for var Declared in FTarget.Params do if SameText(Declared.Name,Parameter.Name) then Found:=True;
    if not Found then raise EAIError.Create('Invalid proposal contract');
+   RestoreSection('param:'+Parameter.Name,Parameter.Description);
   end;
+  FHasReturns:=(FOperation<>aoRephrase) and FWorker.Proposal.HasReturns and (FTarget.ReturnType<>'');
+  FHasRemarks:=(FOperation<>aoRephrase) and FWorker.Proposal.HasRemarks;
+  if FHasReturns then RestoreSection('returns',FWorker.Proposal.Returns);
+  if FHasRemarks then RestoreSection('remarks',FWorker.Proposal.Remarks);
   FReady:=Fresh;Data:=TJSONObject.Create.AddPair('state','proposal').AddPair('fresh',TJSONBool.Create(FReady)).AddPair('summary',FWorker.Proposal.Summary);
   var Parameters:=TJSONArray.Create;Data.AddPair('parameters',Parameters);FParameterNames:=nil;
-  if FOperation=aoDescribe then for var Parameter in FWorker.Proposal.Parameters do begin
+  if FOperation<>aoRephrase then for var Parameter in FWorker.Proposal.Parameters do begin
    var Name:='';for var Declared in FTarget.Params do if SameText(Declared.Name,Parameter.Name) then Name:=Declared.Name;
    FParameterNames:=FParameterNames+[Name];Parameters.AddElement(TJSONObject.Create.AddPair('name',Name).AddPair('description',Parameter.Description));
   end;
+  if FHasReturns then Data.AddPair('returns',FWorker.Proposal.Returns);
+  if FHasRemarks then Data.AddPair('remarks',FWorker.Proposal.Remarks);
+  var Changes:=TJSONArray.Create;Data.AddPair('changes',Changes);for var Change in FWorker.Proposal.Changes do Changes.Add(Change);
   Items:=TJSONArray.Create;Data.AddPair('uncertainties',Items);for var Item in FWorker.Proposal.Uncertainties do Items.Add(Item);
   // Validate opaque XML tokens before exposing an applicable proposal.
   Reply(Data);
@@ -146,15 +163,19 @@ begin
   end;
   if Kind='aiApply' then begin
    if (Message.GetValue<string>('requestId','')<>FRequestId) or not FReady or not Fresh or not ValidateEdit(Message,Target,FileName,Session,Parser.SourceText) then raise EAIError.Create('Source changed — review again');
-   Summary:=RestoreSummary(Message.GetValue<string>('summary'),FFragments);FReady:=False;
+   if Message.GetValue<Boolean>('summarySelected',True) then Summary:=RestoreSummary(Message.GetValue<string>('summary'),FFragments)
+   else Summary:=FOriginalSummary;
+   FReady:=False;
    var Approved:=TJSONObject.Create.AddPair('state','approved').AddPair('summaryXml',Summary);var Parameters:=TJSONArray.Create;Approved.AddPair('parameters',Parameters);
    try
+    if Message.GetValue<Boolean>('returnsSelected',False) then begin if not FHasReturns then raise EAIError.Create('Invalid proposal contract');Approved.AddPair('returnsXml',RestoreSection('returns',Message.GetValue<string>('returns')));end;
+    if Message.GetValue<Boolean>('remarksSelected',False) then begin if not FHasRemarks then raise EAIError.Create('Invalid proposal contract');Approved.AddPair('remarksXml',RestoreSection('remarks',Message.GetValue<string>('remarks')));end;
     var Submitted:=Message.GetValue<TJSONArray>('parameters',nil);if Assigned(Submitted) then for var Item in Submitted do begin
      if not (Item is TJSONObject) then raise EAIError.Create('Invalid proposal contract');
      var Name:=TJSONObject(Item).GetValue<string>('name');if not MatchText(Name,FParameterNames) then raise EAIError.Create('Invalid proposal contract');
      for var Allowed in FParameterNames do if SameText(Allowed,Name) then Name:=Allowed;
      for var Existing in Parameters do if SameText(TJSONObject(Existing).GetValue<string>('name'),Name) then raise EAIError.Create('Invalid proposal contract');
-     var Text:=AITextXml(TJSONObject(Item).GetValue<string>('description'));
+     var Text:=RestoreSection('param:'+Name,TJSONObject(Item).GetValue<string>('description'));
      Parameters.AddElement(TJSONObject.Create.AddPair('name',Name).AddPair('description',Text));
     end;
     var Response:=Approved;Approved:=nil;Reply(Response);
@@ -173,9 +194,24 @@ begin
   if not ValidateEdit(Message,Target,FileName,Session,Parser.SourceText) then raise EAIError.Create('Source changed — reload before applying');
   FFile:=FileName;FSession:=Session;FTarget:=Target;FreeAndNil(FOriginal);FOriginal:=Message.Clone as TJSONObject;
   Summary:=Message.GetValue<string>('summary','');Instruction:=Message.GetValue<string>('instruction','');FOriginalSummary:=Summary;
-  OperationName:=Message.GetValue<string>('operation','');if OperationName='describe' then Operation:=aoDescribe else if OperationName='rephrase' then Operation:=aoRephrase else raise EAIError.Create('Unknown AI operation');
+  OperationName:=Message.GetValue<string>('operation','');if OperationName='describe' then Operation:=aoDescribe else if OperationName='rephrase' then Operation:=aoRephrase else if OperationName='review' then Operation:=aoReview else raise EAIError.Create('Unknown AI operation');
   FOperation:=Operation;
-  Context:=Capture(Summary,Instruction);Context.Documentation:=ProtectSummary(Summary,FFragments);FContext:=Context;
+  FSectionFragments.Clear;FHasReturns:=False;FHasRemarks:=False;
+  Context:=Capture(Summary,Instruction);Context.Documentation:=ProtectSection('summary',Summary);FSectionFragments.TryGetValue('summary',FFragments);
+  var OriginalDoc:=Message.GetValue<TJSONObject>('documentation',nil);
+  if (Operation<>aoRephrase) and Assigned(OriginalDoc) then begin
+   var Sections:=TJSONObject.Create.AddPair('summary',Context.Documentation);
+   try
+    for var Name in ['returns','remarks'] do Sections.AddPair(Name,ProtectSection(Name,OriginalDoc.GetValue<string>(Name,'')));
+    var Parameters:=TJSONArray.Create;Sections.AddPair('parameters',Parameters);
+    var OriginalParams:=OriginalDoc.GetValue<TJSONArray>('params',nil);if Assigned(OriginalParams) then for var Param in OriginalParams do begin
+     var Name:=TJSONObject(Param).GetValue<string>('name');
+     Parameters.AddElement(TJSONObject.Create.AddPair('name',Name).AddPair('description',ProtectSection('param:'+Name,TJSONObject(Param).GetValue<string>('description',''))));
+    end;
+    Context.Documentation:=Sections.ToJSON;
+   finally Sections.Free;end;
+  end;
+  FContext:=Context;
   FParameterNames:=nil;Prompt:=TAIPrompt.BuiltIn(Operation);TemplateId:=Message.GetValue<string>('templateId',Prompt.Id);var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);
   Templates:=AIPrompts(ProjectDir);for var Item in Templates do if (Item as TJSONObject).GetValue<string>('id')=TemplateId then Template:=Item as TJSONObject;
   if not Assigned(Template) or (Template.GetValue<string>('operation')<>OperationName) then raise EAIError.Create('Choose a matching AI template');Prompt.SystemText:=Template.GetValue<string>('system');Prompt.UserText:=Template.GetValue<string>('user');
@@ -183,7 +219,10 @@ begin
   var Preview:=Config.GetValue<Boolean>('previewRequests',False) or Message.GetValue<Boolean>('forcePreview',False);
   var Prepared:=TJSONObject.Create.AddPair('state','prepared').AddPair('previewRequired',TJSONBool.Create(Preview)).AddPair('fingerprint',Context.Fingerprint);
   if Preview then begin Prepared.AddPair('url',FPrepared.URL);Prepared.AddPair('request',FPrepared.Body);end;
-  var Slots:=TJSONArray.Create;Prepared.AddPair('fragments',Slots);for var Fragment in FFragments do Slots.AddElement(TJSONObject.Create.AddPair('token',Fragment.Token).AddPair('xml',Fragment.Xml));Reply(Prepared);
+  var Slots:=TJSONArray.Create;Prepared.AddPair('fragments',Slots);for var Fragment in FFragments do Slots.AddElement(TJSONObject.Create.AddPair('token',Fragment.Token).AddPair('xml',Fragment.Xml));
+  var SectionSlots:=TJSONObject.Create;Prepared.AddPair('sectionFragments',SectionSlots);
+  for var Section in FSectionFragments do begin var Items:=TJSONArray.Create;SectionSlots.AddPair(Section.Key,Items);for var Fragment in Section.Value do Items.AddElement(TJSONObject.Create.AddPair('token',Fragment.Token).AddPair('xml',Fragment.Xml));end;
+  Reply(Prepared);
  except on E:Exception do begin FPrepared.Authorization:='';var ErrorState:='error';if (Kind='aiLoad') or (Kind='aiSettings') then ErrorState:='configurationError';Reply(TJSONObject.Create.AddPair('state',ErrorState).AddPair('message',E.Message));end;end;
  finally Templates.Free;Config.Free;end;
 end;

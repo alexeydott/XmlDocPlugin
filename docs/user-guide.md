@@ -122,7 +122,7 @@ The expandable sections below these actions are **Project workspace**, **Inherit
 
 ## Use the AI assistant
 
-Open a method in Inspector or Explorer and expand **AI assistant**. **Describe method from code** proposes a summary and descriptions for undocumented parameters from the selected implementation. **Rephrase summary** improves existing prose without deliberately changing its facts. Completed parameter descriptions and other XML sections are preserved; descriptions recognized as unfinished markers can be replaced after review. A proposal never writes source until you review it and choose **Apply reviewed summary**.
+Open a method in Inspector or Explorer and expand **AI assistant**. **Describe method from code** proposes a summary, undocumented parameter descriptions and, where supported by the implementation, return documentation and remarks. **Rephrase summary** improves existing prose and also works on declarations without a method body. **Review documentation against code** compares the current comment with the current implementation, proposes minimal corrections and explains the relevant implementation details. It does not reconstruct a previous implementation. A proposal never writes source until you choose **Apply selected documentation**.
 
 ### Configure a connection
 
@@ -157,11 +157,11 @@ Keys are stored in Windows Credential Manager, separately from profile JSON. Cha
 ### Send, wait and review
 
 1. Select the connection profile and operation. If multiple templates exist for that operation, select a template too. Add optional instructions.
-2. Choose **Describe method from code** or **Rephrase summary**. By default the request is sent immediately.
+2. Choose **Describe method from code**, **Rephrase summary** or **Review documentation against code**. By default the request is sent immediately.
 3. To inspect requests before sending, enable **Preview AI requests before sending** in AI settings. This preference is off by default and is saved for the current Windows user. The existing **Preview AI request** action also opens a preview for an individual request. Inspect the destination and JSON, then choose **Send reviewed request**. Authorization headers are excluded from the preview.
 4. While the request runs, the assistant shows an indeterminate progress indicator and **Waiting for AI response**. Connection controls are temporarily disabled; **Cancel** remains available. Cancellation discards the local operation; provider processing or usage may already have occurred.
-5. Review the proposed summary, missing parameter descriptions and uncertainties. You can edit the proposed prose before applying it. Completed parameter descriptions are retained, including inline XML. Keep protected XML tokens unchanged.
-6. Choose **Apply reviewed summary** to apply the reviewed summary and missing parameter descriptions through the IDE's source writer. Save the source normally; IDE Undo/Redo remains available.
+5. Review the proposed sections, reasons for corrections and uncertainties. Each section and parameter has its own acceptance checkbox. Clear any proposal you do not want to apply; its existing source text is retained. You can edit accepted prose before applying it. Describe preserves completed parameter descriptions; Review can explicitly replace existing parameter descriptions. Keep protected XML tokens unchanged within their original section.
+6. Choose **Apply selected documentation** to write only the checked sections through the IDE's source writer. Save the source normally; IDE Undo/Redo remains available. If the source, selected declaration or proposed selection changes while approval is pending, rebuild the proposal instead of applying the old result.
 
 ![Optional AI request preview](assets/user-guide/ai-preview.png)
 
@@ -173,21 +173,27 @@ Keys are stored in Windows Credential Manager, separately from profile JSON. Cha
 
 ![Review an AI documentation proposal](assets/user-guide/ai-proposal.png)
 
-*Review the suggested summary, parameter descriptions, protected tokens, uncertainty list and XML comparison before Apply. Completed parameter descriptions remain intact.*
+*Only checked proposals are applied. Here the return description and first parameter are accepted, while Summary, Remarks and the second parameter remain unchanged. Review the reasons, uncertainties and XML comparison before Apply.*
 
 If you switch declarations, edit the source or documentation, or open an unapplied XML draft, a stale proposal cannot be applied. Rebuild the request against the current source. Read-only and installed system sources remain view-only. Closing a documentation window cancels its pending operation.
 
+### Process selected methods
+
+In **Project workspace → Member summaries**, select writable methods and choose **Queue selected methods for AI**. The queue opens each method and captures its live source and comment; it does not reuse a possibly stale catalog comment. The selected AI operation, profile, template and preview preference apply to each request.
+
+Review each proposal separately. Apply only the sections you accept, then choose **Skip and open next method** to continue. That button also discards an unaccepted proposal. **Cancel AI queue** stops the queue and cancels its active request; no later method is submitted automatically. An unopened, read-only or unapplied XML target cannot silently receive a proposal. The queue never applies documentation automatically.
+
 ### Customize prompts
 
-The **Prompt templates** tab supports duplication, naming, editing, import/export and restoration of built-in templates. Global templates apply across projects; project overrides are saved in `.xmldocplugin.json`. Customized saved templates keep their text when the built-in prompt changes; restore the built-in description template to adopt its parameter instructions.
+The **Prompt templates** tab supports duplication, naming, editing, import/export and restoration of built-in templates. Global templates apply across projects; project overrides are saved in `.xmldocplugin.json`. Customized saved templates keep their text when the built-in prompt changes; restore the built-in template and save it to adopt the latest section and parameter instructions.
 
 ![AI prompt template settings](assets/user-guide/ai-prompts.png)
 
 *Duplicate a built-in template to customize its instructions, or restore the built-in version. Project overrides take precedence over global templates with the same ID.*
 
-Available variables are `{{language}}`, `{{signature}}`, `{{implementation}}`, `{{documentation}}`, `{{parameters}}`, `{{return_type}}`, `{{type_context}}`, `{{project_terms}}` and `{{user_instruction}}`. Unknown variables and missing required context are errors. A description template must include the signature and implementation; rephrasing must include the current documentation.
+Available variables are `{{language}}`, `{{signature}}`, `{{implementation}}`, `{{documentation}}`, `{{parameters}}`, `{{return_type}}`, `{{type_context}}`, `{{project_terms}}` and `{{user_instruction}}`. Unknown variables and missing required context are errors. Description and code-review templates must include the signature and implementation; rephrasing must include the current documentation. For code-based operations, `{{documentation}}` contains independently protected summary, return, remark and parameter sections; for Rephrase it contains the protected summary.
 
-The response must be JSON containing `summary` and `uncertainties`; descriptions may additionally return `parameters`, an array of `{name, description}` objects. Parameter names must match the selected declaration; duplicate and unknown names are rejected. The built-in description prompt requests every parameter and asks the model to state uncertainty rather than invent unsupported facts. Legacy summary-only custom templates remain usable.
+The response must be JSON containing `summary` and an `uncertainties` array, including an empty array when there are no uncertainties. Code-based operations may also return `parameters` (objects with exactly `name` and `description`), `returns` and `remarks` strings, and a `changes` array explaining proposed corrections. A return description is offered only for functions. Parameter names must match the declaration without regard to case; duplicate and unknown names are rejected. Missing required fields, null sections, malformed JSON and invalid protected tokens produce an error instead of an applicable proposal. Custom templates without parameter proposals remain usable when they still return both required fields.
 
 The exact selected implementation, signature, parameter types and relevant project context are encoded as TOON inside the user message. The HTTP request remains OpenAI-compatible JSON. Inspect the actual destination, model and encoded context in the optional request preview. Authorization headers are excluded from that preview. Imported implementation bodies are not all included. Review source-sharing requirements before enabling a connection. AI prose can still be wrong: confirm behavior, units, ownership and side effects against the code, especially for large methods and calls into other modules.
 

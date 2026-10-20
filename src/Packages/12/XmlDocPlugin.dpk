@@ -1,4 +1,4 @@
-﻿package XmlDocPlugin;
+package XmlDocPlugin;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -40,6 +40,7 @@ requires
   VclSmp;
 
 contains
+  XmlDoc.AI.ProfileStore in '..\..\Core\XmlDoc.AI.ProfileStore.pas',
   XmlDoc.AI.Contracts in '..\..\Core\XmlDoc.AI.Contracts.pas',
   XmlDoc.AI.Context in '..\..\Core\XmlDoc.AI.Context.pas',
   XmlDoc.AI.Prompts in '..\..\Core\XmlDoc.AI.Prompts.pas',

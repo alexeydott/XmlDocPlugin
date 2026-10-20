@@ -59,11 +59,22 @@
    window.bridge.sendToHost({type:'requestQuickDoc'});await until(()=>quick,'Quick result missing');
    if(local)assert(quick.resolved&&quick.matches.length===1&&quick.matches[0].symbolId.toLowerCase().includes('scopeprobe'),'Wrong lexical target: '+JSON.stringify(quick));
    else {
-    assert(quick.matches.length>0&&quick.matches.every(m=>!m.symbolId.toLowerCase().includes('scopeprobe')),'Self incorrectly resolved to a local declaration: '+JSON.stringify(quick));
-    assert(!quick.resolved||quick.matches.length===1,'Ambiguous overloads reported as resolved');
+    assert(quick.resolved&&quick.matches.length===1&&quick.matches[0].symbolId.toLowerCase().endsWith(':tdocumented.run(integer):'),'Self literal overload did not resolve to the overriding method: '+JSON.stringify(quick));
    }
   }
   await checkSource('procedure TDocumented.ScopeProbe;','Quick Documentation lexical target and explicit Self candidates');
+  await select('Calculate','Integer');click('ai-review');await until(()=>!document.querySelector('#ai-proposal').hidden,'Review operation did not return a proposal');
+  assert(document.querySelector('#ai-changes').textContent.includes('Value + Other'),'Review explanation missing');
+  for(const id of ['ai-accept-summary','ai-accept-remarks']){const check=document.getElementById(id);check.checked=false;check.dispatchEvent(new Event('change'));}
+  const other=document.querySelector('#ai-parameters textarea[data-name=Other]');assert(other,'Review did not expose an existing parameter');
+  const otherCheck=other.parentElement.querySelector('input[type=checkbox]');otherCheck.checked=false;otherCheck.dispatchEvent(new Event('change'));
+  await capture('ai-proposal');
+  click('ai-apply');await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.returns==='The sum of Value and Other.','Selected sections not acknowledged');
+  send('review-calculate-checked');await until(()=>window.__reviewCalculateChecked,'Native section check missing');
+  send('review-queue-start');await until(()=>!document.querySelector('#ai-proposal').hidden&&!document.querySelector('#ai-queue').hidden,'Queue did not prepare the first method');
+  click('ai-queue-next');await until(()=>window.xmlDocEditor.get().element.qualifiedParent==='TSecond','Queue did not open the second method');
+  await until(()=>!document.querySelector('#ai-proposal').hidden,'Queue did not request the second method');click('ai-queue-cancel');
+  send('review-queue-checked');await until(()=>window.__reviewQueueChecked,'Native queue check missing');
   send('ai-close-pending');
  }catch(e){send('fail',{message:e.message+' status='+window.bridge.status+' summary='+window.xmlDocEditor.get().doc.summary,stack:e.stack});}
 })();

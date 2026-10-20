@@ -33,6 +33,12 @@ type
   /// <summary>Explains <b>pending work</b><br/>without an implementation.</summary>
   procedure NoBody;virtual;abstract;
   procedure ScopeProbe;
+  /// <summary>Adds two numbers.</summary>
+  /// <param name="Value">Old first parameter description.</param>
+  /// <param name="Other">Keep second parameter description.</param>
+  /// <returns>TODO: Describe the result.</returns>
+  /// <remarks>Keep local calculation remarks.</remarks>
+  function Calculate(Value,Other:Integer):Integer;
  end;
 implementation
 procedure TDocumented.Run(Value:Integer);
@@ -55,4 +61,6 @@ begin
   Run(1); // review-local-call
   Self.Run(1); // review-self-call
 end;
+function TDocumented.Calculate(Value,Other:Integer):Integer;
+begin Result:=Value+Other;end;
 end.
