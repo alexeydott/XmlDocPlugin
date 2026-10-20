@@ -28,6 +28,7 @@
     "@tiptap/starter-kit": "^2.11.0"
   },
   "devDependencies": {
+    "@toon-format/toon": "4.4.0",
     "esbuild": "^0.25.12",
     "jsdom": "^26.1.0",
     "typescript": "^5.7.0",

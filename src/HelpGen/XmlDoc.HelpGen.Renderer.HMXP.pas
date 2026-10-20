@@ -258,15 +258,17 @@ begin
       end
       else if (LChild.NodeName = 'paramref') or (LChild.NodeName = 'typeparamref') then
         Result := Result + Text(Attr(LChild, 'name'))
-      else if (LChild.NodeName = 'c') or (LChild.NodeName = 'b') or (LChild.NodeName = 'i') then
+      else if MatchText(LChild.NodeName,['c','b','strong','i','em']) then
       begin
+        if LInner='' then Continue;
         LStyle := 'font-family:Courier New;';
-        if LChild.NodeName = 'b' then LStyle := 'font-weight:bold;';
-        if LChild.NodeName = 'i' then LStyle := 'font-style:italic;';
+        if MatchText(LChild.NodeName,['b','strong']) then LStyle := 'font-weight:bold;';
+        if MatchText(LChild.NodeName,['i','em']) then LStyle := 'font-style:italic;';
         Result := Result + '<text style="' + LStyle + '">' + LInner + '</text>';
       end
       else if (LChild.NodeName='image') or (LChild.NodeName='img') then Result:=Result+'<image src="'+Esc(CopyDocumentationImage(Attr(LChild,'src'),AContext.UnitName,FOptions.ProjectDir,TPath.Combine(FOptions.OutputDir,'hmxp'),'Images',FUnits))+'"/>'
       else if LChild.NodeName = 'br' then Result := Result + '<br/>'
+      else if LChild.NodeName = 'para' then Result := Result + '<br/>' + LInner + '<br/>'
       else Result := Result + LInner;
     end;
   end;
@@ -276,8 +278,8 @@ function THMXPDocRenderer.Content(const AText: string; AContext: THMTopic): stri
 var
   LDoc: IXMLDocument;
   LNode, LItem: IXMLNode;
-  I, J: Integer;
-  LPending, LLine: string;
+  I, J, K, Number: Integer;
+  LPending, LLine, Table, Row, Cell, Prefix, RowTag: string;
 begin
   Result := '';
   if AText = '' then Exit;
@@ -293,16 +295,33 @@ begin
   for I := 0 to LDoc.DocumentElement.ChildNodes.Count - 1 do
   begin
     LNode := LDoc.DocumentElement.ChildNodes[I];
+    if (LNode.NodeName='code') and (LNode.Text='') then Continue;
     if (LNode.NodeName = 'para') or (LNode.NodeName = 'code') or (LNode.NodeName = 'list') then
     begin
       if Trim(LPending) <> '' then Result := Result + Para(LPending);
       LPending := '';
       if LNode.NodeName = 'list' then
       begin
+        if SameText(Attr(LNode,'type'),'table') then begin
+          Table:='';for J:=0 to LNode.ChildNodes.Count-1 do begin
+            LItem:=LNode.ChildNodes[J];if LItem.NodeType<>ntElement then Continue;
+            Row:='';for K:=0 to 1 do begin
+              Cell:='';for var C:=0 to LItem.ChildNodes.Count-1 do
+                if ((K=0) and (LItem.ChildNodes[C].NodeName='term')) or ((K=1) and (LItem.ChildNodes[C].NodeName='description')) then Cell:=Cell+RenderInline(LItem.ChildNodes[C],AContext);
+              Row:=Row+'<td>'+Para(Cell)+'</td>';
+            end;
+            RowTag:='tr';if LItem.NodeName='listheader' then RowTag:='thead';Table:=Table+'<'+RowTag+'>'+Row+'</'+RowTag+'>';
+          end;
+          if Table<>'' then Result:=Result+Para('<table colcount="2">'+Table+'</table>');Continue;
+        end;
+        Number:=0;
         for J := 0 to LNode.ChildNodes.Count - 1 do
         begin
           LItem := LNode.ChildNodes[J];
-          if LItem.NodeType = ntElement then Result := Result + Para(Text('• ') + RenderInline(LItem, AContext));
+          if LItem.NodeName='item' then begin
+            Inc(Number);Prefix:='• ';if SameText(Attr(LNode,'type'),'number') then Prefix:=IntToStr(Number)+'. ';
+            Result := Result + Para(Text(Prefix) + RenderInline(LItem, AContext));
+          end;
         end;
       end
       else if LNode.NodeName = 'code' then Result := Result + Para(RenderInline(LNode, AContext), 'Code')

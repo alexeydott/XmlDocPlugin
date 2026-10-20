@@ -549,5 +549,10 @@
   "Show details": "세부 정보 표시",
   "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP 오류 404: API 주소와 제공업체 목록의 정확한 모델 ID를 확인하세요",
   "Preview AI requests before sending": "전송 전 AI 요청 미리 보기",
-  "Waiting for AI response": "AI 응답을 기다리는 중"
+  "Waiting for AI response": "AI 응답을 기다리는 중",
+  "Disable AI thinking": "AI 사고 비활성화",
+  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Neuraldeep에서 공식 지원하는 비추론 모델을 사용합니다. 다른 제공업체에는 프롬프트 지침만 전달합니다.",
+  "Automatic retries (0-10)": "자동 재시도 횟수 (0–10)",
+  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "첫 시도 이후의 재시도 횟수입니다. 0이면 비활성화됩니다. 일시적 오류만 재시도합니다.",
+  "Automatic retries must be between 0 and 10": "자동 재시도 횟수는 0에서 10 사이여야 합니다"
 }

@@ -549,5 +549,10 @@
   "Show details": "Показать сведения",
   "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "Ошибка AI HTTP 404: проверьте адрес API и точный идентификатор модели в каталоге провайдера",
   "Preview AI requests before sending": "Предпросмотр AI-запросов перед отправкой",
-  "Waiting for AI response": "Ожидание ответа AI"
+  "Waiting for AI response": "Ожидание ответа AI",
+  "Disable AI thinking": "Отключить размышления AI",
+  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Использует документированные модели Neuraldeep без размышлений; другим провайдерам передаётся только инструкция в промпте.",
+  "Automatic retries (0-10)": "Автоповторы (0–10)",
+  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "Повторы после первой попытки; 0 отключает повторы. Только временные ошибки.",
+  "Automatic retries must be between 0 and 10": "Число автоповторов должно быть от 0 до 10"
 }

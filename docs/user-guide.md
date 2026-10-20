@@ -142,6 +142,8 @@ For an OpenAI connection, use the following fields. Model access depends on your
 | Documentation language | The language for generated prose; independent of interface language |
 | Output limit parameter | `max_completion_tokens` for compatible OpenAI models; includes reasoning tokens |
 | Output token limit | A positive limit large enough for both reasoning and the JSON answer |
+| Automatic retries (0–10) | Default: 3 retries after the initial attempt (4 attempts total). Set 0 to disable. Retries HTTP 408/429/500/502/503/504, transport failures and timeouts after increasing delays (1, 2, 4 seconds, capped at 30). Cancel also interrupts the delay. Authentication errors, invalid JSON and incomplete proposals are not retried. A timed-out request may already have been processed by the provider. |
+| Disable AI thinking | Off by default. Adds a no-thinking prompt instruction. On `api.neuraldeep.ru`, supported models automatically use the documented `-noreason` variant; the stored model name stays unchanged. Other providers may ignore the prompt instruction. |
 | Request JSON mode | Enable only when the selected model supports JSON object output |
 
 These connection details follow the [official Chat Completions reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create). The plugin uses Chat Completions, not the Responses endpoint.

@@ -12,9 +12,105 @@ type [TestFixture] TDocAITests=class
  [Test] procedure MethodContextFuzz;
  [Test] procedure ParameterProposals;
  [Test] procedure ProfileIdentity;
+ [Test] procedure RetryRequests;
+ [Test] procedure DisableThinkingRequests;
+ [Test] procedure ToonMethodRequests;
+ [Test] procedure HTMLProseCleanup;
  end;
 implementation
-uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport;
+uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.AI.Text,XmlDoc.AI.Toon,XmlDoc.Model;
+type TRetryAITransport=class(TInterfacedObject,IAITransport)
+ Calls,Failures,Status:Integer;Failure:string;LastBody:string;
+ function Execute(const Request:TAIHttpRequest):TAIHttpResponse;
+ procedure Cancel;
+end;
+function TRetryAITransport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
+begin
+ Inc(Calls);if LastBody<>'' then Assert.AreEqual(LastBody,Request.Body);LastBody:=Request.Body;
+ if Calls<=Failures then begin if Failure<>'' then raise EAIError.Create(Failure);Result.Status:=Status;Result.Body:='unavailable';end
+ else begin Result.Status:=200;Result.Body:='{"choices":[{"finish_reason":"stop","message":{"content":"{\"summary\":\"Recovered\",\"uncertainties\":[]}"}}]}';end;
+end;
+procedure TRetryAITransport.Cancel;
+begin end;
+procedure TDocAITests.RetryRequests;
+var Raw:TRetryAITransport;Transport:IAITransport;Request:TAIHttpRequest;Waits:TArray<Integer>;Wait:TProc<Integer>;P:TAIProfile;C:TAIContext;
+ procedure Reset(Status,Failures:Integer;const Error:string='');
+ begin Raw:=TRetryAITransport.Create;Transport:=Raw;Raw.Status:=Status;Raw.Failures:=Failures;Raw.Failure:=Error;Waits:=nil;end;
+begin
+ Wait:=procedure(Delay:Integer) begin if Delay>0 then Waits:=Waits+[Delay];end;
+ P:=TAIProfile.Defaults;Assert.AreEqual(3,P.RetryCount);P.Model:='fixture';C:=Default(TAIContext);C.Signature:='procedure Run';C.Code:='begin end;';
+ Request:=BuildAIRequest(P,TAIPrompt.BuiltIn(aoDescribe),C,'test-key');Assert.AreEqual(3,Request.RetryCount);
+ Reset(503,2);Assert.AreEqual('Recovered',ExecuteAI(Transport,Request,Wait).Summary);Assert.AreEqual(3,Raw.Calls);Assert.AreEqual<NativeInt>(2,Length(Waits));Assert.AreEqual(1000,Waits[0]);Assert.AreEqual(2000,Waits[1]);
+ Reset(503,10);Assert.WillRaise(procedure begin ExecuteAI(Transport,Request,Wait);end,EAIError);Assert.AreEqual(4,Raw.Calls);Assert.AreEqual(4000,Waits[2]);
+ Request.RetryCount:=0;Reset(503,10);Assert.WillRaise(procedure begin ExecuteAI(Transport,Request,Wait);end,EAIError);Assert.AreEqual(1,Raw.Calls);Assert.AreEqual<NativeInt>(0,Length(Waits));Request.RetryCount:=3;
+ for var Code in [401,404] do begin Reset(Code,10);Assert.WillRaise(procedure begin ExecuteAI(Transport,Request,Wait);end,EAIError);Assert.AreEqual(1,Raw.Calls);end;
+ for var Code in [408,429,500,502,503,504] do begin Reset(Code,1);Assert.AreEqual('Recovered',ExecuteAI(Transport,Request,Wait).Summary);Assert.AreEqual(2,Raw.Calls);end;
+ for var Error in ['AI request timed out','AI transport failed'] do begin Reset(0,1,Error);Assert.AreEqual('Recovered',ExecuteAI(Transport,Request,Wait).Summary);end;
+ for var Error in ['AI request cancelled','AI response exceeds the configured limit'] do begin Reset(0,10,Error);Assert.WillRaise(procedure begin ExecuteAI(Transport,Request,Wait);end,EAIError);Assert.AreEqual(1,Raw.Calls);end;
+ Reset(200,10);Assert.WillRaise(procedure begin ExecuteAI(Transport,Request,Wait);end,EAIError);Assert.AreEqual(1,Raw.Calls);
+ Reset(503,10);try ExecuteAI(Transport,Request,procedure(Delay:Integer) begin if Delay>0 then raise EAIError.Create('AI request cancelled');end);Assert.Fail('Cancellation must escape retry wait');except on E:EAIError do Assert.AreEqual('AI request cancelled',E.Message);end;Assert.AreEqual(1,Raw.Calls);
+end;
+procedure TDocAITests.DisableThinkingRequests;
+var P:TAIProfile;C:TAIContext;Request:TAIHttpRequest;Json:TJSONObject;
+ procedure Check(const Expected:string;Disabled:Boolean);
+ begin
+  P.DisableThinking:=Disabled;Request:=BuildAIRequest(P,TAIPrompt.BuiltIn(aoDescribe),C,'test-key');
+  Json:=TJSONObject.ParseJSONValue(Request.Body) as TJSONObject;
+  try
+   Assert.AreEqual(Expected,Json.GetValue<string>('model'));
+   Assert.AreEqual(Disabled,TJSONObject(Json.GetValue<TJSONArray>('messages')[0]).GetValue<string>('content').Contains('/no_think'));
+   Assert.IsFalse(Assigned(Json.GetValue('enable_thinking')),'Unsupported generic API fields must not be sent');
+  finally Json.Free;end;
+ end;
+begin
+ P:=TAIProfile.Defaults;Assert.IsFalse(P.DisableThinking);P.Endpoint:='https://api.neuraldeep.ru/v1';
+ C:=Default(TAIContext);C.Signature:='procedure Run';C.Code:='begin end;';
+ for var Model in ['qwen3.8-27b','qwen3.6-35b-a3b','qwen3.6-fp8','gemma-4-31b','qwen3.6-unlim','qwen3.6-unlim-xl'] do begin
+  P.Model:=Model;Check(Model,False);Check(Model+'-noreason',True);Assert.AreEqual(Model,P.Model);
+ end;
+ P.Model:='qwen3.8-27b-noreason';Check(P.Model,True);
+ P.Model:='unknown-model';Check(P.Model,True);
+ P.Model:='qwen3.8-27b';P.Endpoint:='https://example.invalid/v1';Check(P.Model,True);
+ P.Endpoint:='https://api.neuraldeep.ru.example.invalid/v1';Check(P.Model,True);
+end;
+procedure TDocAITests.ToonMethodRequests;
+var C:TAIContext;P:TAIProfile;Prompt:TAIPrompt;Request:TAIHttpRequest;Json:TJSONObject;Text:string;
+begin
+ C:=Default(TAIContext);C.Signature:='procedure Run(Value: string)';C.Code:='begin'+#13#10+'  WriteLn(''Пример, 中文, 한국어, 日本語'');'+#13#10+'end;';
+ C.Parameters:='[{"name":"Value","type":"string"}]';C.TypeContext:='{"owner":"TExample","defines":["DEBUG","UNICODE"]}';
+ P:=TAIProfile.Defaults;P.Model:='test';Prompt:=TAIPrompt.BuiltIn(aoDescribe);Request:=BuildAIRequest(P,Prompt,C,'secret');
+ Json:=TJSONObject.ParseJSONValue(Request.Body) as TJSONObject;
+ try
+  Text:=TJSONObject(Json.GetValue<TJSONArray>('messages')[1]).GetValue<string>('content');
+  Assert.IsTrue(Text.StartsWith('instructions: '));Assert.IsTrue(Text.Contains(#10+'context:'));
+  Assert.IsTrue(Text.Contains('parameters[1]{name,type}:'+ #10+'    Value,string'));
+  Assert.IsTrue(Text.Contains('implementation: "begin\r\n'));Assert.IsTrue(Text.Contains('Пример, 中文, 한국어, 日本語'));
+  Assert.IsTrue(Text.Contains('defines[2]: DEBUG,UNICODE'));Assert.IsFalse(Text.Contains('secret'));
+ finally Json.Free;end;
+ Assert.IsTrue(ToonPrompt('{{  implementation  }}',C,'en').Contains('implementation:'));
+ var Invalid:=TJSONString.Create(Char($D800));try Assert.WillRaise(procedure begin AIToon(Invalid);end,EArgumentException);finally Invalid.Free;end;
+end;
+procedure TDocAITests.HTMLProseCleanup;
+var Text,Plain:string;F:TArray<TAIProtectedFragment>;
+begin
+ Text:='<html><head><style>.x {color:red}</style></head><body><p class="x">First <strong>formatted</strong> &amp; safe.</p><div>Second<br>line.</div><script>alert(1)</script><!-- hidden --></body></html>';
+ var Model:=TXmlDocModel.Create;try var Prose:=AITextXml(Text);Model.LoadFromXml('<summary>'+Prose+'</summary>');Assert.AreEqual(Prose,Model.Summary);Assert.IsTrue(Model.ToXml.Contains(Prose));finally Model.Free;end;
+ Plain:=CleanAIText(Text);Assert.AreEqual('First formatted & safe.'+#10#10+'Second'+#10+'line.',Plain);
+ Assert.AreEqual('<para>First formatted &amp; safe.</para><para>Second<br/>line.</para>',AITextXml(Text));
+ Assert.AreEqual('List<T> and x < y.',CleanAIText('List<T> and x < y.'));
+ Assert.AreEqual('TList<A> and TList<B>',CleanAIText('TList<A> and TList<B>'));
+ Assert.AreEqual('safe',CleanAIText('safe<script src="x">unterminated'));
+ Assert.AreEqual('Safe',CleanAIText('&lt;p class=&quot;x&quot;&gt;Safe&lt;/p&gt;'));
+ var Protected:=ProtectSummary('Use <see cref="TExample"/>.',F);
+ Assert.AreEqual(RestoreSummary(Protected,F),RestoreSummary('<p>'+Protected+'</p><script>bad</script>',F));
+ // Fuzz HTML boundaries, attributes, case, entities and truncation without a browser/COM parser.
+ for var I:=0 to 255 do begin
+  Text:='<DIV title="'+StringOfChar('>',I mod 17)+'">Пример '+I.ToString+'</DIV><ScRiPt>evil'+I.ToString+'</sCrIpT><style>bad</style>';
+
+ Plain:=CleanAIText(Text);Assert.AreEqual('Пример '+I.ToString,Plain);Assert.IsFalse(AITextXml(Text).Contains('evil'));
+  CleanAIText(Copy(Text,1,I mod Length(Text)));
+ end;
+end;
 procedure TDocAITests.ExactMethodContext;
 var P:TDocParser;E:TCodeElementInfo;Code,Reason,Source,Expected:string;C:TAIContext;
 begin
@@ -51,6 +147,13 @@ begin
  for var Status in [401,404,429,500,503] do begin R.Status:=Status;Assert.WillRaise(procedure begin ParseAIResponse(R);end,EAIError);end;
  R.Status:=404;try ParseAIResponse(R);Assert.Fail('404 must fail');except on E:EAIError do Assert.IsTrue(E.Message.Contains('exact model ID'));end;
  R.Status:=200;for var Body in ['','{','{}','{} trailing','{}{}','{"choices":[]}','{"choices":[{"finish_reason":"length","message":{"content":"{}"}}]}'] do begin R.Body:=Body;Assert.WillRaise(procedure begin ParseAIResponse(R);end,EAIError);end;
+ for var Body in ['{"content":"","reasoning_content":"Internal reasoning only"}',
+  '{"content":" \n\t","reasoning_content":"Internal reasoning only"}',
+  '{"content":null,"reasoning_content":"Internal reasoning only"}'] do begin
+  R.Body:='{"choices":[{"finish_reason":"stop","message":'+Body+'}]}';
+  try ParseAIResponse(R);Assert.Fail('Reasoning without final content must fail');
+  except on E:EAIError do Assert.AreEqual('AI message content is missing',E.Message);end;
+ end;
 end;
 procedure TDocAITests.ParameterProposals;
 var R:TAIHttpResponse;Envelope,Content:TJSONObject;P:TAIProposal;

@@ -43,6 +43,8 @@ contains
   XmlDoc.AI.Contracts in '..\..\Core\XmlDoc.AI.Contracts.pas',
   XmlDoc.AI.Context in '..\..\Core\XmlDoc.AI.Context.pas',
   XmlDoc.AI.Prompts in '..\..\Core\XmlDoc.AI.Prompts.pas',
+  XmlDoc.AI.Toon in '..\..\Core\XmlDoc.AI.Toon.pas',
+  XmlDoc.AI.Text in '..\..\Core\XmlDoc.AI.Text.pas',
   XmlDoc.AI.OpenAI in '..\..\Core\XmlDoc.AI.OpenAI.pas',
   XmlDoc.AI.Transport in '..\..\Core\XmlDoc.AI.Transport.pas',
   XmlDoc.Plugin.AISettings in '..\..\Plugin\XmlDoc.Plugin.AISettings.pas',

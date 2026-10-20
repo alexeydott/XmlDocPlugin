@@ -80,7 +80,7 @@ type
     procedure LoadBounds;
     function ReadEditorSource(const AEditor: IOTASourceEditor): string;
     procedure SaveBounds;
-    procedure SendTreeToEditor;
+    procedure SendTreeToEditor(const APrefix:string='');
   protected
     procedure ApplyIDETheme;
     procedure CMStyleChanged(var Message: TMessage); message CM_STYLECHANGED;
@@ -527,7 +527,7 @@ begin
   end;
 end;
 
-procedure TDocExplorerForm.SendTreeToEditor;
+procedure TDocExplorerForm.SendTreeToEditor(const APrefix:string);
 var
   LScript: string;
 begin
@@ -537,7 +537,7 @@ begin
     Exit;
   end;
 
-  LScript := BuildLoadTreeScript;
+  LScript := APrefix+BuildLoadTreeScript;
   FBrowser.ExecuteScript(LScript);
 end;
 
@@ -562,7 +562,7 @@ var
   LEditor: IOTASourceEditor;
   LElement: TCodeElementInfo;
   LModel: TXmlDocModel;
-  LSource: string;
+  LSource, LAck: string;
 begin
   Result:=False;
   if FUpdatingSource then
@@ -584,7 +584,7 @@ begin
     FUpdatingSource := True;
     try
       if not TDocOTAWriter.ApplyToEditor(LEditor, LElement, LModel) then Exit;
-      Result:=True;FBrowser.ExecuteScript(EditResult(FEditSessionId,'Applied',AEditId));
+      Result:=True;LAck:=EditResult(FEditSessionId,'Applied',AEditId);
 
       // 소스 재파싱 + 트리 재전송
       LSource := ReadEditorSource(LEditor);
@@ -593,10 +593,11 @@ begin
         FLastSource := LSource;
         if not ParseEditorSource(LSource) then Exit;
         FElements := FDocParser.GetAllElements;
-        SendTreeToEditor;
+        SendTreeToEditor(LAck);LAck:='';
       end;
     finally
       FUpdatingSource := False;
+      if LAck<>'' then FBrowser.ExecuteScript(LAck+UnavailableSourceScript(FCurrentFileName,1));
     end;
   finally
     LModel.Free;

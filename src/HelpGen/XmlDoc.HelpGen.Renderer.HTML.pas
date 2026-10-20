@@ -29,6 +29,7 @@ type
     function Anchor(const Name: string): string;
     procedure CopyStaticAssets;
     function EscapeHtml(const AText: string): string;
+    function RenderProse(const AText,AUnitName:string):string;
     function FormatDocToHtml(const ADoc: TXmlDocModel; const AUnitName: string): string;
     function GenerateNav(const APrefix: string = ''): string;
     function MakeCrefLink(const ACref, AUnitName: string): string;
@@ -158,23 +159,28 @@ begin
   Result := StringReplace(Result, '"', '&quot;', [rfReplaceAll]);
 end;
 
+function THTMLDocRenderer.RenderProse(const AText,AUnitName:string):string;
+begin
+ Result:=MarkupHTML(AText,function(Cref:string):string begin Result:=MakeCrefLink(Cref,AUnitName);end,
+  function(Source:string):string begin Result:='../assets/'+CopyDocumentationImage(Source,AUnitName,FOptions.ProjectDir,FOptions.OutputDir,'assets',FUnits);end);
+end;
 function THTMLDocRenderer.FormatDocToHtml(const ADoc: TXmlDocModel;
   const AUnitName: string): string;
 var
   LSB: TStringBuilder;
   I: Integer;
   function RenderProse(const Text:string):string;
-  begin Result:=MarkupHTML(Text,function(Cref:string):string begin Result:=MakeCrefLink(Cref,AUnitName);end,function(Source:string):string begin Result:='../assets/'+CopyDocumentationImage(Source,AUnitName,FOptions.ProjectDir,FOptions.OutputDir,'assets',FUnits);end);end;
+  begin Result:=Self.RenderProse(Text,AUnitName);end;
 begin
   LSB := TStringBuilder.Create;
   try
     if ADoc.Summary <> '' then
-      LSB.AppendLine('<p>' + RenderProse(ADoc.Summary) + '</p>');
+      LSB.AppendLine('<div class="doc-prose">' + RenderProse(ADoc.Summary) + '</div>');
 
     if ADoc.Remarks <> '' then
     begin
       LSB.AppendLine('<h3>Remarks</h3>');
-      LSB.AppendLine('<p>' + RenderProse(ADoc.Remarks) + '</p>');
+      LSB.AppendLine('<div class="doc-prose">' + RenderProse(ADoc.Remarks) + '</div>');
     end;
 
     if ADoc.Params.Count > 0 then
@@ -193,7 +199,7 @@ begin
     if ADoc.Returns <> '' then
     begin
       LSB.AppendLine('<h3>Returns</h3>');
-      LSB.AppendLine('<p>' + RenderProse(ADoc.Returns) + '</p>');
+      LSB.AppendLine('<div class="doc-prose">' + RenderProse(ADoc.Returns) + '</div>');
     end;
 
     if ADoc.Exceptions.Count > 0 then
@@ -211,7 +217,7 @@ begin
     end;
 
     if ADoc.Value <> '' then
-      LSB.AppendLine('<h3>Value</h3><p>' + RenderProse(ADoc.Value) + '</p>');
+      LSB.AppendLine('<h3>Value</h3><div class="doc-prose">' + RenderProse(ADoc.Value) + '</div>');
     if ADoc.TypeParams.Count > 0 then
     begin
       LSB.AppendLine('<h3>Type Parameters</h3><ul>');
@@ -223,7 +229,7 @@ begin
     begin
       LSB.AppendLine('<h3>Example ' + EscapeHtml(ADoc.Examples[I].Title) + '</h3>');
       if ADoc.Examples[I].SourceFile<>'' then LSB.AppendLine('<p>Source: <a href="../assets/'+CopyDocumentationSource(ADoc.Examples[I].SourceFile,AUnitName,FOptions.ProjectDir,FOptions.OutputDir,'assets',FUnits)+'">'+EscapeHtml(ADoc.Examples[I].SourceFile)+'</a> '+EscapeHtml(ADoc.Examples[I].Region)+'</p>');
-      LSB.AppendLine('<p>' + RenderProse(ADoc.Examples[I].Description) + '</p>');
+      LSB.AppendLine('<div class="doc-prose">' + RenderProse(ADoc.Examples[I].Description) + '</div>');
       LSB.AppendLine('<pre><code>' + EscapeHtml(ADoc.Examples[I].Code) + '</code></pre>');
     end;
     if ADoc.SeeAlso.Count > 0 then
@@ -358,7 +364,7 @@ begin
       LUnit := FUnits[I];
       LSB.AppendFormat('<tr><td><a href="units/%s">%s</a></td><td>%s</td></tr>',
         [FileName(LUnit.UnitName), EscapeHtml(LUnit.UnitName),
-         EscapeHtml(LUnit.UnitDoc.Summary)]);
+         RenderProse(LUnit.UnitDoc.Summary,LUnit.UnitName).Replace('href="','href="units/')]);
       LSB.AppendLine;
     end;
 
@@ -395,7 +401,7 @@ begin
           [FileName(AUnit.UnitName + '.' + AUnit.Types[I].Name),
            EscapeHtml(AUnit.Types[I].Name),
            EscapeHtml(AUnit.Types[I].Kind.ToString),
-           EscapeHtml(AUnit.Types[I].Doc.Summary)]);
+           RenderProse(AUnit.Types[I].Doc.Summary,AUnit.UnitName)]);
         LSB.AppendLine;
       end;
       LSB.AppendLine('</table>');
@@ -463,7 +469,7 @@ begin
            EscapeHtml(AType.Members[I].Name),
            EscapeHtml(AType.Members[I].Kind.ToString),
            EscapeHtml(AType.Members[I].Visibility),
-           EscapeHtml(AType.Members[I].Doc.Summary)]);
+           RenderProse(AType.Members[I].Doc.Summary,AUnitName)]);
         LSB.AppendLine;
       end;
       LSB.AppendLine('</table>');
@@ -514,7 +520,7 @@ begin
       LObj.AddPair('name', LUnit.UnitName);
       LObj.AddPair('type', 'unit');
       LObj.AddPair('url', 'units/' + FileName(LUnit.UnitName));
-      LObj.AddPair('summary', LUnit.UnitDoc.Summary);
+      LObj.AddPair('summary', MarkupPlainText(LUnit.UnitDoc.Summary));
       LArr.AddElement(LObj);
 
       for J := 0 to LUnit.Types.Count - 1 do
@@ -523,7 +529,7 @@ begin
         LObj.AddPair('name', LUnit.Types[J].FullName);
         LObj.AddPair('type', LUnit.Types[J].Kind.ToString);
         LObj.AddPair('url', 'units/' + FileName(LUnit.Types[J].FullName));
-        LObj.AddPair('summary', LUnit.Types[J].Doc.Summary);
+        LObj.AddPair('summary', MarkupPlainText(LUnit.Types[J].Doc.Summary));
         LArr.AddElement(LObj);
       end;
     end;

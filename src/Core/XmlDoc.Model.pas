@@ -1,4 +1,4 @@
-﻿/// <summary>Structured XML documentation with JSON transport and preservation of original XML.</summary>
+/// <summary>Structured XML documentation with JSON transport and preservation of original XML.</summary>
 unit XmlDoc.Model;
 
 interface
@@ -345,52 +345,10 @@ begin
 end;
 
 function TXmlDocModel.ExtractNodeText(const ANode: IXMLNode): string;
-var
-  LSB: TStringBuilder;
-  I: Integer;
-  LChild: IXMLNode;
-  LHasPara: Boolean;
 begin
-  // <para> 자식 노드가 있으면 각 para 텍스트를 줄바꿈으로 결합
-  LHasPara := False;
-  for I := 0 to ANode.ChildNodes.Count - 1 do
-  begin
-    if ANode.ChildNodes[I].NodeName = 'para' then
-    begin
-      LHasPara := True;
-      Break;
-    end;
-  end;
-
-  if LHasPara then for I:=0 to ANode.ChildNodes.Count-1 do begin
-    LChild:=ANode.ChildNodes[I];
-    if ((LChild.NodeType in [ntText,ntCData]) and (Trim(LChild.Text)<>'')) or
-      ((LChild.NodeType=ntElement) and (LChild.NodeName<>'para')) then Exit(Trim(ExtractInlineContent(ANode)));
-  end;
-
-  if not LHasPara then
-  begin
-    Result := Trim(ExtractInlineContent(ANode));
-    Exit;
-  end;
-
-  LSB := TStringBuilder.Create;
-  try
-    for I := 0 to ANode.ChildNodes.Count - 1 do
-    begin
-      LChild := ANode.ChildNodes[I];
-      if LChild.NodeName = 'para' then
-      begin
-        if LSB.Length > 0 then
-          LSB.AppendLine;
-        LSB.Append(Trim(ExtractInlineContent(LChild)));
-      end;
-    end;
-
-    Result := LSB.ToString;
-  finally
-    LSB.Free;
-  end;
+  // Keep paragraph boundaries as XML, like every other supported inline/block node.
+  // Flattening para to newlines changes Design rendering after an OTA acknowledgement.
+  Result := Trim(ExtractInlineContent(ANode));
 end;
 
 function TXmlDocModel.GetIsEmpty: Boolean;

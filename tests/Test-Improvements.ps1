@@ -13,6 +13,8 @@ try {
  & tests/Test-Version.ps1
  & npm test --prefix web *> "$EvidenceDir\web-tests.log"
  if($LASTEXITCODE){throw 'Browser unit and fuzz tests failed'}
+ & tests/Test-AIToon.ps1 -Bds $Rad12 -EvidenceDir "$EvidenceDir\toon-rad12"
+ & tests/Test-AIToon.ps1 -Bds $Rad13 -EvidenceDir "$EvidenceDir\toon-rad13"
  & .\test-delphi12.ps1 -Bds $Rad12 *> "$EvidenceDir\rad12-tests.log"
  & .\test-delphi12.ps1 -Bds $Rad13 *> "$EvidenceDir\rad13-tests.log"
  & .\build-cli.ps1 -Bds $Rad13 -Platform Win64 -OutputDir "$EvidenceDir\cli" *> "$EvidenceDir\cli-build.log"
@@ -24,6 +26,8 @@ try {
  if($LASTEXITCODE){throw 'Generation failed'}
  & python tests/Validate-DocExport.py $output --project XmlDocE2E
  if($LASTEXITCODE){throw 'Generated local links or project resources are invalid'}
+ & python tests/e2e/Validate-WorkbenchExport.py $output
+ if($LASTEXITCODE){throw 'Generated markup, grouping or numeric resources are invalid'}
  & tests/Validate-HMXP.ps1 "$output\hmxp\XmlDocE2E.hmxp"
  & $cli -p $fixture -o $output -f json --check --baseline "$EvidenceDir\baseline.json" *> "$EvidenceDir\baseline.log"
  if($LASTEXITCODE){throw 'Unchanged baseline was rejected'}

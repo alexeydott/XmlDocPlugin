@@ -9,11 +9,13 @@
   const receive=window.xmlDocWorkbench.receiveCatalog;window.xmlDocWorkbench.receiveCatalog=data=>{groupCatalog=data;receive(data);};
   const receiveAnalysis=window.xmlDocWorkbench.receiveAnalysis;window.xmlDocWorkbench.receiveAnalysis=data=>{if(data.state==='running')analysisStarted=true;if(analysisStarted)analysis=data;receiveAnalysis(data);};
   const isGroupCatalog=()=>groupCatalog?.elements.some(e=>e.name==='FromB') && groupCatalog.elements.some(e=>(e.fileName??'').endsWith('Workbench.Sample.pas'));
+  // Match the real scope control so subsequent automatic refreshes retain group scope.
+  document.getElementById('catalog-scope').value='group';
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});
   // Ignore queued file/project catalogs from the card navigation. Finish a real
   // group request before measuring reuse in the following, unchanged request.
   for(let i=0;i<100 && (!isGroupCatalog() || analysis?.state!=='completed');i++)await pause(100);
-  assert(isGroupCatalog() && analysis?.state==='completed','Initial group analysis did not finish');
+  assert(isGroupCatalog() && analysis?.state==='completed','Initial group analysis did not finish: '+JSON.stringify({status:window.bridge.status,analysis,elements:groupCatalog?.elements.length,errors:groupCatalog?.errors,group:isGroupCatalog()}));
   analysisStarted=false;analysis=undefined;groupCatalog=undefined;
   let lastPulse=performance.now(),maxGap=0;const pulse=setInterval(()=>{const now=performance.now();maxGap=Math.max(maxGap,now-lastPulse);lastPulse=now;},10);const warmStart=performance.now();
   window.bridge.sendToHost({type:'requestCatalog',scope:'group'});for(let i=0;i<100 && (!isGroupCatalog() || !analysisStarted || analysis?.state!=='completed');i++)await pause(100);assert(analysis?.parsed===0 && analysis?.reused>0,'Unchanged modules were not reused: '+JSON.stringify(analysis));

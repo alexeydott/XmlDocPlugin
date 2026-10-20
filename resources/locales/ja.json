@@ -549,5 +549,10 @@
   "Show details": "詳細を表示",
   "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP エラー 404: API アドレスとプロバイダーの一覧にある正確なモデル ID を確認してください",
   "Preview AI requests before sending": "送信前に AI リクエストをプレビュー",
-  "Waiting for AI response": "AI の応答を待っています"
+  "Waiting for AI response": "AI の応答を待っています",
+  "Disable AI thinking": "AI の思考を無効にする",
+  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Neuraldeep の公式な非推論モデルを使用します。他のプロバイダーにはプロンプトの指示のみを送信します。",
+  "Automatic retries (0-10)": "自動再試行回数 (0–10)",
+  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "初回の試行後の再試行回数です。0 で無効。一時的なエラーのみ再試行します。",
+  "Automatic retries must be between 0 and 10": "自動再試行回数は 0 から 10 の間で指定してください"
 }

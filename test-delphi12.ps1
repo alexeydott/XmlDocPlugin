@@ -42,7 +42,7 @@ try {
             & "$output\$name.exe"
             if ($LASTEXITCODE) { throw "$arch $name failed" }
         }
-        foreach ($fixture in @('HMXPFixture', 'HMXPEmpty')) {
+        foreach ($fixture in @('HMXPFixture', 'HMXPEmpty', 'MarkupFixture')) {
             & "$PSScriptRoot\tests\Validate-HMXP.ps1" (Join-Path $output "$fixture\hmxp\Documentation.hmxp")
         }
     }

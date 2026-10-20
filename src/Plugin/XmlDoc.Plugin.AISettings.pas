@@ -1,4 +1,4 @@
-/// <summary>Persists connection profiles and prompt overrides while keeping API keys in Windows Credential Manager.</summary>
+﻿/// <summary>Persists connection profiles and prompt overrides while keeping API keys in Windows Credential Manager.</summary>
 unit XmlDoc.Plugin.AISettings;
 interface
 uses System.SysUtils,System.JSON,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
@@ -49,12 +49,12 @@ begin
  Result.Model:=Json.GetValue<string>('model','');Result.Language:=Json.GetValue<string>('language',Result.Language);
  Result.Authorization:=Json.GetValue<string>('authorization',Result.Authorization);Result.TimeoutMs:=Json.GetValue<Integer>('timeoutMs',Result.TimeoutMs);
  Result.MaxContextChars:=Json.GetValue<Integer>('maxContextChars',Result.MaxContextChars);Result.MaxResponseBytes:=Json.GetValue<Integer>('maxResponseBytes',Result.MaxResponseBytes);
- Result.OutputLimitParameter:=Json.GetValue<string>('outputLimitParameter','');Result.MaxOutputTokens:=Json.GetValue<Integer>('maxOutputTokens',0);Result.JsonMode:=Json.GetValue<Boolean>('jsonMode',False);
+ Result.OutputLimitParameter:=Json.GetValue<string>('outputLimitParameter','');Result.MaxOutputTokens:=Json.GetValue<Integer>('maxOutputTokens',0);Result.JsonMode:=Json.GetValue<Boolean>('jsonMode',False);Result.DisableThinking:=Json.GetValue<Boolean>('disableThinking',False);Result.RetryCount:=Json.GetValue<Integer>('retryCount',3);
 end;
 function AIProfileJson(const Profile:TAIProfile):TJSONObject;
 begin
  Result:=TJSONObject.Create.AddPair('id',Profile.Id).AddPair('name',Profile.Name).AddPair('endpoint',Profile.Endpoint).AddPair('path',Profile.RequestPath).AddPair('model',Profile.Model).AddPair('language',Profile.Language).AddPair('authorization',Profile.Authorization);
- Result.AddPair('timeoutMs',TJSONNumber.Create(Profile.TimeoutMs)).AddPair('maxContextChars',TJSONNumber.Create(Profile.MaxContextChars)).AddPair('maxResponseBytes',TJSONNumber.Create(Profile.MaxResponseBytes)).AddPair('outputLimitParameter',Profile.OutputLimitParameter).AddPair('maxOutputTokens',TJSONNumber.Create(Profile.MaxOutputTokens)).AddPair('jsonMode',TJSONBool.Create(Profile.JsonMode));
+ Result.AddPair('timeoutMs',TJSONNumber.Create(Profile.TimeoutMs)).AddPair('maxContextChars',TJSONNumber.Create(Profile.MaxContextChars)).AddPair('maxResponseBytes',TJSONNumber.Create(Profile.MaxResponseBytes)).AddPair('outputLimitParameter',Profile.OutputLimitParameter).AddPair('maxOutputTokens',TJSONNumber.Create(Profile.MaxOutputTokens)).AddPair('jsonMode',TJSONBool.Create(Profile.JsonMode)).AddPair('disableThinking',TJSONBool.Create(Profile.DisableThinking)).AddPair('retryCount',TJSONNumber.Create(Profile.RetryCount));
 end;
 function AICredentialTarget(const Profile:TAIProfile):string;
 begin Result:='XmlDocPlugin/AI/'+THashSHA2.GetHashString(Profile.Id+#0+AIRequestURL(Profile.Endpoint,Profile.RequestPath));end;
@@ -141,10 +141,10 @@ type TAIPageControlAccess=class(TPageControl);
   Pages:TPageControl;ProfileScroll,PromptScroll:TScrollBox;LayoutReady:Boolean;
   ContentWidth,ContentHeight:Integer;
   Profiles,TemplateList:TComboBox;Fields:TArray<TEdit>;Auth,Limit:TComboBox;JsonMode,ProjectScope:TCheckBox;
-  PreviewRequests:TCheckBox;
+  PreviewRequests,DisableThinking:TCheckBox;
   procedure PreviewChanged(Sender:TObject);
   private
-  KeyEdit:TEdit;FullURL:TLabel;SystemPrompt,UserPrompt:TMemo;TemplateName:TEdit;Operation:TComboBox;
+  RetryCount,KeyEdit:TEdit;FullURL:TLabel;SystemPrompt,UserPrompt:TMemo;TemplateName:TEdit;Operation:TComboBox;
   procedure FitToControls(PPI:Integer=0);
   procedure ProfileChanged(Sender:TObject);procedure SaveProfile(Sender:TObject);procedure NewProfile(Sender:TObject);
   procedure DeleteProfile(Sender:TObject);procedure LoadProfileFields(const P:TAIProfile);
@@ -180,8 +180,11 @@ begin
  LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,416,230,24);LabelControl.Caption:='API key';KeyEdit:=TEdit.Create(Self);KeyEdit.ScaleForPPI(96);KeyEdit.Name:='AIKey';KeyEdit.Parent:=Page;KeyEdit.SetBounds(260,412,360,24);KeyEdit.PasswordChar:='*';KeyEdit.TextHint:='Blank keeps the stored key';AddButton(Page,'Delete stored key',630,410,ClearKey);
  LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,450,230,24);LabelControl.Caption:='Output limit parameter';Limit:=TComboBox.Create(Self);Limit.ScaleForPPI(96);Limit.Parent:=Page;Limit.SetBounds(260,446,240,24);Limit.Style:=csDropDownList;Limit.Items.Add('');Limit.Items.Add('max_tokens');Limit.Items.Add('max_completion_tokens');
  JsonMode:=TCheckBox.Create(Self);JsonMode.ScaleForPPI(96);JsonMode.Parent:=Page;JsonMode.SetBounds(260,480,400,24);JsonMode.Caption:='Request JSON mode (if supported)';
- FullURL:=TLabel.Create(Self);FullURL.ScaleForPPI(96);FullURL.Parent:=Page;FullURL.SetBounds(16,525,780,65);FullURL.AutoSize:=False;FullURL.WordWrap:=True;
- LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,600,780,45);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:='Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.';
+ DisableThinking:=TCheckBox.Create(Self);DisableThinking.ScaleForPPI(96);DisableThinking.Name:='AIDisableThinking';DisableThinking.Parent:=Page;DisableThinking.SetBounds(260,510,540,24);DisableThinking.Caption:='Disable AI thinking';DisableThinking.Hint:='Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.';DisableThinking.ShowHint:=True;DisableThinking.Anchors:=[akLeft,akTop,akRight];
+ LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,547,230,24);LabelControl.Caption:='Automatic retries (0-10)';
+ RetryCount:=TEdit.Create(Self);RetryCount.ScaleForPPI(96);RetryCount.Name:='AIRetryCount';RetryCount.Parent:=Page;RetryCount.SetBounds(260,544,540,24);RetryCount.NumbersOnly:=True;RetryCount.Hint:='Retries after the first attempt; 0 disables retries. Temporary errors only.';RetryCount.ShowHint:=True;
+ FullURL:=TLabel.Create(Self);FullURL.ScaleForPPI(96);FullURL.Parent:=Page;FullURL.SetBounds(16,589,780,65);FullURL.AutoSize:=False;FullURL.WordWrap:=True;
+ LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,664,780,45);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:='Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.';
  // Keep the selector and its actions above the editable profile name.
  for I:=0 to ComponentCount-1 do if Components[I] is TControl then begin
   var Control:=TControl(Components[I]);
@@ -200,7 +203,7 @@ begin
  for I:=0 to ComponentCount-1 do if Components[I] is TControl then begin
   var Control:=TControl(Components[I]);if (Control<>PromptScroll) and (Control.Parent=Page) then Control.Parent:=PromptScroll;
  end;
- PreviewRequests:=TCheckBox.Create(Self);PreviewRequests.ScaleForPPI(96);PreviewRequests.Name:='AIPreviewRequests';PreviewRequests.Parent:=ProfileScroll;PreviewRequests.SetBounds(16,700,784,24);PreviewRequests.Caption:='Preview AI requests before sending';PreviewRequests.Hint:=PreviewRequests.Caption;PreviewRequests.ShowHint:=True;PreviewRequests.Checked:=Config.GetValue<Boolean>('previewRequests',False);PreviewRequests.OnClick:=PreviewChanged;
+ PreviewRequests:=TCheckBox.Create(Self);PreviewRequests.ScaleForPPI(96);PreviewRequests.Name:='AIPreviewRequests';PreviewRequests.Parent:=ProfileScroll;PreviewRequests.SetBounds(16,764,784,24);PreviewRequests.Caption:='Preview AI requests before sending';PreviewRequests.Hint:=PreviewRequests.Caption;PreviewRequests.ShowHint:=True;PreviewRequests.Checked:=Config.GetValue<Boolean>('previewRequests',False);PreviewRequests.OnClick:=PreviewChanged;
  if Profiles.Items.Count>0 then begin Profiles.ItemIndex:=0;ProfileChanged(nil);end else NewProfile(nil);
  TemplateList.ItemIndex:=0;TemplateChanged(nil);LocalizePluginUi(Self);
  // Capture minimum content bounds at the common 96-DPI design scale.
@@ -283,7 +286,7 @@ procedure TAISettingsForm.LoadProfileFields(const P:TAIProfile);
 begin
  Fields[0].Text:=P.Name;Fields[1].Text:=P.Endpoint;Fields[2].Text:=P.RequestPath;Fields[3].Text:=P.Model;Fields[4].Text:=P.Language;
  Fields[5].Text:=IntToStr(P.TimeoutMs);Fields[6].Text:=IntToStr(P.MaxContextChars);Fields[7].Text:=IntToStr(P.MaxResponseBytes);Fields[8].Text:=IntToStr(P.MaxOutputTokens);
- if P.Authorization='bearer' then Auth.ItemIndex:=0 else Auth.ItemIndex:=1;Limit.ItemIndex:=Limit.Items.IndexOf(P.OutputLimitParameter);JsonMode.Checked:=P.JsonMode;KeyEdit.Clear;UpdateURL(nil);
+ if P.Authorization='bearer' then Auth.ItemIndex:=0 else Auth.ItemIndex:=1;Limit.ItemIndex:=Limit.Items.IndexOf(P.OutputLimitParameter);JsonMode.Checked:=P.JsonMode;DisableThinking.Checked:=P.DisableThinking;RetryCount.Text:=IntToStr(P.RetryCount);KeyEdit.Clear;UpdateURL(nil);
  TButton(FindComponent('AIButtonDeleteprofile')).Enabled:=Profiles.ItemIndex>=0;
 end;
 procedure TAISettingsForm.UpdateURL(Sender:TObject);
@@ -295,7 +298,7 @@ begin
   ProfilesJson:=Config.GetValue<TJSONArray>('profiles');Index:=Profiles.ItemIndex;
   if Index>=0 then P:=AIProfileFromJson(ProfilesJson[Index] as TJSONObject) else P:=NewProfileDraft;
   P.Name:=Trim(Fields[0].Text);P.Endpoint:=Trim(Fields[1].Text);P.RequestPath:=Trim(Fields[2].Text);P.Model:=Trim(Fields[3].Text);P.Language:=Fields[4].Text;
-  P.TimeoutMs:=StrToInt(Fields[5].Text);P.MaxContextChars:=StrToInt(Fields[6].Text);P.MaxResponseBytes:=StrToInt(Fields[7].Text);P.MaxOutputTokens:=StrToInt(Fields[8].Text);P.Authorization:=IfThen(Auth.ItemIndex=0,'bearer','none');P.OutputLimitParameter:=Limit.Text;P.JsonMode:=JsonMode.Checked;
+  P.TimeoutMs:=StrToInt(Fields[5].Text);P.MaxContextChars:=StrToInt(Fields[6].Text);P.MaxResponseBytes:=StrToInt(Fields[7].Text);P.MaxOutputTokens:=StrToInt(Fields[8].Text);P.Authorization:=IfThen(Auth.ItemIndex=0,'bearer','none');P.OutputLimitParameter:=Limit.Text;P.JsonMode:=JsonMode.Checked;P.DisableThinking:=DisableThinking.Checked;P.RetryCount:=StrToInt(RetryCount.Text);if (P.RetryCount<0) or (P.RetryCount>10) then raise EAIError.Create('Automatic retries must be between 0 and 10');
   Context:=Default(TAIContext);Context.Signature:='Connection check';Context.Code:='No source code is included.';
   // A name can be saved before the model is chosen. Sending still requires it.
   Validation:=P;if Validation.Model='' then Validation.Model:='validation-placeholder';

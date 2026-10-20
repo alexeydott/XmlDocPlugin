@@ -10,12 +10,11 @@ type
   class function BuiltIn(Operation:TAIOperation):TAIPrompt;static;
  end;
 function ExpandPrompt(const Template:string;const Context:TAIContext;const Language:string):string;
+function ToonPrompt(const Template:string;const Context:TAIContext;const Language:string):string;
 function ProtectSummary(const Summary:string;out Fragments:TArray<TAIProtectedFragment>):string;
 function RestoreSummary(const Text:string;const Fragments:TArray<TAIProtectedFragment>):string;
 implementation
-uses System.JSON,System.Generics.Collections,Xml.XMLIntf,XmlDoc.XmlFragments;
-function Escape(const S:string):string;
-begin Result:=S.Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;');end;
+uses System.JSON,System.Generics.Collections,System.RegularExpressions,Xml.XMLIntf,XmlDoc.XmlFragments,XmlDoc.AI.Toon,XmlDoc.AI.Text;
 class function TAIPrompt.BuiltIn(Operation:TAIOperation):TAIPrompt;
 begin
  Result:=Default(TAIPrompt);Result.Operation:=Operation;
@@ -49,6 +48,27 @@ begin
   end;
   Result:=Result+Copy(Template,Last,MaxInt);
  finally Values.Free;end;
+end;
+function ToonPrompt(const Template:string;const Context:TAIContext;const Language:string):string;
+var Root,Data:TJSONObject;
+ procedure Add(const Name,Text:string;Structured:Boolean=False);
+ var Value:TJSONValue;
+ begin
+  if not TRegEx.IsMatch(Template,'\{\{\s*'+Name+'\s*\}\}') then Exit;
+  Value:=nil;if Structured then Value:=TJSONObject.ParseJSONValue(Text);
+  if not Assigned(Value) then Value:=TJSONString.Create(Text);Data.AddPair(Name,Value);
+ end;
+begin
+ // Expand once for validation; source text is never interpreted as a template.
+ ExpandPrompt(Template,Context,Language);
+ Root:=TJSONObject.Create;Data:=TJSONObject.Create;
+ try
+  Root.AddPair('instructions',Template).AddPair('context',Data);
+  Add('language',Language);Add('signature',Context.Signature);Add('implementation',Context.Code);
+  Add('documentation',Context.Documentation);Add('parameters',Context.Parameters,True);Add('return_type',Context.ReturnType);
+  Add('type_context',Context.TypeContext,True);Add('project_terms',Context.ProjectTerms);Add('user_instruction',Context.UserInstruction);
+  Result:=AIToon(Root);
+ finally Root.Free;end;
 end;
 function ProtectSummary(const Summary:string;out Fragments:TArray<TAIProtectedFragment>):string;
 var Root:IXMLDocument;I,Start,J,Depth:Integer;Quote:Char;Tag,Token,Prefix:string;Fragment:TAIProtectedFragment;
@@ -87,14 +107,14 @@ end;
 function RestoreSummary(const Text:string;const Fragments:TArray<TAIProtectedFragment>):string;
 var Plain:string;Root:IXMLDocument;P:Integer;
 begin
- Plain:=Text;
+ Plain:=CleanAIText(Text);
  for var Fragment in Fragments do begin
   P:=Pos(Fragment.Token,Plain);
   if (P=0) or (Pos(Fragment.Token,Plain,P+Length(Fragment.Token))>0) then raise EAIError.Create('Protected XML token was lost or duplicated');
   Plain:=Plain.Remove(P-1,Length(Fragment.Token));
  end;
  if Plain.Contains('__XMLDOC_') then raise EAIError.Create('Unknown protected XML token');
- Result:=Escape(Text);for var Fragment in Fragments do Result:=Result.Replace(Fragment.Token,Fragment.Xml);
+ Result:=AITextXml(Text);for var Fragment in Fragments do Result:=Result.Replace(Fragment.Token,Fragment.Xml);
  Root:=LoadDocXml('<doc>'+Result+'</doc>');
 end;
 end.

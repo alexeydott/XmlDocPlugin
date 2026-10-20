@@ -552,7 +552,12 @@ const
   '  "Show details": "Показать сведения",' +
   '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "Ошибка AI HTTP 404: проверьте адрес API и точный идентификатор модели в каталоге провайдера",' +
   '  "Preview AI requests before sending": "Предпросмотр AI-запросов перед отправкой",' +
-  '  "Waiting for AI response": "Ожидание ответа AI"' +
+  '  "Waiting for AI response": "Ожидание ответа AI",' +
+  '  "Disable AI thinking": "Отключить размышления AI",' +
+  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Использует документированные модели Neuraldeep без размышлений; другим провайдерам передаётся только инструкция в промпте.",' +
+  '  "Automatic retries (0-10)": "Автоповторы (0–10)",' +
+  '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "Повторы после первой попытки; 0 отключает повторы. Только временные ошибки.",' +
+  '  "Automatic retries must be between 0 and 10": "Число автоповторов должно быть от 0 до 10"' +
   '}';
  CLocale_zh =
   '{' +
@@ -1106,7 +1111,12 @@ const
   '  "Show details": "显示详情",' +
   '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP 错误 404：请检查 API 地址和提供商目录中的准确模型 ID",' +
   '  "Preview AI requests before sending": "发送前预览 AI 请求",' +
-  '  "Waiting for AI response": "正在等待 AI 回复"' +
+  '  "Waiting for AI response": "正在等待 AI 回复",' +
+  '  "Disable AI thinking": "禁用 AI 思考",' +
+  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "使用 Neuraldeep 官方支持的无推理模型；其他提供商仅接收提示词指令。",' +
+  '  "Automatic retries (0-10)": "自动重试次数 (0–10)",' +
+  '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "首次尝试后的重试次数；0 表示禁用。仅重试临时错误。",' +
+  '  "Automatic retries must be between 0 and 10": "自动重试次数必须介于 0 和 10 之间"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1660,7 +1670,12 @@ const
   '  "Show details": "세부 정보 표시",' +
   '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP 오류 404: API 주소와 제공업체 목록의 정확한 모델 ID를 확인하세요",' +
   '  "Preview AI requests before sending": "전송 전 AI 요청 미리 보기",' +
-  '  "Waiting for AI response": "AI 응답을 기다리는 중"' +
+  '  "Waiting for AI response": "AI 응답을 기다리는 중",' +
+  '  "Disable AI thinking": "AI 사고 비활성화",' +
+  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Neuraldeep에서 공식 지원하는 비추론 모델을 사용합니다. 다른 제공업체에는 프롬프트 지침만 전달합니다.",' +
+  '  "Automatic retries (0-10)": "자동 재시도 횟수 (0–10)",' +
+  '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "첫 시도 이후의 재시도 횟수입니다. 0이면 비활성화됩니다. 일시적 오류만 재시도합니다.",' +
+  '  "Automatic retries must be between 0 and 10": "자동 재시도 횟수는 0에서 10 사이여야 합니다"' +
   '}';
  CLocale_ja =
   '{' +
@@ -2214,5 +2229,10 @@ const
   '  "Show details": "詳細を表示",' +
   '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP エラー 404: API アドレスとプロバイダーの一覧にある正確なモデル ID を確認してください",' +
   '  "Preview AI requests before sending": "送信前に AI リクエストをプレビュー",' +
-  '  "Waiting for AI response": "AI の応答を待っています"' +
+  '  "Waiting for AI response": "AI の応答を待っています",' +
+  '  "Disable AI thinking": "AI の思考を無効にする",' +
+  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Neuraldeep の公式な非推論モデルを使用します。他のプロバイダーにはプロンプトの指示のみを送信します。",' +
+  '  "Automatic retries (0-10)": "自動再試行回数 (0–10)",' +
+  '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "初回の試行後の再試行回数です。0 で無効。一時的なエラーのみ再試行します。",' +
+  '  "Automatic retries must be between 0 and 10": "自動再試行回数は 0 から 10 の間で指定してください"' +
   '}';

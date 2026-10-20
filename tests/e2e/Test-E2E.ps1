@@ -1,4 +1,4 @@
-﻿param([switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
+param([ValidateSet('both','preview','direct')][string]$RealAIMode='both',[string]$AIReplayResponse='',[ValidateRange(0,300000)][int]$AITimeoutMs=0,[switch]$RealAI,[switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
  [ValidateSet('rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
@@ -17,7 +17,7 @@ function Test-Export([string]$Output){
  if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
 }
 $savedEnvironment=@{}
-foreach($name in 'XMLDOC_AI_CONFIG','XMLDOC_E2E_AI_ONLY','XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+foreach($name in 'XMLDOC_E2E_REAL_MODE','XMLDOC_E2E_AI_TIMEOUT','XMLDOC_E2E_REAL_AI','XMLDOC_AI_CONFIG','XMLDOC_E2E_AI_ONLY','XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
 $boundsKey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\XmlDocPlugin\DocExplorer')
 try {foreach($name in 'Left','Top','Width','Height'){
@@ -25,6 +25,9 @@ try {foreach($name in 'Left','Top','Width','Height'){
 }} finally {if($boundsKey){$boundsKey.Dispose()}}
 Push-Location $repo
 try {
+ $env:XMLDOC_E2E_REAL_AI=if($RealAI){'1'}else{''}
+ $env:XMLDOC_E2E_AI_TIMEOUT=$AITimeoutMs.ToString();$env:XMLDOC_E2E_REAL_MODE=$RealAIMode
+ if($RealAI){$AIOnly=$true}
  $env:XMLDOC_E2E_AI_ONLY=if($AIOnly){'1'}else{''}
  $env:XMLDOC_E2E_MARKER_PHASE=$MarkerAudit
  $env:XMLDOC_E2E_LARGE_PROJECT=$LargeProject;$env:XMLDOC_E2E_LARGE_SOURCE=$LargeSource
@@ -56,7 +59,7 @@ try {
   @{Name='rad13-x64';Version='37.0';Platform='Win64';Compiler='dcc64';Bin='bin64';Suffix='370';Node='Known Packages x64'})) {
   if($Targets -notcontains $t.Name){continue}
   $rad=if($t.Version -eq '23.0'){$Rad12}else{$Rad13}
-  $out=Join-Path $EvidenceDir $t.Name;New-Item -ItemType Directory -Force $out | Out-Null
+  $out=Join-Path $EvidenceDir $t.Name;New-Item -ItemType Directory -Force $out | Out-Null; if($RealAI -and $AIReplayResponse){Copy-Item -LiteralPath $AIReplayResponse -Destination (Join-Path $out 'html-baseline.response.json')}
   $bplDir=Join-Path $build $t.Name;$dcp=Join-Path $build "dcp\$($t.Name)"
   if($Installed){
    $dcp=Join-Path $InstalledDcpRoot $t.Name
@@ -100,15 +103,16 @@ try {
   $env:XMLDOC_DRAFT_DIR=Join-Path $out 'drafts';$env:XMLDOC_E2E_FIXTURE=$fixture;$env:XMLDOC_E2E_JS=Join-Path $PSScriptRoot $(if($MarkerAudit){'MarkerAuditProbe.js'}else{'WorkbenchProbe.js'});$env:XMLDOC_E2E_LOG="$out\runtime.log"
   $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList "-r$profile",'-ns' -PassThru -WindowStyle Hidden
   # Allow cold IDE startup and repeated generation/quality-gate checks.
-  for($waitAttempt=0;($waitAttempt -lt 6) -and !$p.HasExited;$waitAttempt++){$null=$p.WaitForExit(50000)}
+  for($waitAttempt=0;($waitAttempt -lt $(if($RealAI){18}else{6})) -and !$p.HasExited;$waitAttempt++){$null=$p.WaitForExit(50000);if($RealAI -and !$p.HasExited){Write-Host "$($t.Name) real AI ${RealAIMode}: waiting $((1+$waitAttempt)*50)s"}}
   if(!$p.HasExited){throw "E2E timeout: $($t.Name), test-owned IDE PID $($p.Id)"}
   Get-Content "$out\runtime.log"
-  if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name)"}
+  if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name), process exit $($p.ExitCode)"}
   "PASS IDE exit 0: $($t.Name)"
   if(($BenchmarkModules -eq 0) -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly){Test-Export "$out\documentation"}
   if($Installed -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly -and (Get-Content "$out\documentation\topic-map.json" -Raw) -ne (Get-Content "$EvidenceDir\cli\topic-map.json" -Raw)){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
   # Keep isolated profile and copied sources for reproducible failure analysis.
  }
+ if($RealAI){$providerFailures=@(Get-ChildItem -LiteralPath $EvidenceDir -Recurse -Filter 'provider-failure.observation.json');if($providerFailures.Count){throw "Real provider verification failed for $($providerFailures.Count) target(s); IDE workflow results are retained in $EvidenceDir"}}
 } finally {
  Pop-Location
  foreach($name in $savedEnvironment.Keys){[Environment]::SetEnvironmentVariable($name,$savedEnvironment[$name],'Process')}

@@ -86,7 +86,7 @@ type
     procedure InitTimerFired(Sender: TObject);
     function IsSameElement(const AElement: TCodeElementInfo): Boolean;
     procedure SendToEditor(const AMessageType, APayload: string);
-    procedure UpdateFromCursor;
+    procedure UpdateFromCursor(const APrefix:string='');
   protected
     procedure ApplyIDETheme;
     procedure CMStyleChanged(var Message: TMessage); message CM_STYLECHANGED;
@@ -487,7 +487,7 @@ var
   LBytesRead: Integer;
   LPos: Integer;
   LChunkSize: Integer;
-  LSource: string;
+  LSource, LAck: string;
   LElement: TCodeElementInfo;
 begin
   Result:=False;
@@ -510,7 +510,7 @@ begin
   FUpdatingSource := True;
   try
     if not TDocOTAWriter.ApplyToEditor(LEditor, FCurrentElement, FDocModel) then Exit;
-    Result:=True;FBrowser.ExecuteScript(EditResult(FEditSessionId,'Applied',AEditId));
+    Result:=True;LAck:=EditResult(FEditSessionId,'Applied',AEditId);
 
     // 쓰기 후 소스를 다시 읽어 AST 재구축 및 FCurrentElement 위치 갱신
     // (주석 삽입/수정으로 줄 번호가 바뀌므로 반드시 갱신 필요)
@@ -559,11 +559,13 @@ begin
           FLastElementLine := LElement.LineNumber;
         end;
         FDocModel.LoadFromXml(FCurrentElement.ExistingDocXml);
-        UpdateFromCursor;
+        // Deliver ACK and its new source context in one browser task.
+        UpdateFromCursor(LAck);LAck:='';
       end;
     end;
   finally
     FUpdatingSource := False;
+    if LAck<>'' then FBrowser.ExecuteScript(LAck+UnavailableSourceScript(FLastFileName,1));
   end;
 end;
 
@@ -842,14 +844,14 @@ begin
   Result := TPath.Combine(TPath.GetHomePath, '.xmldoc-params.json');
 end;
 
-procedure TDocInspectorForm.UpdateFromCursor;
+procedure TDocInspectorForm.UpdateFromCursor(const APrefix:string);
 var
   LScript: string;
 begin
   if not FBrowserReady then
     Exit;
 
-  LScript := BuildLoadDocScript;
+  LScript := APrefix+BuildLoadDocScript;
   FBrowser.ExecuteScript(LScript);
 end;
 

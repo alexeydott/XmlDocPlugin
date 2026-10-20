@@ -5,8 +5,23 @@ uses System.SysUtils;
 type TMarkupLink=TFunc<string,string>;
 function MarkupHTML(const Text:string;const Link:TMarkupLink=nil;const Image:TMarkupLink=nil):string;
 function MarkupMarkdown(const Text:string;const Link:TMarkupLink=nil;const Image:TMarkupLink=nil):string;
+function MarkupPlainText(const Text:string):string;
 implementation
 uses Xml.XMLIntf,Xml.XMLDoc,System.StrUtils,XmlDoc.XmlFragments;
+function MarkupPlainText(const Text:string):string;
+var Doc:IXMLDocument;
+ function Render(Node:IXMLNode):string;
+ begin
+  if Node.NodeType in [ntText,ntCData] then Exit(Node.Text);
+  Result:='';if Node.NodeType<>ntElement then Exit;
+  for var I:=0 to Node.ChildNodes.Count-1 do Result:=Result+Render(Node.ChildNodes[I]);
+  if MatchText(Node.NodeName,['paramref','typeparamref']) and Node.HasAttribute('name') then Result:=Node.Attributes['name'];
+  if SameText(Node.NodeName,'see') and (Result='') and Node.HasAttribute('cref') then Result:=Node.Attributes['cref'];
+  if MatchText(Node.NodeName,['para','br','item','code']) then Result:=Result+#10;
+ end;
+begin
+ try Doc:=LoadDocXml('<doc>'+Text+'</doc>');Result:=Trim(Render(Doc.DocumentElement));except Result:=Text;end;
+end;
 function Escape(const S:string):string;
 begin Result:=S.Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;').Replace('"','&quot;');end;
 function MarkupHTML(const Text:string;const Link:TMarkupLink;const Image:TMarkupLink):string;
@@ -17,8 +32,9 @@ var Doc:IXMLDocument;
   if Node.NodeType in [ntText,ntCData] then Exit(Escape(Node.Text));
   if Node.NodeType<>ntElement then Exit('');Name:=LowerCase(Node.NodeName);Content:='';
   if (Name='image') or (Name='img') then begin Target:='';if Node.HasAttribute('src') then Target:=Node.Attributes['src'];if Assigned(Image) then Exit('<img src="'+Escape(Image(Target))+'" alt="'+Escape(Node.Text)+'">');Exit(Escape(Node.Text));end;
-  if Name='code' then Exit('<pre><code>'+Escape(Node.Text)+'</code></pre>');
+  if Name='code' then begin if Node.Text='' then Exit('');Exit('<pre><code>'+Escape(Node.Text)+'</code></pre>');end;
   for I:=0 to Node.ChildNodes.Count-1 do Content:=Content+Render(Node.ChildNodes[I]);
+  if (Content='') and MatchText(Name,['b','strong','i','em','c','list']) then Exit('');
   if (Name='paramref') or (Name='typeparamref') then begin if Node.HasAttribute('name') then Content:=Escape(Node.Attributes['name']);Exit('<strong>'+Content+'</strong>');end;
   if Name='see' then begin Target:='';if Node.HasAttribute('cref') then Target:=Node.Attributes['cref'];
    if Assigned(Link) then begin Result:=Link(Target);if Content<>'' then begin var P:=Pos('>',Result);var Q:=Pos('</a>',Result);if (P>0) and (Q>P) then Result:=Copy(Result,1,P)+Content+'</a>' else Result:=Content;end;Exit;end;if Content='' then Content:=Escape(Target);Exit('<code>'+Content+'</code>');end;
@@ -50,7 +66,7 @@ end;
 function MarkupMarkdown(const Text:string;const Link:TMarkupLink;const Image:TMarkupLink):string;
 var Doc:IXMLDocument;
  function Render(Node:IXMLNode):string;
- var I:Integer;Name,Content,Fence,Line:string;
+ var I,N:Integer;Name,Content,Fence,Line,Header,Rows,Term,Description,Prefix:string;
  begin
   if Node.NodeType in [ntText,ntCData] then begin
    Result:=Node.Text;for var Ch in TArray<string>.Create('\','*','_','[',']','<','>') do Result:=Result.Replace(Ch,'\'+Ch);Exit;
@@ -58,19 +74,44 @@ var Doc:IXMLDocument;
   if Node.NodeType<>ntElement then Exit('');Name:=LowerCase(Node.NodeName);Content:='';
   if (Name='image') or (Name='img') then begin if Assigned(Image) and Node.HasAttribute('src') then Exit('![]('+Image(Node.Attributes['src'])+')');Exit('');end;
   if (Name='code') or (Name='c') then begin
+   if Node.Text='' then Exit('');
    Fence:='`';while Pos(Fence,Node.Text)>0 do Fence:=Fence+'`';
    if Name='code' then begin while Length(Fence)<3 do Fence:=Fence+'`';Exit(sLineBreak+Fence+'pascal'+sLineBreak+Node.Text+sLineBreak+Fence+sLineBreak);end;
    Exit(Fence+' '+Node.Text+' '+Fence);
   end;
   for I:=0 to Node.ChildNodes.Count-1 do Content:=Content+Render(Node.ChildNodes[I]);
+  if (Content='') and ((Name='b') or (Name='strong') or (Name='i') or (Name='em') or (Name='para')) then Exit('');
   if (Name='b') or (Name='strong') then Exit('**'+Content+'**');
   if (Name='i') or (Name='em') then Exit('*'+Content+'*');
   if Name='br' then Exit('  '+sLineBreak);
   if Name='para' then Exit(Content+sLineBreak+sLineBreak);
   if (Name='paramref') or (Name='typeparamref') then begin if Node.HasAttribute('name') then Content:=Node.Attributes['name'];Exit('`'+Content+'`');end;
-  if Name='see' then begin if Assigned(Link) and Node.HasAttribute('cref') then Exit(Link(Node.Attributes['cref']));if (Content='') and Node.HasAttribute('cref') then Content:=Node.Attributes['cref'];Exit('`'+Content+'`');end;
+  if Name='see' then begin
+   if Assigned(Link) and Node.HasAttribute('cref') then begin
+    Result:=Link(Node.Attributes['cref']);I:=Pos('](',Result);
+    if (Content<>'') and (I>0) and Result.StartsWith('[') then Result:='['+Content+Copy(Result,I,MaxInt)
+    else if Content<>'' then Result:=Content;Exit;
+   end;
+   if (Content='') and Node.HasAttribute('cref') then Content:=Node.Attributes['cref'];Exit('`'+Content+'`');
+  end;
+  if (Name='list') and Node.HasAttribute('type') and SameText(Node.Attributes['type'],'table') then begin
+   Header:='| Term | Description |';Rows:='';
+   for I:=0 to Node.ChildNodes.Count-1 do if Node.ChildNodes[I].NodeType=ntElement then begin
+    Term:='';Description:='';for var J:=0 to Node.ChildNodes[I].ChildNodes.Count-1 do begin
+     var Cell:=Node.ChildNodes[I].ChildNodes[J];Line:=Trim(Render(Cell));
+     Line:=Line.Replace('|','\|').Replace(#13#10,' ').Replace(#10,' ').Replace(#13,' ');
+     if SameText(Cell.NodeName,'term') then Term:=Line else if SameText(Cell.NodeName,'description') then Description:=Line;
+    end;
+    Line:='| '+Term+' | '+Description+' |';
+    if SameText(Node.ChildNodes[I].NodeName,'listheader') then Header:=Line else Rows:=Rows+Line+sLineBreak;
+   end;
+   Exit(sLineBreak+Header+sLineBreak+'| --- | --- |'+sLineBreak+Rows+sLineBreak);
+  end;
   if Name='item' then begin
-   Result:='';for Line in Content.Split([sLineBreak]) do begin if Result='' then Result:='- '+Line else Result:=Result+sLineBreak+'  '+Line;end;Exit(Result+sLineBreak);
+   Prefix:='- ';if Assigned(Node.ParentNode) and Node.ParentNode.HasAttribute('type') and SameText(Node.ParentNode.Attributes['type'],'number') then begin
+    N:=1;for I:=0 to Node.ParentNode.ChildNodes.Count-1 do begin if Node.ParentNode.ChildNodes[I]=Node then Break;if Node.ParentNode.ChildNodes[I].NodeName='item' then Inc(N);end;Prefix:=N.ToString+'. ';
+   end;
+   Result:='';for Line in Trim(Content).Replace(#13#10,#10).Split([#10]) do begin if Result='' then Result:=Prefix+Line else Result:=Result+sLineBreak+StringOfChar(' ',Length(Prefix))+Line;end;Exit(Result+sLineBreak);
   end;
   if Name='term' then Exit('**'+Content+'** ');
   Result:=Content;

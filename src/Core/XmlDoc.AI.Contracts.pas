@@ -1,4 +1,4 @@
-/// <summary>Shared request, context, transport and reviewable proposal contracts for AI documentation.</summary>
+﻿/// <summary>Shared request, context, transport and reviewable proposal contracts for AI documentation.</summary>
 unit XmlDoc.AI.Contracts;
 interface
 uses System.SysUtils;
@@ -11,13 +11,13 @@ type
  end;
  TAIProfile=record
   Id,Name,Endpoint,RequestPath,Model,Language,Authorization,OutputLimitParameter:string;
-  TimeoutMs,MaxContextChars,MaxResponseBytes,MaxOutputTokens:Integer;
-  JsonMode:Boolean;
+  TimeoutMs,MaxContextChars,MaxResponseBytes,MaxOutputTokens,RetryCount:Integer;
+  JsonMode,DisableThinking:Boolean;
   class function Defaults:TAIProfile;static;
  end;
  TAIHttpRequest=record
   URL,Body,Authorization:string;
-  TimeoutMs,MaxResponseBytes:Integer;
+  TimeoutMs,MaxResponseBytes,RetryCount:Integer;
  end;
  TAIHttpResponse=record
   Status:Integer;
@@ -41,6 +41,6 @@ class function TAIProfile.Defaults:TAIProfile;
 begin
  Result:=Default(TAIProfile);Result.Name:='Default';Result.Endpoint:='https://api.openai.com/v1';
  Result.RequestPath:='chat/completions';Result.Authorization:='bearer';Result.Language:='English';
- Result.TimeoutMs:=30000;Result.MaxContextChars:=60000;Result.MaxResponseBytes:=262144;
+ Result.RetryCount:=3;Result.TimeoutMs:=30000;Result.MaxContextChars:=60000;Result.MaxResponseBytes:=262144;
 end;
 end.

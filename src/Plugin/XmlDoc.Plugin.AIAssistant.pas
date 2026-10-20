@@ -1,4 +1,4 @@
-/// <summary>Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE.</summary>
+﻿/// <summary>Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE.</summary>
 unit XmlDoc.Plugin.AIAssistant;
 interface
 uses System.Classes,System.SysUtils,System.JSON,Vcl.ExtCtrls,XmlDoc.Plugin.Browser,XmlDoc.Parser,XmlDoc.Consts,
@@ -38,13 +38,21 @@ type
  end;
 implementation
 uses System.IOUtils,System.StrUtils,ToolsAPI,XmlDoc.AI.Context,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.Plugin.AISettings,
- XmlDoc.Plugin.DeclarationContext,XmlDoc.Plugin.EditSession,XmlDoc.Model,XmlDoc.SourceText;
+ XmlDoc.Plugin.DeclarationContext,XmlDoc.Plugin.EditSession,XmlDoc.Model,XmlDoc.SourceText,XmlDoc.AI.Text;
 constructor TAIWorker.Create(const Request:TAIHttpRequest;const Transport:IAITransport);
 begin inherited Create(True);FreeOnTerminate:=False;FRequest:=Request;FTransport:=Transport;end;
 procedure TAIWorker.Execute;
-begin try Proposal:=ExecuteAI(FTransport,FRequest);except on E:Exception do Error:=E.Message;end;FRequest.Authorization:='';end;
+begin try Proposal:=ExecuteAI(FTransport,FRequest,procedure(Delay:Integer)
+ var Remaining,Slice:Integer;
+ begin
+  Remaining:=Delay;repeat
+   if Terminated then raise EAIError.Create('AI request cancelled');
+   Slice:=Remaining;if Slice>25 then Slice:=25;
+   if Slice>0 then TThread.Sleep(Slice);Dec(Remaining,Slice);
+  until Remaining=0;
+ end);except on E:Exception do Error:=E.Message;end;FRequest.Authorization:='';end;
 procedure TAIWorker.Cancel;
-begin FTransport.Cancel;end;
+begin Terminate;FTransport.Cancel;end;
 function TAIAssistant.IsBusy:Boolean;
 begin Result:=Assigned(FWorker) and not FWorker.Finished;end;
 function TAIAssistant.NewTransport:IAITransport;
@@ -146,7 +154,7 @@ begin
      var Name:=TJSONObject(Item).GetValue<string>('name');if not MatchText(Name,FParameterNames) then raise EAIError.Create('Invalid proposal contract');
      for var Allowed in FParameterNames do if SameText(Allowed,Name) then Name:=Allowed;
      for var Existing in Parameters do if SameText(TJSONObject(Existing).GetValue<string>('name'),Name) then raise EAIError.Create('Invalid proposal contract');
-     var Text:=TJSONObject(Item).GetValue<string>('description').Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;');
+     var Text:=AITextXml(TJSONObject(Item).GetValue<string>('description'));
      Parameters.AddElement(TJSONObject.Create.AddPair('name',Name).AddPair('description',Text));
     end;
     var Response:=Approved;Approved:=nil;Reply(Response);

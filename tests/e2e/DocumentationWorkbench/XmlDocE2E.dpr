@@ -4,6 +4,7 @@ uses
  Workbench.Contracts in 'Units\Workbench.Contracts.pas',
  Workbench.Sample in 'Units\Workbench.Sample.pas',
  Workbench.Second in 'Units\Workbench.Second.pas',
+ Workbench.Markup in 'Units\Workbench.Markup.pas',
  Workbench.Examples in 'Examples\Workbench.Examples.pas';
 var Sample:TDocumented;
 begin

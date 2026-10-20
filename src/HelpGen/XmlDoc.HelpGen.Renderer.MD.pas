@@ -26,6 +26,7 @@ type
 
     function FormatDocToMD(const ADoc: TXmlDocModel; const AUnitName: string): string;
     function MakeMDLink(const ACref, AUnitName: string): string;
+    function TableProse(const AText,AUnitName:string):string;
     procedure RenderReadme;
     procedure RenderSidebar;
     procedure RenderSummary;
@@ -45,6 +46,11 @@ type
 implementation
 
 uses XmlDoc.HelpGen.Resources,XmlDoc.Markup;
+function TMarkdownDocRenderer.TableProse(const AText,AUnitName:string):string;
+begin
+ Result:=MarkupMarkdown(AText,function(Cref:string):string begin Result:=MakeMDLink(Cref,AUnitName);end);
+ Result:=Result.Trim.Replace('|','\|').Replace(#13#10,#10).Replace(#13,#10).Replace(#10,'<br/>');
+end;
 
 
 { TMarkdownDocRenderer }
@@ -232,7 +238,7 @@ begin
     for I := 0 to FUnits.Count - 1 do
     begin
       LSB.AppendFormat('| [%s](units/%s) | %s |',
-        [FUnits[I].UnitName, FNames.FileName(FUnits[I].UnitName, '.md'), FUnits[I].UnitDoc.Summary]);
+        [FUnits[I].UnitName, FNames.FileName(FUnits[I].UnitName, '.md'), TableProse(FUnits[I].UnitDoc.Summary,FUnits[I].UnitName).Replace('](','](units/')]);
       LSB.AppendLine;
     end;
 
@@ -293,7 +299,7 @@ begin
           [AUnit.Types[I].Name,
            FNames.FileName(AUnit.UnitName + '.' + AUnit.Types[I].Name, '.md'),
            AUnit.Types[I].Kind.ToString,
-           AUnit.Types[I].Doc.Summary]);
+           TableProse(AUnit.Types[I].Doc.Summary,AUnit.UnitName)]);
         LSB.AppendLine;
       end;
 
@@ -376,7 +382,7 @@ begin
           [AType.Members[I].Name,
            AType.Members[I].Kind.ToString,
            AType.Members[I].Visibility,
-           AType.Members[I].Doc.Summary]);
+           TableProse(AType.Members[I].Doc.Summary,AUnitName)]);
         LSB.AppendLine;
       end;
 

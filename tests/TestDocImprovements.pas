@@ -683,10 +683,10 @@ begin
  Root:=TPath.Combine(GetCurrentDir,'tests\e2e\DocumentationWorkbench');
  C:=TProjectContext.Create(TPath.Combine(Root,'XmlDocE2E.dproj'),'Debug','Win64');
  Scanner:=TProjectScanner.Create;
- try Assert.AreEqual('Win64',C.Platform);Assert.AreEqual<NativeInt>(4,Length(C.SourceFiles));Assert.IsTrue(Length(C.SearchPaths)>0);
+ try Assert.AreEqual('Win64',C.Platform);Assert.AreEqual<NativeInt>(5,Length(C.SourceFiles));Assert.IsTrue(Length(C.SearchPaths)>0);
   Assert.IsTrue(C.SearchPaths[0].EndsWith('Units'));Assert.IsTrue(Length(C.Defines)>0);
   Options:=Default(TScanOptions);Options.Source:=ssProjectFile;Options.ProjectPath:=C.ProjectFile;
-  Assert.AreEqual<NativeInt>(4,Length(Scanner.Scan(Options)));
+  Assert.AreEqual<NativeInt>(5,Length(Scanner.Scan(Options)));
  finally Scanner.Free;C.Free;end;
 end;
 procedure TImprovementsTests.UnsavedImportSnapshot;

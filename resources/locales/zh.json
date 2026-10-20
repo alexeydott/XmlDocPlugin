@@ -549,5 +549,10 @@
   "Show details": "显示详情",
   "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP 错误 404：请检查 API 地址和提供商目录中的准确模型 ID",
   "Preview AI requests before sending": "发送前预览 AI 请求",
-  "Waiting for AI response": "正在等待 AI 回复"
+  "Waiting for AI response": "正在等待 AI 回复",
+  "Disable AI thinking": "禁用 AI 思考",
+  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "使用 Neuraldeep 官方支持的无推理模型；其他提供商仅接收提示词指令。",
+  "Automatic retries (0-10)": "自动重试次数 (0–10)",
+  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "首次尝试后的重试次数；0 表示禁用。仅重试临时错误。",
+  "Automatic retries must be between 0 and 10": "自动重试次数必须介于 0 和 10 之间"
 }

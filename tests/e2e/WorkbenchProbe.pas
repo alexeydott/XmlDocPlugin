@@ -1,17 +1,29 @@
-unit WorkbenchProbe;
+﻿unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Imaging.pngimage,Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedHandler)
  public Stream:IStream;Name:string;Browser:TXmlDocBrowser;
  function Invoke(errorCode:HResult):HResult;stdcall;
  end;
+ TRealAITransport=class(TInterfacedObject,IAITransport)
+ private Delegate:IAITransport;Phase,Directory:string;
+ public constructor Create(const APhase,ADirectory:string);
+ function Execute(const Request:TAIHttpRequest):TAIHttpResponse;
+ procedure Cancel;
+ end;
  TAIProbeTransport=class(TInterfacedObject,IAITransport)
  private FCancelled:Integer;
  public function Execute(const Request:TAIHttpRequest):TAIHttpResponse;procedure Cancel;
+ end;
+ TRetry503Transport=class(TInterfacedObject,IAITransport)
+ public Entered:TEvent;Calls:Integer;
+ constructor Create;destructor Destroy;override;
+ function Execute(const Request:TAIHttpRequest):TAIHttpResponse;
+ procedure Cancel;
  end;
  TPublicationProbe=class(TProjectDocumentation)
  public
@@ -24,7 +36,7 @@ type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedH
  ValidationProbe:TPublicationProbe;
  StressEntered,StressContinue:TEvent;StressChecks:Integer;
  StressRound:Integer;StressGeneration,StressStarted:UInt64;
- AIBefore,AIWritten:string;
+ AIBefore,AIWritten:string;RealLine:Integer;RealSource,RealDiskHash,RealPhase,RealDirectory:string;
  RecoveryFile,RecoveryOriginal:string;
  LanguageSaved:Boolean;OriginalLanguage:string;
  PrefixSettingsSaved:Boolean;OriginalPrefixSettings:TGlobalSettings;LastGenerationMessage:string;
@@ -39,6 +51,14 @@ type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedH
  procedure Finish;
 end;
 var Probe:TProbe;
+constructor TRetry503Transport.Create;
+begin inherited;Entered:=TEvent.Create(nil,True,False,'');end;
+destructor TRetry503Transport.Destroy;
+begin Entered.Free;inherited;end;
+function TRetry503Transport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
+begin TInterlocked.Increment(Calls);Result.Status:=503;Result.Body:='Unavailable';Entered.SetEvent;end;
+procedure TRetry503Transport.Cancel;
+begin end;
 procedure ReplaceSourceBuffer(const Editor:IOTASourceEditor;const Source:string);
 var Reader:IOTAEditReader;Writer:IOTAEditWriter;Buffer:array[0..32767] of AnsiChar;Count,Total:Integer;Bytes:UTF8String;Position:TOTAEditPos;
 begin
@@ -71,6 +91,29 @@ begin
  Stream:=nil;Result:=S_OK;
  if errorCode<0 then Log('FAIL AI screenshot '+Name) else Browser.ExecuteScript('window.__aiScreenshot='+('"'+Name+'"')+';');
 end;
+constructor TRealAITransport.Create(const APhase,ADirectory:string);
+begin inherited Create;Phase:=APhase;Directory:=ADirectory;Delegate:=TAIHTTPTransport.Create;end;
+procedure TRealAITransport.Cancel;
+begin Delegate.Cancel;end;
+function TRealAITransport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
+var Watch:TStopwatch;
+begin
+ TFile.WriteAllText(TPath.Combine(Directory,Phase+'.request.json'),Request.Body,TEncoding.UTF8);Watch:=TStopwatch.StartNew;
+ try
+  if Phase='html' then begin
+   Result.Status:=200;var Envelope:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(Directory,'html-baseline.response.json'),TEncoding.UTF8)) as TJSONObject;
+   try var Message:=TJSONObject(TJSONObject(Envelope.GetValue<TJSONArray>('choices').Items[0]).GetValue('message'));
+    var Content:=TJSONObject.ParseJSONValue(Message.GetValue<string>('content')) as TJSONObject;
+    try Content.RemovePair('summary').Free;Content.AddPair('summary','<html><body><p class="provider">First <strong>formatted</strong> paragraph.</p><p>Second paragraph.</p><script>window.__aiInjectedScript=true</script><style>.provider{color:red}</style></body></html>');
+     if Assigned(Content.GetValue('parameters')) and (Content.GetValue<TJSONArray>('parameters').Count>0) then begin var Item:=TJSONObject(Content.GetValue<TJSONArray>('parameters').Items[0]);Item.RemovePair('description').Free;Item.AddPair('description','<div class="provider">Parameter <b>description</b></div>');end;
+     Message.RemovePair('content').Free;Message.AddPair('content',Content.ToJSON);Result.Body:=Envelope.ToJSON;
+    finally Content.Free;end;
+   finally Envelope.Free;end;
+  end else Result:=Delegate.Execute(Request);
+  TFile.WriteAllText(TPath.Combine(Directory,Phase+'.response.json'),Result.Body,TEncoding.UTF8);
+  var Meta:=TJSONObject.Create.AddPair('status',TJSONNumber.Create(Result.Status)).AddPair('elapsedMs',TJSONNumber.Create(Watch.ElapsedMilliseconds)).AddPair('url',Request.URL);try TFile.WriteAllText(TPath.Combine(Directory,Phase+'.result.json'),Meta.ToJSON,TEncoding.UTF8);finally Meta.Free;end;
+ except on E:Exception do begin TFile.WriteAllText(TPath.Combine(Directory,Phase+'.error.txt'),E.ClassName+': '+E.Message,TEncoding.UTF8);raise;end;end;
+end;
 function TAIProbeTransport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
 begin
  if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
@@ -79,6 +122,10 @@ begin
  var Summary:='Native AI proposed summary';var Seen:=TStringList.Create;var Root:=TJSONObject.Create;
  try
   for var Match in TRegEx.Matches(Request.Body,'__XMLDOC_[0-9a-fA-F]+_[0-9]+__') do if Seen.IndexOf(Match.Value)<0 then begin Seen.Add(Match.Value);Summary:=Summary+' '+Match.Value;end;
+  if Request.Body.Contains('HTML cleanup fixture') then begin
+   Summary:='<p class="provider">First <b>formatted</b> paragraph.</p><p>Second paragraph.</p><script>providerHtmlFixture()</script><style>.provider{color:red}</style>';
+   for var Token in Seen do Summary:=Summary+Token;
+  end;
   var Content:=TJSONObject.Create.AddPair('summary',Summary).AddPair('uncertainties',TJSONArray.Create(TJSONString.Create('Ownership is not specified.'))).AddPair('parameters',TJSONArray.Create(TJSONObject.Create.AddPair('name','Value').AddPair('description','Input text to process.')));
   try var Choices:=TJSONArray.Create;Root.AddPair('choices',Choices);Choices.AddElement(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',TJSONObject.Create.AddPair('content',Content.ToJSON)));Result.Status:=200;Result.Body:=Root.ToJSON;finally Content.Free;end;
  finally Root.Free;Seen.Free;end;
@@ -102,6 +149,10 @@ begin
    finally if Assigned(AuthCombo) then AuthCombo.ItemIndex:=OldAuth;Name.Text:=OldName;Endpoint.Text:=OldEndpoint;Model.Text:=OldModel;end;
   end;
   var Preview:=TCheckBox(Form.FindComponent('AIPreviewRequests'));AssertTrue(Assigned(Preview) and not Preview.Checked,'AI request preview must default to off');Preview.Checked:=True;var PreviewConfig:=LoadAIConfiguration;try AssertTrue(PreviewConfig.GetValue<Boolean>('previewRequests',False),'AI request preview setting not saved');finally PreviewConfig.Free;end;
+  var Retries:=TEdit(Form.FindComponent('AIRetryCount'));AssertTrue(Assigned(Retries) and (Retries.Text='3'),'Retry count default incorrect');Retries.Text:='2';
+  var Thinking:=TCheckBox(Form.FindComponent('AIDisableThinking'));AssertTrue(Assigned(Thinking) and not Thinking.Checked,'Thinking must default to provider behavior');
+  Thinking.Checked:=True;TButton(Form.FindComponent('AIButtonSaveprofile')).Click;var ThinkingConfig:=LoadAIConfiguration;try AssertTrue(AIProfileFromJson(TJSONObject(ThinkingConfig.GetValue<TJSONArray>('profiles')[0])).DisableThinking,'Thinking setting not persisted');AssertTrue(AIProfileFromJson(TJSONObject(ThinkingConfig.GetValue<TJSONArray>('profiles')[0])).RetryCount=2,'Retry count not persisted');finally ThinkingConfig.Free;end;
+  Retries.Text:='3';Thinking.Checked:=False;TButton(Form.FindComponent('AIButtonSaveprofile')).Click;
   AssertTrue(TEdit(Form.FindComponent('AIField3')).Text='your-model-id','AI model did not load');AssertTrue(TEdit(Form.FindComponent('AIKey')).Text='','Credential was exposed in native key field');
   for var J:=0 to Form.ComponentCount-1 do if Form.Components[J] is TPageControl then begin var Pages:=TPageControl(Form.Components[J]);
    for var Tab:=0 to Pages.PageCount-1 do begin Pages.ActivePageIndex:=Tab;
@@ -164,6 +215,9 @@ begin
   TTimer(Sender).Enabled:=False;var Form:=Screen.Forms[I];var Preview:=TCheckBox(Form.FindComponent('AIPreviewRequests'));
   AssertTrue(Form.Caption=TI18n.Instance.T('AI profiles and prompts'),'AI locale title mismatch');
   AssertTrue((Preview.Caption=TI18n.Instance.T('Preview AI requests before sending')) and (Preview.Hint=Preview.Caption),'AI preview caption/hint mismatch');
+  AssertTrue(TEdit(Form.FindComponent('AIRetryCount')).Hint=TI18n.Instance.T('Retries after the first attempt; 0 disables retries. Temporary errors only.'),'Retry hint not localized');
+  AssertTrue(TCheckBox(Form.FindComponent('AIDisableThinking')).Caption=TI18n.Instance.T('Disable AI thinking'),'Thinking caption not localized');
+  AssertTrue(TCheckBox(Form.FindComponent('AIDisableThinking')).Hint=TI18n.Instance.T('Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.'),'Thinking hint not localized');
   AssertTrue(TEdit(Form.FindComponent('AIKey')).TextHint=TI18n.Instance.T('Blank keeps the stored key'),'AI key hint mismatch');
   AssertTrue(TButton(Form.FindComponent('AIButtonNewprofile')).Caption=TI18n.Instance.T('New profile'),'AI action caption mismatch');
   AssertTrue(TEdit(Form.FindComponent('AIKey')).Text='','AI key exposed while changing locale');
@@ -198,6 +252,7 @@ begin
  if PrefixSettingsSaved then begin TPluginSettings.Instance.Global:=OriginalPrefixSettings;TPluginSettings.Instance.Save;PrefixSettingsSaved:=False;end;
  if LanguageSaved then begin var SavedSettings:=TPluginSettings.Instance.Global;SavedSettings.General.Language:=OriginalLanguage;TPluginSettings.Instance.Global:=SavedSettings;TPluginSettings.Instance.Save;TI18n.Instance.SetLanguage(OriginalLanguage);end;Timer.Enabled:=False;
  Log('Closing Explorer');Explorer.Free;Explorer:=nil;Log('Closing Inspector');Inspector.Free;Inspector:=nil;Log('Closed Inspector');Services:=BorlandIDEServices as IOTAModuleServices;
+ if RealSource<>'' then begin Module:=Services.FindModule(RealSource);if Assigned(Module) then Module.CloseModule(True);Module:=nil;Log('Closed unchanged real source');end;
  Project:=Services.GetActiveProject;if Assigned(Project) then begin
   Log('Closing project '+Project.FileName);Project.CloseModule(True);Log('Closed project');end;
  if Assigned(Services.MainProjectGroup) then begin Log('Closing temporary project group');Services.MainProjectGroup.CloseModule(True);Log('Closed project group');end;
@@ -299,7 +354,55 @@ begin
     Browser.ApplySettings;ExplorerBrowser.ApplySettings;Initial:=EditorSource(SourceEditorForFile(SampleFile));Select(SampleFile,'Run','string');
     Browser.ExecuteScript('window.__prefixRestored=true');Log('PASS custom prefix settings restored after native editor checks');
    end
+   else if Action='real-ai-arm' then begin
+    RealSource:=GetEnvironmentVariable('XMLDOC_E2E_LARGE_SOURCE');RealDiskHash:=THashSHA2.GetHashStringFromFile(RealSource);RealDirectory:=ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG'));
+    var UserConfig:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'),'XmlDocPlugin\ai.json'),TEncoding.UTF8)) as TJSONObject;
+    try var Profiles:=UserConfig.GetValue<TJSONArray>('profiles');var Profile:TJSONObject:=nil;for var Item in Profiles do if SameText(TJSONObject(Item).GetValue<string>('name'),'neuraldeep') then Profile:=TJSONObject(Item);
+     AssertTrue(Assigned(Profile),'neuraldeep profile not found');var Config:=TJSONObject.Create.AddPair('version',TJSONNumber.Create(1)).AddPair('previewRequests',TJSONBool.Create(True)).AddPair('profiles',TJSONArray.Create(Profile.Clone as TJSONObject));
+     try var TestTimeout:=StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_AI_TIMEOUT'),0);if TestTimeout>0 then begin var TestProfile:=Config.GetValue<TJSONArray>('profiles')[0] as TJSONObject;TestProfile.RemovePair('timeoutMs').Free;TestProfile.AddPair('timeoutMs',TJSONNumber.Create(TestTimeout));end;SaveAIConfiguration(Config);finally Config.Free;end;
+    finally UserConfig.Free;end;
+    var Project:=GetActiveProject;AssertTrue(Assigned(Project) and Project.FileName.StartsWith(Root,True),'Real AI context must use the isolated test project');
+    var Context:=TProjectContext.Create(GetEnvironmentVariable('XMLDOC_E2E_LARGE_PROJECT'),'Debug','Win32');
+    try var ProjectXml:='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><PropertyGroup><MainSource>SourceLatency.dpr</MainSource><DCC_Define>'+XmlEscape(string.Join(';',Context.Defines))+'</DCC_Define><DCC_IncludePath>'+XmlEscape(ExtractFilePath(Context.ProjectFile)+';'+string.Join(';',Context.IncludePaths))+'</DCC_IncludePath><DCC_UnitSearchPath>'+XmlEscape(string.Join(';',Context.SearchPaths))+'</DCC_UnitSearchPath></PropertyGroup><ItemGroup>';
+     for var Name in Context.SourceFiles+[RealSource] do if not SameText(ExtractFileExt(Name),'.dpr') then ProjectXml:=ProjectXml+'<DCCReference Include="'+XmlEscape(Name)+'"/>';
+     TFile.WriteAllText(Project.FileName,ProjectXml+'</ItemGroup></Project>',TEncoding.UTF8);TFile.WriteAllText(TPath.Combine(ExtractFilePath(Project.FileName),'SourceLatency.dpr'),'program SourceLatency;begin end.',TEncoding.UTF8);
+    finally Context.Free;end;
+    AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(RealSource),'Cannot open real source');Editor:=SourceEditorForFile(RealSource);AIBefore:=EditorSource(Editor);TParamDictionary.Instance.LoadFromFile(TPath.Combine(Root,'real-ai-parameters.json'));
+    var P:=TDocParser.Create;try ConfigureDeclarationContext(P,nil,RealSource);P.ParseSource(AIBefore,RealSource);var Line:=0;for var Item in P.GetAllElements do if SameText(Item.Name,'RefreshMapDC') and SameText(Item.QualifiedParent,'TGisMappl') and (Item.SourceSection='interface') then begin Line:=Item.LineNumber;Break;end;AssertTrue(Line>0,'RefreshMapDC declaration not found');RealLine:=Line;var Position:TOTAEditPos;Position.Line:=Line;Position.Col:=5;Editor.EditViews[0].SetCursorPos(Position);Editor.Show;Inspector.HandleCursorChanged(Line,AIBefore,RealSource);finally P.Free;end;
+    RealPhase:='preview';AssistantFor(Inspector).TransportFactory:=function:IAITransport begin Result:=TRealAITransport.Create(RealPhase,RealDirectory);end;
+    Browser.ExecuteScript('window.xmlDocAI.reload();window.__realMode="'+GetEnvironmentVariable('XMLDOC_E2E_REAL_MODE')+'";window.__realArmed=true;');Log('PASS real neuraldeep profile and original RefreshMapDC opened');
+   end
+   else if Action='real-ai-phase' then begin
+    RealPhase:=Json.GetValue<string>('phase');AssertTrue(MatchText(RealPhase,['preview','direct','cancel','html']),'Invalid real AI phase');var Config:=LoadAIConfiguration;
+    try Config.RemovePair('previewRequests').Free;Config.AddPair('previewRequests',TJSONBool.Create(RealPhase='preview'));SaveAIConfiguration(Config);finally Config.Free;end;
+    Browser.ExecuteScript('window.xmlDocAI.reload();window.__realPhase="'+RealPhase+'";');
+   end
+   else if Action='real-ai-poll' then Browser.ExecuteScript('window.__realNativeBusy='+LowerCase(BoolToStr(AssistantFor(Inspector).Busy,True))+';window.__realDispatched='+LowerCase(BoolToStr(TFile.Exists(TPath.Combine(RealDirectory,RealPhase+'.request.json')),True))+';')
+   else if Action='real-ai-applied' then begin
+    Editor:=SourceEditorForFile(RealSource);var Modified:=EditorSource(Editor);AssertTrue(Modified<>AIBefore,'AI proposal did not reach source writer');
+    TFile.WriteAllText(TPath.Combine(RealDirectory,RealPhase+'.applied.pas'),Modified,TEncoding.UTF8);
+    AssertTrue(Supports(Editor,IOTAEditBuffer,EditBuffer),'No Undo buffer');for var I:=0 to 20 do begin if EditorSource(Editor)=AIBefore then Break;EditBuffer.Undo;end;
+    AssertTrue(EditorSource(Editor)=AIBefore,'Undo did not restore original source');AssertTrue(THashSHA2.GetHashStringFromFile(RealSource)=RealDiskHash,'Real source changed on disk');var Position:TOTAEditPos;Position.Line:=RealLine;Position.Col:=5;Editor.EditViews[0].SetCursorPos(Position);TParamDictionary.Instance.LoadFromFile(TPath.Combine(Root,'real-ai-parameters.json'));Inspector.HandleCursorChanged(RealLine,AIBefore,RealSource);
+    Browser.ExecuteScript('window.__realUndone=true;');Log('PASS '+RealPhase+' applied through OTA and fully undone');
+   end
+   else if Action='real-ai-observation' then TFile.WriteAllText(TPath.Combine(RealDirectory,Json.GetValue<string>('phase')+'.observation.json'),Json.ToJSON,TEncoding.UTF8)
+   else if Action='real-ai-finish' then begin
+    AssertTrue(not AssistantFor(Inspector).Busy,'Real request still running');AssertTrue(EditorSource(SourceEditorForFile(RealSource))=AIBefore,'Real buffer changed');AssertTrue(THashSHA2.GetHashStringFromFile(RealSource)=RealDiskHash,'Real source saved');
+    Log('PASS real file byte-for-byte unchanged');Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;
+   end
    else if Action='ai-test-arm' then begin
+    var RetryTransport:=TRetry503Transport.Create;var RetryInterface:IAITransport:=RetryTransport;
+    var RetryRequest:=Default(TAIHttpRequest);RetryRequest.RetryCount:=3;RetryRequest.MaxResponseBytes:=1024;
+    var RetryWorker:=TAIWorker.Create(RetryRequest,RetryInterface);
+    try
+     RetryWorker.Start;AssertTrue(RetryTransport.Entered.WaitFor(5000)=wrSignaled,'Retry worker never dispatched');
+     var CancelStarted:=GetTickCount64;RetryWorker.Cancel;RetryWorker.WaitFor;
+     AssertTrue(GetTickCount64-CancelStarted<500,'Retry delay cancellation blocked IDE');
+     AssertTrue(RetryWorker.Error='AI request cancelled','Retry cancellation error lost');
+     AssertTrue(RetryTransport.Calls=1,'Cancelled retry dispatched another request');
+     Log('PASS active retry worker cancellation ms: '+UIntToStr(GetTickCount64-CancelStarted));
+    finally RetryWorker.Cancel;RetryWorker.WaitFor;RetryWorker.Free;RetryInterface:=nil;end;
+
     var Config:=TJSONObject.Create.AddPair('version',TJSONNumber.Create(1));var Profiles:=TJSONArray.Create;Config.AddPair('profiles',Profiles);
     var Profile:=TAIProfile.Defaults;Profile.Id:=TGUID.NewGuid.ToString;Profile.Name:='OpenAI';Profile.Model:='your-model-id';Profile.Authorization:='none';Profile.Endpoint:='https://api.openai.com/v1';Profiles.AddElement(AIProfileJson(Profile));try SaveAIConfiguration(Config);finally Config.Free;end;
     Profile.Id:=TGUID.NewGuid.ToString;var KeyProfile:=Profile;
@@ -343,6 +446,11 @@ begin
    end
    else if Action='ai-param-checked' then begin
     AssertTrue(EditorSource(SourceEditorForFile(SampleFile)).Contains('Reviewed input parameter'),'AI parameter did not reach OTA source');Log('PASS reviewed AI parameter description applies through OTA');
+   end
+   else if Action='ai-html-checked' then begin
+    var HtmlSource:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(HtmlSource.Contains('<para>First formatted paragraph.</para>') and HtmlSource.Contains('<para>Second paragraph.</para>'),'AI paragraphs were not formatted in source');
+    AssertTrue(not HtmlSource.Contains('providerHtmlFixture') and not HtmlSource.Contains('class="provider"') and not HtmlSource.Contains('&lt;p'),'Provider HTML leaked into source');
+    Browser.ExecuteScript('window.__aiHTMLChecked=true;');Log('PASS HTML-free AI paragraphs applied through OTA');
    end
    else if Action='ai-body-change' then begin
     Editor:=SourceEditorForFile(SampleFile);Source:=EditorSource(Editor);AssertTrue(Source.Contains('if Value='),'AI body token absent');Source:=Source.Replace('begin if Value=','begin {changed during AI request} if Value=');
@@ -434,7 +542,7 @@ begin
     var GroupXml:=TFile.ReadAllText(TPath.Combine(Root,'XmlDocE2E.dproj')).Replace('XmlDocE2E','GroupB');
     GroupXml:=GroupXml.Replace('{3A72602E-67CF-469D-A733-BC75247CC365}',TGUID.NewGuid.ToString);
     GroupXml:=GroupXml.Replace('<DCCReference Include="Units\Workbench.Contracts.pas"/>','<DCCReference Include="ContextB.pas"/>');
-    GroupXml:=GroupXml.Replace('<DCCReference Include="Units\Workbench.Sample.pas"/>','').Replace('<DCCReference Include="Units\Workbench.Second.pas"/>','').Replace('<DCCReference Include="Examples\Workbench.Examples.pas"/>','');
+    GroupXml:=GroupXml.Replace('<DCCReference Include="Units\Workbench.Sample.pas"/>','').Replace('<DCCReference Include="Units\Workbench.Second.pas"/>','').Replace('<DCCReference Include="Units\Workbench.Markup.pas"/>','').Replace('<DCCReference Include="Examples\Workbench.Examples.pas"/>','');
     GroupXml:=GroupXml.Replace('<DCC_Define>DEBUG;','<DCC_Define>FROM_B;DEBUG;');
     // A bare DCCReference is deliberately outside the project directory. OTA
     // reports the unresolved project-directory alias; analysis must normalize it.
@@ -983,7 +1091,7 @@ begin
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
-   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'AIAssistantProbe.js')));Inc(Step);Exit;end;
+   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1','RealAIAssistantProbe.js','AIAssistantProbe.js'))));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1' then begin
    // A successful parse must not clear a browser failure. Inject the event only
    // after the real WebView has loaded; recover through its navigation callback.
