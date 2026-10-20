@@ -136,6 +136,9 @@ pwsh ./tests/Test-Improvements.ps1 -SkipIDE
 
 ![Documentation Explorer](docs/assets/explorer.png)
 
+### AI assistant
+![AI documentation review with parameter descriptions](docs/assets/user-guide/ai-proposal.png)
+
 ## 기술 및 라이선스
 
 Delphi OTA/VCL, WebView2, TipTap/TypeScript/Vite 및
@@ -146,4 +149,4 @@ Delphi OTA/VCL, WebView2, TipTap/TypeScript/Vite 및
 
 ## AI assistant
 
-- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with optional request preview, cancellation and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).
+- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with TOON context, optional request preview, configurable thinking control and automatic retries, cancellation, HTML cleanup and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).

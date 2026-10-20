@@ -6,6 +6,7 @@ if ($html -match '<script\b|<(?:link|iframe)\b|(?:src|srcset)\s*=\s*["''](?:http
     throw 'Offline help must not depend on scripts, remote media or external stylesheets.'
 }
 if ($html -match 'XmlDocE2E|editor views captured in a browser|Offline user guide\.') { throw 'Help contains test-project references or removed introductory text.' }
+if ($html -match '(?i)neuraldeep') { throw 'Help must not expose internal provider details.' }
 $ids = @{}
 foreach ($match in [regex]::Matches($html, '\bid="([^"]+)"')) {
     $id = $match.Groups[1].Value

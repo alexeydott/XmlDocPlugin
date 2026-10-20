@@ -554,7 +554,7 @@ const
   '  "Preview AI requests before sending": "Предпросмотр AI-запросов перед отправкой",' +
   '  "Waiting for AI response": "Ожидание ответа AI",' +
   '  "Disable AI thinking": "Отключить размышления AI",' +
-  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Использует документированные модели Neuraldeep без размышлений; другим провайдерам передаётся только инструкция в промпте.",' +
+  '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "Использует поддерживаемую модель без размышлений, если она доступна; иначе добавляет инструкцию в промпт. Поддержка зависит от провайдера.",' +
   '  "Automatic retries (0-10)": "Автоповторы (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "Повторы после первой попытки; 0 отключает повторы. Только временные ошибки.",' +
   '  "Automatic retries must be between 0 and 10": "Число автоповторов должно быть от 0 до 10"' +
@@ -1113,7 +1113,7 @@ const
   '  "Preview AI requests before sending": "发送前预览 AI 请求",' +
   '  "Waiting for AI response": "正在等待 AI 回复",' +
   '  "Disable AI thinking": "禁用 AI 思考",' +
-  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "使用 Neuraldeep 官方支持的无推理模型；其他提供商仅接收提示词指令。",' +
+  '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "优先使用受支持的非推理模型，否则添加提示词指令。具体支持取决于提供商。",' +
   '  "Automatic retries (0-10)": "自动重试次数 (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "首次尝试后的重试次数；0 表示禁用。仅重试临时错误。",' +
   '  "Automatic retries must be between 0 and 10": "自动重试次数必须介于 0 和 10 之间"' +
@@ -1672,7 +1672,7 @@ const
   '  "Preview AI requests before sending": "전송 전 AI 요청 미리 보기",' +
   '  "Waiting for AI response": "AI 응답을 기다리는 중",' +
   '  "Disable AI thinking": "AI 사고 비활성화",' +
-  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Neuraldeep에서 공식 지원하는 비추론 모델을 사용합니다. 다른 제공업체에는 프롬프트 지침만 전달합니다.",' +
+  '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "지원되는 비추론 모델이 있으면 사용하고, 없으면 프롬프트 지침을 추가합니다. 지원 여부는 제공업체에 따라 다릅니다.",' +
   '  "Automatic retries (0-10)": "자동 재시도 횟수 (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "첫 시도 이후의 재시도 횟수입니다. 0이면 비활성화됩니다. 일시적 오류만 재시도합니다.",' +
   '  "Automatic retries must be between 0 and 10": "자동 재시도 횟수는 0에서 10 사이여야 합니다"' +
@@ -2231,7 +2231,7 @@ const
   '  "Preview AI requests before sending": "送信前に AI リクエストをプレビュー",' +
   '  "Waiting for AI response": "AI の応答を待っています",' +
   '  "Disable AI thinking": "AI の思考を無効にする",' +
-  '  "Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.": "Neuraldeep の公式な非推論モデルを使用します。他のプロバイダーにはプロンプトの指示のみを送信します。",' +
+  '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "対応する非推論モデルがあれば使用し、なければプロンプトに指示を追加します。対応状況はプロバイダーによって異なります。",' +
   '  "Automatic retries (0-10)": "自動再試行回数 (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "初回の試行後の再試行回数です。0 で無効。一時的なエラーのみ再試行します。",' +
   '  "Automatic retries must be between 0 and 10": "自動再試行回数は 0 から 10 の間で指定してください"' +

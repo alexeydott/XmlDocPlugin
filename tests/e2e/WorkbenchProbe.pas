@@ -119,7 +119,7 @@ begin
  if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
  var Steps:=30;if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then Steps:=160;
  for var I:=0 to Steps do begin if TInterlocked.CompareExchange(FCancelled,0,0)<>0 then raise Exception.Create('AI request cancelled');Sleep(10);end;
- var Summary:='Native AI proposed summary';var Seen:=TStringList.Create;var Root:=TJSONObject.Create;
+ var Summary:='Returns immediately when the supplied value is empty.';var Seen:=TStringList.Create;var Root:=TJSONObject.Create;
  try
   for var Match in TRegEx.Matches(Request.Body,'__XMLDOC_[0-9a-fA-F]+_[0-9]+__') do if Seen.IndexOf(Match.Value)<0 then begin Seen.Add(Match.Value);Summary:=Summary+' '+Match.Value;end;
   if Request.Body.Contains('HTML cleanup fixture') then begin
@@ -217,7 +217,7 @@ begin
   AssertTrue((Preview.Caption=TI18n.Instance.T('Preview AI requests before sending')) and (Preview.Hint=Preview.Caption),'AI preview caption/hint mismatch');
   AssertTrue(TEdit(Form.FindComponent('AIRetryCount')).Hint=TI18n.Instance.T('Retries after the first attempt; 0 disables retries. Temporary errors only.'),'Retry hint not localized');
   AssertTrue(TCheckBox(Form.FindComponent('AIDisableThinking')).Caption=TI18n.Instance.T('Disable AI thinking'),'Thinking caption not localized');
-  AssertTrue(TCheckBox(Form.FindComponent('AIDisableThinking')).Hint=TI18n.Instance.T('Uses documented Neuraldeep non-reasoning models; other providers receive a prompt instruction only.'),'Thinking hint not localized');
+  AssertTrue(TCheckBox(Form.FindComponent('AIDisableThinking')).Hint=TI18n.Instance.T('Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.'),'Thinking hint not localized');
   AssertTrue(TEdit(Form.FindComponent('AIKey')).TextHint=TI18n.Instance.T('Blank keeps the stored key'),'AI key hint mismatch');
   AssertTrue(TButton(Form.FindComponent('AIButtonNewprofile')).Caption=TI18n.Instance.T('New profile'),'AI action caption mismatch');
   AssertTrue(TEdit(Form.FindComponent('AIKey')).Text='','AI key exposed while changing locale');
@@ -425,10 +425,11 @@ begin
    end
    else if Action='ai-screenshot' then begin
     var Directory:=GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS');if Directory<>'' then begin
-     var Name:=Json.GetValue<string>('name');if not MatchText(Name,['ai-preview','ai-waiting','ai-proposal']) then raise Exception.Create('Invalid screenshot name');
+     var Name:=Json.GetValue<string>('name');if not MatchText(Name,['ai-preview','ai-waiting','ai-proposal','inspector','explorer','synchronization','project-workspace','wording','replacement']) then raise Exception.Create('Invalid screenshot name');
      var Capture:=TAIScreenshot.Create;Capture.Name:=Name;Capture.Browser:=Browser;
      Capture.Stream:=TStreamAdapter.Create(TFileStream.Create(TPath.Combine(Directory,Name+'.png'),fmCreate),soOwned);
-     OleCheck(Browser.DefaultInterface.CapturePreview(COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG,Capture.Stream,Capture));
+     var CaptureBrowser:=Browser;if Name='explorer' then CaptureBrowser:=ExplorerBrowser;
+     OleCheck(CaptureBrowser.DefaultInterface.CapturePreview(COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG,Capture.Stream,Capture));
     end else Browser.ExecuteScript('window.__aiScreenshot='+('"'+Json.GetValue<string>('name')+'"')+';');
    end
    else if Action='ai-preview-off' then begin
@@ -436,10 +437,10 @@ begin
     Browser.ExecuteScript('window.xmlDocAI.reload();window.__previewOff=true;');
    end
    else if Action='ai-write-checked' then begin
-    AIWritten:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(AIWritten.Contains('Native AI reviewed summary'),'AI apply did not use OTA');AssertTrue(AIWritten.Contains('custom-root keep="yes"'),'AI apply lost unknown XML');Log('PASS manually edited AI proposal applies through OTA and retains other XML');
+    AIWritten:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(AIWritten.Contains('Returns without further processing when the value is empty.'),'AI apply did not use OTA');AssertTrue(AIWritten.Contains('custom-root keep="yes"'),'AI apply lost unknown XML');Log('PASS manually edited AI proposal applies through OTA and retains other XML');
     Supports(SourceEditorForFile(SampleFile),IOTAEditBuffer,EditBuffer);UndoMarkers:=0;repeat EditBuffer.Undo;Inc(UndoMarkers);until (EditorSource(EditBuffer)<>AIWritten) or (UndoMarkers=4);AssertTrue(EditorSource(EditBuffer)=AIBefore,'AI Undo did not restore original');UndoMarkers:=0;repeat EditBuffer.Redo;Inc(UndoMarkers);until (EditorSource(EditBuffer)<>AIBefore) or (UndoMarkers=4);AssertTrue(EditorSource(EditBuffer)=AIWritten,'AI Redo failed');Inspector.RefreshFromCurrentEditor;Browser.ExecuteScript('window.__aiUndoRedo=true;');Log('PASS AI OTA Undo/Redo');
    end
-   else if Action='ai-rephrase-checked' then begin AssertTrue(EditorSource(SourceEditorForFile(SampleFile)).Contains('Rephrased native summary'),'Rephrase did not reach OTA');Log('PASS native rephrase with independent template and reviewed apply');end
+   else if Action='ai-rephrase-checked' then begin AssertTrue(EditorSource(SourceEditorForFile(SampleFile)).Contains('Stops processing immediately for an empty value.'),'Rephrase did not reach OTA');Log('PASS native rephrase with independent template and reviewed apply');end
    else if Action='ai-clear-param' then begin
     Editor:=SourceEditorForFile(SampleFile);Source:=EditorSource(Editor);AssertTrue(Source.Contains('The text to process.'),'Existing parameter text absent');
     ReplaceSourceBuffer(Editor,Source.Replace('The text to process.',''));Select(SampleFile,'Run','string');Inspector.RefreshFromCurrentEditor;Browser.ExecuteScript('window.__aiParamCleared=true;');
@@ -1110,7 +1111,7 @@ begin
    end;
     Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'ParseRecoveryProbe.js')));Inc(Step);Exit;
    end;
-   if StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0 then begin Step:=104;Timer.Enabled:=True;Exit;end;Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
+   if StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0 then begin Step:=104;Timer.Enabled:=True;Exit;end;Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then begin Inspector.SetBounds(100,100,1120,1000);Explorer.SetBounds(100,100,1400,1000);Browser.ExecuteScript('window.__guideScreenshots=true;');end;if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
  end;
  if Step<4 then Timer.Enabled:=True;
  except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;

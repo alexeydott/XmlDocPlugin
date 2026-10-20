@@ -32,6 +32,7 @@ logs/
 
 # Claude Code
 .claude/
+.agents/
 CLAUDE.md
 XmlDocPlugin_설계서.md
 docs/session-*.md

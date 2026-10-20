@@ -112,7 +112,7 @@ accepting Settings; newly opened dialogs use the selected language. Documentatio
 comments, XML tag names, symbols, paths, and generated project filenames are not
 translated. Spell-check language is selected independently in Documentation tools.
 
-The shared translation sources are `resources/locales/ru.json` and `zh.json`.
+The shared translation sources are `resources/locales/ru.json`, `zh.json`, `ko.json` and `ja.json`.
 Run `pwsh ./build-locales.ps1` after changing them. Native build scripts check the
 embedded dictionaries for consistency before compiling.
 
@@ -123,6 +123,11 @@ embedded dictionaries for consistency before compiling.
 
 ### Documentation Explorer
 ![Documentation Explorer](docs/assets/explorer.png)
+
+### AI assistant
+![AI documentation review with parameter descriptions](docs/assets/user-guide/ai-proposal.png)
+
+Review summaries and parameters before Apply. Configure profiles, thinking control and automatic retries in [AI settings](docs/user-guide.md#configure-a-connection).
 
 ## Features
 
@@ -137,7 +142,7 @@ indexed records so inherited comments reflect updated dependencies.
 
 ### IDE Plugin (BPL)
 
-- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with optional request preview, cancellation and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).
+- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with TOON context, optional request preview, configurable thinking control and automatic retries, cancellation, HTML cleanup and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).
 
 
 - **Doc Inspector** — A docking panel that provides real-time editing of XML documentation for the code element at the cursor position

@@ -81,9 +81,9 @@ Read-only files, read-only IDE buffers and sources under installed RAD Studio so
 
 ## Write and review a comment
 
-![Inspector with the RenameScenario documentation and diagnostics](assets/user-guide/inspector.png)
+![Inspector with a formatted summary and parameter documentation](assets/user-guide/inspector.png)
 
-*An unfinished method comment, with signature diagnostics above the Design editor.*
+*A formatted method summary, its Value parameter and an example in the Design editor.*
 
 1. Select an undocumented declaration and generate a documentation stub from the Document menu if needed.
 2. Enter a concise **Summary** describing the operation. Use **Remarks** for context, limitations and usage details.
@@ -120,15 +120,15 @@ The expandable sections below these actions are **Project workspace**, **Inherit
 
 ## Use the AI assistant
 
-Open a method in Inspector or Explorer and expand **AI assistant**. **Describe method from code** proposes a summary and descriptions for undocumented parameters from the selected implementation. **Rephrase summary** improves existing prose without deliberately changing its facts. Existing parameter descriptions and other XML sections are preserved. A proposal never writes source until you review it and choose **Apply reviewed summary**.
+Open a method in Inspector or Explorer and expand **AI assistant**. **Describe method from code** proposes a summary and descriptions for undocumented parameters from the selected implementation. **Rephrase summary** improves existing prose without deliberately changing its facts. Completed parameter descriptions and other XML sections are preserved; descriptions recognized as unfinished markers can be replaced after review. A proposal never writes source until you review it and choose **Apply reviewed summary**.
 
 ### Configure a connection
 
 Open **Settings → General → AI profiles and prompts**, or the settings icon in the assistant. Create a named profile, fill its connection fields, and choose **Save profile**. Names must be unique; matching duplicate connections are rejected. You can rename or delete profiles. Deleting a profile also removes its stored credential.
 
-![AI connection settings with preview preference](assets/user-guide/ai-settings.png)
+![AI connection settings with thinking, retry and preview options](assets/user-guide/ai-settings.png)
 
-*The connection tab holds the endpoint, model, request limits and preview preference. API keys are masked; an empty key field keeps the saved credential.*
+*The connection tab holds the endpoint, model, request limits, thinking control, automatic retries and preview preference. API keys are masked; an empty key field keeps the saved credential.*
 
 For an OpenAI connection, use the following fields. Model access depends on your API account; enter an exact Chat Completions model ID available to that account.
 
@@ -143,7 +143,7 @@ For an OpenAI connection, use the following fields. Model access depends on your
 | Output limit parameter | `max_completion_tokens` for compatible OpenAI models; includes reasoning tokens |
 | Output token limit | A positive limit large enough for both reasoning and the JSON answer |
 | Automatic retries (0–10) | Default: 3 retries after the initial attempt (4 attempts total). Set 0 to disable. Retries HTTP 408/429/500/502/503/504, transport failures and timeouts after increasing delays (1, 2, 4 seconds, capped at 30). Cancel also interrupts the delay. Authentication errors, invalid JSON and incomplete proposals are not retried. A timed-out request may already have been processed by the provider. |
-| Disable AI thinking | Off by default. Adds a no-thinking prompt instruction. On `api.neuraldeep.ru`, supported models automatically use the documented `-noreason` variant; the stored model name stays unchanged. Other providers may ignore the prompt instruction. |
+| Disable AI thinking | Off by default. Uses a supported non-reasoning model when available and adds a no-thinking instruction. The saved model name is unchanged. Some providers or models may ignore the instruction; the option cannot guarantee support at an arbitrary endpoint. |
 | Request JSON mode | Enable only when the selected model supports JSON object output |
 
 These connection details follow the [official Chat Completions reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create). The plugin uses Chat Completions, not the Responses endpoint.
@@ -158,7 +158,7 @@ Keys are stored in Windows Credential Manager, separately from profile JSON. Cha
 2. Choose **Describe method from code** or **Rephrase summary**. By default the request is sent immediately.
 3. To inspect requests before sending, enable **Preview AI requests before sending** in AI settings. This preference is off by default and is saved for the current Windows user. The existing **Preview AI request** action also opens a preview for an individual request. Inspect the destination and JSON, then choose **Send reviewed request**. Authorization headers are excluded from the preview.
 4. While the request runs, the assistant shows an indeterminate progress indicator and **Waiting for AI response**. Connection controls are temporarily disabled; **Cancel** remains available. Cancellation discards the local operation; provider processing or usage may already have occurred.
-5. Review the proposed summary, missing parameter descriptions and uncertainties. You can edit the proposed prose before applying it. Existing parameter descriptions are retained, including inline XML. Keep protected XML tokens unchanged.
+5. Review the proposed summary, missing parameter descriptions and uncertainties. You can edit the proposed prose before applying it. Completed parameter descriptions are retained, including inline XML. Keep protected XML tokens unchanged.
 6. Choose **Apply reviewed summary** to apply the reviewed summary and missing parameter descriptions through the IDE's source writer. Save the source normally; IDE Undo/Redo remains available.
 
 ![Optional AI request preview](assets/user-guide/ai-preview.png)
@@ -171,7 +171,7 @@ Keys are stored in Windows Credential Manager, separately from profile JSON. Cha
 
 ![Review an AI documentation proposal](assets/user-guide/ai-proposal.png)
 
-*Review the suggested prose, protected tokens, uncertainty list and XML comparison before Apply. Existing parameter XML remains intact.*
+*Review the suggested summary, parameter descriptions, protected tokens, uncertainty list and XML comparison before Apply. Completed parameter descriptions remain intact.*
 
 If you switch declarations, edit the source or documentation, or open an unapplied XML draft, a stale proposal cannot be applied. Rebuild the request against the current source. Read-only and installed system sources remain view-only. Closing a documentation window cancels its pending operation.
 
@@ -187,7 +187,15 @@ Available variables are `{{language}}`, `{{signature}}`, `{{implementation}}`, `
 
 The response must be JSON containing `summary` and `uncertainties`; descriptions may additionally return `parameters`, an array of `{name, description}` objects. Parameter names must match the selected declaration; duplicate and unknown names are rejected. The built-in description prompt requests every parameter and asks the model to state uncertainty rather than invent unsupported facts. Legacy summary-only custom templates remain usable.
 
-The exact selected implementation, signature, parameter types and relevant project context are sent to the configured provider. Imported implementation bodies are not all included. Review source-sharing requirements before enabling a connection. AI prose can still be wrong: confirm behavior, units, ownership and side effects against the code, especially for large methods and calls into other modules.
+The exact selected implementation, signature, parameter types and relevant project context are encoded as TOON inside the user message. The HTTP request remains OpenAI-compatible JSON. Inspect the actual destination, model and encoded context in the optional request preview. Authorization headers are excluded from that preview. Imported implementation bodies are not all included. Review source-sharing requirements before enabling a connection. AI prose can still be wrong: confirm behavior, units, ownership and side effects against the code, especially for large methods and calls into other modules.
+
+### Clean text, formatting and errors
+
+AI replies are converted to documentation prose before review and again when you apply edited proposal text. HTML wrappers, attributes, scripts and styles are removed. Paragraphs and line breaks become documentation `para` and `br` markup. Existing protected XML references and code remain intact; manually deleting or duplicating their placeholders blocks Apply. Review the formatted result and parameter descriptions before saving the source.
+
+Temporary HTTP errors and timeouts use the profile's **Automatic retries (0–10)** setting. The default permits three retries after the first attempt, with delays of 1, 2 and 4 seconds. The waiting indicator stays active; **Cancel** interrupts a request or retry delay. Setting 0 makes a single attempt. Authentication errors, invalid JSON and incomplete proposals require correction rather than automatic repetition. A timeout does not prove that the provider stopped processing the previous attempt.
+
+If the service returns only reasoning without final content, the assistant reports **AI message content is missing** and offers nothing to apply. For an HTTP error, check the endpoint, exact model ID, service availability and profile limits. After correcting the profile, start a new request. Applied edits use the IDE's Undo/Redo history.
 
 ## Recover drafts
 
@@ -221,7 +229,7 @@ Synchronization fixes structure, not the meaning of the prose. Run Problems agai
 
 ![Project workspace search with overload-specific results](assets/user-guide/project-workspace.png)
 
-*Searching for Run shows the base declaration, interface contract and both sample overloads.*
+*Searching for TSecond shows the type and its Run member, with source, reference and copy actions beside each result.*
 
 1. Expand **Project workspace**. Choose **Module**, **Project**, or **Project group**, then **Refresh**. Analysis displays its progress and how many modules were parsed or reused. **Cancel analysis** stops between modules and keeps the previous completed catalog. Modules are reused only when their source, project configuration and actually read dependencies (including closed includes and imported `DECLARED` sources) still match; effective documentation is recomputed from the indexed modules.
 2. Type a symbol name or documentation phrase. Narrow results with **Symbol kind** and the documentation filter: public API, no documentation, TODO drafts, incomplete signature, reference problems or new problems.
@@ -297,7 +305,7 @@ Linked resources are checked for availability. The plugin does not automatically
 
 ![Prose replacement preview](assets/user-guide/replacement.png)
 
-*Replacement changes the summary prose while retaining the OldName reference and parameter markup.*
+*Replacement changes the summary prose while retaining the NewName reference and parameter markup.*
 
 Replacement is a literal, case-sensitive operation on the **current comment**, not a project-wide regular-expression replacement. It leaves XML names/attributes, code, inline code and reference nodes intact. Repair malformed XML first. A phrase inside a code example or reference caption may therefore intentionally remain unchanged.
 
@@ -363,6 +371,10 @@ Theme names ignore case and surrounding spaces; an empty or unknown name uses
 Markdown and JSON do not carry a CSS theme. Help and Manual uses its project
 styles; MkDocs, Docusaurus and VitePress use their framework themes. The HTML
 `--theme` option does not select themes for those formats.
+
+### Supported comment formatting
+
+Use well-formed XML in source comments. Paragraphs (`para`), bold (`b` or `strong`), italic (`i` or `em`), inline code (`c`), code blocks (`code`), references and lists are rendered by the supported output formats. Use `<br/>`, `<br />` or `<br></br>` for a line break. A bare unclosed `<br>` is HTML, not valid XML. Empty short forms such as `<b/>` or `<code/>` add no visible formatting content. JSON export preserves the documentation markup for consumers to interpret.
 
 ## Use the command line
 

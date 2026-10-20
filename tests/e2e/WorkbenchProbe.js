@@ -5,6 +5,7 @@
  const until=async(predicate,description)=>{for(let attempt=0;attempt<100;attempt++){if(predicate())return;await pause(50);}throw Error(description+'; status='+window.bridge.status+'; document='+JSON.stringify(window.xmlDocEditor.get().element));};
  let loads=0;window.addEventListener('documentationLoaded',()=>loads++);
  const assert=(test,text)=>{if(!test)throw Error(text);};
+ const capture=async(name,anchor)=>{if(!window.__guideScreenshots)return;if(anchor){const el=document.querySelector(anchor);for(let p=el?.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;el?.scrollIntoView({block:'start'});}window.__aiScreenshot='';await pause(150);send('ai-screenshot',{name});await until(()=>window.__aiScreenshot===name,'Screenshot '+name);};
  const editSummary=text=>{const e=document.querySelector('#summary-editor .tiptap');assert(e?.editor,'TipTap editor unavailable');e.editor.chain().focus().selectAll().insertContent(text).run();};
 
  try{
@@ -71,13 +72,13 @@
   document.body.style.width='320px';await pause(50);
   for(const field of document.querySelectorAll('#workbench input,#workbench textarea,#workbench select'))assert(field.getBoundingClientRect().width<=322,'Control exceeds narrow panel: '+field.id);
   for(const button of iconButtons)if(button.getClientRects().length)assert(button.getBoundingClientRect().width===30,'Icon button size changed: '+button.id);
-  document.body.style.width='';send('assert-resources');
+  document.body.style.width='';await capture('inspector','#summary-editor');send('assert-resources');
   assert(window.xmlDocEditor.get().element.signature.includes('string'),'String overload was not selected: '+JSON.stringify(window.xmlDocEditor.get().element));
   editSummary('E2E draft for A');send('switch-second');await until(()=>window.xmlDocEditor.get().element.qualifiedParent==='TSecond','File switch did not load B');send('assert-cancelled');
   send('switch-sample');await until(()=>window.xmlDocEditor.get().element.qualifiedParent==='TDocumented'&&window.xmlDocEditor.get().element.signature.includes('string'),'Sample was not loaded');
   // Explicitly discard the cancelled draft before testing a fresh edit.
   const beforeReload=loads;document.querySelector('#reload-document').click();await until(()=>loads>beforeReload,'Reload source did not complete');
-  send('arm-explorer');await pause(250);
+  send('arm-explorer');await pause(250);await capture('explorer');
   editSummary('E2E applied summary');await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.summary==='E2E applied summary','Fresh browser edit was not acknowledged');send('assert-write');await pause(100);send('stale-explorer');await pause(200);send('assert-second-view-conflict');
   send('undo');await pause(200);send('redo');await pause(200);
   const stale=window.xmlDocEditor.get();send('mutate-signature');await pause(150);
@@ -91,16 +92,22 @@
   send('switch-rename');await pause(250);document.querySelector('#sync-document').click();
   const map=document.querySelector('#rename-mapping select');assert(map,'Rename mapping missing');map.value='NewName';map.dispatchEvent(new Event('change'));
   document.querySelector('#rename-mapping button').click();assert(!document.querySelector('#operation-preview').hidden,'Synchronization needs a preview');
-  assert(document.querySelector('#xml-after').textContent.includes('NewName'),'Preview did not map name');document.querySelector('#apply-operation').click();await pause(950);send('assert-sync');
+  assert(document.querySelector('#xml-after').textContent.includes('NewName'),'Preview did not map name');await capture('synchronization','#operation-preview');document.querySelector('#apply-operation').click();await pause(950);send('assert-sync');
   document.querySelector('#refresh-catalog').click();await pause(600);
   assert(document.querySelectorAll('.catalog-row').length>12,'Project catalog missing');
   const unfinished=document.querySelector('#catalog-filter');unfinished.value='todo';unfinished.dispatchEvent(new Event('change'));assert(document.querySelectorAll('.catalog-row').length>0,'Unfinished draft filter lost TODO stubs');unfinished.value='all';unfinished.dispatchEvent(new Event('change'));
-  const query=document.querySelector('#catalog-query');query.value='TSecond';query.dispatchEvent(new Event('input'));assert(document.querySelectorAll('.catalog-row').length>0,'Project search failed');query.value='';query.dispatchEvent(new Event('input'));
+  const query=document.querySelector('#catalog-query');query.value='TSecond';query.dispatchEvent(new Event('input'));assert(document.querySelectorAll('.catalog-row').length>0,'Project search failed');await capture('project-workspace','#catalog-query');query.value='';query.dispatchEvent(new Event('input'));
   for(const button of document.querySelectorAll('#workbench button')){
    assert(button.querySelector('svg') && button.title && button.getAttribute('aria-label'),'Remaining textual/dynamic action: '+button.id+' '+button.textContent);
    assert(!button.textContent.trim(),'Remaining action description must be a hint');
   }
   assert(document.querySelector('.catalog-row .symbol-caption')?.textContent.trim(),'Symbol identity must remain readable');
+  if(window.__guideScreenshots){
+   for(const [id,value] of [['template-section','param'],['template-scope','project'],['template-kind','method'],['template-name','Options'],['template-type','Integer'],['template-text','Controls how the operation is performed.'],['project-terms','MapRenderer\nGeoJSON']])document.getElementById(id).value=value;
+   await capture('wording','#template-section');
+   document.getElementById('find-doc').value='Documentation';document.getElementById('replace-doc').value='API documentation';document.getElementById('replace-all').click();
+   await capture('replacement','#operation-preview');document.getElementById('cancel-operation').click();
+  }
   send('assert-project');
   const first=document.querySelector('#member-summaries input[data-id*="undocumentedfirst"]');
   const second=document.querySelector('#member-summaries input[data-id*="undocumentedsecond"]');
