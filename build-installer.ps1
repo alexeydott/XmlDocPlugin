@@ -1,4 +1,5 @@
 param(
+    [string]$Rad11 = 'D:\Embarcadero RAD Studio\22.0',
     [string]$Rad12 = 'D:\Embarcadero RAD Studio\23.0',
     [string]$Rad13 = 'D:\Embarcadero RAD Studio\37.0',
     [string]$ISCC = 'D:\tools\InnoSetup\6\ISCC.exe',
@@ -18,7 +19,7 @@ if (!$retiredPayload.StartsWith([IO.Path]::GetFullPath($workDir) + [IO.Path]::Di
 if (Test-Path -LiteralPath $retiredPayload) { Remove-Item -LiteralPath $retiredPayload -Recurse -Force }
 New-Item -ItemType Directory -Force $OutputDir | Out-Null
 if (!(Test-Path -LiteralPath (Join-Path $Rad13 'bin\dcc64.exe'))) { throw 'RAD Studio 13 Win64 compiler not found' }
-foreach ($root in @($Rad12, $Rad13)) {
+foreach ($root in @($Rad11, $Rad12, $Rad13)) {
     foreach ($file in @('bin\bds.exe', 'bin\rsvars.bat', 'bin\dcc32.exe')) {
         if (!(Test-Path -LiteralPath (Join-Path $root $file))) { throw "Required build tool missing: $root\$file" }
     }
@@ -33,6 +34,7 @@ try {
     if (!$?) { throw 'RAD Studio 12 build failed' }
     $sdk = Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Build\WebView2-1.0.2045.28\sdk'
     foreach ($target in @(
+        @{Name='rad11-x86'; Bds=$Rad11; Package='11'; Platform='Win32'; Arch='x86'},
         @{Name='rad13-x86'; Bds=$Rad13; Package='13'; Platform='Win32'; Arch='x86'},
         @{Name='rad13-x64'; Bds=$Rad13; Package='13'; Platform='Win64'; Arch='x64'})) {
         $dir = Join-Path $stage $target.Name
@@ -52,7 +54,7 @@ try {
     $cliBytes = [IO.File]::ReadAllBytes((Join-Path $cliDir 'XmlDocGen.exe'))
     $cliPE = [BitConverter]::ToInt32($cliBytes, 60)
     if ([BitConverter]::ToUInt16($cliBytes, $cliPE + 4) -ne 0x8664) { throw 'Command-line generator must be an x64 executable' }
-    foreach ($binary in @('rad12-x86\XmlDocPlugin290.bpl','rad13-x86\XmlDocPlugin370.bpl','rad13-x64\XmlDocPlugin370.bpl','bin\XmlDocGen.exe')) {
+    foreach ($binary in @('rad11-x86\XmlDocPlugin280.bpl','rad12-x86\XmlDocPlugin290.bpl','rad13-x86\XmlDocPlugin370.bpl','rad13-x64\XmlDocPlugin370.bpl','bin\XmlDocGen.exe')) {
         $binaryInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $stage $binary))
         $fv = '{0}.{1}.{2}.{3}' -f $binaryInfo.FileMajorPart,$binaryInfo.FileMinorPart,$binaryInfo.FileBuildPart,$binaryInfo.FilePrivatePart
         $pv = '{0}.{1}.{2}.{3}' -f $binaryInfo.ProductMajorPart,$binaryInfo.ProductMinorPart,$binaryInfo.ProductBuildPart,$binaryInfo.ProductPrivatePart

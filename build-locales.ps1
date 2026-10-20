@@ -6,7 +6,18 @@ foreach($lang in 'ru','zh','ko','ja'){
  $null=$json | ConvertFrom-Json
  $text+=" CLocale_$lang =`n"
  $lines=$json.TrimEnd().Split("`n")
- for($i=0;$i -lt $lines.Count;$i++){$text+="  '"+$lines[$i].TrimEnd("`r").Replace("'","''")+"'"+$(if($i -eq $lines.Count-1){";`n"}else{" +`n"})}
+ for($i=0;$i -lt $lines.Count;$i++){
+  $line=$lines[$i].TrimEnd("`r")
+  # Delphi 11 limits a single string literal to 255 UTF-16 elements.
+  $chunks=@();$offset=0
+  do {
+   $count=[Math]::Min(200,$line.Length-$offset)
+   if($count -gt 0 -and $offset+$count -lt $line.Length -and [char]::IsHighSurrogate($line[$offset+$count-1])){$count--}
+   $chunks+="  '"+$line.Substring($offset,$count).Replace("'","''")+"'";$offset+=$count
+  } while($offset -lt $line.Length)
+  $text+=($chunks -join " +`n")+$(if($i -eq $lines.Count-1){";`n"}else{" +`n"})
+ }
+
 }
 $path=Join-Path $PSScriptRoot 'src/Core/XmlDoc.Locales.inc'
 if($Check){if([IO.File]::ReadAllText($path).Replace("`r`n","`n") -ne $text){throw 'Embedded locale dictionaries are stale. Run build-locales.ps1.'}}else{[IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($true))}

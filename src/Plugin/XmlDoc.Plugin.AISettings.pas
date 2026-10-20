@@ -86,7 +86,7 @@ begin
   for var Value in Items do begin
    if not (Value is TJSONObject) then raise EAIError.Create('Invalid AI template');var Item:=Value as TJSONObject;
    for var Key in ['id','name','operation','system','user'] do if not (Item.GetValue(Key) is TJSONString) then raise EAIError.Create('Invalid AI template');
-   if (Item.Count<>5) or (Item.GetValue<string>('id')='') or (Item.GetValue<string>('name')='') or (Length(Item.GetValue<string>('id'))>128) or IDs.Contains(Item.GetValue<string>('id')) then raise EAIError.Create('Invalid AI template');
+   if (Item.Count<>5) or (Item.GetValue<string>('id')='') or (Item.GetValue<string>('name')='') or (Length(Item.GetValue<string>('id'))>128) or (IDs.IndexOf(Item.GetValue<string>('id'))>=0) then raise EAIError.Create('Invalid AI template');
    if (Item.GetValue<string>('operation')<>'describe') and (Item.GetValue<string>('operation')<>'rephrase') then raise EAIError.Create('Invalid AI template');
    if Trim(Item.GetValue<string>('user'))='' then raise EAIError.Create('Invalid AI template');
    IDs.Add(Item.GetValue<string>('id'));ExpandPrompt(Item.GetValue<string>('system'),Context,'validation');ExpandPrompt(Item.GetValue<string>('user'),Context,'validation');

@@ -76,14 +76,14 @@ try {
     $env:XMLDOC_TEST_BDS_PID = '0'
     $env:XMLDOC_TEST_RUNTIME_MODE = 'fail'
     Run-Setup 'no-ide' $false
-    foreach ($version in @('23.0','37.0')) {
+    foreach ($version in @('22.0','23.0','37.0')) {
         $root = Join-Path $dir $version
         New-Item -ItemType Directory "$root\bin", "$root\bin64" -Force | Out-Null
         New-Item -Path "HKCU:\$key\BDS\$version" -Force | Out-Null
         New-ItemProperty "HKCU:\$key\BDS\$version" -Name RootDir -Value $root -Force | Out-Null
     }
     Run-Setup 'missing-bds' $false
-    foreach ($version in @('23.0','37.0')) {
+    foreach ($version in @('22.0','23.0','37.0')) {
         foreach ($bin in @('bin','bin64')) { [IO.File]::WriteAllText((Join-Path $dir "$version\$bin\bds.exe"), 'existence fixture') }
     }
     Run-Setup 'missing-webview-no-consent' $false
@@ -103,10 +103,13 @@ try {
     $known = "HKCU:\$key\BDS\23.0\Known Packages"
     New-Item $known -Force | Out-Null
     New-ItemProperty $known -Name $old -Value 'Previous plugin' -Force | Out-Null
+    $old11=Join-Path $dir 'previous\XmlDocPlugin280.bpl';[IO.File]::WriteAllText($old11,'previous RAD 11 package')
+    $known11="HKCU:\$key\BDS\22.0\Known Packages";New-Item $known11 -Force | Out-Null;New-ItemProperty $known11 -Name $old11 -Value 'Previous RAD 11 plugin' -Force | Out-Null
     $env:XMLDOC_TEST_RUNTIME_MODE = 'install'
     Run-Setup 'install' $true @('/INSTALLWEBVIEW2=1')
     if (!(Test-Path $env:XMLDOC_TEST_RUNTIME_MARKER)) { throw 'Approved runtime installer did not execute' }
     foreach ($t in @(
+        @{Dir='rad11-x86';Version='22.0';Node='Known Packages';File='XmlDocPlugin280.bpl';Machine=0x14c},
         @{Dir='rad12-x86';Version='23.0';Node='Known Packages';File='XmlDocPlugin290.bpl';Machine=0x14c},
         @{Dir='rad13-x86';Version='37.0';Node='Known Packages';File='XmlDocPlugin370.bpl';Machine=0x14c},
         @{Dir='rad13-x64';Version='37.0';Node='Known Packages x64';File='XmlDocPlugin370.bpl';Machine=0x8664})) {
@@ -136,12 +139,14 @@ try {
     $un = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru -WindowStyle Hidden
     if (!$un.WaitForExit(60000) -or $un.ExitCode -ne 0) { throw 'Uninstall failed' }
     if ((Get-ItemPropertyValue $known -Name $old) -ne 'Previous plugin') { throw 'Previous registration was not restored' }
+    if((Get-ItemPropertyValue $known11 -Name $old11) -ne 'Previous RAD 11 plugin'){throw 'Previous RAD 11 registration was not restored'}
+    if(Test-Path "$app\rad11-x86\XmlDocPlugin280.bpl"){throw 'Uninstall left RAD 11 package behind'}
     if (Test-Path "$app\rad12-x86\XmlDocPlugin290.bpl") { throw 'Uninstall left the package behind' }
     if (Test-Path "$app\bin\XmlDocGen.exe") { throw 'Uninstall left the command-line generator behind' }
     if (Test-Path "$app\help\index.html") { throw 'Uninstall left the offline help behind' }
     $script:results += 'PASS: offline illustrated help and sample installed, upgraded and removed'
     $script:results += 'PASS: x64 CLI installation, generation, upgrade and removal'
-    $script:results += 'PASS: all three registrations, PE architectures and installed hashes'
+    $script:results += 'PASS: all four registrations, PE architectures and installed hashes'
     $script:results += 'PASS: uninstall restores the previous package registration'
     $script:results | Tee-Object -FilePath (Join-Path $dir 'results.txt')
     Write-Output "Test evidence: $dir"

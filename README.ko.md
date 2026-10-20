@@ -8,7 +8,7 @@ Delphi IDE에서 `///` XML 주석을 편집하고 같은 주석으로 API 문서
 
 [최신 XmlDocPlugin-Setup.exe 다운로드](https://github.com/alexeydott/XmlDocPlugin/releases/latest/download/XmlDocPlugin-Setup.exe)
 
-지원 환경은 **RAD Studio 12의 32비트 IDE**, **RAD Studio 13의 32비트 및 64비트 IDE**입니다.
+지원 환경은 **RAD Studio 11/12의 32비트 IDE**, **RAD Studio 13의 32비트 및 64비트 IDE**입니다.
 
 1. 실행 중인 RAD Studio를 모두 닫습니다.
 2. 설치 프로그램을 실행하고 감지된 IDE 버전을 선택합니다.
@@ -116,11 +116,12 @@ CHM 컴파일러가 없으면 `chm`을 제외합니다. CLI는 디스크 파일�
 
 ## 빌드 및 테스트
 
-필요한 도구는 RAD Studio 12/13, Node.js 18 이상, PowerShell 7 및 WebView2 Runtime입니다.
+필요한 도구는 RAD Studio 11/12/13, Node.js 18 이상, PowerShell 7 및 WebView2 Runtime입니다.
 설치 프로그램 빌드에는 Inno Setup 6과 지원 대상 Delphi 컴파일러가 필요합니다.
 
 ```powershell
 git submodule update --init --recursive
+pwsh ./build-delphi11.ps1
 pwsh ./build-delphi12.ps1
 pwsh ./build-cli.ps1 -Platform Win64
 pwsh ./build-installer.ps1

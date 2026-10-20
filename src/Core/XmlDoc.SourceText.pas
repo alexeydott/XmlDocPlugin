@@ -32,7 +32,8 @@ begin
  if (Count>=3) and (Bytes[Offset]=$EF) and (Bytes[Offset+1]=$BB) and (Bytes[Offset+2]=$BF) then begin ExplicitUtf8:=True;Inc(Offset,3);Dec(Count,3);end
  else if (Count>=2) and (Bytes[Offset]=$FF) and (Bytes[Offset+1]=$FE) then Exit(TEncoding.Unicode.GetString(Bytes,Offset+2,Count-2))
  else if (Count>=2) and (Bytes[Offset]=$FE) and (Bytes[Offset+1]=$FF) then Exit(TEncoding.BigEndianUnicode.GetString(Bytes,Offset+2,Count-2));
- Utf8:=TUTF8Encoding.Create(False);
+ // Only decoding is used here; the BOM-emission overload starts with Delphi 12.
+ Utf8:=TUTF8Encoding.Create;
  try
   try Result:=Utf8.GetString(Bytes,Offset,Count);
   except on E:EEncodingError do begin

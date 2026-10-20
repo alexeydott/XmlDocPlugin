@@ -374,7 +374,8 @@ var
   LItem: TMenuItem;
   Action,ContextAction:TAction;
   EditorServices:IOTAEditorServices;
-  EditorMenu:INTAEditorLocalMenu;ProjectManager:IOTAProjectManager;
+  {$IF CompilerVersion >= 36.0}EditorMenu:INTAEditorLocalMenu;{$ENDIF}
+  ProjectManager:IOTAProjectManager;
   Caption,Command:string;
   I: Integer;
 begin
@@ -530,10 +531,12 @@ begin
     LItem:=TMenuItem.Create(Self);LItem.Action:=Action;LXmlDocMenu.Add(LItem);FMenuItems.Add(LItem);
   end;
 
+  {$IF CompilerVersion >= 36.0}
   if Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) then begin
     EditorMenu:=EditorServices.GetEditorLocalMenu;if Assigned(EditorMenu) then begin EditorMenu.RegisterActionList(FContextActions,'XmlDocPlugin');FEditorMenuRegistered:=True;end;
   end;
 
+  {$ENDIF}
   if Supports(BorlandIDEServices,IOTAProjectManager,ProjectManager) then FProjectMenuIndex:=ProjectManager.AddMenuItemCreatorNotifier(TDocumentationProjectMenuNotifier.Create);
   LocalizePluginUi(Self);LocalizePluginUi(FContextActions);
   // Tools 메뉴 오른쪽에 최상위 메뉴로 삽입
@@ -569,15 +572,20 @@ procedure TXmlDocMenuIntegration.UninstallMenu;
 var
   I: Integer;
   LRootMenu: TMenuItem;
-  EditorServices:IOTAEditorServices;EditorMenu:INTAEditorLocalMenu;ProjectManager:IOTAProjectManager;
+  EditorServices:IOTAEditorServices;
+  {$IF CompilerVersion >= 36.0}EditorMenu:INTAEditorLocalMenu;{$ENDIF}
+  ProjectManager:IOTAProjectManager;
 begin
   // Acquire services only for the operation. Holding them for the wizard's
   // lifetime can keep the 64-bit IDE alive while it owns the wizard itself.
   if (FProjectMenuIndex>=0) and Supports(BorlandIDEServices,IOTAProjectManager,ProjectManager) then ProjectManager.RemoveMenuItemCreatorNotifier(FProjectMenuIndex);
   FProjectMenuIndex:=-1;
+  {$IF CompilerVersion >= 36.0}
   if FEditorMenuRegistered and Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) then begin
    EditorMenu:=EditorServices.GetEditorLocalMenu;if Assigned(EditorMenu) then EditorMenu.UnregisterActionList('XmlDocPlugin');
-  end;FEditorMenuRegistered:=False;
+  end;
+  {$ENDIF}
+  FEditorMenuRegistered:=False;
   FreeAndNil(FContextActions);
   // 최상위 메뉴를 부모에서 먼저 분리
   if FMenuItems.Count > 0 then

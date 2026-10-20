@@ -1,4 +1,4 @@
-/// <summary>WebView2 resource hosting, editor settings and persistent section state.</summary>
+﻿/// <summary>WebView2 resource hosting, editor settings and persistent section state.</summary>
 unit XmlDoc.Plugin.Browser;
 
 interface
@@ -39,13 +39,47 @@ uses
   System.IOUtils, System.JSON, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils,
   XmlDoc.Plugin.Settings,XmlDoc.Plugin.Localization,XmlDoc.I18n,WebView2;
 
+{$IF CompilerVersion < 36.0}
+// Delphi 11 ships the base WebView2 interface only. Keep the extension vtable
+// in SDK order; IUnknown parameters stand for unused COM callback interfaces.
+type
+ ICoreWebView2_2=interface(ICoreWebView2)
+  ['{9E8F0CF8-E670-4B5E-B2BC-73E061E3184C}']
+  function add_WebResourceResponseReceived(const Handler:IUnknown;out Token:EventRegistrationToken):HRESULT;stdcall;
+  function remove_WebResourceResponseReceived(Token:EventRegistrationToken):HRESULT;stdcall;
+  function NavigateWithWebResourceRequest(const Request:ICoreWebView2WebResourceRequest):HRESULT;stdcall;
+  function add_DOMContentLoaded(const Handler:IUnknown;out Token:EventRegistrationToken):HRESULT;stdcall;
+  function remove_DOMContentLoaded(Token:EventRegistrationToken):HRESULT;stdcall;
+  function Get_CookieManager(out Manager:IUnknown):HRESULT;stdcall;
+  function Get_Environment(out Environment:ICoreWebView2Environment):HRESULT;stdcall;
+ end;
+ ICoreWebView2_3=interface(ICoreWebView2_2)
+  ['{A0D6DF20-3B92-416D-AA0C-437A9C727857}']
+  function TrySuspend(const Handler:IUnknown):HRESULT;stdcall;
+  function Resume:HRESULT;stdcall;
+  function Get_IsSuspended(out Value:Integer):HRESULT;stdcall;
+  function SetVirtualHostNameToFolderMapping(Host,Folder:PWideChar;AccessKind:Integer):HRESULT;stdcall;
+  function ClearVirtualHostNameToFolderMapping(Host:PWideChar):HRESULT;stdcall;
+ end;
+const COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS=2;
+var WebViewLoaderHandle:HMODULE;
+{$ENDIF}
+
 procedure ConfigureWebViewLoader;
 var
   LPath: string;
 begin
   LPath := TPath.Combine(ExtractFilePath(GetModuleName(HInstance)), 'WebView2Loader.dll');
   if TFile.Exists(LPath) then
+  begin
+    {$IF CompilerVersion >= 36.0}
     SetWebView2Path(LPath);
+    {$ELSE}
+    // The older EdgeUtils loads by basename. Pin the adjacent loader first,
+    // so its subsequent LoadLibrary call resolves the same module.
+    if WebViewLoaderHandle=0 then WebViewLoaderHandle:=LoadLibraryEx(PChar(LPath),0,LOAD_WITH_ALTERED_SEARCH_PATH);
+    {$ENDIF}
+  end;
 end;
 
 constructor TXmlDocBrowser.Create(AOwner: TComponent);
@@ -154,4 +188,9 @@ begin
  FLoadTimer.Enabled:=False;FAppliedSettings:='';NavigateToString(FHtml);
 end;
 
+{$IF CompilerVersion < 36.0}
+initialization
+finalization
+ if WebViewLoaderHandle<>0 then FreeLibrary(WebViewLoaderHandle);
+{$ENDIF}
 end.

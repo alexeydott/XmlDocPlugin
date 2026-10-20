@@ -102,7 +102,7 @@ end;
 procedure TProjectDocumentation.Acknowledge(Message:TJSONObject);
 var FileName:string;Saved:TJSONObject;
 begin FileName:=DraftPath(Message);if not TFile.Exists(FileName) then Exit;
- Saved:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName)) as TJSONObject;
+ Saved:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName,TEncoding.UTF8)) as TJSONObject;
  try if Assigned(Saved) and Assigned(Saved.GetValue('doc')) and Assigned(Message.GetValue('doc')) and
   (Saved.GetValue('doc').ToJSON=Message.GetValue('doc').ToJSON) then begin
    var Raw:=Saved.GetValue<TJSONObject>('doc').GetValue('unappliedXml') as TJSONObject;
@@ -140,7 +140,7 @@ begin
   try
    Project:=GetActiveProject;RootPath:='';if Assigned(Project) then RootPath:=ExtractFilePath(Project.FileName);
    if TDirectory.Exists(DraftDirectory) then for FileName in TDirectory.GetFiles(DraftDirectory,'*.json') do begin
-    Json:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName)) as TJSONObject;
+    Json:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName,TEncoding.UTF8)) as TJSONObject;
     if not Assigned(Json) then Continue;
     if BelongsToWorkspace(Json) then begin Json.AddPair('draftId',TPath.GetFileNameWithoutExtension(FileName));Drafts.AddElement(Json);end else Json.Free;
    end;
@@ -391,7 +391,7 @@ begin
  Project:=GetActiveProject;if not Assigned(Project) then raise Exception.Create('Open a project to configure authoring');
  FileName:=TPath.Combine(ExtractFilePath(Project.FileName),'.xmldocplugin.json');Root:=nil;Global:=nil;Reply:=TJSONObject.Create;Registry:=TRegistry.Create(KEY_READ or KEY_WRITE);
  try
-  if TFile.Exists(FileName) then Root:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName)) as TJSONObject;
+  if TFile.Exists(FileName) then Root:=TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName,TEncoding.UTF8)) as TJSONObject;
   if not Assigned(Root) then Root:=TJSONObject.Create;
   Registry.RootKey:=HKEY_CURRENT_USER;
   if Registry.OpenKey('Software\XmlDocPlugin\Authoring',True) and Registry.ValueExists('Data') then Global:=TJSONObject.ParseJSONValue(Registry.ReadString('Data')) as TJSONObject;
@@ -506,7 +506,7 @@ begin
  try
   if Kind='recoverDraft' then begin
    DraftId:=Message.GetValue<string>('draftId','');if not TRegEx.IsMatch(DraftId,'^[0-9a-fA-F]{64}$') then raise Exception.Create('Invalid draft identity');
-   Recovery:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(DraftDirectory,DraftId+'.json'))) as TJSONObject;
+   Recovery:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(DraftDirectory,DraftId+'.json'),TEncoding.UTF8)) as TJSONObject;
    if not Assigned(Recovery) then raise Exception.Create('Draft is invalid');
    if Recovery.GetValue<string>('locationId','')='' then raise Exception.Create('This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.');
    for var Field in ['fileName','symbolId','locationId','projectFile'] do begin Message.RemovePair(Field).Free;Message.AddPair(Field,Recovery.GetValue<string>(Field,''));end;

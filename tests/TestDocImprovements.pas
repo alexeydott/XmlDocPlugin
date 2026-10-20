@@ -60,8 +60,10 @@ var Root,ProjectFile,UnitFile,Xml:string;Context:TProjectContext;
 begin
  Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);ForceDirectories(TPath.Combine(Root,'src'));
  try
-  ProjectFile:=TPath.Combine(Root,'Tool.dproj');UnitFile:=TPath.Combine(Root,'src','Gtfs.Tools.BuildStatic.pas');TFile.WriteAllText(UnitFile,'unit Gtfs.Tools.BuildStatic; interface implementation end.');
-  Xml:='<Project><ItemGroup><DCCReference Include="Gtfs.Tools.BuildStatic.pas"/><DCCReference Include="src\Gtfs.Tools.BuildStatic.pas"/></ItemGroup><PropertyGroup><MainSource>Tool.dpr</MainSource><DCC_UnitSearchPath>$(MSBuildProjectDirectory)\src</DCC_UnitSearchPath></PropertyGroup></Project>';
+  ProjectFile:=TPath.Combine(Root,'Tool.dproj');UnitFile:=TPath.Combine(TPath.Combine(Root,'src'),'Gtfs.Tools.BuildStatic.pas');TFile.WriteAllText(UnitFile,'unit Gtfs.Tools.BuildStatic; interface implementation end.');
+  Xml:='<Project><ItemGroup><DCCReference Include="Gtfs.Tools.BuildStatic.pas"/><DCCReference Include="src\G' +
+  'tfs.Tools.BuildStatic.pas"/></ItemGroup><PropertyGroup><MainSource>Tool.dpr</MainSource><DCC_UnitSea' +
+  'rchPath>$(MSBuildProjectDirectory)\src</DCC_UnitSearchPath></PropertyGroup></Project>';
   TFile.WriteAllText(ProjectFile,Xml);Context:=TProjectContext.Create(ProjectFile);
   try Assert.AreEqual<NativeInt>(1,Length(Context.SourceFiles));Assert.AreEqual(UnitFile,Context.SourceFiles[0]);finally Context.Free;end;
   TFile.WriteAllText(ProjectFile,Xml.Replace('Include="Gtfs.Tools.BuildStatic.pas"','Include="missing\Gtfs.Tools.BuildStatic.pas"'));
@@ -73,7 +75,7 @@ var Root,UnitFile,ProjectFile:string;Context:TProjectContext;
 begin
  Root:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);ForceDirectories(TPath.Combine(Root,'src'));
  try
-  UnitFile:=TPath.Combine(Root,'src','Gtfs.Tools.BuildStatic.pas');ProjectFile:=TPath.Combine(Root,'Tool.dproj');
+  UnitFile:=TPath.Combine(TPath.Combine(Root,'src'),'Gtfs.Tools.BuildStatic.pas');ProjectFile:=TPath.Combine(Root,'Tool.dproj');
   TFile.WriteAllText(UnitFile,'unit Gtfs.Tools.BuildStatic; interface implementation end.');
   TFile.WriteAllText(ProjectFile,'<Project><PropertyGroup><DCC_UnitSearchPath>src</DCC_UnitSearchPath></PropertyGroup><ItemGroup><DCCReference Include="Gtfs.Tools.BuildStatic.pas"/></ItemGroup></Project>');
   Context:=TProjectContext.Create(ProjectFile);
@@ -81,14 +83,14 @@ begin
    Assert.AreEqual(UnitFile,Context.ResolveModuleSource(TPath.Combine(Root,'Gtfs.Tools.BuildStatic.pas')),'Resolve the absolute alias reported by OTA');
    Assert.AreEqual(UnitFile,Context.ResolveModuleSource('Gtfs.Tools.BuildStatic.pas'));
    Assert.AreEqual(UnitFile,Context.ResolveModuleSource(UnitFile));
-   var Missing:=TPath.Combine(Root,'missing','Gtfs.Tools.BuildStatic.pas');Assert.AreEqual(Missing,Context.ResolveModuleSource(Missing),'Never repair an unrelated explicit path');
+   var Missing:=TPath.Combine(TPath.Combine(Root,'missing'),'Gtfs.Tools.BuildStatic.pas');Assert.AreEqual(Missing,Context.ResolveModuleSource(Missing),'Never repair an unrelated explicit path');
    var Unsaved:=TPath.Combine(Root,'Unsaved.pas');Assert.AreEqual(Unsaved,Context.ResolveModuleSource(Unsaved),'A module backed only by an editor snapshot keeps its identity');
    for var I:=0 to 199 do begin
     var Alias:='Gtfs.Tools.BuildStatic.pas';if Odd(I) then Alias:=Alias.ToUpper;
-    if (I mod 3)=0 then Alias:=TPath.Combine(Root,'.',Alias) else if (I mod 3)=1 then Alias:=TPath.Combine(Root,Alias);
+    if (I mod 3)=0 then Alias:=TPath.Combine(TPath.Combine(Root,'.'),Alias) else if (I mod 3)=1 then Alias:=TPath.Combine(Root,Alias);
     Assert.AreEqual(UnitFile,Context.ResolveModuleSource(Alias));
    end;
-   var Other:=TPath.Combine(Root,'other','Gtfs.Tools.BuildStatic.pas');ForceDirectories(ExtractFilePath(Other));TFile.WriteAllText(Other,'unit Other; interface implementation end.');
+   var Other:=TPath.Combine(TPath.Combine(Root,'other'),'Gtfs.Tools.BuildStatic.pas');ForceDirectories(ExtractFilePath(Other));TFile.WriteAllText(Other,'unit Other; interface implementation end.');
    Context.SourceFiles:=[UnitFile,Other];
    Assert.WillRaise(procedure begin Context.ResolveModuleSource(TPath.Combine(Root,'Gtfs.Tools.BuildStatic.pas'));end,Exception,'Ambiguous project aliases must fail');
    Assert.AreEqual(Other,Context.ResolveModuleSource(Other),'Existing explicit files retain their meaning');
@@ -355,7 +357,9 @@ begin
  Root:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(Root);Scanner:=TProjectScanner.Create;P:=TDocParser.Create;
  try
   FileName:=TPath.Combine(Root,'App.dproj');
-  TFile.WriteAllText(FileName,'<Project><PropertyGroup><AppName>DebugApp</AppName><MainSource>$(AppName).dpr</MainSource></PropertyGroup><PropertyGroup Condition="''$(Config)''==''Release''"><AppName>ReleaseApp</AppName><MainSource>$(AppName).dpr</MainSource><DCC_Define>RELEASE</DCC_Define></PropertyGroup></Project>');
+  TFile.WriteAllText(FileName,'<Project><PropertyGroup><AppName>DebugApp</AppName><MainSource>$(AppName).dpr</MainSource></Property' +
+  'Group><PropertyGroup Condition="''$(Config)''==''Release''"><AppName>ReleaseApp</AppName><MainSource>$(A' +
+  'ppName).dpr</MainSource><DCC_Define>RELEASE</DCC_Define></PropertyGroup></Project>');
   TFile.WriteAllText(TPath.Combine(Root,'DebugApp.dpr'),'program DebugApp; uses DebugUnit in ''DebugUnit.pas''; begin end.');
   TFile.WriteAllText(TPath.Combine(Root,'ReleaseApp.dpr'),'program ReleaseApp; uses ReleaseUnit in ''ReleaseUnit.pas''; begin end.');
   TFile.WriteAllText(TPath.Combine(Root,'DebugUnit.pas'),'unit DebugUnit; interface implementation end.');TFile.WriteAllText(TPath.Combine(Root,'ReleaseUnit.pas'),'unit ReleaseUnit; interface implementation end.');
@@ -365,8 +369,8 @@ begin
   C:=TProjectContext.Create(FileName,'Debug','Win32');try P.Defines:=C.Defines;P.ParseSource(Source);Assert.AreEqual('TDebug',P.GetAllElements[1].Name);finally C.Free;end;
   C:=TProjectContext.Create(FileName,'Release','Win64');try P.Defines:=C.Defines;P.Platform:=C.Platform;Assert.IsFalse(P.IsUpToDate(Source));P.ParseSource(Source);Assert.AreEqual('TRelease',P.GetAllElements[1].Name);finally C.Free;end;
   UnitPath:=TPath.Combine(Root,'Units');TDirectory.CreateDirectory(UnitPath);UnitPath:=TPath.Combine(UnitPath,'Nested.pas');TDirectory.CreateDirectory(TPath.Combine(Root,'Resources'));
-  TFile.WriteAllText(TPath.Combine(Root,'Resources','sample.png'),'fixture');
-  Assert.AreEqual(TPath.GetFullPath(TPath.Combine(Root,'Resources','sample.png')),ResolveDocumentationResource('Resources/sample.png',UnitPath));
+  TFile.WriteAllText(TPath.Combine(TPath.Combine(Root,'Resources'),'sample.png'),'fixture');
+  Assert.AreEqual(TPath.GetFullPath(TPath.Combine(TPath.Combine(Root,'Resources'),'sample.png')),ResolveDocumentationResource('Resources/sample.png',UnitPath));
   Assert.WillRaise(procedure begin ResolveDocumentationResource('../escape',UnitPath);end,Exception);
  finally P.Free;Scanner.Free;TDirectory.Delete(Root,True);end;
 end;
@@ -533,8 +537,11 @@ begin
  Units:=TObjectList<TUnitDocInfo>.Create;Report:=TDocumentationReport.Create;FileName:=TPath.GetTempFileName;
  try
   U:=TUnitDocInfo.Create;Units.Add(U);U.UnitName:='Test';U.UnitElement.SymbolId:='test:unit:test';U.UnitDoc.Summary:='Unit';
-  E:=TElementDocInfo.Create;U.StandaloneMethods.Add(E);E.CodeElement.SymbolId:='test:method:run(integer)';E.CodeElement.Kind:=dekMethod;E.CodeElement.CanonicalName:='Test.Run';E.CodeElement.Visibility:='public';E.Doc.Summary:='Runs';
-  Report.Analyze(Units);Report.SaveBaseline(FileName);Assert.AreEqual<Integer>(0,Report.NewIssueCount(FileName));
+  E:=TElementDocInfo.Create;U.StandaloneMethods.Add(E);E.CodeElement.SymbolId:='test:method:обработать(integer)';E.CodeElement.Kind:=dekMethod;E.CodeElement.CanonicalName:='Тест.Обработать';E.CodeElement.Visibility:='public';E.Doc.Summary:='Runs';
+  Report.Analyze(Units);Report.SaveBaseline(FileName);
+  // UTF-8 JSON is valid with or without a BOM, including Unicode identifiers.
+  TFile.WriteAllBytes(FileName,TEncoding.UTF8.GetBytes(TFile.ReadAllText(FileName,TEncoding.UTF8)));
+  Assert.AreEqual<Integer>(0,Report.NewIssueCount(FileName));
   E.CodeElement.SymbolId:='test:method:run(string)';Report.Analyze(Units);Assert.AreEqual<Integer>(1,Report.NewIssueCount(FileName));Assert.AreEqual('XD011',Report.Issues[0].Code);
   Assert.AreEqual<Integer>(1,Report.NewIssueCount(FileName));
  finally TFile.Delete(FileName);Report.Free;Units.Free;end;

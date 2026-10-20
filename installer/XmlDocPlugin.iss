@@ -37,11 +37,13 @@ Name: full; Description: "All installed supported IDEs"
 Name: custom; Description: "Custom installation"; Flags: iscustom
 
 [Components]
+Name: rad11x86; Description: "RAD Studio 11 - 32-bit IDE"; Types: full; Check: TargetAvailable(3)
 Name: rad12x86; Description: "RAD Studio 12 - 32-bit IDE"; Types: full; Check: TargetAvailable(0)
 Name: rad13x86; Description: "RAD Studio 13 - 32-bit IDE"; Types: full; Check: TargetAvailable(1)
 Name: rad13x64; Description: "RAD Studio 13 - 64-bit IDE"; Types: full; Check: TargetAvailable(2)
 
 [Files]
+Source: "{#StageDir}\rad11-x86\*"; DestDir: "{app}\rad11-x86"; Components: rad11x86; Flags: ignoreversion
 Source: "{#StageDir}\help\*"; DestDir: "{app}\help"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#StageDir}\bin\XmlDocGen.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "{#StageDir}\rad12-x86\*"; DestDir: "{app}\rad12-x86"; Components: rad12x86; Flags: ignoreversion
@@ -57,7 +59,7 @@ type
     Component, Directory, Version, BinaryName, Exe, RegistryNode: String;
   end;
 var
-  Targets: array[0..2] of TTarget;
+  Targets: array[0..3] of TTarget;
 
 procedure SetupTargets;
 var I: Integer;
@@ -65,8 +67,10 @@ begin
   Targets[0].Component := 'rad12x86'; Targets[0].Directory := 'rad12-x86';
   Targets[1].Component := 'rad13x86'; Targets[1].Directory := 'rad13-x86';
   Targets[2].Component := 'rad13x64'; Targets[2].Directory := 'rad13-x64';
-  for I := 0 to 2 do begin
-    if I = 0 then begin Targets[I].Version := '23.0'; Targets[I].BinaryName := 'XmlDocPlugin290.bpl'; end
+  Targets[3].Component := 'rad11x86'; Targets[3].Directory := 'rad11-x86';
+  for I := 0 to 3 do begin
+    if I = 3 then begin Targets[I].Version := '22.0'; Targets[I].BinaryName := 'XmlDocPlugin280.bpl'; end
+    else if I = 0 then begin Targets[I].Version := '23.0'; Targets[I].BinaryName := 'XmlDocPlugin290.bpl'; end
     else begin Targets[I].Version := '37.0'; Targets[I].BinaryName := 'XmlDocPlugin370.bpl'; end;
     Targets[I].RegistryNode := 'Software\Embarcadero\BDS\' + Targets[I].Version + '\Known Packages';
     if I = 2 then Targets[I].RegistryNode := Targets[I].RegistryNode + ' x64';
@@ -111,7 +115,7 @@ begin
   Result := False;
   SetupTargets;
   Found := 0;
-  for I := 0 to 2 do begin
+  for I := 0 to 3 do begin
     Key := 'Software\Embarcadero\BDS\' + Targets[I].Version;
     Root := '';
     if not RegQueryStringValue(HKCU32, Key, 'RootDir', Root) then
@@ -125,7 +129,7 @@ begin
     end;
   end;
   if Found = 0 then begin
-    SuppressibleMsgBox('RAD Studio 12 or 13 was not found. Its bds.exe must exist on this computer.', mbError, MB_OK, IDOK);
+    SuppressibleMsgBox('RAD Studio 11, 12 or 13 was not found. Its bds.exe must exist on this computer.', mbError, MB_OK, IDOK);
     Exit;
   end;
   try
@@ -165,7 +169,7 @@ begin
   except Result := 'Cannot verify whether RAD Studio is running.'; Exit; end;
   if not WebViewInstalled then begin Result := 'WebView2 Runtime is no longer available.'; Exit; end;
   Count := 0;
-  for I := 0 to 2 do
+  for I := 0 to 3 do
     if WizardIsComponentSelected(Targets[I].Component) then begin
       Inc(Count);
       if not TargetAvailable(I) then begin Result := 'The selected IDE bds.exe no longer exists.'; Exit; end;
@@ -216,7 +220,7 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var I: Integer;
 begin
   if CurStep = ssPostInstall then
-    for I := 0 to 2 do
+    for I := 0 to 3 do
       if WizardIsComponentSelected(Targets[I].Component) then RegisterTarget(I);
 end;
 
@@ -232,7 +236,7 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var I, J: Integer; Count: Cardinal; Key, Name, Data, Installed: String;
 begin
   if CurUninstallStep <> usUninstall then Exit;
-  for I := 0 to 2 do begin
+  for I := 0 to 3 do begin
     Key := BackupKey(I);
     if not RegQueryStringValue(HKCU, Key, 'Installed', Installed) then Continue;
     if CompareText(Installed, InstalledFile(I)) <> 0 then Continue;

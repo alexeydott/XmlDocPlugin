@@ -77,7 +77,7 @@ begin
 end;
 
 procedure Log(const Text:string);
-begin TFile.AppendAllText(GetEnvironmentVariable('XMLDOC_E2E_LOG'),Text+sLineBreak);end;
+begin TFile.AppendAllText(GetEnvironmentVariable('XMLDOC_E2E_LOG'),Text+sLineBreak,TEncoding.UTF8);end;
 function XmlEscape(const Value:string):string;
 begin Result:=Value.Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;').Replace('"','&quot;');end;
 function FindMenuCommand(Parent:TMenuItem;const Caption:string):TMenuItem;
@@ -555,13 +555,13 @@ begin
    end
    else if Action='assert-group' then begin
     AssertTrue(SameText(GetActiveProject.FileName,TPath.Combine(Root,'XmlDocE2E.dproj')),'Group navigation changed active project A');
-    AssertTrue(Assigned(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas'))),'Group source did not open');
+    AssertTrue(Assigned(SourceEditorForFile(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas'))),'Group source did not open');
     Log('PASS group symbol navigation uses project B defines while A is active');
    end
    else if Action='group-navigation-checked' then Log('PASS GroupB Source and Back/Forward retain owning project while A is active')
    else if Action='group-include-checked' then Log('PASS catalog Refresh detects a changed closed include')
    else if Action='group-context-error' then begin
-    var BrokenProject:=TPath.Combine(Root,'GroupB','GroupB.dproj');var ProjectBefore:=TFile.ReadAllText(BrokenProject);var ProjectStamp:=TFile.GetLastWriteTimeUtc(BrokenProject);var ErrorFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var ErrorSource:=EditorSource(SourceEditorForFile(ErrorFile));
+    var BrokenProject:=TPath.Combine(TPath.Combine(Root,'GroupB'),'GroupB.dproj');var ProjectBefore:=TFile.ReadAllText(BrokenProject);var ProjectStamp:=TFile.GetLastWriteTimeUtc(BrokenProject);var ErrorFile:=TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas');var ErrorSource:=EditorSource(SourceEditorForFile(ErrorFile));
     try
      TFile.WriteAllText(BrokenProject,ProjectBefore.Replace('ContextB.pas','MissingReviewSource.pas'));
      Inspector.HandleCursorChanged(3,ErrorSource,ErrorFile);Explorer.HandleFileChanged(ErrorFile,ErrorSource);
@@ -570,7 +570,7 @@ begin
       AssertTrue(ErrorShown,'Project-context error was not shown inside '+Panel.Caption);
      end;
     finally TFile.WriteAllText(BrokenProject,ProjectBefore);TFile.SetLastWriteTimeUtc(BrokenProject,ProjectStamp);end;
-    var ReferenceDirectory:=TPath.Combine(Root,'GroupB','ReferenceSources');ForceDirectories(ReferenceDirectory);TFile.WriteAllText(TPath.Combine(ReferenceDirectory,'SearchOnly.pas'),'unit SearchOnly; interface type TSearchOnly=class end; implementation end.');
+    var ReferenceDirectory:=TPath.Combine(TPath.Combine(Root,'GroupB'),'ReferenceSources');ForceDirectories(ReferenceDirectory);TFile.WriteAllText(TPath.Combine(ReferenceDirectory,'SearchOnly.pas'),'unit SearchOnly; interface type TSearchOnly=class end; implementation end.');
     try
      var SearchProject:=ProjectBefore.Replace('Include="ContextB.pas"','Include="SearchOnly.pas"').Replace('</Project>','<PropertyGroup><DCC_UnitSearchPath>ReferenceSources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath></PropertyGroup></Project>');
      TFile.WriteAllText(BrokenProject,SearchProject);Inspector.HandleCursorChanged(3,ErrorSource,ErrorFile);Explorer.HandleFileChanged(ErrorFile,ErrorSource);AssertParsed(Inspector);AssertParsed(Explorer);
@@ -584,31 +584,31 @@ begin
     var HelpItem:=FindMenuCommand((BorlandIDEServices as INTAServices).MainMenu.Items,'User Guide');AssertTrue(Assigned(HelpItem),'User Guide menu missing');HelpItem.Click;Log('PASS offline User Guide opened from IDE menu');
    end
    else if Action='review-external-comment' then begin
-    var ReviewFile:=TPath.Combine(Root,'GroupB','ContextB.pas');Editor:=SourceEditorForFile(ReviewFile);Source:=EditorSource(Editor);
+    var ReviewFile:=TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas');Editor:=SourceEditorForFile(ReviewFile);Source:=EditorSource(Editor);
     var Marker:='XML requires explicit approval';var CharOffset:=Pos(Marker,Source);AssertTrue(CharOffset>0,'Original review comment absent');
     Offset:=Length(UTF8Encode(Copy(Source,1,CharOffset-1)));Writer:=Editor.CreateUndoableWriter;Writer.CopyTo(Offset);Writer.DeleteTo(Offset+Length(Marker));Utf8:='EXTERNAL SOURCE CHANGE';Writer.Insert(PAnsiChar(Utf8));Writer:=nil;
     Inspector.HandleCursorChanged(Json.GetValue<Integer>('line'),EditorSource(Editor),ReviewFile);Browser.ExecuteScript('window.__reviewExternalReady=true');Log('PASS external source mutation for native recovery conflict');
    end
    else if Action='assert-review-undo' then begin
-    var Actual:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    var Actual:=EditorSource(SourceEditorForFile(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas')));
     AssertTrue(not Actual.Contains('REVIEW HIDDEN RAW') and not Actual.Contains('REVIEW UNDO TEMPORARY TEXT'),'Undo wrote hidden/unconfirmed text');Log('PASS native source after raw draft / Design edit / Undo to baseline');
    end
    else if Action='assert-review-design' then begin
-    var Actual:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    var Actual:=EditorSource(SourceEditorForFile(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas')));
     AssertTrue(Actual.Contains('REVIEW VISIBLE DESIGN WINS'),'Visible Design text did not reach native XML serialization');
     AssertTrue(not Actual.Contains('REVIEW HIDDEN RAW MUST NOT WRITE'),'Hidden XML draft overwrote Design text');
     Log('PASS restored raw draft to Design serializes visible content into source');
    end
    else if Action='group-xml-applied-checked' then begin
-    var ApprovedSource:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    var ApprovedSource:=EditorSource(SourceEditorForFile(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas')));
     AssertTrue(ApprovedSource.Contains('XML requires explicit approval'),'Explicit XML apply did not update source');Log('PASS explicit XML Apply writes the approved draft');
    end
    else if Action='group-xml-draft-checked' then begin
-    var XmlDraftSource:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    var XmlDraftSource:=EditorSource(SourceEditorForFile(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas')));
     AssertTrue(XmlDraftSource.Contains('Implementation design before XML'),'Design save did not complete');AssertTrue(not XmlDraftSource.Contains('XML requires explicit approval'),'Unapproved XML draft was written');Log('PASS XML draft stays unapplied after Design ACK');
    end
    else if Action='group-implementation-checked' then begin
-    var GroupFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var CheckParser:=TDocParser.Create;
+    var GroupFile:=TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas');var CheckParser:=TDocParser.Create;
     try CheckParser.ParseSource(EditorSource(SourceEditorForFile(GroupFile)),GroupFile);var Seen:=0;
      for var E in CheckParser.GetAllElements do if E.Name='FromB' then begin
       if E.SourceSection='implementation' then AssertTrue(E.ExistingDocXml.Contains('Implementation second'),'Pinned second edit missed implementation')
@@ -618,21 +618,21 @@ begin
     Log('PASS pinned implementation ACK retains both source locations after line shifts');
    end
    else if Action='group-include' then begin
-    var IncludePath:=TPath.Combine(Root,'GroupB','Features.inc');
+    var IncludePath:=TPath.Combine(TPath.Combine(Root,'GroupB'),'Features.inc');
     if Json.GetValue<Boolean>('enabled',True) then TFile.WriteAllText(IncludePath,'{$DEFINE FROM_B}') else TFile.WriteAllText(IncludePath,'{$UNDEF FROM_B}');
    end
    else if Action='group-quick-context' then begin
-    var QuickFile:=TPath.Combine(Root,'GroupB','ContextB.pas');var QuickEditor:=SourceEditorForFile(QuickFile);QuickEditor.Show;var QuickSource:=EditorSource(QuickEditor);var Lines:=QuickSource.Split([#10]);
+    var QuickFile:=TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas');var QuickEditor:=SourceEditorForFile(QuickFile);QuickEditor.Show;var QuickSource:=EditorSource(QuickEditor);var Lines:=QuickSource.Split([#10]);
     var QuickPos:TOTAEditPos;QuickPos.Line:=0;for var I:=0 to High(Lines) do if Lines[I].Contains('Worker.Run(Local)') then begin QuickPos.Line:=I+1;QuickPos.Col:=System.Pos('Run(Local)',Lines[I])+1;Break;end;
     AssertTrue(QuickPos.Line>0,'Quick documentation call fixture absent');QuickEditor.EditViews[0].SetCursorPos(QuickPos);QuickEditor.EditViews[0].MoveViewToCursor;Inspector.HandleCursorChanged(QuickPos.Line,QuickSource,QuickFile);Browser.ExecuteScript('window.__quickContextReady=true');
    end
    else if Action='group-stub' then begin
     var StubItem:=FindMenuCommand((BorlandIDEServices as INTAServices).MainMenu.Items,'Generate Doc Stub');AssertTrue(Assigned(StubItem),'Stub menu absent');StubItem.Click;
-    var StubSource:=EditorSource(SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas')));
+    var StubSource:=EditorSource(SourceEditorForFile(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas')));
     AssertTrue(StubSource.Contains('<param name="Value">'),'Stub did not document project B parameter');Log('PASS GroupB Generate Stub with owning project');
    end
    else if Action='assert-group-format' then begin
-    var GroupFile:=TPath.Combine(Root,'GroupB','ContextB.pas');
+    var GroupFile:=TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas');
     var GroupSource:=EditorSource(SourceEditorForFile(GroupFile));
     AssertTrue(GroupSource.Contains('GroupB '+Json.GetValue<string>('mode')+' before format'),'Formatted GroupB documentation was not written');
     AssertTrue(GroupSource.Contains('Пример &amp; details'),'Format lost Unicode or XML escaping');
@@ -792,7 +792,7 @@ begin
   GetWindowThreadProcessId(W,@P);
   if P=GetCurrentProcessId then begin
    Text:=NativeWindowText(W);
-   if Text.Contains('Do you really want to format the selected file:') and Text.Contains(TPath.Combine(Root,'GroupB','ContextB.pas')) then begin
+   if Text.Contains('Do you really want to format the selected file:') and Text.Contains(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas')) then begin
     Button:=NativeYesButton(W);
     if Button<>0 then begin Log('Confirmed native formatter for isolated GroupB fixture');SendMessage(Button,BM_CLICK,0,0);end;
    end;
@@ -972,14 +972,14 @@ begin
   90:begin Finish;Exit;end;
   80:begin
    Log('Adding project B outside WebView callback');
-   AssertTrue((BorlandIDEServices as IOTAActionServices).OpenProject(TPath.Combine(Root,'GroupB','GroupB.dproj'),False),'Cannot add group project B');
+   AssertTrue((BorlandIDEServices as IOTAActionServices).OpenProject(TPath.Combine(TPath.Combine(Root,'GroupB'),'GroupB.dproj'),False),'Cannot add group project B');
    var Group:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;
    for var J:=0 to Group.ProjectCount-1 do if SameText(Group.Projects[J].FileName,PrimaryProjectFile) then begin Group.ActiveProject:=Group.Projects[J];Break;end;
    Log('Added project B; active project '+GetActiveProject.FileName);Step:=81;Timer.Interval:=1500;Timer.Enabled:=True;
    Exit;
   end;
   82:begin
-   var GroupFile:=TPath.Combine(Root,'GroupB','ContextB.pas');
+   var GroupFile:=TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas');
    var GroupEditor:=SourceEditorForFile(GroupFile);AssertTrue(Assigned(GroupEditor),'GroupB editor unavailable for Format Source');var ProjectGroup:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;ProjectGroup.ActiveProject:=ProjectGroup.FindProject(GroupFile);GroupEditor.Show;
    var Actions:=(BorlandIDEServices as INTAServices).ActionList;var FormatAction:TCustomAction:=nil;
    for var K:=0 to Actions.ActionCount-1 do if Actions.Actions[K] is TCustomAction then begin
@@ -994,7 +994,7 @@ begin
    Step:=83;Timer.Interval:=750;Timer.Enabled:=True;Exit;
   end;
   83:begin
-   var GroupEditor:=SourceEditorForFile(TPath.Combine(Root,'GroupB','ContextB.pas'));
+   var GroupEditor:=SourceEditorForFile(TPath.Combine(TPath.Combine(Root,'GroupB'),'ContextB.pas'));
    if (EditorSource(GroupEditor)=FormatBefore) and (FormatWait<40) then begin Inc(FormatWait);Timer.Enabled:=True;Exit;end;
    AssertTrue(EditorSource(GroupEditor)<>FormatBefore,'Native formatter did not change unformatted Pascal buffer');
    FreeAndNil(FormatConfirmation);
@@ -1004,7 +1004,7 @@ begin
    Browser.ExecuteScript('window.__xmlDocNativeFormatted=true;');Step:=81;Timer.Interval:=1500;Timer.Enabled:=True;Exit;
   end;
   81:begin
-   Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'WorkbenchGroupProbe.js')));
+   Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'WorkbenchGroupProbe.js'),TEncoding.UTF8));
    Timer.Enabled:=True;Exit;
   end;
   0:begin
@@ -1075,10 +1075,16 @@ begin
      Settings.LoadProject(Root);AssertTrue((Settings.Project.HelpGen.OutputDir='docs') and not Settings.Project.HelpGen.IncludePrivate,'Project A options leaked into B');
      TFile.WriteAllText(TPath.Combine(SettingsRoot,'.xmldocplugin.json'),'{"helpGen":{"title":"Partial"}}');Settings.LoadProject(SettingsRoot);
      AssertTrue((Settings.Project.HelpGen.OutputDir='docs') and (Settings.Project.HelpGen.Title='Partial'),'Partial settings did not use defaults');
+     var UnicodeAuthoring:='Термины 中文 용어 用語';
+     TFile.WriteAllBytes(TPath.Combine(SettingsRoot,'.xmldocplugin.json'),TEncoding.UTF8.GetBytes('{"authoring":{"terminology":"'+UnicodeAuthoring+'"}}'));
+     Settings.LoadProject(SettingsRoot);Settings.SaveProject;
+     var PreservedSettings:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(SettingsRoot,'.xmldocplugin.json'),TEncoding.UTF8));
+     try AssertTrue(Assigned(PreservedSettings) and (PreservedSettings.GetValue<string>('authoring.terminology')=UnicodeAuthoring),'Project settings corrupted BOM-free UTF-8 authoring data');finally PreservedSettings.Free;end;
+     Log('PASS project settings preserve BOM-free UTF-8 authoring data');
      Log('PASS project settings reset between projects and partial files');
     finally Settings.Free;TDirectory.Delete(SettingsRoot,True);end;
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
-  1:begin if (GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1') or (GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'') or (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
+  1:begin if (GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1') or (GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'') or (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Log('Creating Inspector');Inspector:=TDocInspectorForm.Create(nil);Log('Showing Inspector');Inspector.Show;Log('Creating Explorer');Explorer:=TDocExplorerForm.Create(nil);Log('Showing Explorer');Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Log('Creating Inspector');Inspector:=TDocInspectorForm.Create(nil);Log('Showing Inspector');Inspector.Show;Log('Creating Explorer');Explorer:=TDocExplorerForm.Create(nil);Log('Showing Explorer');Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
   2:begin
     for I:=0 to Inspector.ComponentCount-1 do if Inspector.Components[I] is TXmlDocBrowser then Browser:=TXmlDocBrowser(Inspector.Components[I]);
     AssertTrue(Assigned(Browser),'Browser unavailable');
@@ -1092,7 +1098,7 @@ begin
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
-   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1','RealAIAssistantProbe.js','AIAssistantProbe.js'))));Inc(Step);Exit;end;
+   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1','RealAIAssistantProbe.js','AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1' then begin
    // A successful parse must not clear a browser failure. Inject the event only
    // after the real WebView has loaded; recover through its navigation callback.
@@ -1109,9 +1115,9 @@ begin
     AssertTrue(Browser.Visible and ExplorerBrowser.Visible,'Successful browser recovery did not restore the editor');
     Log('PASS independent parser/browser diagnostics and browser recovery');
    end;
-    Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'ParseRecoveryProbe.js')));Inc(Step);Exit;
+    Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'ParseRecoveryProbe.js'),TEncoding.UTF8));Inc(Step);Exit;
    end;
-   if StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0 then begin Step:=104;Timer.Enabled:=True;Exit;end;Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then begin Inspector.SetBounds(100,100,1120,1000);Explorer.SetBounds(100,100,1400,1000);Browser.ExecuteScript('window.__guideScreenshots=true;');end;if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
+   if StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0 then begin Step:=104;Timer.Enabled:=True;Exit;end;Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then begin Inspector.SetBounds(100,100,1120,1000);Explorer.SetBounds(100,100,1400,1000);Browser.ExecuteScript('window.__guideScreenshots=true;');end;if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS'),TEncoding.UTF8));end;
  end;
  if Step<4 then Timer.Enabled:=True;
  except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;
@@ -1120,5 +1126,14 @@ procedure Register;
 begin if Assigned(Probe) then Exit;Probe:=TProbe.Create;Probe.Timer:=TTimer.Create(nil);Probe.Timer.Interval:=2500;Probe.Timer.OnTimer:=Probe.Tick;end;
 initialization
 finalization
- Log('Finalizing probe');if Probe<>nil then begin Probe.Timer.Free;Probe.ValidationProbe.Free;Probe.FormatConfirmation.Free;Probe.Inspector.Free;Probe.Explorer.Free;Probe.Free;Probe:=nil;end;Log('Probe finalized');
+ Log('Finalizing probe');
+ if Probe<>nil then begin
+  Log('Finalizing probe timer');FreeAndNil(Probe.Timer);
+  Log('Finalizing publication probe');FreeAndNil(Probe.ValidationProbe);
+  Log('Finalizing format confirmation');FreeAndNil(Probe.FormatConfirmation);
+  Log('Finalizing probe Inspector');FreeAndNil(Probe.Inspector);
+  Log('Finalizing probe Explorer');FreeAndNil(Probe.Explorer);
+  Log('Finalizing probe object');FreeAndNil(Probe);
+ end;
+ Log('Probe finalized');
 end.

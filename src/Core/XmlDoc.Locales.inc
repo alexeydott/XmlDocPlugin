@@ -258,7 +258,8 @@ const
   '  "HTML / CHM theme:": "Тема HTML / CHM:",' +
   '  "Minimum comment presence (%):": "Минимальное наличие комментариев (%):",' +
   '  "Minimum ready documentation (%):": "Минимальная готовность документации (%):",' +
-  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "Наличие учитывает комментарии. Готовность требует полных описаний без заготовок и ошибок. Ноль отключает порог.",' +
+  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "Наличие учитывает комментарии. Готовность требует полных опис' +
+  'аний без заготовок и ошибок. Ноль отключает порог.",' +
   '  "Review current source": "Сравнить с текущим исходником",' +
   '  "Unfinished placeholder documentation": "Незавершённая заготовка документации",' +
   '  "Waiting for the previous bulk update": "Ожидание предыдущей групповой правки",' +
@@ -342,7 +343,8 @@ const
   '  "Read-only: IDE source buffer": "Только чтение: буфер исходника IDE",' +
   '  "Unsaved draft — source may have changed": "Несохранённый черновик — исходник мог измениться",' +
   '  "The source is read-only. The draft can be viewed but cannot be applied.": "Исходник доступен только для чтения. Черновик можно просматривать, но нельзя применять.",' +
-  '  "Conflict: the source comment changed after this draft was created. Review all three versions before applying.": "Конфликт: исходный комментарий изменён после создания черновика. Перед применением сравните все три версии.",' +
+  '  "Conflict: the source comment changed after this draft was created. Review all three versions before applying.": "Конфликт: исходный комментарий изменён после создания черновика. Перед применением с' +
+  'равните все три версии.",' +
   '  "The source comment matches the original version. Review the saved draft before applying.": "Исходный комментарий совпадает с оригиналом. Перед применением проверьте сохранённый черновик.",' +
   '  "The symbol at the cursor could not be resolved. Use the project symbol picker.": "Не удалось разрешить символ под курсором. Используйте список символов проекта.",' +
   '  "Invalid XML": "Некорректный XML",' +
@@ -418,7 +420,8 @@ const
   '  "Source changed before apply": "Исходник изменён перед применением",' +
   '  "Invalid draft identity": "Некорректный идентификатор черновика",' +
   '  "Draft is invalid": "Некорректный черновик",' +
-  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "У старого черновика нет устойчивой привязки к исходнику. Содержимое сохранено; проверьте его и скопируйте вручную из папки черновиков.",' +
+  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "У старого черновика нет устойчивой привязки к исходнику. Содержимое ' +
+  'сохранено; проверьте его и скопируйте вручную из папки черновиков.",' +
   '  "Project context is unavailable: {0}": "Контекст проекта недоступен: {0}",' +
   '  "Declaration changed — the draft has been retained; locate the declaration before recovering it": "Объявление изменено — черновик сохранён; найдите объявление перед восстановлением",' +
   '  "Element kind for wording": "Вид объявления для шаблона",' +
@@ -452,7 +455,8 @@ const
   '  "Delete stored key": "Удалить сохранённый ключ",' +
   '  "Output limit parameter": "Параметр лимита ответа",' +
   '  "Request JSON mode (if supported)": "Режим JSON (если поддерживается)",' +
-  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "Ключи хранятся в диспетчере учётных данных Windows. При смене адресата нужен новый ключ. Перед отправкой кода проверьте подключение в AI-помощнике.",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "Ключи хранятся в диспетчере учётных данных Win' +
+  'dows. При смене адресата нужен новый ключ. Перед отправкой кода проверьте подключение в AI-помощнике.",' +
   '  "Duplicate template": "Дублировать шаблон",' +
   '  "Restore built-in": "Восстановить встроенный",' +
   '  "System instruction": "Системная инструкция",' +
@@ -554,7 +558,8 @@ const
   '  "Preview AI requests before sending": "Предпросмотр AI-запросов перед отправкой",' +
   '  "Waiting for AI response": "Ожидание ответа AI",' +
   '  "Disable AI thinking": "Отключить размышления AI",' +
-  '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "Использует поддерживаемую модель без размышлений, если она доступна; иначе добавляет инструкцию в промпт. Поддержка зависит от провайдера.",' +
+  '  "Uses a supported non-reasoning model when available; otherwise adds a prompt instruction. Support depends on the provider.": "Использует поддерживаемую модель без размышлений, если она доступна; ин' +
+  'аче добавляет инструкцию в промпт. Поддержка зависит от провайдера.",' +
   '  "Automatic retries (0-10)": "Автоповторы (0–10)",' +
   '  "Retries after the first attempt; 0 disables retries. Temporary errors only.": "Повторы после первой попытки; 0 отключает повторы. Только временные ошибки.",' +
   '  "Automatic retries must be between 0 and 10": "Число автоповторов должно быть от 0 до 10"' +
@@ -1011,7 +1016,8 @@ const
   '  "Delete stored key": "删除已存密钥",' +
   '  "Output limit parameter": "输出限制参数",' +
   '  "Request JSON mode (if supported)": "请求 JSON 模式（如果支持）",' +
-  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "密钥保存在 Windows 凭据管理器中。更改目标地址后需要重新设置密钥。发送源代码前请在助手中测试连接。",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "密钥保存在 Windows 凭据管理器中。更改目标地址后需要重新设置密钥。发送源代码前请在助' +
+  '手中测试连接。",' +
   '  "Duplicate template": "复制模板",' +
   '  "Restore built-in": "恢复内置模板",' +
   '  "System instruction": "系统指令",' +
@@ -1376,7 +1382,8 @@ const
   '  "HTML / CHM theme:": "HTML / CHM 테마:",' +
   '  "Minimum comment presence (%):": "최소 주석 보유율(%):",' +
   '  "Minimum ready documentation (%):": "최소 문서 준비율(%):",' +
-  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "주석 보유율은 주석의 존재를 계산합니다. 준비율은 미완성 자리표시자와 오류가 없는 완전한 설명을 요구합니다. 0은 기준 검사를 비활성화합니다.",' +
+  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "주석 보유율은 주석의 존재를 계산합니다. 준비율은 미완성 자리표시자와 오류가 없는 완전한 설명을 요구합니다. ' +
+  '0은 기준 검사를 비활성화합니다.",' +
   '  "Review current source": "현재 소스 검토",' +
   '  "Unfinished placeholder documentation": "미완성 자리표시자 문서",' +
   '  "Waiting for the previous bulk update": "이전 일괄 변경 완료 대기 중",' +
@@ -1536,7 +1543,8 @@ const
   '  "Source changed before apply": "적용 전에 소스가 변경되었습니다",' +
   '  "Invalid draft identity": "초안 식별자가 잘못되었습니다",' +
   '  "Draft is invalid": "초안이 잘못되었습니다",' +
-  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "이 이전 형식의 초안에는 안정적인 소스 위치가 없습니다. 내용은 보존되어 있으므로 초안 폴더에서 검토하고 직접 복사하세요.",' +
+  '  "This legacy draft has no stable source location. Its content is retained; review and copy it manually from the drafts folder.": "이 이전 형식의 초안에는 안정적인 소스 위치가 없습니다. 내용은 보존되어 있으므로 초안 폴더에서 검토하고 직접 복사하세요.' +
+  '",' +
   '  "Project context is unavailable: {0}": "프로젝트 컨텍스트를 사용할 수 없습니다: {0}",' +
   '  "Declaration changed — the draft has been retained; locate the declaration before recovering it": "선언이 변경되었습니다 — 초안은 보존되었습니다. 복구하기 전에 선언을 찾으세요",' +
   '  "Element kind for wording": "상용구에 적용할 요소 종류",' +
@@ -1570,7 +1578,8 @@ const
   '  "Delete stored key": "저장된 키 삭제",' +
   '  "Output limit parameter": "출력 제한 매개변수",' +
   '  "Request JSON mode (if supported)": "JSON 모드 요청(지원하는 경우)",' +
-  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "키는 Windows 자격 증명 관리자에 저장됩니다. 대상 주소를 변경하면 새 키가 필요합니다. 소스를 보내기 전에 도우미에서 연결을 테스트하세요.",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "키는 Windows 자격 증명 관리자에 저장됩니다. 대상 주소를 변경하면 새 키가 ' +
+  '필요합니다. 소스를 보내기 전에 도우미에서 연결을 테스트하세요.",' +
   '  "Duplicate template": "템플릿 복제",' +
   '  "Restore built-in": "기본 템플릿 복원",' +
   '  "System instruction": "시스템 지침",' +
@@ -1935,7 +1944,8 @@ const
   '  "HTML / CHM theme:": "HTML / CHM テーマ:",' +
   '  "Minimum comment presence (%):": "コメント記述率の下限 (%):",' +
   '  "Minimum ready documentation (%):": "完成したドキュメントの割合の下限 (%):",' +
-  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "記述率はコメントの有無を数えます。完成率には、未完成のプレースホルダーやエラーのない完全な説明が必要です。0 を指定すると判定を無効にします。",' +
+  '  "Presence counts comments; ready requires complete descriptions without unfinished placeholders or errors. Zero disables a threshold.": "記述率はコメントの有無を数えます。完成率には、未完成のプレースホルダーやエラーのない完全な説明が必要です。0 を指定すると' +
+  '判定を無効にします。",' +
   '  "Review current source": "現在のソースを確認",' +
   '  "Unfinished placeholder documentation": "未完成のプレースホルダーを含むドキュメント",' +
   '  "Waiting for the previous bulk update": "前の一括更新の完了を待機中",' +
@@ -2129,7 +2139,8 @@ const
   '  "Delete stored key": "保存済みのキーを削除",' +
   '  "Output limit parameter": "出力上限のパラメーター",' +
   '  "Request JSON mode (if supported)": "JSON モードを要求 (対応時)",' +
-  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "キーは Windows 資格情報マネージャーに保存されます。送信先の変更後はキーを再設定してください。ソースを送信する前にアシスタントで接続をテストしてください。",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "キーは Windows 資格情報マネージャーに保存されます。送信先の変更後はキーを再設定して' +
+  'ください。ソースを送信する前にアシスタントで接続をテストしてください。",' +
   '  "Duplicate template": "テンプレートを複製",' +
   '  "Restore built-in": "組み込みを復元",' +
   '  "System instruction": "システム指示",' +

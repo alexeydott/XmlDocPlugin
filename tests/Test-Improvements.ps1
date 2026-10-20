@@ -1,5 +1,6 @@
-﻿param(
+param(
  [string]$EvidenceDir="$env:LOCALAPPDATA\XmlDocPlugin\WorkbenchTests\$([guid]::NewGuid())",
+ [string]$Rad11='D:\Embarcadero RAD Studio\22.0',
  [string]$Rad12='D:\Embarcadero RAD Studio\23.0',
  [string]$Rad13='D:\Embarcadero RAD Studio\37.0',
  [switch]$SkipIDE,
@@ -13,8 +14,10 @@ try {
  & tests/Test-Version.ps1
  & npm test --prefix web *> "$EvidenceDir\web-tests.log"
  if($LASTEXITCODE){throw 'Browser unit and fuzz tests failed'}
+ & tests/Test-AIToon.ps1 -Bds $Rad11 -EvidenceDir "$EvidenceDir\toon-rad11"
  & tests/Test-AIToon.ps1 -Bds $Rad12 -EvidenceDir "$EvidenceDir\toon-rad12"
  & tests/Test-AIToon.ps1 -Bds $Rad13 -EvidenceDir "$EvidenceDir\toon-rad13"
+ & .\test-delphi12.ps1 -Bds $Rad11 *> "$EvidenceDir\rad11-tests.log"
  & .\test-delphi12.ps1 -Bds $Rad12 *> "$EvidenceDir\rad12-tests.log"
  & .\test-delphi12.ps1 -Bds $Rad13 *> "$EvidenceDir\rad13-tests.log"
  & .\build-cli.ps1 -Bds $Rad13 -Platform Win64 -OutputDir "$EvidenceDir\cli" *> "$EvidenceDir\cli-build.log"
@@ -48,8 +51,8 @@ try {
  $missingDiagnostics=Get-Content "$EvidenceDir\missing-output\diagnostics.json" -Raw | ConvertFrom-Json
  if(!($missingDiagnostics.issues | Where-Object code -eq XD013)){throw 'Resource diagnostic was not saved before rendering failed'}
  if(!$SkipIDE){
-  & tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -EvidenceDir "$EvidenceDir\ide"
-  & tests/e2e/Test-E2E.ps1 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -SkipBuild -DiagnosticsOnly -EvidenceDir "$EvidenceDir\browser-diagnostics"
+  & tests/e2e/Test-E2E.ps1 -Rad11 $Rad11 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -EvidenceDir "$EvidenceDir\ide"
+  & tests/e2e/Test-E2E.ps1 -Rad11 $Rad11 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -SkipBuild -DiagnosticsOnly -EvidenceDir "$EvidenceDir\browser-diagnostics"
  }
  Write-Host "PASS. Evidence: $EvidenceDir"
 } finally {Pop-Location}

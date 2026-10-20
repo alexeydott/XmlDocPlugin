@@ -74,7 +74,7 @@ begin
  for I:=FIssues.Count-1 downto 0 do if FIssues[I].Code='XD011' then FIssues.Delete(I);
  Result:=0;Known:=TDictionary<string,Boolean>.Create;Root:=nil;
  try
-  if BaselineFile<>'' then begin Root:=TJSONObject.ParseJSONValue(TFile.ReadAllText(BaselineFile)) as TJSONObject;
+  if BaselineFile<>'' then begin Root:=TJSONObject.ParseJSONValue(TFile.ReadAllText(BaselineFile,TEncoding.UTF8)) as TJSONObject;
    if not Assigned(Root) or (Root.GetValue<Integer>('version',0)<>1) then raise Exception.Create('Unsupported documentation baseline');
    Items:=Root.GetValue<TJSONArray>('issues');if not Assigned(Items) then raise Exception.Create('Baseline issue list is missing');
    for Value in Items do Known.AddOrSetValue(Value.Value,True);

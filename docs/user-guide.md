@@ -24,7 +24,7 @@ XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API r
 
 ## Install and open the editor
 
-1. Download [XmlDocPlugin-Setup.exe](https://github.com/alexeydott/XmlDocPlugin/releases/latest/download/XmlDocPlugin-Setup.exe), close RAD Studio, and run Setup. Choose the detected IDE installations. Supported IDEs are RAD Studio 12 (32-bit) and RAD Studio 13 (32-bit and 64-bit).
+1. Download [XmlDocPlugin-Setup.exe](https://github.com/alexeydott/XmlDocPlugin/releases/latest/download/XmlDocPlugin-Setup.exe), close RAD Studio, and run Setup. Choose the detected IDE installations. Supported IDEs are RAD Studio 11/12 (32-bit) and RAD Studio 13 (32-bit and 64-bit).
 2. Allow installation of Microsoft Edge WebView2 Runtime if requested. Declining cancels installation.
 3. Open your Delphi project and a source unit, then put the caret on the declaration you want to document.
 4. Use **Document → Doc Inspector**. For a unit-wide tree, open **Documentation Explorer**. Shortcuts are configurable; use the menu labels or action hints to find the assigned keys.
@@ -36,6 +36,8 @@ Choose **Document → Settings → General → Language** for the interface lang
 Unavailable translations use English. This changes plugin captions and tooltips,
 not your comments, XML tags or source symbols. The spell-check language in
 Documentation tools is a separate setting. This guide uses the English action names.
+
+In RAD Studio 11, use the Document menu, configured shortcuts or documentation-panel buttons. Its OTA does not provide the editor context-menu registration interface used in newer IDEs. Project-manager actions and the documentation tools remain available.
 
 ## Settings
 
@@ -114,7 +116,7 @@ Expand **Documentation tools** above the editor. Most actions use SVG icons. Hov
 | Fold source comments | Request folding of documentation comments in the source editor. |
 | Problems | Show checks for the selected declaration and actions for resolving them. |
 
-The Documentation tools **Format** action formats the documentation XML. The IDE **Format Source / Ctrl+D** command formats Pascal source and is available in RAD Studio 12; RAD Studio 13 does not include that built-in formatter.
+The Documentation tools **Format** action formats the documentation XML. The IDE **Format Source / Ctrl+D** command formats Pascal source and is available in RAD Studio 11/12; RAD Studio 13 does not include that built-in formatter.
 
 The expandable sections below these actions are **Project workspace**, **Inheritance and reusable text**, and **Examples and search**. **Review documentation changes** appears when an operation has something to preview. The left XML is the current comment; the right XML is the proposed replacement. The checkmark applies it and the cross cancels it.
 

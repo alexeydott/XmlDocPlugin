@@ -190,8 +190,8 @@ begin
       'python -m mkdocs build --strict' + sLineBreak + 'python -m mkdocs serve' + sLineBreak + '```' + sLineBreak);
     // docs/index.md 복사 (README.md → index.md)
     TFile.Copy(
-      TPath.Combine(AOutputDir, 'docs', 'README.md'),
-      TPath.Combine(AOutputDir, 'docs', 'index.md'),
+      TPath.Combine(TPath.Combine(AOutputDir, 'docs'), 'README.md'),
+      TPath.Combine(TPath.Combine(AOutputDir, 'docs'), 'index.md'),
       True
     );
     TFile.Delete(TPath.Combine(AOutputDir, 'docs/README.md'));
@@ -250,7 +250,7 @@ begin
       '"react":"18.3.1","react-dom":"18.3.1"},"engines":{"node":">=20.0.0"}}');
     WriteUTF8(TPath.Combine(AOutputDir, 'docs/README.md'),
       '---' + sLineBreak + 'slug: /' + sLineBreak + '---' + sLineBreak +
-      TFile.ReadAllText(TPath.Combine(AOutputDir, 'docs/README.md')));
+      TFile.ReadAllText(TPath.Combine(AOutputDir, 'docs/README.md'), TEncoding.UTF8));
     WriteUTF8(TPath.Combine(AOutputDir, 'README.md'),
       '# ' + AOpts.SiteName + sLineBreak + sLineBreak +
       'Requires Node.js 20 or later. Run `npm install`, then `npm run build`.' + sLineBreak +
@@ -268,7 +268,7 @@ var
   LConfigDir: string;
   I, J: Integer;
 begin
-  LConfigDir := TPath.Combine(AOutputDir, 'docs', '.vitepress');
+  LConfigDir := TPath.Combine(TPath.Combine(AOutputDir, 'docs'), '.vitepress');
   TDirectory.CreateDirectory(LConfigDir);
 
   LSB := TStringBuilder.Create;

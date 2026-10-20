@@ -8,7 +8,7 @@ An **XML Documentation** plugin integrated into the Delphi IDE. Write C#-style `
 
 [Download XmlDocPlugin-Setup.exe from the latest release](https://github.com/alexeydott/XmlDocPlugin/releases/latest/download/XmlDocPlugin-Setup.exe)
 
-The installer supports RAD Studio 12 (32-bit IDE) and RAD Studio 13 (32-bit and
+The installer supports RAD Studio 11/12 (32-bit IDE) and RAD Studio 13 (32-bit and
 64-bit IDEs).
 
 1. Close all running RAD Studio instances.
@@ -256,7 +256,7 @@ See [Settings](docs/user-guide.md#settings) for the supported options and their 
 
 ### Prerequisites
 
-- RAD Studio 12 (32-bit IDE) or RAD Studio 13 (32-bit or 64-bit IDE)
+- RAD Studio 11/12 (32-bit IDE) or RAD Studio 13 (32-bit or 64-bit IDE)
 - Node.js 18+ (for building the web editor)
 - Microsoft Edge WebView2 Runtime (Setup offers to install it when missing)
 - PowerShell 7 (`pwsh`) for build scripts and the offline guide
@@ -267,6 +267,7 @@ See [Settings](docs/user-guide.md#settings) for the supported options and their 
 ```powershell
 # Run from the repository root after cloning with submodules.
 git submodule update --init --recursive
+pwsh ./build-delphi11.ps1
 pwsh ./build-delphi12.ps1
 pwsh ./build-cli.ps1 -Platform Win64
 # Build all supported IDE packages, the CLI, offline help and Setup.
@@ -390,13 +391,14 @@ This project is licensed under the [MIT License](LICENSE).
 
 - DelphiAST: [MPL 2.0](vendor/DelphiAST/LICENSE)
 
-## Binary installer for RAD Studio 12 and 13
+## Binary installer for RAD Studio 11, 12 and 13
 
 Build a single Inno Setup installer containing native packages for the 32-bit
-IDE of RAD Studio 12 and the 32-bit and 64-bit IDEs of RAD Studio 13:
+IDEs of RAD Studio 11/12 and the 32-bit and 64-bit IDEs of RAD Studio 13:
 
 ```powershell
-.\build-installer.ps1 -Rad12 'D:\Embarcadero RAD Studio\23.0' `
+.\build-installer.ps1 -Rad11 'D:\Embarcadero RAD Studio\22.0' `
+  -Rad12 'D:\Embarcadero RAD Studio\23.0' `
   -Rad13 'D:\Embarcadero RAD Studio\37.0' `
   -ISCC 'D:\tools\InnoSetup\6\ISCC.exe'
 ```

@@ -490,7 +490,7 @@ begin
     Exit;
 
   LPath := TPath.Combine(FProjectDir, CProjectFileName);
-  LObj:=nil;if TFile.Exists(LPath) then LObj:=TJSONObject.ParseJSONValue(TFile.ReadAllText(LPath)) as TJSONObject;
+  LObj:=nil;if TFile.Exists(LPath) then LObj:=TJSONObject.ParseJSONValue(TFile.ReadAllText(LPath,TEncoding.UTF8)) as TJSONObject;
   if not Assigned(LObj) then LObj:=TJSONObject.Create;
   try
     LObj.RemovePair('$schema').Free;LObj.RemovePair('version').Free;LObj.RemovePair('helpGen').Free;

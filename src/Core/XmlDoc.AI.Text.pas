@@ -1,4 +1,4 @@
-/// <summary>Removes provider HTML from AI prose and emits safe XML paragraphs without executing markup.</summary>
+﻿/// <summary>Removes provider HTML from AI prose and emits safe XML paragraphs without executing markup.</summary>
 unit XmlDoc.AI.Text;
 interface
 function CleanAIText(const Text:string):string;
@@ -7,7 +7,10 @@ implementation
 uses System.SysUtils,System.Classes,System.StrUtils,System.NetEncoding,System.RegularExpressions;
 function CleanAIText(const Text:string):string;
 const
- Tags='|html|body|head|title|meta|link|base|p|div|span|b|strong|i|em|u|s|small|mark|font|a|img|br|hr|pre|code|blockquote|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|caption|h1|h2|h3|h4|h5|h6|section|article|header|footer|nav|main|aside|figure|figcaption|script|style|iframe|object|embed|svg|math|template|form|input|button|textarea|select|option|';
+ Tags='|html|body|head|title|meta|link|base|p|div|span|b|strong|i|em|u|s|small|mark|font|a|img|br|hr|pre|co' +
+  'de|blockquote|ul|ol|li|dl|dt|dd|table|thead|tbody|tfoot|tr|td|th|caption|h1|h2|h3|h4|h5|h6|section|a' +
+  'rticle|header|footer|nav|main|aside|figure|figcaption|script|style|iframe|object|embed|svg|math|temp' +
+  'late|form|input|button|textarea|select|option|';
  Blocks='|p|div|pre|blockquote|ul|ol|li|dl|dt|dd|table|tr|h1|h2|h3|h4|h5|h6|section|article|header|footer|figure|figcaption|';
  Hidden='|script|style|head|iframe|object|svg|math|template|';
 var S,Lower,Name:string;B:TStringBuilder;I,J,K,Finish:Integer;Quote:Char;

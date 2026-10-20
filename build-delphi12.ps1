@@ -1,4 +1,5 @@
 param(
+    [ValidateSet('11', '12')][string]$PackageVersion = '12',
     [string]$Bds = 'D:\Embarcadero RAD Studio\23.0',
     [ValidateSet('Debug', 'Release')][string]$Config = 'Release',
     [string]$OutputDir = "$env:PUBLIC\Documents\Embarcadero\Studio\23.0\Bpl",
@@ -45,10 +46,10 @@ try {
         & "$Bds\bin\brcc32.exe" XmlDocEditor.rc
         if ($LASTEXITCODE) { throw 'Resource compilation failed' }
     } finally { Pop-Location }
-    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && msbuild src\Packages\12\XmlDocPlugin.dproj /t:Rebuild /p:Config=$Config /p:Platform=Win32 `"/p:DCC_BplOutput=$OutputDir`" $dcpOption /v:minimal"
+    & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && msbuild src\Packages\$PackageVersion\XmlDocPlugin.dproj /t:Rebuild /p:Config=$Config /p:Platform=Win32 `"/p:DCC_BplOutput=$OutputDir`" $dcpOption /v:minimal"
     if ($LASTEXITCODE) { throw 'Delphi package build failed' }
     Copy-Item -LiteralPath "$cache\sdk\build\native\x86\WebView2Loader.dll" -Destination $OutputDir
     Copy-Item -LiteralPath "$cache\sdk\LICENSE.txt" -Destination (Join-Path $OutputDir 'WebView2-LICENSE.txt')
     Copy-Item -LiteralPath "$cache\sdk\NOTICE.txt" -Destination (Join-Path $OutputDir 'WebView2-NOTICE.txt')
 } finally { Pop-Location }
-Write-Host "Built Delphi 12 Win32 IDE package in $OutputDir"
+Write-Host "Built Delphi $PackageVersion Win32 IDE package in $OutputDir"

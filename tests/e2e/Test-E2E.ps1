@@ -1,7 +1,7 @@
 param([ValidateSet('both','preview','direct')][string]$RealAIMode='both',[string]$AIReplayResponse='',[ValidateRange(0,300000)][int]$AITimeoutMs=0,[switch]$RealAI,[switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
- [ValidateSet('rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
+ [ValidateSet('rad11-x86','rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad11-x86','rad12-x86','rad13-x86','rad13-x64'),[string]$Rad11='D:\Embarcadero RAD Studio\22.0',[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
 $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $EvidenceDir=[IO.Path]::GetFullPath($EvidenceDir)
@@ -54,11 +54,12 @@ try {
   }
  }
  foreach($t in @(
+  @{Name='rad11-x86';Version='22.0';Platform='Win32';Compiler='dcc32';Bin='bin';Suffix='280';Node='Known Packages'},
   @{Name='rad12-x86';Version='23.0';Platform='Win32';Compiler='dcc32';Bin='bin';Suffix='290';Node='Known Packages'},
   @{Name='rad13-x86';Version='37.0';Platform='Win32';Compiler='dcc32';Bin='bin';Suffix='370';Node='Known Packages'},
   @{Name='rad13-x64';Version='37.0';Platform='Win64';Compiler='dcc64';Bin='bin64';Suffix='370';Node='Known Packages x64'})) {
   if($Targets -notcontains $t.Name){continue}
-  $rad=if($t.Version -eq '23.0'){$Rad12}else{$Rad13}
+  $rad=if($t.Version -eq '22.0'){$Rad11}elseif($t.Version -eq '23.0'){$Rad12}else{$Rad13}
   $out=Join-Path $EvidenceDir $t.Name;New-Item -ItemType Directory -Force $out | Out-Null; if($RealAI -and $AIReplayResponse){Copy-Item -LiteralPath $AIReplayResponse -Destination (Join-Path $out 'html-baseline.response.json')}
   $bplDir=Join-Path $build $t.Name;$dcp=Join-Path $build "dcp\$($t.Name)"
   if($Installed){
@@ -68,7 +69,8 @@ try {
    if(!$registered.GetValue("$bplDir\XmlDocPlugin$($t.Suffix).bpl")){throw "Installed package is not registered: $($t.Name)"}
   }
   if(!$SkipBuild -and !$Installed){
-   if($t.Version -eq '23.0') { & .\build-delphi12.ps1 -Bds $rad -OutputDir $bplDir -DcpOutputDir $dcp *> "$out\plugin-build.log" }
+   if($t.Version -eq '22.0') { & .\build-delphi11.ps1 -Bds $rad -OutputDir $bplDir -DcpOutputDir $dcp *> "$out\plugin-build.log" }
+   elseif($t.Version -eq '23.0') { & .\build-delphi12.ps1 -Bds $rad -OutputDir $bplDir -DcpOutputDir $dcp *> "$out\plugin-build.log" }
    else {
     New-Item -ItemType Directory -Force $bplDir,$dcp | Out-Null
     & cmd.exe /d /c "`"$rad\bin\rsvars.bat`" && msbuild src\Packages\13\XmlDocPlugin.dproj /t:Rebuild /p:Config=Release /p:Platform=$($t.Platform) `"/p:DCC_BplOutput=$bplDir`" `"/p:DCC_DcpOutput=$dcp`" /v:minimal" *> "$out\plugin-build.log"
@@ -109,7 +111,15 @@ try {
   if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name), process exit $($p.ExitCode)"}
   "PASS IDE exit 0: $($t.Name)"
   if(($BenchmarkModules -eq 0) -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly){Test-Export "$out\documentation"}
-  if($Installed -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly -and (Get-Content "$out\documentation\topic-map.json" -Raw) -ne (Get-Content "$EvidenceDir\cli\topic-map.json" -Raw)){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
+  if($Installed -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly){
+   $canonicalMaps=foreach($mapPath in "$out\documentation\topic-map.json","$EvidenceDir\cli\topic-map.json"){
+    $orderedMap=[ordered]@{}
+    (Get-Content -LiteralPath $mapPath -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties |
+     Sort-Object Name | ForEach-Object {$orderedMap[$_.Name]=$_.Value}
+    $orderedMap | ConvertTo-Json -Compress
+   }
+   if($canonicalMaps[0] -cne $canonicalMaps[1]){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
+  }
   # Keep isolated profile and copied sources for reproducible failure analysis.
  }
  if($RealAI){$providerFailures=@(Get-ChildItem -LiteralPath $EvidenceDir -Recurse -Filter 'provider-failure.observation.json');if($providerFailures.Count){throw "Real provider verification failed for $($providerFailures.Count) target(s); IDE workflow results are retained in $EvidenceDir"}}

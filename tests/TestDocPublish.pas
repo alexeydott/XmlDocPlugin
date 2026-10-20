@@ -39,7 +39,12 @@ begin
   Renderer:=THMXPDocRenderer.Create;Renderer.Render(Units,nil,Opt);S:='';for var FileName in TDirectory.GetFiles(TPath.Combine(Root,'hmxp/Topics'),'*.xml') do S:=S+TFile.ReadAllText(FileName);
   Assert.IsTrue(S.Contains('font-weight:bold;'));Assert.IsTrue(S.Contains('strong alias'));Assert.IsTrue(S.Contains('font-style:italic;'));Assert.IsTrue(S.Contains('<br/>'));Assert.IsTrue(S.Contains('<table colcount="2">'));Assert.IsTrue(S.Contains('2. '));
   Renderer:=TJSONDocRenderer.Create;Renderer.Render(Units,nil,Opt);var Json:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(Root,'api.json'))) as TJSONObject;
-  try Assert.IsTrue(Json.ToJSON.Contains('<para>'));Assert.IsTrue(Json.ToJSON.Contains('<b/>'));finally Json.Free;end;
+  try
+   var ExportedDoc:=TJSONObject(Json.GetValue<TJSONArray>('units')[0]).GetValue<TJSONObject>('doc');
+   Assert.AreEqual(Prose,ExportedDoc.GetValue<string>('summary'));
+   Assert.AreEqual(Lists,ExportedDoc.GetValue<string>('remarks'));
+   Assert.IsTrue(ExportedDoc.GetValue<string>('xml').Contains('<b/>'));
+  finally Json.Free;end;
   Renderer:=TCHMDocRenderer.Create;Renderer.Render(Units,nil,Opt);S:=TFile.ReadAllText(TPath.Combine(Root,'units/Markup.Example.html'));Assert.IsTrue(S.Contains('<strong>bold</strong>'));Assert.IsFalse(S.Contains('<p><p>'));
   Pub:=TSitePublisher.Create;try Site:=Default(TSitePublishOptions);Site.SiteName:='Markup';for var Kind:=Low(TSiteGenerator) to High(TSiteGenerator) do begin Site.Generator:=Kind;Pub.Publish(Units,nil,Site,Opt);end;finally Pub.Free;end;
   for var Name in ['mkdocs','docusaurus','vitepress'] do begin S:=TFile.ReadAllText(TPath.Combine(Root,'site-'+Name+'/docs/units/Markup.Example.md'));Assert.IsTrue(S.Contains('**strong alias**'));Assert.IsTrue(S.Contains('2. Second item'));Assert.IsTrue(S.Contains('| --- | --- |'));end;

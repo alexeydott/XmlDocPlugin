@@ -1,4 +1,4 @@
-unit TestDocAutomaticDeclared;
+﻿unit TestDocAutomaticDeclared;
 interface
 uses DUnitX.TestFramework;
 type
@@ -111,11 +111,15 @@ end;
 procedure TAutomaticDeclaredTests.InheritedVisibility;
 begin
  Put('Parent.pas','unit Parent; interface type TBase=class private Secret:Integer; strict private StrictSecret:Integer; protected Prot:Integer; strict protected StrictProt:Integer; public Pub:Integer; end; TMiddle=class(TBase) end; implementation end.');
- Check('unit Child; interface uses Parent; type TChild=class(TMiddle) procedure Run; end; implementation procedure TChild.Run; {$IF NOT DECLARED(Prot) OR NOT DECLARED(StrictProt) OR NOT DECLARED(Pub) OR DECLARED(Secret) OR DECLARED(StrictSecret)} invalid syntax {$ENDIF} begin end; end.');
+ Check('unit Child; interface uses Parent; type TChild=class(TMiddle) procedure Run; end; implementation pro' +
+  'cedure TChild.Run; {$IF NOT DECLARED(Prot) OR NOT DECLARED(StrictProt) OR NOT DECLARED(Pub) OR DECLA' +
+  'RED(Secret) OR DECLARED(StrictSecret)} invalid syntax {$ENDIF} begin end; end.');
 end;
 procedure TAutomaticDeclaredTests.SameUnitVisibility;
 begin
- Check('unit Child; interface type TBase=class private Secret:Integer; strict private StrictSecret:Integer; end; TChild=class(TBase) procedure Run; end; implementation procedure TChild.Run; {$IF NOT DECLARED(Secret) OR DECLARED(StrictSecret)} invalid syntax {$ENDIF} begin end; end.');
+ Check('unit Child; interface type TBase=class private Secret:Integer; strict private StrictSecret:Integer; ' +
+  'end; TChild=class(TBase) procedure Run; end; implementation procedure TChild.Run; {$IF NOT DECLARED(' +
+  'Secret) OR DECLARED(StrictSecret)} invalid syntax {$ENDIF} begin end; end.');
 end;
 procedure TAutomaticDeclaredTests.QualifiedAncestorAndAlias;
 begin
