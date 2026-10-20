@@ -40,7 +40,27 @@ type
   /// <remarks>Keep local calculation remarks.</remarks>
   function Calculate(Value,Other:Integer):Integer;
  end;
+ TLocalProc=reference to procedure(Value:Integer);
+ TTextBase=class
+  procedure Run(Value:UnicodeString);overload;
+ end;
+ TTextWorker=class(TTextBase)
+  procedure Run(Value:WideString);overload;
+  procedure Caller(U:UnicodeString;W:WideString);
+ end;
 implementation
+procedure TTextBase.Run(Value:UnicodeString);
+begin end;
+procedure TTextWorker.Run(Value:WideString);
+begin end;
+procedure TTextWorker.Caller(U:UnicodeString;W:WideString);
+begin
+ Self.Run(U); // review-text-unicode
+ Self.Run(W); // review-text-wide
+ var Run:TLocalProc := procedure(Value:Integer) begin end;
+ Run(1); // review-inline-local
+ Self.Run(U); // review-inline-self
+end;
 procedure TDocumented.Run(Value:Integer);
 begin inherited Run(Value);end;
 procedure TDocumented.Run(const Value:string);

@@ -86,10 +86,11 @@ begin
   Result:=True;
  finally Tokens.Free;end;
 end;
-function SimpleType(const Name:string):string;
+function CanonicalType(const Name:string):string;
 begin
+ // Only language aliases share an identity; conversions belong to Score.
  Result:=LowerCase(Trim(Name));if Result.StartsWith('system.') then Delete(Result,1,7);
- if (Result='unicodestring') or (Result='widestring') then Result:='string';if Result='longint' then Result:='integer';
+ if Result='unicodestring' then Result:='string';if Result='longint' then Result:='integer';
 end;
 function DeclarationTypeKey(const Name:string):string;
 var Depth,Count:Integer;
@@ -184,7 +185,7 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
  begin
   Id:=LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent);
   Result:=LowerCase(E.Name)+'`'+IntToStr(Length(E.GenericParams));
-  for var P in E.Params do Result:=Result+';'+SimpleType(Substitute(P.TypeName,Id))+':'+BoolToStr(P.IsConst)+BoolToStr(P.IsVar)+BoolToStr(P.IsOut);
+  for var P in E.Params do Result:=Result+';'+CanonicalType(Substitute(P.TypeName,Id))+':'+BoolToStr(P.IsConst)+BoolToStr(P.IsVar)+BoolToStr(P.IsOut);
  end;
  function OwnerRank(const E:TCodeElementInfo;const Names:TArray<string>):Integer;
  begin
@@ -196,13 +197,13 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
   Result:=0;if not HasCall then Exit;Required:=0;for var P in E.Params do if not P.HasDefault and (P.DefaultValue='') then Inc(Required);
   if (Args.Count<Required) or (Args.Count>Length(E.Params)) then Exit(MaxInt);
   for var I:=0 to Args.Count-1 do begin
-   Actual:=SimpleType(ExpressionType(Args[I]));Expected:=SimpleType(Substitute(E.Params[I].TypeName,LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent)));Cost:=0;
+   Actual:=CanonicalType(ExpressionType(Args[I]));Expected:=CanonicalType(Substitute(E.Params[I].TypeName,LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent)));Cost:=0;
    if Actual='' then Cost:=10 else if Actual<>Expected then begin
     if (Actual='integer') and ((Expected='int64') or (Expected='nativeint')) then Cost:=1
     else if (Actual='cardinal') and ((Expected='int64') or (Expected='uint64')) then Cost:=1
     else if (Actual='integer') and (Expected='double') then Cost:=2
     else if ((Actual='cardinal') or (Actual='int64') or (Actual='uint64')) and (Expected='double') then Cost:=2
-    else if (Actual='string') and (Expected='ansistring') then Cost:=1
+    else if ((Actual='string') and ((Expected='ansistring') or (Expected='widestring'))) or ((Actual='widestring') and (Expected='string')) then Cost:=1
     else begin
      var Unknown:=UncertainOwners;for var Name in E.GenericParams do if TRegEx.IsMatch(Expected,'(?i)(?<![\p{L}\p{N}_])'+TRegEx.Escape(Name)+'(?![\p{L}\p{N}_])') then Unknown:=True;
      if Unknown then Cost:=10 else Exit(MaxInt);
@@ -221,7 +222,10 @@ begin
    if Receiver='' then begin Reason:='The receiver type is unknown; choose a declaration explicitly.';Exit;end;
   end;
   var Locals:TArray<TCodeElementInfo>;
-  if Owner='' then Locals:=Parser.LocalDeclarations(Member,Line) else Locals:=nil;
+  if Owner='' then begin
+   var LineStart:=Position;while (LineStart>0) and not CharInSet(Source[LineStart],[#10,#13]) do Dec(LineStart);
+   Locals:=Parser.LocalDeclarations(Member,Line,Position-LineStart);
+  end else Locals:=nil;
   if Length(Locals)>0 then begin
    // Lexical bindings shadow implicit Self, including procedural variables.
    if Locals[0].Kind<>dekMethod then begin Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';Exit;end;

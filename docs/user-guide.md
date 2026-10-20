@@ -181,7 +181,7 @@ If you switch declarations, edit the source or documentation, or open an unappli
 
 In **Project workspace → Member summaries**, select writable methods and choose **Queue selected methods for AI**. The queue opens each method and captures its live source and comment; it does not reuse a possibly stale catalog comment. The selected AI operation, profile, template and preview preference apply to each request.
 
-Review each proposal separately. Apply only the sections you accept, then choose **Skip and open next method** to continue. That button also discards an unaccepted proposal. **Cancel AI queue** stops the queue and cancels its active request; no later method is submitted automatically. An unopened, read-only or unapplied XML target cannot silently receive a proposal. The queue never applies documentation automatically.
+Review each proposal separately. Apply only the sections you accept, then choose **Skip and open next method** to continue. That button also discards an unaccepted proposal. **Cancel AI queue** stops the queue and cancels its active request; no later method is submitted automatically. An unopened, read-only or unapplied XML target cannot silently receive a proposal. The queue never applies documentation automatically. After Apply, **Waiting for source write** remains visible and the next-method action is disabled until the IDE confirms the write and reloads the current comment. A conflict or write refusal leaves the current method selected and shows the reason; cancel the queue to resolve it.
 
 ### Customize prompts
 

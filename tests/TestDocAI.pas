@@ -19,6 +19,7 @@ type [TestFixture] TDocAITests=class
  [Test] procedure ReviewRegressionContracts;
  [Test] procedure IndependentSectionProposals;
  [Test] procedure XMLSectionRoundTrips;
+ [Test] procedure ReviewRequiresDocumentation;
  end;
 implementation
 uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.AI.Text,XmlDoc.AI.Toon,XmlDoc.Model,XmlDoc.SourceAccess;
@@ -274,7 +275,7 @@ begin
   Payload.AddPair('unexpected','must not be accepted');Envelope:=TJSONObject.Create.AddPair('choices',TJSONArray.Create(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',TJSONObject.Create.AddPair('content',Payload.ToJSON))));
   try Response.Body:=Envelope.ToJSON;Assert.WillRaise(procedure begin ParseAIResponse(Response);end,EAIError);finally Envelope.Free;end;
  finally Payload.Free;end;
- Context:=Default(TAIContext);Context.Signature:='function Run:Integer';Context.Code:='begin Result:=1;end;';Profile:=TAIProfile.Defaults;Profile.Model:='test';Profile.Authorization:='none';
+ Context:=Default(TAIContext);Context.Signature:='function Run:Integer';Context.Documentation:='Existing documentation.';Context.Code:='begin Result:=1;end;';Profile:=TAIProfile.Defaults;Profile.Model:='test';Profile.Authorization:='none';
  BuildAIRequest(Profile,TAIPrompt.BuiltIn(aoReview),Context,'');Context.Code:='';
  Assert.WillRaise(procedure begin BuildAIRequest(Profile,TAIPrompt.BuiltIn(aoReview),Context,'');end,EAIError);
  Assert.IsTrue(TAIPrompt.BuiltIn(aoReview).SystemText.Contains('minimal necessary corrections'));
@@ -293,6 +294,17 @@ begin
   Source:='<'+Tag+' role="keep">Contract '+UIntToStr(Seed)+'</'+Tag+'>';
   Protected:=ProtectSummary(Source,Fragments);Assert.AreEqual(Source,RestoreSummary(Protected,Fragments),False);
  end;
+end;
+procedure TDocAITests.ReviewRequiresDocumentation;
+var C:TAIContext;P:TAIProfile;Prompt:TAIPrompt;
+begin
+ C:=Default(TAIContext);C.Signature:='function Run:Integer';C.Code:='begin Result:=1;end;';C.Documentation:='Old description.';
+ P:=TAIProfile.Defaults;P.Model:='fixture';P.Authorization:='none';Prompt:=TAIPrompt.BuiltIn(aoReview);Prompt.SystemText:='';Prompt.UserText:='{{ signature }} {{ implementation }}';
+ Assert.WillRaise(procedure begin BuildAIRequest(P,Prompt,C,'');end,EAIError);
+ for var Token in ['{{documentation}}','{{ documentation }}','{{  documentation  }}'] do begin
+  Prompt.SystemText:=Token;BuildAIRequest(P,Prompt,C,'');Prompt.SystemText:='';Prompt.UserText:='{{ signature }} {{ implementation }} '+Token;BuildAIRequest(P,Prompt,C,'');
+ end;
+ C.Documentation:='  ';Assert.WillRaise(procedure begin BuildAIRequest(P,Prompt,C,'');end,EAIError);
 end;
 initialization TDUnitX.RegisterTestFixture(TDocAITests);
 end.

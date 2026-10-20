@@ -406,6 +406,27 @@ begin
     Browser.ApplySettings;ExplorerBrowser.ApplySettings;Initial:=EditorSource(SourceEditorForFile(SampleFile));Select(SampleFile,'Run','string');
     Browser.ExecuteScript('window.__prefixRestored=true');Log('PASS custom prefix settings restored after native editor checks');
    end
+   else if Action='live-review-arm' then begin
+    RealDirectory:=ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG'));RealPhase:='describe';
+    var UserConfig:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'),'XmlDocPlugin\ai.json'),TEncoding.UTF8)) as TJSONObject;
+    try var Profile:TJSONObject:=nil;for var Item in UserConfig.GetValue<TJSONArray>('profiles') do if SameText(TJSONObject(Item).GetValue<string>('name'),GetEnvironmentVariable('XMLDOC_E2E_LIVE_PROFILE')) then Profile:=TJSONObject(Item);
+     AssertTrue(Assigned(Profile),'Configured live profile not found');var Config:=TJSONObject.Create.AddPair('version',TJSONNumber.Create(1)).AddPair('previewRequests',TJSONBool.Create(False)).AddPair('profiles',TJSONArray.Create(Profile.Clone as TJSONObject));
+     try SaveAIConfiguration(Config);finally Config.Free;end;
+    finally UserConfig.Free;end;
+    Select(SampleFile,'Calculate','Integer');AIBefore:=EditorSource(SourceEditorForFile(SampleFile));SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
+    TFile.WriteAllText(TPath.Combine(RealDirectory,'live-before.pas'),AIBefore,TEncoding.UTF8);
+    AssistantFor(Inspector).TransportFactory:=function:IAITransport begin Result:=TRealAITransport.Create(RealPhase,RealDirectory);end;
+    Browser.ExecuteScript('window.xmlDocAI.reload();window.__liveArmed=true;');
+   end
+   else if Action='live-review-phase' then begin RealPhase:=Json.GetValue<string>('phase');Browser.ExecuteScript('window.__livePhase="'+RealPhase+'";');end
+   else if Action='live-review-finish' then begin
+    AssertTrue(not AssistantFor(Inspector).Busy,'Live request still running');
+    AssertTrue(EditorSource(SourceEditorForFile(SampleFile))=AIBefore,'Live review changed source buffer');
+    AssertTrue(EditorSource(SourceEditorForFile(SecondFile))=SecondInitial,'Live queue changed second buffer');
+    AssertTrue(TFile.ReadAllText(SampleFile,TEncoding.UTF8)=AIBefore,'Live review changed source disk');
+    AssertTrue(TFile.ReadAllText(SecondFile,TEncoding.UTF8)=SecondInitial,'Live queue changed second disk file');
+    Log('PASS live requests completed without applying; source buffers and disk unchanged');Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;
+   end
    else if Action='real-ai-arm' then begin
     RealSource:=GetEnvironmentVariable('XMLDOC_E2E_LARGE_SOURCE');RealDiskHash:=THashSHA2.GetHashStringFromFile(RealSource);RealDirectory:=ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG'));
     var UserConfig:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'),'XmlDocPlugin\ai.json'),TEncoding.UTF8)) as TJSONObject;
@@ -523,7 +544,7 @@ begin
     var ReviewEditor:=SourceEditorForFile(SampleFile);ReviewEditor.Show;
     var ReviewSource:=EditorSource(ReviewEditor);var ReviewLines:=ReviewSource.Split([#10]);var ReviewPos:TOTAEditPos;ReviewPos.Line:=0;
     for var I:=0 to High(ReviewLines) do if ReviewLines[I].Contains(Json.GetValue<string>('marker')) then begin
-     ReviewPos.Line:=I+1;ReviewPos.Col:=System.Pos('Run(1)',ReviewLines[I])+1;Break;
+     ReviewPos.Line:=I+1;ReviewPos.Col:=System.Pos('Run(',ReviewLines[I])+1;Break;
     end;
     AssertTrue(ReviewPos.Line>0,'Quick documentation review call missing');ReviewEditor.EditViews[0].SetCursorPos(ReviewPos);
     Inspector.HandleCursorChanged(ReviewPos.Line,ReviewSource,SampleFile);Browser.ExecuteScript('window.__reviewQuickReady=true;');
@@ -543,8 +564,20 @@ begin
     finally P.Free;end;
    end
    else if Action='review-queue-checked' then begin
+    AssertTrue(EditorSource(SourceEditorForFile(SampleFile)).Contains('Proposed calculation summary.'),'Queue accepted proposal did not reach OTA before navigation');
     AssertTrue(EditorSource(SourceEditorForFile(SecondFile))=SecondInitial,'The queue applied an unreviewed proposal to another method');
     Browser.ExecuteScript('window.__reviewQueueChecked=true');Log('PASS AI queue navigates methods, supports cancellation and never auto-applies');
+   end
+   else if Action='queue-conflict-source' then begin
+    AIBefore:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(AIBefore.Contains('begin Result:=Value+Other;end;'),'Queue conflict body absent');
+    ReplaceSourceBuffer(SourceEditorForFile(SampleFile),AIBefore.Replace('begin Result:=Value+Other;end;','begin {queue conflict} Result:=Value+Other;end;'));
+    Browser.ExecuteScript('window.__queueConflictReady=true;');
+   end
+   else if Action='queue-conflict-checked' then begin
+    var ConflictSource:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(ConflictSource.Contains('{queue conflict}'),'External source edit lost');
+    AssertTrue(not ConflictSource.Contains('Must not be written after a source conflict.'),'Rejected queue proposal reached OTA');
+    ReplaceSourceBuffer(SourceEditorForFile(SampleFile),AIBefore);Inspector.RefreshFromCurrentEditor;
+    Browser.ExecuteScript('window.__queueConflictChecked=true;');Log('PASS AI queue source conflict rejects the write and retains the current method');
    end
    else if Action='ai-close-pending' then begin
     Select(SampleFile,'Run','string');Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));
@@ -1195,7 +1228,7 @@ begin
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
-   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1','RealAIAssistantProbe.js','AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
+   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1',IfThen(GetEnvironmentVariable('XMLDOC_E2E_LIVE_REVIEW')='1','LiveReviewProbe.js','RealAIAssistantProbe.js'),'AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
     var ShutdownEditor:=SourceEditorForFile(SampleFile);
     ReplaceSourceBuffer(ShutdownEditor,EditorSource(ShutdownEditor)+sLineBreak+'// E2E unsaved source at IDE shutdown');

@@ -62,7 +62,7 @@ export class DelphiBridge {
           flight.applied=true;
           const draft=this.drafts.get(flight.key);
           if(draft && JSON.stringify(draft.doc)===JSON.stringify(flight.doc))this.drafts.delete(flight.key);
-        } else if(message.status!=='Applied'){this.inFlight=null;}
+        } else if(message.status!=='Applied'){this.inFlight=null;if(flight)window.dispatchEvent(new CustomEvent('documentationWriteResult',{detail:{applied:false,editId:flight.id,message:message.status,context:flight.context}}));}
 
       }
       return;
@@ -75,6 +75,8 @@ export class DelphiBridge {
       const pending=this.pending?.type==='docUpdated' && this.key(this.pending)===this.key(element) && this.pending.sourceRevision===element.sourceRevision ? this.pending : null;
       const flight=this.inFlight;
       const rebase=!!(sameTarget && flight?.applied && this.sameLocation(flight.context,element));
+      const interrupted=!!(flight&&!rebase&&(!sameTarget||flight.context.sessionId!==element.sessionId||flight.context.sourceRevision!==element.sourceRevision));
+      if(interrupted)this.inFlight=null;
       const newer=rebase?this.drafts.get(flight!.key):undefined;
       if(rebase){this.inFlight=null;this.drafts.delete(flight!.key);}
       this.originalXml=message.data.doc.sourceXml??message.data.doc.rawXml??'';
@@ -94,6 +96,8 @@ export class DelphiBridge {
       this.setStatus(this.readOnly ? this.readOnlyReason : draft ? 'Unsaved draft â€” source may have changed' : 'Applied');
       if(draft && draft.revision!==this.context.sourceRevision) this.context.sourceRevision=draft.revision;
       this.onElementLoadedListeners.forEach(cb => cb(message.data.element, (!this.readOnly && draft?.doc) || message.data.doc));
+      if(interrupted)window.dispatchEvent(new CustomEvent('documentationWriteResult',{detail:{applied:false,editId:flight!.id,context:flight!.context,message:'Source changed — reload before applying'}}));
+      if(rebase)window.dispatchEvent(new CustomEvent('documentationWriteResult',{detail:{applied:true,editId:flight!.id,context:flight!.context,element}}));
     }
   }
   sendToHost(message: OutboundMessage): void {
@@ -111,6 +115,7 @@ export class DelphiBridge {
       pending.editId=`${this.instanceId}:${++this.serial}`;
       this.inFlight={id:pending.editId,key:this.key(pending),context:{...pending},doc:pending.doc,applied:false};
     }
+    if(pending.type==='docUpdated')window.dispatchEvent(new CustomEvent('documentationWriteStarted',{detail:{editId:pending.editId,doc:pending.doc}}));
     this.sendToHost(pending);
   }
   saveDraft(doc:DocModel):void {

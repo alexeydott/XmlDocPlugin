@@ -12,6 +12,8 @@ type
   [Test] procedure NumericLiteralOverloads;
   [Test] procedure SelfPrefersOverridingDeclaration;
   [Test] procedure NumericBoundariesAndFuzz;
+  [Test] procedure DistinctStringOverloads;
+  [Test] procedure InlineVariableShadowsWithinBlock;
  end;
 implementation
 uses System.SysUtils,System.Generics.Collections,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.Expressions,XmlDoc.ProjectIndex;
@@ -157,6 +159,41 @@ begin
    P.ParseSource(Source,'Calls.pas');Found:=ResolveDocumentationExpression(P,Source,Pos('Self.Run(',Source)+6,7,P.GetAllElements,Query,Reason);
    if Expected='' then Assert.IsTrue(Reason<>'',Literal+' must not produce a false unique result')
    else begin Assert.AreEqual<NativeInt>(1,Length(Found),Literal+': '+Reason);Assert.AreEqual(Expected,Found[0].Params[0].TypeName,Literal);Assert.AreEqual('',Reason,Literal);end;
+  end;
+ finally P.Free;end;
+end;
+procedure TDocQuickScopeTests.DistinctStringOverloads;
+var P:TDocParser;Source,Query,Reason,Expected:string;Found:TArray<TCodeElementInfo>;
+begin
+ P:=TDocParser.Create;
+ try
+  for var ArgumentType in ['UnicodeString','WideString'] do begin
+   Source:='unit Calls;'+sLineBreak+'interface'+sLineBreak+
+    'type TBase=class procedure Run(Value:UnicodeString);overload;end;'+sLineBreak+
+    'TWorker=class(TBase) procedure Run(Value:WideString);overload;procedure Caller(Value:'+ArgumentType+');end;'+sLineBreak+
+    'implementation'+sLineBreak+'procedure TWorker.Caller(Value:'+ArgumentType+');'+sLineBreak+'begin'+sLineBreak+'Self.Run(Value);'+sLineBreak+'end;end.';
+   P.ParseSource(Source,'Calls.pas');Found:=ResolveDocumentationExpression(P,Source,Pos('Self.Run(Value)',Source)+6,8,P.GetAllElements,Query,Reason);
+   Assert.AreEqual<NativeInt>(1,Length(Found),Reason);if ArgumentType='UnicodeString' then Expected:='TBase' else Expected:='TWorker';
+   Assert.AreEqual(Expected,Found[0].QualifiedParent);Assert.AreEqual(ArgumentType,Found[0].Params[0].TypeName);Assert.AreEqual('',Reason);
+  end;
+ finally P.Free;end;
+end;
+procedure TDocQuickScopeTests.InlineVariableShadowsWithinBlock;
+var P:TDocParser;Source,Query,Reason,Call:string;Found:TArray<TCodeElementInfo>;
+begin
+ P:=TDocParser.Create;
+ try
+  for var Scenario:=0 to 3 do begin
+   Source:='unit Calls;'+sLineBreak+'interface'+sLineBreak+'type TLocalProc=reference to procedure(Value:Integer); TWorker=class procedure Run(Value:Integer);procedure Caller;end;'+sLineBreak+'implementation'+sLineBreak+'procedure TWorker.Caller;'+sLineBreak+'begin'+sLineBreak;
+   if Scenario=0 then Source:=Source+'Run(1); // target'+sLineBreak;
+   if Scenario=2 then Source:=Source+'begin'+sLineBreak;
+   Source:=Source+'var Run:TLocalProc := procedure(Value:Integer) begin end;'+sLineBreak;
+   if Scenario=2 then Source:=Source+'end;'+sLineBreak;
+   if Scenario<>0 then begin if Scenario=3 then Call:='Self.Run(1)' else Call:='Run(1)';Source:=Source+Call+'; // target'+sLineBreak;end;
+   Source:=Source+'end;end.';P.ParseSource(Source,'Calls.pas');var At:=Pos('// target',Source);var Line:=1;for var I:=1 to At do if Source[I]=#10 then Inc(Line);
+   var Start:=At;while (Start>1) and (Source[Start-1]<>#10) do Dec(Start);Found:=ResolveDocumentationExpression(P,Source,Start+1,Line,P.GetAllElements,Query,Reason);
+   if Scenario=1 then begin Assert.AreEqual<NativeInt>(0,Length(Found));Assert.IsTrue(Reason<>'');end
+   else begin Assert.AreEqual<NativeInt>(1,Length(Found),IntToStr(Scenario)+Reason);Assert.AreEqual('TWorker',Found[0].QualifiedParent);Assert.AreEqual('',Reason);end;
   end;
  finally P.Free;end;
 end;

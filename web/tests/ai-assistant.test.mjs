@@ -182,3 +182,19 @@ test('AI queue does not reuse a document from another project sharing the same u
  s.bridge.receive({type:'loadDoc',data:{element:target,doc:{summary:'Project B'}}});await Promise.resolve();
  const request=s.sent.filter(m=>m.type==='aiPrepare').at(-1);assert.equal(request.projectFile,'B.dproj');assert.equal(request.summary,'Project B');s.click('ai-queue-cancel');s.close();
 });
+for(const outcome of ['success','delayed','rejected'])test('AI queue waits for source ACK and reload: '+outcome,()=>{
+ const s=setup();s.bridge.saveDebounceMs=60000;window.xmlDocAI.startQueue([s.element,{...s.element,name:'Other',symbolId:'other',locationId:'other@interface'}]);
+ const req=s.sent.filter(m=>m.type==='aiPrepare').at(-1);s.reply(req,'prepared',{fragments:[],previewRequired:false});s.reply(req,'proposal',{fresh:true,summary:'Accepted change',uncertainties:[]});s.click('ai-apply');
+ assert.equal(document.querySelector('#ai-queue-next').disabled,true);s.reply(req,'approved',{summaryXml:'Accepted change'});const writes=s.sent.filter(m=>m.type==='docUpdated');assert.equal(writes.length,1);const write=writes[0];
+ assert.match(document.querySelector('#ai-status').textContent,/Waiting for source write/);s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,0);
+ s.bridge.receive({type:'editResult',editId:write.editId,sessionId:s.element.sessionId,status:outcome==='rejected'?'Source changed — reload before applying':'Applied'});
+ assert.equal(document.querySelector('#ai-queue-next').disabled,true);assert.doesNotMatch(document.querySelector('#ai-status').textContent,/AI proposal applied/);
+ if(outcome==='rejected'){assert.match(document.querySelector('#ai-status').textContent,/Source changed/);s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,0);}
+ else {if(outcome==='delayed'){s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,0);}s.bridge.receive({type:'loadDoc',data:{element:{...s.element,sourceRevision:'r2'},doc:write.doc}});assert.match(document.querySelector('#ai-status').textContent,/AI proposal applied/);assert.equal(document.querySelector('#ai-queue-next').disabled,false);s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,1);}
+ s.close();
+});
+
+test('AI queue retains the current method on a source change before its write ACK',()=>{
+ const s=setup();window.xmlDocAI.startQueue([s.element,{...s.element,name:'Other',symbolId:'other'}]);const req=s.sent.filter(m=>m.type==='aiPrepare').at(-1);s.reply(req,'prepared',{fragments:[],previewRequired:false});s.reply(req,'proposal',{fresh:true,summary:'Accepted',uncertainties:[]});s.click('ai-apply');s.reply(req,'approved',{summaryXml:'Accepted'});
+ s.bridge.receive({type:'loadDoc',data:{element:{...s.element,sourceRevision:'external-change'},doc:{summary:'Changed externally'}}});assert.equal(document.querySelector('#ai-queue-next').disabled,true);assert.match(document.querySelector('#ai-status').textContent,/Source changed/);s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,0);s.close();
+});

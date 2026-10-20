@@ -572,5 +572,7 @@
   "Select writable methods for the AI queue": "AI 대기열에 추가할 편집 가능한 메서드를 선택하세요",
   "The queued method could not be opened. Skip it or cancel the queue.": "대기열의 메서드를 열 수 없습니다. 건너뛰거나 대기열을 취소하세요.",
   "AI response requires a text summary": "AI 응답에는 summary 텍스트 필드가 필요합니다",
-  "AI response requires an uncertainties array": "AI 응답에는 uncertainties 배열이 필요합니다"
+  "AI response requires an uncertainties array": "AI 응답에는 uncertainties 배열이 필요합니다",
+  "Waiting for source write": "소스 기록을 기다리는 중",
+  "Existing documentation is required": "기존 문서가 필요합니다"
 }

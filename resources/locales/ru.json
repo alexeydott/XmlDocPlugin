@@ -572,5 +572,7 @@
   "Select writable methods for the AI queue": "Выберите доступные для записи методы для очереди AI",
   "The queued method could not be opened. Skip it or cancel the queue.": "Не удалось открыть метод из очереди. Пропустите его или отмените очередь.",
   "AI response requires a text summary": "Ответ AI должен содержать текстовое поле summary",
-  "AI response requires an uncertainties array": "Ответ AI должен содержать массив uncertainties"
+  "AI response requires an uncertainties array": "Ответ AI должен содержать массив uncertainties",
+  "Waiting for source write": "Ожидание записи в исходник",
+  "Existing documentation is required": "Необходима текущая документация"
 }

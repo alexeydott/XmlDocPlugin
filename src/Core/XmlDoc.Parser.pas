@@ -100,7 +100,7 @@ type
     property SourceFiles:TArray<string> read FSourceFiles write SetSourceFiles;
     function BindingType(const Name:string;Line:Integer):string;
     /// <summary>Finds the nearest lexical bindings before considering implicit Self.</summary>
-    function LocalDeclarations(const Name:string;Line:Integer):TArray<TCodeElementInfo>;
+    function LocalDeclarations(const Name:string;Line:Integer;Column:Integer=MaxInt):TArray<TCodeElementInfo>;
     property DependencySnapshots:TArray<TSourceSnapshot> read FDependencySnapshots;
     property DependencyFiles:TArray<string> read FDependencyFiles;
     property DependencyProbes:TArray<string> read FDependencyProbes;
@@ -1396,12 +1396,20 @@ begin
   end;
 end;
 
-function TDocParser.LocalDeclarations(const Name:string;Line:Integer):TArray<TCodeElementInfo>;
-var Scope,Declaration:TSyntaxNode;
+function TDocParser.LocalDeclarations(const Name:string;Line:Integer;Column:Integer):TArray<TCodeElementInfo>;
+var Scope,Declaration:TSyntaxNode;BestLine:Integer;
+ procedure InlineDeclarations(Node:TSyntaxNode);
+ begin
+  if not Assigned(Node) or ((Node.Line>Line) or ((Node.Line=Line) and (Node.Col>Column))) then Exit;
+  if (Node.Typ=ntMethod) and (Node<>Scope) then Exit;
+  if (Node is TCompoundSyntaxNode) and ((TCompoundSyntaxNode(Node).EndLine<Line) or ((TCompoundSyntaxNode(Node).EndLine=Line) and (TCompoundSyntaxNode(Node).EndCol<Column))) then Exit;
+  if (Node.Typ=ntVariable) and SameText(DeclarationName(Node),Name) and (Node.Line>=BestLine) then begin Declaration:=Node;BestLine:=Node.Line;end;
+  for var Child in Node.ChildNodes do InlineDeclarations(Child);
+ end;
  procedure FindScope(Node:TSyntaxNode);
  begin
-  if not Assigned(Node) or (Node.Line>Line) then Exit;
-  if (Node is TCompoundSyntaxNode) and (TCompoundSyntaxNode(Node).EndLine<Line) then Exit;
+  if not Assigned(Node) or ((Node.Line>Line) or ((Node.Line=Line) and (Node.Col>Column))) then Exit;
+  if (Node is TCompoundSyntaxNode) and ((TCompoundSyntaxNode(Node).EndLine<Line) or ((TCompoundSyntaxNode(Node).EndLine=Line) and (TCompoundSyntaxNode(Node).EndCol<Column))) then Exit;
   if Node.Typ=ntMethod then Scope:=Node;
   for var Child in Node.ChildNodes do FindScope(Child);
  end;
@@ -1409,7 +1417,7 @@ begin
  Result:=nil;Scope:=nil;FindScope(FRootNode);
  while Assigned(Scope) do begin
   if Scope.Typ=ntMethod then begin
-   Declaration:=FindDeclaration(Scope,Name);
+   Declaration:=FindDeclaration(Scope,Name);BestLine:=0;InlineDeclarations(Scope);
    if Assigned(Declaration) then begin
     if (Declaration.Typ=ntMethod) and Assigned(Declaration.ParentNode) then begin
      for var Child in Declaration.ParentNode.ChildNodes do

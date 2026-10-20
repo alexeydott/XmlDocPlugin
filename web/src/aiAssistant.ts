@@ -25,7 +25,8 @@ export function initAIAssistant(hooks:Hooks):void {
  type Fragment={token:string;xml:string};
  let fragments:Fragment[]=[];let sectionFragments:Record<string,Fragment[]>={};let inputVersion=0,requestVersion=0;
  const busy=(value:boolean)=>{panel.setAttribute('aria-busy',String(value));$('ai-wait').hidden=!value;for(const id of ['ai-profile','ai-operation','ai-template','ai-instruction','ai-settings','ai-check','ai-describe','ai-rephrase','ai-review','ai-prepare'])($<HTMLInputElement>(id)).disabled=value;};
- let previewRequests=false;let pendingApply:string|null=null;
+ let previewRequests=false;let pendingApply:string|null=null;let awaitingWrite=false,writeFailed=false,writeId='',writeDoc='';
+ const lockWrite=(value:boolean)=>{awaitingWrite=value;for(const id of ['ai-queue-next','ai-queue-cancel','ai-cancel','ai-describe','ai-rephrase','ai-review','ai-prepare','ai-settings','ai-check'])$<HTMLButtonElement>(id).disabled=value;};
  const summarySelected=()=>$<HTMLInputElement>('ai-accept-summary').checked;
  const parameterEdits=()=>Array.from(panel.querySelectorAll<HTMLTextAreaElement>('#ai-parameters textarea')).filter(field=>field.parentElement?.querySelector<HTMLInputElement>('input[type=checkbox]')?.checked).map(field=>({name:field.dataset.name!,description:field.value}));
  const fieldSelected=(name:string)=>!$('ai-'+name+'-section').hidden&&$<HTMLInputElement>('ai-accept-'+name).checked;
@@ -47,6 +48,7 @@ export function initAIAssistant(hooks:Hooks):void {
  const refreshDiff=()=>{try{const doc=proposalDoc();if(base?.element){const before=analyze(base.element,base.doc,[]);const after=analyze(base.element,doc,[]);if(after.some(i=>!before.some(old=>old.code===i.code&&old.message===i.message)))throw Error('AI proposal introduces documentation errors');}$('ai-after').textContent=editableXml(doc);$<HTMLButtonElement>('ai-apply').disabled=!fresh||!current()||!anySelected();}catch(error){status((error as Error).message);$<HTMLButtonElement>('ai-apply').disabled=true;}};
  const prepare=(operation?:string,forcePreview=false)=>{
   panel.open=true;
+  if(awaitingWrite)return;
   if(bridge.readOnly||rawDraft()){status('Resolve the XML draft before using AI');return;}
   const c=hooks.get();if(c.element?.kind!=='method'){status('Select a method');return;}
   if(operation){$<HTMLSelectElement>('ai-operation').value=operation;options();}
@@ -58,7 +60,7 @@ export function initAIAssistant(hooks:Hooks):void {
  $('ai-describe').onclick=()=>prepare('describe');$('ai-rephrase').onclick=()=>prepare('rephrase');$('ai-review').onclick=()=>prepare('review');$('ai-prepare').onclick=()=>prepare(undefined,true);
  $('ai-send').onclick=()=>{if(!current()){invalidate();return;}busy(true);send('aiSend');$<HTMLButtonElement>('ai-send').disabled=true;};
  $('ai-cancel').onclick=()=>{send('aiCancel');busy(false);requestId='';fresh=false;stamp=null;invalidate();status('Cancelled');};
- $('ai-apply').onclick=()=>{if(!fresh||!current()){invalidate();return;}try{proposalDoc();const chosen=selection();pendingApply=JSON.stringify(chosen);send('aiApply',{...base!.element,...chosen});$<HTMLButtonElement>('ai-apply').disabled=true;}catch(error){status((error as Error).message);}};
+ $('ai-apply').onclick=()=>{if(!fresh||!current()){invalidate();return;}try{proposalDoc();const chosen=selection();pendingApply=JSON.stringify(chosen);writeId='';writeDoc='';lockWrite(true);writeFailed=false;status('Waiting for source write');send('aiApply',{...base!.element,...chosen});$<HTMLButtonElement>('ai-apply').disabled=true;}catch(error){status((error as Error).message);}};
  for(const name of ['returns','remarks']){$('ai-accept-'+name).onchange=refreshDiff;$('ai-'+name).oninput=refreshDiff;}
  $('ai-accept-summary').onchange=refreshDiff;$('ai-summary').oninput=refreshDiff;$('ai-operation').onchange=()=>{invalidate();options();};
  for(const id of ['ai-profile','ai-template','ai-instruction'])$(id).addEventListener(id==='ai-instruction'?'input':'change',invalidate);
@@ -69,7 +71,7 @@ export function initAIAssistant(hooks:Hooks):void {
   }
   if(!requestId||data.requestId!==requestId)return;
   if(data.state==='checked'){busy(false);status('Connection OK');return;}
-  if(data.state==='error'){busy(false);fresh=false;status(data.message);return;}
+  if(data.state==='error'){busy(false);lockWrite(false);writeFailed=true;$<HTMLButtonElement>('ai-queue-next').disabled=true;fresh=false;status(data.message);return;}
   if(data.state==='prepared'){
    operation=$<HTMLSelectElement>('ai-operation').value;sectionFragments=data.sectionFragments??{};
    busy(false);fragments=data.fragments??[];if(data.previewRequired===false&&!previewRequests){if(current()){busy(true);send('aiSend');status('AI request running');}else invalidate();return;}
@@ -85,11 +87,11 @@ $('ai-url').textContent=data.url;$('ai-request').textContent=data.request;$('ai-
    $('ai-before').textContent=base?editableXml(base.doc):'';$('ai-uncertainties').replaceChildren();for(const text of data.uncertainties??[]){const li=document.createElement('li');li.textContent=text;li.dataset.code='';$('ai-uncertainties').append(li);}status(fresh?'Review and edit the AI proposal before applying':'Documentation changed — rebuild the AI proposal');refreshDiff();return;
   }
   if(data.state==='approved'){
-   if(!fresh||!current()||pendingApply!==JSON.stringify(selection())){invalidate();return;}
+   if(!fresh||!current()||pendingApply!==JSON.stringify(selection())){lockWrite(false);invalidate();return;}
    pendingApply=null;const doc=mergeParameters({...hooks.get().doc,summary:summarySelected()?data.summaryXml:hooks.get().doc.summary},data.parameters??[]);for(const name of ['returns','remarks'] as const)if(fieldSelected(name)&&typeof data[name+'Xml']==='string')doc[name]=data[name+'Xml'];delete doc.rawXml;delete doc.xmlEdited;delete doc.parseError;
    const oldIssues=analyze(base!.element!,base!.doc,[]),newIssues=analyze(base!.element!,doc,[]);
-   if(newIssues.some(i=>!oldIssues.some(old=>old.code===i.code&&old.message===i.message))){status('AI proposal introduces documentation errors');return;}
-   fresh=false;hooks.apply(doc);$('ai-proposal').hidden=true;status('AI proposal applied');
+   if(newIssues.some(i=>!oldIssues.some(old=>old.code===i.code&&old.message===i.message))){lockWrite(false);status('AI proposal introduces documentation errors');return;}
+   fresh=false;writeDoc=JSON.stringify(doc);hooks.apply(doc);$('ai-proposal').hidden=true;status('Waiting for source write');bridge.flush();
   }
  };
  let queue:ElementInfo[]=[],queuePosition=-1,queueWaiting=false,queueTimer:ReturnType<typeof setTimeout>|undefined;
@@ -103,6 +105,7 @@ $('ai-url').textContent=data.url;$('ai-request').textContent=data.request;$('ai-
   prepare();
  };
  const nextQueued=()=>{
+  if(awaitingWrite||writeFailed)return;
   $('ai-cancel').click();clearTimeout(queueTimer);queuePosition++;
   if(queuePosition>=queue.length){stopQueue();status('AI queue completed');return;}
   const target=queue[queuePosition];queueWaiting=true;$('ai-queue').hidden=false;
@@ -115,14 +118,16 @@ $('ai-url').textContent=data.url;$('ai-request').textContent=data.request;$('ai-
   queueTimer=setTimeout(()=>{if(queueWaiting){queueWaiting=false;status('The queued method could not be opened. Skip it or cancel the queue.');}},10000);
  };
  const startQueue=(targets:ElementInfo[])=>{
-  if(queue.length)stopQueue();const seen=new Set<string>();
+  if(awaitingWrite)return;writeFailed=false;if(queue.length)stopQueue();const seen=new Set<string>();
   queue=targets.filter(target=>{const key=pathKey(target.projectFile)+'\0'+pathKey(target.fileName)+'\0'+target.symbolId+'\0'+(target.locationId??'');if(target.kind!=='method'||target.readOnly||!target.fileName||!target.symbolId||seen.has(key))return false;seen.add(key);return true;});
   queuePosition=-1;if(queue.length)nextQueued();else status('Select writable methods for the AI queue');
  };
  $('ai-queue-next').onclick=()=>{if(queue.length)nextQueued();};
- $('ai-queue-cancel').onclick=()=>{stopQueue();$('ai-cancel').click();};
+ $('ai-queue-cancel').onclick=()=>{if(awaitingWrite)return;writeFailed=false;stopQueue();$('ai-cancel').click();};
  setWorkbenchIcon($('ai-queue-next'),'next-problem');setWorkbenchIcon($('ai-queue-cancel'),'cancel-operation');
  (window as any).xmlDocAI={receive,reload,startQueue};
+ window.addEventListener('documentationWriteStarted',((event:CustomEvent)=>{if(awaitingWrite&&pendingApply===null&&writeDoc===JSON.stringify(event.detail.doc))writeId=event.detail.editId;}) as EventListener);
+ window.addEventListener('documentationWriteResult',((event:CustomEvent)=>{if(!awaitingWrite||!writeId||event.detail.editId!==writeId)return;const result=event.detail;if(!stamp||result.context.sessionId!==stamp.sessionId||result.context.symbolId!==stamp.symbolId||result.context.fileName!==stamp.fileName)return;lockWrite(false);writeFailed=!result.applied;$<HTMLButtonElement>('ai-queue-next').disabled=writeFailed;status(result.applied?'AI proposal applied':result.message);}) as EventListener);
  window.addEventListener('documentationChanged',invalidate);window.addEventListener('documentationLoaded',()=>{if(stamp&&!current())invalidate();});
  window.addEventListener('documentationLoaded',()=>{if(queueWaiting)queueMicrotask(dispatchQueued);});
  window.addEventListener('sourceReadOnlyChanged',()=>{if(bridge.readOnly)invalidate();});

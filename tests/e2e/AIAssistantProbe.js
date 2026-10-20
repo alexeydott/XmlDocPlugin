@@ -62,6 +62,12 @@
     assert(quick.resolved&&quick.matches.length===1&&quick.matches[0].symbolId.toLowerCase().endsWith(':tdocumented.run(integer):'),'Self literal overload did not resolve to the overriding method: '+JSON.stringify(quick));
    }
   }
+  for(const [marker,symbol] of [['review-text-unicode',':ttextbase.run(unicodestring):'],['review-text-wide',':ttextworker.run(widestring):'],['review-inline-local',null],['review-inline-self',':ttextbase.run(unicodestring):']]){
+   quick=undefined;window.__reviewQuickReady=false;send('review-quick',{marker});await until(()=>window.__reviewQuickReady,'Quick string/inline cursor missing');await pause(200);
+   window.bridge.sendToHost({type:'requestQuickDoc'});await until(()=>quick,'Quick string/inline result missing');
+   if(symbol)assert(quick.resolved&&quick.matches.length===1&&quick.matches[0].symbolId.toLowerCase().endsWith(symbol),'Wrong inherited string target: '+JSON.stringify(quick));
+   else assert(!quick.resolved&&quick.matches.length===0,'Inline variable falsely resolved to a method: '+JSON.stringify(quick));
+  }
   await checkSource('procedure TDocumented.ScopeProbe;','Quick Documentation lexical target and explicit Self candidates');
   await select('Calculate','Integer');click('ai-review');await until(()=>!document.querySelector('#ai-proposal').hidden,'Review operation did not return a proposal');
   assert(document.querySelector('#ai-changes').textContent.includes('Value + Other'),'Review explanation missing');
@@ -72,9 +78,21 @@
   click('ai-apply');await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.returns==='The sum of Value and Other.','Selected sections not acknowledged');
   send('review-calculate-checked');await until(()=>window.__reviewCalculateChecked,'Native section check missing');
   send('review-queue-start');await until(()=>!document.querySelector('#ai-proposal').hidden&&!document.querySelector('#ai-queue').hidden,'Queue did not prepare the first method');
+  const inbound=window.bridge.receive.bind(window.bridge),held=[];window.bridge.receive=message=>{if(message.type==='editResult'||message.type==='loadDoc')held.push(message);else inbound(message);};
+  const queueRevision=window.bridge.captureStamp().sourceRevision;click('ai-apply');click('ai-queue-next');
+  await until(()=>held.some(m=>m.type==='editResult'&&m.status==='Applied')&&held.some(m=>m.type==='loadDoc'),'No native queue ACK to delay');await pause(300);
+  assert(document.getElementById('ai-queue-next').disabled,'Next enabled before delayed native ACK');window.bridge.receive=inbound;for(const message of held)inbound(message);
+  assert(window.xmlDocEditor.get().element.name==='Calculate','Queue navigated before source ACK');
+  await until(()=>window.bridge.status==='Applied'&&window.bridge.captureStamp().sourceRevision!==queueRevision&&!document.getElementById('ai-queue-next').disabled,'Queue Apply did not await OTA ACK and document reload');
   click('ai-queue-next');await until(()=>window.xmlDocEditor.get().element.qualifiedParent==='TSecond','Queue did not open the second method');
   await until(()=>!document.querySelector('#ai-proposal').hidden,'Queue did not request the second method');click('ai-queue-cancel');
   send('review-queue-checked');await until(()=>window.__reviewQueueChecked,'Native queue check missing');
+  await select('Calculate','Integer');send('review-queue-start');await until(()=>!document.querySelector('#ai-proposal').hidden&&!document.querySelector('#ai-queue').hidden,'Conflict queue did not prepare');
+  const outbound=window.bridge.sendToHost.bind(window.bridge);let delayedWrite;window.bridge.sendToHost=message=>{if(message.type==='docUpdated')delayedWrite=message;else outbound(message);};
+  const rejected=document.getElementById('ai-summary');rejected.value='Must not be written after a source conflict.';rejected.dispatchEvent(new Event('input'));click('ai-apply');await until(()=>delayedWrite,'Conflict write was not approved');
+  send('queue-conflict-source');await until(()=>window.__queueConflictReady,'Native conflict source not prepared');window.bridge.sendToHost=outbound;outbound(delayedWrite);
+  await until(()=>!document.getElementById('ai-cancel').disabled,'Native conflict did not finish waiting');assert(document.getElementById('ai-queue-next').disabled,'Conflict enabled Next');click('ai-queue-next');assert(window.xmlDocEditor.get().element.name==='Calculate','Conflict navigated away');
+  click('ai-queue-cancel');send('queue-conflict-checked');await until(()=>window.__queueConflictChecked,'Conflict source check failed');
   send('ai-close-pending');
  }catch(e){send('fail',{message:e.message+' status='+window.bridge.status+' summary='+window.xmlDocEditor.get().doc.summary,stack:e.stack});}
 })();

@@ -572,5 +572,7 @@
   "Select writable methods for the AI queue": "AI キューに追加する編集可能なメソッドを選択してください",
   "The queued method could not be opened. Skip it or cancel the queue.": "キュー内のメソッドを開けませんでした。スキップするかキューをキャンセルしてください。",
   "AI response requires a text summary": "AI 応答には summary テキストフィールドが必要です",
-  "AI response requires an uncertainties array": "AI 応答には uncertainties 配列が必要です"
+  "AI response requires an uncertainties array": "AI 応答には uncertainties 配列が必要です",
+  "Waiting for source write": "ソースへの書き込みを待機中",
+  "Existing documentation is required": "既存のドキュメントが必要です"
 }

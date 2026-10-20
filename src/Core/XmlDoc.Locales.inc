@@ -580,7 +580,9 @@ const
   '  "Select writable methods for the AI queue": "Выберите доступные для записи методы для очереди AI",' +
   '  "The queued method could not be opened. Skip it or cancel the queue.": "Не удалось открыть метод из очереди. Пропустите его или отмените очередь.",' +
   '  "AI response requires a text summary": "Ответ AI должен содержать текстовое поле summary",' +
-  '  "AI response requires an uncertainties array": "Ответ AI должен содержать массив uncertainties"' +
+  '  "AI response requires an uncertainties array": "Ответ AI должен содержать массив uncertainties",' +
+  '  "Waiting for source write": "Ожидание записи в исходник",' +
+  '  "Existing documentation is required": "Необходима текущая документация"' +
   '}';
  CLocale_zh =
   '{' +
@@ -1158,7 +1160,9 @@ const
   '  "Select writable methods for the AI queue": "请选择可编辑的方法加入 AI 队列",' +
   '  "The queued method could not be opened. Skip it or cancel the queue.": "无法打开队列中的方法。请跳过或取消队列。",' +
   '  "AI response requires a text summary": "AI 响应必须包含文本 summary 字段",' +
-  '  "AI response requires an uncertainties array": "AI 响应必须包含 uncertainties 数组"' +
+  '  "AI response requires an uncertainties array": "AI 响应必须包含 uncertainties 数组",' +
+  '  "Waiting for source write": "正在等待写入源代码",' +
+  '  "Existing documentation is required": "需要现有文档"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1738,7 +1742,9 @@ const
   '  "Select writable methods for the AI queue": "AI 대기열에 추가할 편집 가능한 메서드를 선택하세요",' +
   '  "The queued method could not be opened. Skip it or cancel the queue.": "대기열의 메서드를 열 수 없습니다. 건너뛰거나 대기열을 취소하세요.",' +
   '  "AI response requires a text summary": "AI 응답에는 summary 텍스트 필드가 필요합니다",' +
-  '  "AI response requires an uncertainties array": "AI 응답에는 uncertainties 배열이 필요합니다"' +
+  '  "AI response requires an uncertainties array": "AI 응답에는 uncertainties 배열이 필요합니다",' +
+  '  "Waiting for source write": "소스 기록을 기다리는 중",' +
+  '  "Existing documentation is required": "기존 문서가 필요합니다"' +
   '}';
  CLocale_ja =
   '{' +
@@ -2317,5 +2323,7 @@ const
   '  "Select writable methods for the AI queue": "AI キューに追加する編集可能なメソッドを選択してください",' +
   '  "The queued method could not be opened. Skip it or cancel the queue.": "キュー内のメソッドを開けませんでした。スキップするかキューをキャンセルしてください。",' +
   '  "AI response requires a text summary": "AI 応答には summary テキストフィールドが必要です",' +
-  '  "AI response requires an uncertainties array": "AI 応答には uncertainties 配列が必要です"' +
+  '  "AI response requires an uncertainties array": "AI 応答には uncertainties 配列が必要です",' +
+  '  "Waiting for source write": "ソースへの書き込みを待機中",' +
+  '  "Existing documentation is required": "既存のドキュメントが必要です"' +
   '}';

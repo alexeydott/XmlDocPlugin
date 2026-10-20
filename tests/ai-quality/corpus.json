@@ -112,7 +112,7 @@
         },
         {
           "id": "early-exit",
-          "pattern": "(?:(?:non.?positive|Requested.{0,30}(?:<=|less than|zero))|(?:insufficient|not enough|Remaining.{0,25}Requested))|(?:неположительн|недостаточ|не хватает)"
+          "pattern": "(?:(?:non.?positive|Requested.{0,30}(?:<=|less than|zero))|(?:insufficient|not enough|Remaining.{0,25}Requested))|(?:неположительн|недостаточ|не хватает)|(?:не является положительным|≤\\s*0|превышает.{0,20}остаток)"
         },
         {
           "id": "var-update",
@@ -222,7 +222,7 @@
       "facts": [
         {
           "id": "double",
-          "pattern": "(?:(?:double|twice|multiply.{0,20}(?:two|2)|multiplies.{0,20}(?:two|2)))|(?:удва|два|вдвое)"
+          "pattern": "(?:(?:double|twice|multiply.{0,20}(?:two|2)|multiplies.{0,20}(?:two|2)))|(?:удва|два|вдвое)|(?:умнож.{0,50}\\bна\\s+2\\b|множител.{0,30}(?:равен|=)\\s*2\\b)"
         },
         {
           "id": "include",

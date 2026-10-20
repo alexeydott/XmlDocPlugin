@@ -36,4 +36,13 @@ class QualityTests(unittest.TestCase):
   case=json.loads((path/'corpus.json').read_text('utf-8-sig'))['cases'][0]
   self.assertIn('collision-free',module.evaluate(case,{'summary':'Гарантирует уникальность идентификатора.'})['inventedClaims'])
   self.assertNotIn('collision-free',module.evaluate(case,{'summary':'Не гарантирует уникальность идентификатора.'})['inventedClaims'])
+ def test_russian_numeric_conditions_are_accepted_facts(self):
+  case=next(c for c in json.loads((path/'corpus.json').read_text('utf-8-sig'))['cases'] if c['id']=='conditional-scale')
+  for text in ['Умножает целочисленное значение на 2. QUALITY_FAST.', 'QUALITY_FAST: множитель равен 2.']:
+   self.assertNotIn('double',module.evaluate(case,{'summary':text})['missingFacts'])
+  self.assertIn('double',module.evaluate(case,{'summary':'QUALITY_FAST: множитель равен 3.'})['missingFacts'])
+  consume=next(c for c in json.loads((path/'corpus.json').read_text('utf-8-sig'))['cases'] if c['id']=='consume')
+  for text in ['Запрошенное количество ≤ 0.', 'Запрошенное количество не является положительным.', 'Запрос превышает доступный остаток.']:
+   self.assertNotIn('early-exit',module.evaluate(consume,{'summary':text})['missingFacts'])
+  self.assertIn('early-exit',module.evaluate(consume,{'summary':'Успешно расходует запрошенное количество.'})['missingFacts'])
 if __name__=='__main__':unittest.main()

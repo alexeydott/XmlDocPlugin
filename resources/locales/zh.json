@@ -572,5 +572,7 @@
   "Select writable methods for the AI queue": "请选择可编辑的方法加入 AI 队列",
   "The queued method could not be opened. Skip it or cancel the queue.": "无法打开队列中的方法。请跳过或取消队列。",
   "AI response requires a text summary": "AI 响应必须包含文本 summary 字段",
-  "AI response requires an uncertainties array": "AI 响应必须包含 uncertainties 数组"
+  "AI response requires an uncertainties array": "AI 响应必须包含 uncertainties 数组",
+  "Waiting for source write": "正在等待写入源代码",
+  "Existing documentation is required": "需要现有文档"
 }
