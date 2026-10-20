@@ -30,6 +30,9 @@ type
   procedure BrokenDocumentation;
   procedure UndocumentedFirst;
   procedure UndocumentedSecond;
+  /// <summary>Explains <b>pending work</b><br/>without an implementation.</summary>
+  procedure NoBody;virtual;abstract;
+  procedure ScopeProbe;
  end;
 implementation
 procedure TDocumented.Run(Value:Integer);
@@ -44,4 +47,12 @@ procedure TDocumented.UndocumentedFirst;
 begin end;
 procedure TDocumented.UndocumentedSecond;
 begin end;
+procedure TDocumented.ScopeProbe;
+  /// <summary>Local scope operation.</summary>
+  procedure Run(Value:Integer);
+  begin end;
+begin
+  Run(1); // review-local-call
+  Self.Run(1); // review-self-call
+end;
 end.

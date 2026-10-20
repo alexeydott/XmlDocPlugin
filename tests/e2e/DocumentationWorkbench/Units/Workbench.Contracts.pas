@@ -15,6 +15,7 @@ type
   FCount:Integer;
  public
   /// <summary>Processes a numeric value.</summary>
+  /// <remarks>Inherited numeric processing remarks.</remarks>
   /// <param name="Value">The input value.</param>
   procedure Run(Value:Integer);virtual;
   /// <summary>Gets the processed count.</summary>

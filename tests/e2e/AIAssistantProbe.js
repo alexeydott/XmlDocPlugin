@@ -25,6 +25,45 @@
   send('ai-clear-param');await until(()=>window.__aiParamCleared&&window.xmlDocEditor.get().doc.params.some(p=>p.name==='Value'&&!p.description),'Missing parameter fixture not loaded');click('ai-describe');await until(()=>!document.querySelector('#ai-proposal').hidden,'No parameter proposal');const parameter=document.querySelector('#ai-parameters textarea[data-name=Value]');assert(parameter&&parameter.value==='Input text to process.','Parameter suggestion missing');await capture('ai-proposal');parameter.value='Reviewed input parameter';parameter.dispatchEvent(new Event('input'));click('ai-apply');await until(()=>window.xmlDocEditor.get().doc.params.some(p=>p.name==='Value'&&p.description==='Reviewed input parameter')&&window.bridge.status==='Applied','AI parameter not acknowledged');send('ai-param-checked');
   const instruction=document.getElementById('ai-instruction');instruction.value='HTML cleanup fixture';instruction.dispatchEvent(new Event('input'));click('ai-describe');await until(()=>!document.querySelector('#ai-proposal').hidden,'No HTML cleanup proposal');
   assert(document.getElementById('ai-summary').value.startsWith('First formatted paragraph.\n\nSecond paragraph.'),'Provider HTML not cleaned');assert(!document.getElementById('ai-summary').value.includes('providerHtmlFixture'),'Script content survived');click('ai-apply');await until(()=>window.xmlDocEditor.get().doc.summary.includes('<para>First formatted paragraph.</para>')&&window.bridge.status==='Applied','HTML paragraphs not applied');send('ai-html-checked');await until(()=>window.__aiHTMLChecked,'HTML source not checked');
-  instruction.value='';instruction.dispatchEvent(new Event('input'));send('ai-close-pending');
+  instruction.value='';instruction.dispatchEvent(new Event('input'));click('ai-cancel');
+  send('language-ui',{language:'en'});await until(()=>window.__xmlDocLanguageUi==='en','Review language failed');
+  const select=async(name,param='')=>{send('review-select',{name,param});await until(()=>window.xmlDocEditor.get().element.name===name&&(!param||window.xmlDocEditor.get().element.params[0]?.type===param),'Review selection failed');await pause(250);};
+  const checkSource=async(text,label)=>{window.__reviewSourceChecked=false;send('review-source-check',{text,label});await until(()=>window.__reviewSourceChecked,'OTA review check failed');};
+  await select('Run','Integer');click('refresh-catalog');await until(()=>document.querySelector('#inheritance-sources button[data-workbench-icon="copy-documentation"]'),'Inherited source missing');
+  window.bridge.saveDebounceMs=5000;
+  document.querySelector('#remarks-editor .tiptap').editor.commands.clearContent();
+  document.querySelector('#summary-editor .tiptap').editor.chain().selectAll().insertContent('New local summary before inherited copy').run();
+  document.querySelector('#inheritance-sources button[data-workbench-icon="copy-documentation"]').click();
+  assert(document.querySelector('#xml-after').textContent.includes('New local summary before inherited copy'),'Inherited preview resurrected old summary');
+  assert(document.querySelector('#xml-after').textContent.includes('The input value.'),'Missing inherited parameter not copied');click('apply-operation');
+  await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.summary==='New local summary before inherited copy','Inherited copy not acknowledged');
+  await checkSource('New local summary before inherited copy','inherited copy preserves local summary');
+  await checkSource('Inherited numeric processing remarks.','inherited copy fills missing remarks');
+  window.bridge.saveDebounceMs=100;
+  await select('Run','string');click('open-xml');const reviewXml=document.getElementById('xml-source');
+  reviewXml.value='<summary><para>Editable prose <b>bold wording</b><br/>second line <see cref="TDocumentedBase"/><c>$&amp;</c></para></summary><param name="Value">Existing parameter stays.</param>';
+  reviewXml.dispatchEvent(new Event('input'));click('apply-xml');await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.summary.includes('bold wording'),'XML setup not applied');
+  document.querySelector('[data-tab=design]').click();instruction.value='XML rephrase fixture';instruction.dispatchEvent(new Event('input'));click('ai-rephrase');await until(()=>!document.querySelector('#ai-proposal').hidden,'XML rephrase failed');
+  const restored=document.getElementById('ai-after').textContent;
+  assert(restored.includes('<see cref="TDocumentedBase"')&&restored.includes('<c>$&amp;</c>')&&!restored.includes('__XMLDOC_'),'Protected XML preview corrupted: '+restored);
+  click('ai-apply');await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.summary.includes('Returns immediately'),'XML proposal not applied');
+  await checkSource('<c>$&amp;</c>','XML rephrase preserves literal code and references');click('ai-cancel');instruction.value='';instruction.dispatchEvent(new Event('input'));
+  await select('NoBody');click('ai-rephrase');await until(()=>!document.querySelector('#ai-proposal').hidden,'Bodyless Rephrase failed');click('ai-apply');
+  await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.summary.includes('Returns immediately'),'Bodyless Rephrase not applied');
+  await checkSource('procedure NoBody;virtual;abstract;','bodyless Rephrase leaves abstract declaration intact');click('ai-cancel');
+  click('ai-describe');await until(()=>/implementation|body/i.test(document.getElementById('ai-status').textContent),'Bodyless Describe diagnosis missing');
+  assert(document.querySelector('#ai-proposal').hidden,'Bodyless Describe unexpectedly produced a proposal');click('ai-cancel');
+  let quick;const receiveQuick=window.xmlDocWorkbench.receiveQuickDoc;window.xmlDocWorkbench.receiveQuickDoc=data=>{quick=data;receiveQuick(data);};
+  for(const [marker,local] of [['review-local-call',true],['review-self-call',false]]){
+   quick=undefined;window.__reviewQuickReady=false;send('review-quick',{marker});await until(()=>window.__reviewQuickReady,'Quick cursor missing');await pause(200);
+   window.bridge.sendToHost({type:'requestQuickDoc'});await until(()=>quick,'Quick result missing');
+   if(local)assert(quick.resolved&&quick.matches.length===1&&quick.matches[0].symbolId.toLowerCase().includes('scopeprobe'),'Wrong lexical target: '+JSON.stringify(quick));
+   else {
+    assert(quick.matches.length>0&&quick.matches.every(m=>!m.symbolId.toLowerCase().includes('scopeprobe')),'Self incorrectly resolved to a local declaration: '+JSON.stringify(quick));
+    assert(!quick.resolved||quick.matches.length===1,'Ambiguous overloads reported as resolved');
+   }
+  }
+  await checkSource('procedure TDocumented.ScopeProbe;','Quick Documentation lexical target and explicit Self candidates');
+  send('ai-close-pending');
  }catch(e){send('fail',{message:e.message+' status='+window.bridge.status+' summary='+window.xmlDocEditor.get().doc.summary,stack:e.stack});}
 })();

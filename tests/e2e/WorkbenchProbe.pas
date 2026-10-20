@@ -119,7 +119,10 @@ begin
 end;
 function TAIProbeTransport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
 begin
- if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
+ if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('TDocumented.NoBody') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
+ if Request.Body.Contains('XML rephrase fixture') and
+   (not Request.Body.Contains('Editable prose') or not Request.Body.Contains('bold wording')) then
+   raise Exception.Create('Formatting markup hid editable prose from the AI request');
  var Steps:=30;if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then Steps:=160;
  for var I:=0 to Steps do begin if TInterlocked.CompareExchange(FCancelled,0,0)<>0 then raise Exception.Create('AI request cancelled');Sleep(10);end;
  var Summary:='Returns immediately when the supplied value is empty.';var Seen:=TStringList.Create;var Root:=TJSONObject.Create;
@@ -498,6 +501,24 @@ begin
     Editor:=SourceEditorForFile(SampleFile);Source:=EditorSource(Editor);AssertTrue(Source.Contains('if Value='),'AI body token absent');Source:=Source.Replace('begin if Value=','begin {changed during AI request} if Value=');
     var Reader:=Editor.CreateReader;var B:TBytes;SetLength(B,32768);var Total:=0;var N:Integer;repeat N:=Reader.GetText(Total,PAnsiChar(B),Length(B));Inc(Total,N);until N<Length(B);Reader:=nil;
     Writer:=Editor.CreateUndoableWriter;Writer.CopyTo(0);Writer.DeleteTo(Total);Utf8:=UTF8String(Source);Writer.Insert(PAnsiChar(Utf8));Writer:=nil;Browser.ExecuteScript('window.__aiBodyChanged=true;');
+   end
+   else if Action='review-select' then begin
+    Select(SampleFile,Json.GetValue<string>('name'),Json.GetValue<string>('param',''));
+   end
+   else if Action='review-source-check' then begin
+    var ReviewSource:=EditorSource(SourceEditorForFile(SampleFile));
+    AssertTrue(ReviewSource.Contains(Json.GetValue<string>('text')),'Reviewed content did not reach OTA source');
+    Log('PASS reviewed source: '+Json.GetValue<string>('label'));
+    Browser.ExecuteScript('window.__reviewSourceChecked=true;');
+   end
+   else if Action='review-quick' then begin
+    var ReviewEditor:=SourceEditorForFile(SampleFile);ReviewEditor.Show;
+    var ReviewSource:=EditorSource(ReviewEditor);var ReviewLines:=ReviewSource.Split([#10]);var ReviewPos:TOTAEditPos;ReviewPos.Line:=0;
+    for var I:=0 to High(ReviewLines) do if ReviewLines[I].Contains(Json.GetValue<string>('marker')) then begin
+     ReviewPos.Line:=I+1;ReviewPos.Col:=System.Pos('Run(1)',ReviewLines[I])+1;Break;
+    end;
+    AssertTrue(ReviewPos.Line>0,'Quick documentation review call missing');ReviewEditor.EditViews[0].SetCursorPos(ReviewPos);
+    Inspector.HandleCursorChanged(ReviewPos.Line,ReviewSource,SampleFile);Browser.ExecuteScript('window.__reviewQuickReady=true;');
    end
    else if Action='ai-close-pending' then begin
     Select(SampleFile,'Run','string');Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));
