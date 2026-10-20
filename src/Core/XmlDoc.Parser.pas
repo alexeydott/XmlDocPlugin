@@ -99,6 +99,8 @@ type
     property SearchPaths:TArray<string> read FSearchPaths write SetSearchPaths;
     property SourceFiles:TArray<string> read FSourceFiles write SetSourceFiles;
     function BindingType(const Name:string;Line:Integer):string;
+    /// <summary>Finds the nearest lexical bindings before considering implicit Self.</summary>
+    function LocalDeclarations(const Name:string;Line:Integer):TArray<TCodeElementInfo>;
     property DependencySnapshots:TArray<TSourceSnapshot> read FDependencySnapshots;
     property DependencyFiles:TArray<string> read FDependencyFiles;
     property DependencyProbes:TArray<string> read FDependencyProbes;
@@ -329,7 +331,7 @@ function PathKey(const FileName:string):string;
 begin Result:=LowerCase(TPath.GetFullPath(FileName));end;
 
 constructor TDeclarationSession.Create(const Paths,Files,Defines:TArray<string>;const Snapshots:TArray<TSourceSnapshot>;const Platform:string);
-var Registry:TRegistry;Snapshot:TSourceSnapshot;
+var Snapshot:TSourceSnapshot;
 begin
   inherited Create;
   FPlatform:=Platform;
@@ -339,17 +341,7 @@ begin
   FProbes:=TList<string>.Create;FLocated:=TDictionary<string,string>.Create;FReadFiles:=TDictionary<string,string>.Create;
   FSnapshots:=TDictionary<string,string>.Create;
   for Snapshot in Snapshots do FSnapshots.AddOrSetValue(PathKey(Snapshot.FileName),Snapshot.Source);
-  Registry:=TRegistry.Create(KEY_READ);
-  try
-    Registry.RootKey:=HKEY_CURRENT_USER;
-{$IF CompilerVersion >= 37}
-    if Registry.OpenKeyReadOnly('Software\Embarcadero\BDS\37.0') then
-{$ELSE}
-    if Registry.OpenKeyReadOnly('Software\Embarcadero\BDS\23.0') then
-{$IFEND}
-      if Registry.ValueExists('RootDir') then
-        FRTLRoot:=TPath.Combine(Registry.ReadString('RootDir'),'source');
-  finally Registry.Free;end;
+  var Root:=CurrentRADRoot;if Root<>'' then FRTLRoot:=TPath.Combine(Root,'source');
 end;
 
 procedure TDeclarationSession.ConfigureTarget(Builder:TPasSyntaxTreeBuilder);
@@ -729,6 +721,11 @@ begin
   LCurrent := ANode.ParentNode;
   while Assigned(LCurrent) do
   begin
+    if LCurrent.Typ=ntMethod then begin
+      LName:=NodeToElementInfo(LCurrent).FullName;
+      if Result='' then Result:=LName else Result:=LName+'.'+Result;
+      Exit;
+    end;
     if LCurrent.Typ = ntTypeDecl then
     begin
       LName := LCurrent.GetAttribute(anName);
@@ -1361,6 +1358,16 @@ begin
   if Result.Kind=dekUnit then Result.CanonicalName:=Result.UnitName
   else Result.CanonicalName:=Result.UnitName+'.'+Result.FullName;
   Result.SymbolId:=LowerCase(FRootNode.GetAttribute(anName)+':'+Result.Kind.ToString+':'+Result.Signature);
+  // The enclosing overload is part of a local declaration's identity.
+  var LexicalOwner:=ANode.ParentNode;
+  while Assigned(LexicalOwner) do begin
+    if LexicalOwner.Typ=ntMethod then begin
+      Result.SymbolId:=Result.SymbolId+'@scope:'+LowerCase(LexicalOwner.GetAttribute(anName))+'`'+IntToStr(Length(ExtractGenericParams(LexicalOwner)));
+      for var Parameter in ExtractParams(LexicalOwner) do
+        Result.SymbolId:=Result.SymbolId+';'+LowerCase(Parameter.TypeName)+BoolToStr(Parameter.IsVar)+BoolToStr(Parameter.IsOut)+BoolToStr(Parameter.IsConst);
+    end;
+    LexicalOwner:=LexicalOwner.ParentNode;
+  end;
   if Result.Kind in [dekClass,dekInterface,dekRecord] then begin
     LTypeNode:=ANode.FindNode(ntType);
     if Assigned(LTypeNode) then
@@ -1387,6 +1394,32 @@ begin
     Result.CommentStartLine := FLastCommentStart;
     Result.CommentEndLine := ANode.Line - 1;
   end;
+end;
+
+function TDocParser.LocalDeclarations(const Name:string;Line:Integer):TArray<TCodeElementInfo>;
+var Scope,Declaration:TSyntaxNode;
+ procedure FindScope(Node:TSyntaxNode);
+ begin
+  if not Assigned(Node) or (Node.Line>Line) then Exit;
+  if (Node is TCompoundSyntaxNode) and (TCompoundSyntaxNode(Node).EndLine<Line) then Exit;
+  if Node.Typ=ntMethod then Scope:=Node;
+  for var Child in Node.ChildNodes do FindScope(Child);
+ end;
+begin
+ Result:=nil;Scope:=nil;FindScope(FRootNode);
+ while Assigned(Scope) do begin
+  if Scope.Typ=ntMethod then begin
+   Declaration:=FindDeclaration(Scope,Name);
+   if Assigned(Declaration) then begin
+    if (Declaration.Typ=ntMethod) and Assigned(Declaration.ParentNode) then begin
+     for var Child in Declaration.ParentNode.ChildNodes do
+      if (Child.Typ=ntMethod) and SameText(DeclarationName(Child),Name) then Result:=Result+[NodeToElementInfo(Child)];
+    end else Result:=TArray<TCodeElementInfo>.Create(NodeToElementInfo(Declaration));
+    Exit;
+   end;
+  end;
+  Scope:=Scope.ParentNode;
+ end;
 end;
 
 function TDocParser.BindingType(const Name:string;Line:Integer):string;

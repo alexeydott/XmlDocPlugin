@@ -27,6 +27,8 @@ foreach ($root in @($Rad11, $Rad12, $Rad13)) {
 if (!(Test-Path -LiteralPath $ISCC)) { throw "Inno Setup compiler not found: $ISCC" }
 Push-Location $PSScriptRoot
 try {
+    & python (Join-Path $PSScriptRoot 'tests\Validate-ApiDocs.py') (Join-Path $PSScriptRoot 'docs') (Join-Path $PSScriptRoot 'src')
+    if ($LASTEXITCODE) { throw 'API reference is stale; run build-api-docs.ps1 before building Setup.' }
     & .\build-help.ps1 -OutputDir (Join-Path $stage 'help')
     if (!$?) { throw 'Offline user guide generation failed' }
     # Build the bundled editor, resources and Win32 package first.

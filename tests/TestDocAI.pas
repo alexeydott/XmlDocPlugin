@@ -1,4 +1,4 @@
-﻿unit TestDocAI;
+unit TestDocAI;
 interface
 uses DUnitX.TestFramework;
 type [TestFixture] TDocAITests=class
@@ -16,9 +16,10 @@ type [TestFixture] TDocAITests=class
  [Test] procedure DisableThinkingRequests;
  [Test] procedure ToonMethodRequests;
  [Test] procedure HTMLProseCleanup;
+ [Test] procedure ReviewRegressionContracts;
  end;
 implementation
-uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.AI.Text,XmlDoc.AI.Toon,XmlDoc.Model;
+uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.AI.Text,XmlDoc.AI.Toon,XmlDoc.Model,XmlDoc.SourceAccess;
 type TRetryAITransport=class(TInterfacedObject,IAITransport)
  Calls,Failures,Status:Integer;Failure:string;LastBody:string;
  function Execute(const Request:TAIHttpRequest):TAIHttpResponse;
@@ -122,7 +123,7 @@ begin
   for E in P.GetAllElements do if (E.Name='Run') and (E.SourceSection='interface') and (E.Params[0].TypeName='Integer') then begin
    Assert.IsTrue(P.MethodSource(E,Code,Reason),Reason);Assert.AreEqual(Expected,Code);C:=CaptureMethodContext(P,E,'Original','','');Assert.AreEqual(Expected,C.Code);Assert.IsTrue(C.Fingerprint<>'');
   end;
-  for E in P.GetAllElements do if E.Name='Missing' then Assert.IsFalse(P.MethodSource(E,Code,Reason));
+  for E in P.GetAllElements do if E.Name='Missing' then begin Assert.IsFalse(P.MethodSource(E,Code,Reason));C:=CaptureMethodContext(P,E,'Existing summary','','',False);Assert.AreEqual('',C.Code);Assert.AreEqual('Existing summary',C.Documentation);end;
  finally P.Free;end;
 end;
 procedure TDocAITests.PromptsAndProtection;
@@ -236,6 +237,29 @@ begin
  ValidateAIProfileIdentity(Profile,[Profile,Other]);
  Other.Model:='another';ValidateAIProfileIdentity(Profile,[Other]);
  Profile.Name:='  ';Assert.WillRaise(procedure begin ValidateAIProfileIdentity(Profile,[]);end,EAIError);
+end;
+procedure TDocAITests.ReviewRegressionContracts;
+var Fragments:TArray<TAIProtectedFragment>;Protected,Restored:string;C:TAIContext;P:TAIProfile;Prompt:TAIPrompt;
+begin
+ Protected:=ProtectSummary('<para>Finds a <b>route</b> using <see cref="TMap"/>.</para><para>Returns <c>$&amp;</c> if missing.</para>',Fragments);
+ Assert.IsTrue(Protected.Contains('Finds a'));Assert.IsTrue(Protected.Contains('Returns'));
+ Restored:=RestoreSummary(Protected.Replace('Finds a','Locates a'),Fragments);
+ Assert.IsTrue(Restored.Contains('Locates a'));Assert.IsTrue(Restored.Contains('<b>route</b>'));Assert.IsTrue(Restored.Contains('<see cref="TMap"/>'));Assert.IsTrue(Restored.Contains('<c>$&amp;</c>'));
+ Protected:=ProtectSummary(AITextXml('First description.'+#10#10+'Second paragraph.'),Fragments);
+ Assert.IsTrue(Protected.Contains('First description.'));Assert.IsTrue(RestoreSummary(Protected.Replace('First','Rephrased'),Fragments).Contains('Rephrased description.'));
+ for var Tag in ['para','b','i','strong','em','u'] do for var I:=0 to 31 do begin
+  var Original:='<'+Tag+'>Editable '+I.ToString+' <see cref="TMap"/> <c>$&amp;</c><opaque>Hidden</opaque></'+Tag+'>';
+  Protected:=ProtectSummary(Original,Fragments);Assert.IsTrue(Protected.Contains('Editable '+I.ToString));Assert.IsFalse(Protected.Contains('Hidden'));
+  Restored:=RestoreSummary(Protected.Replace('Editable','Rephrased'),Fragments);
+  Assert.IsTrue(Restored.Contains('Rephrased '+I.ToString));Assert.IsTrue(Restored.Contains('<see cref="TMap"/>'));Assert.IsTrue(Restored.Contains('<c>$&amp;</c>'));Assert.IsTrue(Restored.Contains('<opaque>Hidden</opaque>'));
+ end;
+ C:=Default(TAIContext);C.Signature:='procedure Run';C.Documentation:='Existing description.';P:=TAIProfile.Defaults;P.Authorization:='none';P.Model:='fixture';
+ Prompt:=TAIPrompt.BuiltIn(aoRephrase);BuildAIRequest(P,Prompt,C,'');
+ Prompt:=TAIPrompt.BuiltIn(aoDescribe);C.Code:='begin end;';Prompt.UserText:='{{ signature }} {{ implementation }}';BuildAIRequest(P,Prompt,C,'');
+ C.Code:='';Assert.WillRaise(procedure begin BuildAIRequest(P,Prompt,C,'');end,EAIError);
+ Assert.AreEqual('22.0',RADVersionForCompiler(35));Assert.AreEqual('23.0',RADVersionForCompiler(36));Assert.AreEqual('37.0',RADVersionForCompiler(37));
+ Assert.IsTrue(TFile.Exists(TPath.Combine(CurrentRADRoot,'source\rtl\sys\System.pas')));
+ Assert.IsTrue(IsCompilerSource(TPath.Combine(CurrentRADRoot,'source\rtl\sys\System.pas')));
 end;
 initialization TDUnitX.RegisterTestFixture(TDocAITests);
 end.

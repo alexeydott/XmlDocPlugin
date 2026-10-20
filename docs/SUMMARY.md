@@ -29,6 +29,7 @@
           - [Authorization](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#authorization)
           - [Body](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#body)
           - [MaxResponseBytes](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#maxresponsebytes)
+          - [RetryCount](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#retrycount)
           - [TimeoutMs](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#timeoutms)
           - [URL](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#url)
       - [TAIHttpResponse](units/XmlDoc.AI.Contracts.TAIHttpResponse.md)
@@ -42,6 +43,7 @@
       - [TAIProfile](units/XmlDoc.AI.Contracts.TAIProfile.md)
         - **Fields**
           - [Authorization](units/XmlDoc.AI.Contracts.TAIProfile.md#authorization)
+          - [DisableThinking](units/XmlDoc.AI.Contracts.TAIProfile.md#disablethinking)
           - [Endpoint](units/XmlDoc.AI.Contracts.TAIProfile.md#endpoint)
           - [Id](units/XmlDoc.AI.Contracts.TAIProfile.md#id)
           - [JsonMode](units/XmlDoc.AI.Contracts.TAIProfile.md#jsonmode)
@@ -53,6 +55,7 @@
           - [Name](units/XmlDoc.AI.Contracts.TAIProfile.md#name)
           - [OutputLimitParameter](units/XmlDoc.AI.Contracts.TAIProfile.md#outputlimitparameter)
           - [RequestPath](units/XmlDoc.AI.Contracts.TAIProfile.md#requestpath)
+          - [RetryCount](units/XmlDoc.AI.Contracts.TAIProfile.md#retrycount)
           - [TimeoutMs](units/XmlDoc.AI.Contracts.TAIProfile.md#timeoutms)
         - **Methods**
           - [Defaults](units/XmlDoc.AI.Contracts.TAIProfile.md#defaults)
@@ -87,8 +90,17 @@
           - [Xml](units/XmlDoc.AI.Prompts.TAIProtectedFragment.md#xml)
     - **Routines**
       - [ExpandPrompt](units/XmlDoc.AI.Prompts.md#expandprompt)
+      - [PromptUsesVariable](units/XmlDoc.AI.Prompts.md#promptusesvariable)
       - [ProtectSummary](units/XmlDoc.AI.Prompts.md#protectsummary)
       - [RestoreSummary](units/XmlDoc.AI.Prompts.md#restoresummary)
+      - [ToonPrompt](units/XmlDoc.AI.Prompts.md#toonprompt)
+  - [XmlDoc.AI.Text](units/XmlDoc.AI.Text.md)
+    - **Routines**
+      - [AITextXml](units/XmlDoc.AI.Text.md#aitextxml)
+      - [CleanAIText](units/XmlDoc.AI.Text.md#cleanaitext)
+  - [XmlDoc.AI.Toon](units/XmlDoc.AI.Toon.md)
+    - **Routines**
+      - [AIToon](units/XmlDoc.AI.Toon.md#aitoon)
   - [XmlDoc.AI.Transport](units/XmlDoc.AI.Transport.md)
     - **Classes**
       - [TAIHTTPTransport](units/XmlDoc.AI.Transport.TAIHTTPTransport.md)
@@ -553,6 +565,7 @@
           - [Render](units/XmlDoc.HelpGen.Renderer.HTML.THTMLDocRenderer.md#render)
           - [RenderIndex](units/XmlDoc.HelpGen.Renderer.HTML.THTMLDocRenderer.md#renderindex)
           - [RenderMemberSection](units/XmlDoc.HelpGen.Renderer.HTML.THTMLDocRenderer.md#rendermembersection)
+          - [RenderProse](units/XmlDoc.HelpGen.Renderer.HTML.THTMLDocRenderer.md#renderprose)
           - [RenderSearchIndex](units/XmlDoc.HelpGen.Renderer.HTML.THTMLDocRenderer.md#rendersearchindex)
           - [RenderTypePage](units/XmlDoc.HelpGen.Renderer.HTML.THTMLDocRenderer.md#rendertypepage)
           - [RenderUnitPage](units/XmlDoc.HelpGen.Renderer.HTML.THTMLDocRenderer.md#renderunitpage)
@@ -586,6 +599,7 @@
           - [RenderSummary](units/XmlDoc.HelpGen.Renderer.MD.TMarkdownDocRenderer.md#rendersummary)
           - [RenderTypeMD](units/XmlDoc.HelpGen.Renderer.MD.TMarkdownDocRenderer.md#rendertypemd)
           - [RenderUnitMD](units/XmlDoc.HelpGen.Renderer.MD.TMarkdownDocRenderer.md#renderunitmd)
+          - [TableProse](units/XmlDoc.HelpGen.Renderer.MD.TMarkdownDocRenderer.md#tableprose)
           - [WriteFile](units/XmlDoc.HelpGen.Renderer.MD.TMarkdownDocRenderer.md#writefile)
   - [XmlDoc.HelpGen.Resources](units/XmlDoc.HelpGen.Resources.md)
     - **Routines**
@@ -792,6 +806,7 @@
     - **Routines**
       - [MarkupHTML](units/XmlDoc.Markup.md#markuphtml)
       - [MarkupMarkdown](units/XmlDoc.Markup.md#markupmarkdown)
+      - [MarkupPlainText](units/XmlDoc.Markup.md#markupplaintext)
   - [XmlDoc.Model](units/XmlDoc.Model.md)
     - **Classes**
       - [TXmlDocModel](units/XmlDoc.Model.TXmlDocModel.md)
@@ -926,6 +941,7 @@
           - [HashSource](units/XmlDoc.Parser.TDocParser.md#hashsource)
           - [IsDocTargetNode](units/XmlDoc.Parser.TDocParser.md#isdoctargetnode)
           - [IsUpToDate](units/XmlDoc.Parser.TDocParser.md#isuptodate)
+          - [LocalDeclarations](units/XmlDoc.Parser.TDocParser.md#localdeclarations)
           - [MethodSource](units/XmlDoc.Parser.TDocParser.md#methodsource)
           - [NodeToElementInfo](units/XmlDoc.Parser.TDocParser.md#nodetoelementinfo)
           - [ParseSource](units/XmlDoc.Parser.TDocParser.md#parsesource)
@@ -1691,6 +1707,10 @@
       - [SetSettingsCallback](units/XmlDoc.Plugin.Shortcuts.md#setsettingscallback)
       - [SetToggleDocExplorerCallback](units/XmlDoc.Plugin.Shortcuts.md#settoggledocexplorercallback)
       - [SetToggleInspectorCallback](units/XmlDoc.Plugin.Shortcuts.md#settoggleinspectorcallback)
+  - [XmlDoc.Plugin.Splash](units/XmlDoc.Plugin.Splash.md)
+    - **Routines**
+      - [RegisteredSplashCaption](units/XmlDoc.Plugin.Splash.md#registeredsplashcaption)
+      - [RegisterPluginSplash](units/XmlDoc.Plugin.Splash.md#registerpluginsplash)
   - [XmlDoc.Plugin.UndocNavigator](units/XmlDoc.Plugin.UndocNavigator.md)
     - **Classes**
       - [TUndocNavigator](units/XmlDoc.Plugin.UndocNavigator.TUndocNavigator.md)
@@ -1831,7 +1851,9 @@
   - [XmlDoc.SourceAccess](units/XmlDoc.SourceAccess.md)
     - **Routines**
       - [CompilerSourceRoots](units/XmlDoc.SourceAccess.md#compilersourceroots)
+      - [CurrentRADRoot](units/XmlDoc.SourceAccess.md#currentradroot)
       - [IsCompilerSource](units/XmlDoc.SourceAccess.md#iscompilersource)
+      - [RADVersionForCompiler](units/XmlDoc.SourceAccess.md#radversionforcompiler)
       - [SourceReadOnlyReason](units/XmlDoc.SourceAccess.md#sourcereadonlyreason)
   - [XmlDoc.SourceText](units/XmlDoc.SourceText.md)
     - **Routines**

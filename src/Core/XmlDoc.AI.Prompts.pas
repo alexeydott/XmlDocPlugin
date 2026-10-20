@@ -9,6 +9,8 @@ type
   Operation:TAIOperation;
   class function BuiltIn(Operation:TAIOperation):TAIPrompt;static;
  end;
+/// <summary>Recognizes a prompt variable with the same whitespace rules used by expansion.</summary>
+function PromptUsesVariable(const Template,Name:string):Boolean;
 function ExpandPrompt(const Template:string;const Context:TAIContext;const Language:string):string;
 function ToonPrompt(const Template:string;const Context:TAIContext;const Language:string):string;
 function ProtectSummary(const Summary:string;out Fragments:TArray<TAIProtectedFragment>):string;
@@ -35,6 +37,8 @@ begin
   '.';
  Result.UserText:='Language: {{language}}'+#10+'Signature: {{signature}}'+#10+'Implementation:'+ #10+'{{implementation}}'+#10+'Current summary: {{documentation}}'+#10+'Parameters: {{parameters}}'+#10+'Return type: {{return_type}}'+#10+'Type context: {{type_context}}'+#10+'Project terminology: {{project_terms}}'+#10+'User request: {{user_instruction}}';
 end;
+function PromptUsesVariable(const Template,Name:string):Boolean;
+begin Result:=TRegEx.IsMatch(Template,'\{\{\s*'+TRegEx.Escape(Name)+'\s*\}\}');end;
 function ExpandPrompt(const Template:string;const Context:TAIContext;const Language:string):string;
 var Values:TDictionary<string,string>;I,Last,Finish:Integer;Key:string;
 begin
@@ -49,7 +53,7 @@ begin
     Result:=Result+Copy(Template,Last,I-Last);Finish:=Pos('}}',Template,I+2);
     if Finish=0 then raise EAIError.Create('Unclosed prompt variable');Key:=Trim(Copy(Template,I+2,Finish-I-2));
     if not Values.ContainsKey(Key) then raise EAIError.Create('Unknown prompt variable: '+Key);
-    if (Key='signature') or (Key='implementation') or (Key='language') then
+    if (Key='signature') or (Key='language') then
      if Trim(Values[Key])='' then raise EAIError.Create('Required prompt context is empty: '+Key);
     Result:=Result+Values[Key];I:=Finish+2;Last:=I;
    end else Inc(I);
@@ -62,7 +66,7 @@ var Root,Data:TJSONObject;
  procedure Add(const Name,Text:string;Structured:Boolean=False);
  var Value:TJSONValue;
  begin
-  if not TRegEx.IsMatch(Template,'\{\{\s*'+Name+'\s*\}\}') then Exit;
+  if not PromptUsesVariable(Template,Name) then Exit;
   Value:=nil;if Structured then Value:=TJSONObject.ParseJSONValue(Text);
   if not Assigned(Value) then Value:=TJSONString.Create(Text);Data.AddPair(Name,Value);
  end;
@@ -79,7 +83,7 @@ begin
  finally Root.Free;end;
 end;
 function ProtectSummary(const Summary:string;out Fragments:TArray<TAIProtectedFragment>):string;
-var Root:IXMLDocument;I,Start,J,Depth:Integer;Quote:Char;Tag,Token,Prefix:string;Fragment:TAIProtectedFragment;
+var Root:IXMLDocument;I,Start,J,Depth:Integer;Quote:Char;Tag,Token,Prefix,Name:string;Fragment:TAIProtectedFragment;
  function TagEnd(First:Integer):Integer;
  begin
   Result:=First;Quote:=#0;
@@ -98,6 +102,17 @@ begin
  while I<=Length(Summary) do begin
   if Summary[I]<>'<' then begin Start:=I;while (I<=Length(Summary)) and (Summary[I]<>'<') do Inc(I);
    Root:=LoadDocXml('<doc>'+Copy(Summary,Start,I-Start)+'</doc>');Result:=Result+Root.DocumentElement.Text;Continue;
+  end;
+  J:=TagEnd(I);Tag:=Copy(Summary,I,J-I+1);
+  var Match:=TRegEx.Match(Tag,'^</?([A-Za-z]+)');Name:='';if Match.Success then Name:=Match.Groups[1].Value.ToLower;
+  if (Name='para') or (Name='br') then begin
+   if Name='para' then Result:=Result+#10#10 else Result:=Result+#10;
+   I:=J+1;Continue;
+  end;
+  // Expose formatting prose while retaining emphasis boundaries as opaque tags.
+  if (Name='b') or (Name='i') or (Name='strong') or (Name='em') or (Name='u') then begin
+   Fragment.Token:=Prefix+IntToStr(Length(Fragments))+'__';Fragment.Xml:=Tag;
+   Fragments:=Fragments+[Fragment];Result:=Result+Fragment.Token;I:=J+1;Continue;
   end;
   Start:=I;Depth:=0;
   repeat

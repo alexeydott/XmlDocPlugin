@@ -7,3 +7,5 @@ Documentation markup conversion and safe rendering helpers.
 ### MarkupHTML
 
 ### MarkupMarkdown
+
+### MarkupPlainText

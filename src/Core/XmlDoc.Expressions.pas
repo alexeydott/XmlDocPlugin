@@ -197,6 +197,13 @@ begin
    Receiver:=ExpressionType(Owner);if Receiver='' then Receiver:=Owner;
    if Receiver='' then begin Reason:='The receiver type is unknown; choose a declaration explicitly.';Exit;end;
   end;
+  var Locals:TArray<TCodeElementInfo>;
+  if Owner='' then Locals:=Parser.LocalDeclarations(Member,Line) else Locals:=nil;
+  if Length(Locals)>0 then begin
+   // Lexical bindings shadow implicit Self, including procedural variables.
+   if Locals[0].Kind<>dekMethod then begin Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';Exit;end;
+   Result:=Locals;if Length(Locals)>1 then Reason:='Several declarations match this context; choose an overload.';Exit;
+  end;
   ImplicitSelf:=Owner='';if ImplicitSelf then Receiver:=Parser.BindingType('Self',Line);
   var OwnerNames:=Owners(Receiver);if (Owner<>'') and (Length(OwnerNames)=0) then begin Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';Exit;end;
   for var E in Symbols do if SameText(E.Name,Member) then begin

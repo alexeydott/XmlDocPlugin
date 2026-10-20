@@ -46,11 +46,11 @@ begin
  if Profile.Authorization='bearer' then begin
   if (Trim(Key)='') or Key.Contains(#10) or Key.Contains(#13) then raise EAIError.Create('API key is required');Result.Authorization:='Bearer '+Key;
  end else if Profile.Authorization<>'none' then raise EAIError.Create('Unsupported authorization mode');
- if (Context.Signature='') or (Context.Code='') then raise EAIError.Create('Method implementation is required');
+ if (Trim(Context.Signature)='') or ((Prompt.Operation=aoDescribe) and (Trim(Context.Code)='')) then raise EAIError.Create('Method implementation is required');
  if (Prompt.Operation=aoRephrase) and (Trim(Context.Documentation)='') then raise EAIError.Create('Summary is empty');
- if (Prompt.Operation=aoDescribe) and (not (Prompt.SystemText+Prompt.UserText).Contains('{{implementation}}') or
-   not (Prompt.SystemText+Prompt.UserText).Contains('{{signature}}')) then raise EAIError.Create('Template must include signature and implementation');
- if (Prompt.Operation=aoRephrase) and not (Prompt.SystemText+Prompt.UserText).Contains('{{documentation}}') then raise EAIError.Create('Template must include existing documentation');
+ if (Prompt.Operation=aoDescribe) and (not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'implementation') or
+   not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'signature')) then raise EAIError.Create('Template must include signature and implementation');
+ if (Prompt.Operation=aoRephrase) and not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'documentation') then raise EAIError.Create('Template must include existing documentation');
  SystemText:=ExpandPrompt(Prompt.SystemText,Context,Profile.Language);UserText:=ExpandPrompt(Prompt.UserText,Context,Profile.Language);
  if Length(SystemText)+Length(UserText)>Profile.MaxContextChars then raise EAIError.Create('Method context exceeds the configured limit; no source was sent');
  UserText:=ToonPrompt(Prompt.UserText,Context,Profile.Language);

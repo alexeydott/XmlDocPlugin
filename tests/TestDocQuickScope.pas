@@ -8,9 +8,10 @@ type
   [Test] procedure UnknownScopeKeepsForeignCandidates;
   [Test] procedure ComparisonOperatorsAreNotGenerics;
   [Test] procedure GenericReceiversRetainTrivia;
+  [Test] procedure NestedProcedureShadowsImplicitSelf;
  end;
 implementation
-uses System.SysUtils,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.Expressions;
+uses System.SysUtils,System.Generics.Collections,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.Expressions,XmlDoc.ProjectIndex;
 procedure TDocQuickScopeTests.ImplicitSelfPrecedesOverloadRanking;
 var P:TDocParser;Source,Query,Reason:string;Found:TArray<TCodeElementInfo>;
 begin
@@ -69,6 +70,28 @@ begin
    Assert.AreEqual<NativeInt>(1,Length(Found),Reason);Assert.AreEqual('Types',Found[0].UnitName);Assert.AreEqual('',Reason);
   end;
  finally P.Free;end;
+end;
+procedure TDocQuickScopeTests.NestedProcedureShadowsImplicitSelf;
+var P:TDocParser;Source,Query,Reason:string;Found,Symbols:TArray<TCodeElementInfo>;Index:TDocumentationIndex;Catalog:TDictionary<string,TCodeElementInfo>;
+begin
+ P:=TDocParser.Create;Index:=TDocumentationIndex.Create;Catalog:=TDictionary<string,TCodeElementInfo>.Create;
+ try
+  Source:='unit Calls;'+sLineBreak+'interface'+sLineBreak+
+   'type TWorker=class procedure Run(Value:Integer); procedure Caller; end; procedure Run(Value:string);'+sLineBreak+
+   'implementation'+sLineBreak+'procedure TWorker.Run(Value:Integer); begin end; procedure Run(Value:string); begin end;'+sLineBreak+
+   'procedure TWorker.Caller;'+sLineBreak+'procedure Run(Value:string); begin end;'+sLineBreak+
+   'begin'+sLineBreak+'Run(''local'');'+sLineBreak+'Self.Run(1);'+sLineBreak+'end;'+sLineBreak+'end.';
+  for var E in Index.Update('Calls.pas',Source,P) do if not Catalog.ContainsKey(E.FileName+#0+E.SymbolId) then Catalog.Add(E.FileName+#0+E.SymbolId,E);
+  Symbols:=Catalog.Values.ToArray;
+  Found:=ResolveDocumentationExpression(P,Source,Pos('Run(''local'')',Source)+1,9,Symbols,Query,Reason);
+  Assert.AreEqual<NativeInt>(1,Length(Found),Reason);Assert.AreEqual('string',Found[0].Params[0].TypeName);Assert.AreEqual('TWorker.Caller',Found[0].QualifiedParent);for var E in Symbols do if (E.Name='Run') and (E.QualifiedParent='') then Assert.AreNotEqual(E.SymbolId,Found[0].SymbolId);
+  Found:=ResolveDocumentationExpression(P,Source,Pos('Self.Run(1)',Source)+6,10,Symbols,Query,Reason);
+  Assert.IsTrue(Length(Found)>0,Reason);for var E in Found do Assert.AreEqual('TWorker',E.QualifiedParent);
+  Source:=Source.Replace('type TWorker=class','type TLocalProc=reference to procedure(Value:Integer); TWorker=class').Replace('procedure TWorker.Caller;'+sLineBreak+'procedure Run(Value:string); begin end;','procedure TWorker.Caller;'+sLineBreak+'var Run:TLocalProc;').Replace('Run(''local'');','Run(1);');
+  P.ParseSource(Source,'Calls.pas');
+  Found:=ResolveDocumentationExpression(P,Source,Pos('Run(1);',Source)+1,9,Symbols,Query,Reason);
+  Assert.AreEqual<NativeInt>(0,Length(Found));Assert.IsTrue(Reason<>'');
+ finally Catalog.Free;Index.Free;P.Free;end;
 end;
 initialization
  TDUnitX.RegisterTestFixture(TDocQuickScopeTests);

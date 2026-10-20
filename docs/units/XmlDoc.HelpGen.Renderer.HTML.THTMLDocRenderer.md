@@ -25,6 +25,7 @@ Renders a static HTML reference with navigation, search and cross-links.
 | `Render` | method | public |  |
 | `RenderIndex` | method | private |  |
 | `RenderMemberSection` | method | private |  |
+| `RenderProse` | method | private |  |
 | `RenderSearchIndex` | method | private |  |
 | `RenderTypePage` | method | private |  |
 | `RenderUnitPage` | method | private |  |
@@ -64,6 +65,8 @@ Renders a static HTML reference with navigation, search and cross-links.
 ### RenderIndex
 
 ### RenderMemberSection
+
+### RenderProse
 
 ### RenderSearchIndex
 

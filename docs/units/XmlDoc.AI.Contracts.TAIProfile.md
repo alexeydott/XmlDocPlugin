@@ -5,6 +5,7 @@
 | Name | Kind | Visibility | Description |
 |------|------|------------|-------------|
 | `Authorization` | field | public |  |
+| `DisableThinking` | field | public |  |
 | `Endpoint` | field | public |  |
 | `Id` | field | public |  |
 | `JsonMode` | field | public |  |
@@ -16,10 +17,13 @@
 | `Name` | field | public |  |
 | `OutputLimitParameter` | field | public |  |
 | `RequestPath` | field | public |  |
+| `RetryCount` | field | public |  |
 | `TimeoutMs` | field | public |  |
 | `Defaults` | method | public |  |
 
 ### Authorization
+
+### DisableThinking
 
 ### Endpoint
 
@@ -42,6 +46,8 @@
 ### OutputLimitParameter
 
 ### RequestPath
+
+### RetryCount
 
 ### TimeoutMs
 

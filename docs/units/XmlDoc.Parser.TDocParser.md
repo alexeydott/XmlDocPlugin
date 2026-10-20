@@ -46,6 +46,7 @@ Parses Delphi source and locates documentable declarations at a source line.
 | `HashSource` | method | private |  |
 | `IsDocTargetNode` | method | private |  |
 | `IsUpToDate` | method | public | Checks whether the supplied source matches the parsed snapshot. |
+| `LocalDeclarations` | method | public | Finds the nearest lexical bindings before considering implicit Self. |
 | `MethodSource` | method | public | Resolves an explicitly selected method to its exact implementation range. |
 | `NodeToElementInfo` | method | private |  |
 | `ParseSource` | method | public | Builds the syntax tree for the supplied source and project context. |
@@ -171,6 +172,10 @@ Checks whether the supplied source matches the parsed snapshot.
 - **ASource** — Source text to compare.
 
 **Returns:** True if the source has not changed.
+
+### LocalDeclarations
+
+Finds the nearest lexical bindings before considering implicit Self.
 
 ### MethodSource
 

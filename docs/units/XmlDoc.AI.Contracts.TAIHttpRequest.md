@@ -7,6 +7,7 @@
 | `Authorization` | field | public |  |
 | `Body` | field | public |  |
 | `MaxResponseBytes` | field | public |  |
+| `RetryCount` | field | public |  |
 | `TimeoutMs` | field | public |  |
 | `URL` | field | public |  |
 
@@ -15,6 +16,8 @@
 ### Body
 
 ### MaxResponseBytes
+
+### RetryCount
 
 ### TimeoutMs
 

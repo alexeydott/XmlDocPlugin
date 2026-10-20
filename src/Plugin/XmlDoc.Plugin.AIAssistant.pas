@@ -85,7 +85,7 @@ begin
    Config:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(ProjectDir,'.xmldocplugin.json'),TEncoding.UTF8)) as TJSONObject;
    if Assigned(Config) and Assigned(Config.GetValue('authoring.terminology')) then Terms:=Config.GetValue('authoring.terminology').ToJSON;
   end;end;
-  Result:=CaptureMethodContext(P,Found,Summary,Terms,Instruction);
+  Result:=CaptureMethodContext(P,Found,Summary,Terms,Instruction,FOperation=aoDescribe);
  finally Config.Free;P.Free;end;
 end;
 function TAIAssistant.Fresh:Boolean;
@@ -173,9 +173,10 @@ begin
   if not ValidateEdit(Message,Target,FileName,Session,Parser.SourceText) then raise EAIError.Create('Source changed — reload before applying');
   FFile:=FileName;FSession:=Session;FTarget:=Target;FreeAndNil(FOriginal);FOriginal:=Message.Clone as TJSONObject;
   Summary:=Message.GetValue<string>('summary','');Instruction:=Message.GetValue<string>('instruction','');FOriginalSummary:=Summary;
-  Context:=Capture(Summary,Instruction);Context.Documentation:=ProtectSummary(Summary,FFragments);FContext:=Context;
   OperationName:=Message.GetValue<string>('operation','');if OperationName='describe' then Operation:=aoDescribe else if OperationName='rephrase' then Operation:=aoRephrase else raise EAIError.Create('Unknown AI operation');
-  FOperation:=Operation;FParameterNames:=nil;Prompt:=TAIPrompt.BuiltIn(Operation);TemplateId:=Message.GetValue<string>('templateId',Prompt.Id);var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);
+  FOperation:=Operation;
+  Context:=Capture(Summary,Instruction);Context.Documentation:=ProtectSummary(Summary,FFragments);FContext:=Context;
+  FParameterNames:=nil;Prompt:=TAIPrompt.BuiltIn(Operation);TemplateId:=Message.GetValue<string>('templateId',Prompt.Id);var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);
   Templates:=AIPrompts(ProjectDir);for var Item in Templates do if (Item as TJSONObject).GetValue<string>('id')=TemplateId then Template:=Item as TJSONObject;
   if not Assigned(Template) or (Template.GetValue<string>('operation')<>OperationName) then raise EAIError.Create('Choose a matching AI template');Prompt.SystemText:=Template.GetValue<string>('system');Prompt.UserText:=Template.GetValue<string>('user');
   FPrepared:=BuildAIRequest(Profile,Prompt,Context,ReadAIKey(Profile));

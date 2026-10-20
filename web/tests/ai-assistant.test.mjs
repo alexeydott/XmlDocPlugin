@@ -59,3 +59,29 @@ test('AI proposals replace placeholder parameters and preview XML paragraphs wit
  assert.equal(document.querySelectorAll('#ai-parameters textarea').length,1);assert.ok(document.getElementById('ai-after').textContent.includes('<para>First paragraph.</para>'));assert.ok(document.getElementById('ai-after').textContent.includes('Input value'));
  s.click('ai-apply');assert.deepEqual(s.sent.at(-1).parameters,[{name:'Value',description:'Input value'}]);s.reply(req,'approved',{summaryXml:'<para>First paragraph.</para><para>Second paragraph.</para>',parameters:[{name:'Value',description:'Input value'}]});s.bridge.flush();const updated=s.sent.filter(m=>m.type==='docUpdated').at(-1);assert.equal(updated.doc.params[0].description,'Input value');assert.equal(updated.doc.params[1].description,'Keep this description.');s.close();
 });
+test('AI parameter names follow Delphi case-insensitive identity',()=>{
+ for(const description of ['Existing description.','TODO: describe value']){
+ const s=setup();s.bridge.receive({type:'loadDoc',data:{element:{...s.element,params:[{name:'Value',typeName:'Integer'}]},doc:{summary:'Original',params:[{name:'value',description}]}}});
+ const req=s.prepare();s.reply(req,'prepared',{fragments:[],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'New summary',parameters:[{name:'Value',description:'New parameter description.'}],uncertainties:[]});
+ assert.equal(document.querySelector('#ai-apply').disabled,false);
+ const after=document.querySelector('#ai-after').textContent;assert.equal((after.match(/<param /g)??[]).length,1);assert.ok(after.includes(description.startsWith('TODO:')?'New parameter description.':'Existing description.'));s.close();
+ }
+});
+test('protected XML replacement preserves literal dollar substitution sequences',()=>{
+ const s=setup(),req=s.prepare();s.reply(req,'prepared',{fragments:[{token:'__XMLDOC_x_0__',xml:'<c>$&amp;</c>'}],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'Use __XMLDOC_x_0__',uncertainties:[]});
+ assert.match(document.querySelector('#ai-after').textContent,/<c>\$&amp;<\/c>/);assert.equal(document.querySelector('#ai-apply').disabled,false);s.close();
+});
+test('AI validation explanation is retained after receiving an invalid proposal',()=>{
+ const s=setup(),req=s.prepare();s.reply(req,'prepared',{fragments:[{token:'__XMLDOC_x_0__',xml:'<c>code</c>'}],previewRequired:true});s.reply(req,'proposal',{fresh:true,summary:'Missing token',uncertainties:[]});
+ assert.equal(document.querySelector('#ai-apply').disabled,true);assert.match(document.querySelector('#ai-status').textContent,/lost or duplicated/);s.close();
+});
+test('copy missing inherited sections uses the current local summary',()=>{
+ const s=setup();const child={...s.element,qualifiedParent:'TChild',unitName:'Case',signature:'procedure Run;'};
+ s.bridge.receive({type:'loadDoc',data:{element:child,doc:{summary:'Original summary'}}});
+ const parent={kind:'class',name:'TBase',fileName:'Case.pas',unitName:'Case',params:[],genericParams:[],doc:{}};
+ window.xmlDocWorkbench.receiveCatalog({elements:[parent,{...parent,name:'TChild',ancestor:'TBase'},{...child,qualifiedParent:'TBase',symbolId:'baseRun',doc:{summary:'Parent summary',remarks:'Inherited remarks'}}]});
+ const copy=document.querySelector('#inheritance-sources button');assert.ok(copy);
+ // A local change replaces the document object before the host rebuilds the catalog.
+ document.querySelector('#summary-editor .tiptap').editor.chain().selectAll().insertContent('New local summary').run();
+ copy.click();assert.match(document.querySelector('#xml-after').textContent,/New local summary/);assert.match(document.querySelector('#xml-after').textContent,/Inherited remarks/);s.click('apply-operation');s.bridge.flush();const updated=s.sent.filter(m=>m.type==='docUpdated').at(-1);assert.equal(updated.doc.summary,'New local summary');assert.equal(updated.doc.remarks,'Inherited remarks');s.close();
+});

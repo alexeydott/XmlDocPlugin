@@ -1,4 +1,4 @@
-﻿unit TestDocAutomaticDeclared;
+unit TestDocAutomaticDeclared;
 interface
 uses DUnitX.TestFramework;
 type
@@ -28,7 +28,7 @@ type
  [Test] procedure MissingSourceDiagnostic;
  end;
 implementation
-uses System.SysUtils,System.IOUtils,XmlDoc.Parser;
+uses System.SysUtils,System.IOUtils,XmlDoc.Parser,XmlDoc.SourceAccess;
 procedure TAutomaticDeclaredTests.Setup;
 begin FDir:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);TDirectory.CreateDirectory(FDir);end;
 procedure TAutomaticDeclaredTests.Cleanup;
@@ -45,7 +45,15 @@ begin
 end;
 procedure TAutomaticDeclaredTests.RTLImport;
 begin
- Check('unit Child; interface uses System.SysUtils; {$IF NOT DECLARED(Exception)} invalid syntax {$ENDIF} implementation end.');
+ var P:=TDocParser.Create;
+ try
+  P.ParseSource('unit Child; interface uses System.SysUtils; {$IF NOT DECLARED(Exception)} invalid syntax {$ENDIF} implementation end.',TPath.Combine(FDir,'Child.pas'));
+  var Found:=False;
+  for var Dependency in P.DependencySnapshots do if SameText(ExtractFileName(Dependency.FileName),'System.SysUtils.pas') then begin
+   Found:=True;Assert.IsTrue(Dependency.FileName.StartsWith(IncludeTrailingPathDelimiter(CurrentRADRoot),True),Dependency.FileName);
+  end;
+  Assert.IsTrue(Found,'RTL dependency must be captured from the current compiler installation');
+ finally P.Free;end;
 end;
 procedure TAutomaticDeclaredTests.SearchPath;
 var P:TDocParser;

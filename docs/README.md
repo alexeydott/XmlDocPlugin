@@ -8,6 +8,8 @@
 | [XmlDoc.AI.Contracts](units/XmlDoc.AI.Contracts.md) | Shared request, context, transport and reviewable proposal contracts for AI documentation. |
 | [XmlDoc.AI.OpenAI](units/XmlDoc.AI.OpenAI.md) | Validates profiles, builds OpenAI-compatible requests and checks JSON proposal responses. |
 | [XmlDoc.AI.Prompts](units/XmlDoc.AI.Prompts.md) | Built-in description and rephrasing prompts, variable expansion and protected XML tokens. |
+| [XmlDoc.AI.Text](units/XmlDoc.AI.Text.md) | Removes provider HTML from AI prose and emits safe XML paragraphs without executing markup. |
+| [XmlDoc.AI.Toon](units/XmlDoc.AI.Toon.md) | Lossless TOON encoding of the string, object and array shapes used by AI method context. |
 | [XmlDoc.AI.Transport](units/XmlDoc.AI.Transport.md) | Cancellable HTTPS transport with UTF-8 request bodies, timeouts and bounded response storage. |
 | [XmlDoc.CLI.Main](units/XmlDoc.CLI.Main.md) | Command-line documentation generation, project analysis and coverage checks. |
 | [XmlDoc.CodeGen](units/XmlDoc.CodeGen.md) | Documentation comment rendering and source-text replacement. |
@@ -57,6 +59,7 @@
 | [XmlDoc.Plugin.Settings](units/XmlDoc.Plugin.Settings.md) | Global registry preferences and per-project JSON generation defaults. |
 | [XmlDoc.Plugin.SettingsDialog](units/XmlDoc.Plugin.SettingsDialog.md) | Supported global editor preferences, stub options and command shortcuts. |
 | [XmlDoc.Plugin.Shortcuts](units/XmlDoc.Plugin.Shortcuts.md) | IDE menu commands, keyboard bindings and callback registration. |
+| [XmlDoc.Plugin.Splash](units/XmlDoc.Plugin.Splash.md) | IDE startup branding with the package's shared file version. |
 | [XmlDoc.Plugin.UndocNavigator](units/XmlDoc.Plugin.UndocNavigator.md) | Source navigation between undocumented declarations. |
 | [XmlDoc.Plugin.UpdateChecker](units/XmlDoc.Plugin.UpdateChecker.md) | Legacy update-service helper; automatic checking is not enabled by the plugin. |
 | [XmlDoc.Plugin.Utils](units/XmlDoc.Plugin.Utils.md) | IDE theme detection, readable diagnostic colors and UI utilities. |

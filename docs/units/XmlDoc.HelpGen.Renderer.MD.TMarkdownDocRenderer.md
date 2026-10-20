@@ -21,6 +21,7 @@ Renders Markdown reference pages, navigation and cross-links.
 | `RenderSummary` | method | private |  |
 | `RenderTypeMD` | method | private |  |
 | `RenderUnitMD` | method | private |  |
+| `TableProse` | method | private |  |
 | `WriteFile` | method | private |  |
 
 ### Destroy
@@ -48,5 +49,7 @@ Renders Markdown reference pages, navigation and cross-links.
 ### RenderTypeMD
 
 ### RenderUnitMD
+
+### TableProse
 
 ### WriteFile

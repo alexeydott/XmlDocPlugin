@@ -3,15 +3,15 @@ unit XmlDoc.AI.Context;
 interface
 uses XmlDoc.AI.Contracts,XmlDoc.Parser,XmlDoc.Consts;
 function CaptureMethodContext(Parser:TDocParser;const Target:TCodeElementInfo;
- const Documentation,Terms,Instruction:string):TAIContext;
+ const Documentation,Terms,Instruction:string;RequireImplementation:Boolean=True):TAIContext;
 implementation
 uses System.SysUtils,System.JSON,System.Hash,System.RegularExpressions,System.Generics.Collections,System.Generics.Defaults;
 function CaptureMethodContext(Parser:TDocParser;const Target:TCodeElementInfo;
- const Documentation,Terms,Instruction:string):TAIContext;
+ const Documentation,Terms,Instruction:string;RequireImplementation:Boolean):TAIContext;
 var Reason,Stamp:string;Parameters,Dependencies:TJSONArray;Owner:TJSONObject;
 begin
  Result:=Default(TAIContext);
- if not Parser.MethodSource(Target,Result.Code,Reason) then raise EAIError.Create(Reason);
+ if not Parser.MethodSource(Target,Result.Code,Reason) and RequireImplementation then raise EAIError.Create(Reason);
  Result.Signature:=Target.Signature;Result.Documentation:=Documentation;
  Result.ReturnType:=Target.ReturnType;Result.ProjectTerms:=Terms;Result.UserInstruction:=Instruction;
  Parameters:=TJSONArray.Create;Dependencies:=TJSONArray.Create;Owner:=TJSONObject.Create;

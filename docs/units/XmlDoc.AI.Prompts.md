@@ -13,6 +13,12 @@ Built-in description and rephrasing prompts, variable expansion and protected XM
 
 ### ExpandPrompt
 
+### PromptUsesVariable
+
+Recognizes a prompt variable with the same whitespace rules used by expansion.
+
 ### ProtectSummary
 
 ### RestoreSummary
+
+### ToonPrompt
