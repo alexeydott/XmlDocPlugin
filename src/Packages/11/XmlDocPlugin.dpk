@@ -87,6 +87,7 @@ contains
   XmlDoc.HelpGen.Coverage in '..\..\HelpGen\XmlDoc.HelpGen.Coverage.pas',
   XmlDoc.HelpGen.ThemeEngine in '..\..\HelpGen\XmlDoc.HelpGen.ThemeEngine.pas',
   XmlDoc.Plugin.Main in '..\..\PlugIn\XmlDoc.Plugin.Main.pas',
+  XmlDoc.Plugin.Splash in '..\..\Plugin\XmlDoc.Plugin.Splash.pas',
   XmlDoc.Plugin.EditorNotifier in '..\..\PlugIn\XmlDoc.Plugin.EditorNotifier.pas',
   XmlDoc.Plugin.DocInspector in '..\..\PlugIn\XmlDoc.Plugin.DocInspector.pas',
   XmlDoc.Plugin.Settings in '..\..\PlugIn\XmlDoc.Plugin.Settings.pas',

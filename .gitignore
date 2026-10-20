@@ -12,6 +12,7 @@ __recovery/
 Win32/
 Win64/
 tests/BrowserSmoke.res
+src/Plugin/XmlDocSplash.[rR][eE][sS]
 src/Packages/12/*.delphilsp.json
 src/Packages/12/*.vrc
 

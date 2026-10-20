@@ -53,6 +53,7 @@ try {
  if(!$SkipIDE){
   & tests/e2e/Test-E2E.ps1 -Rad11 $Rad11 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -EvidenceDir "$EvidenceDir\ide"
   & tests/e2e/Test-E2E.ps1 -Rad11 $Rad11 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -SkipBuild -DiagnosticsOnly -EvidenceDir "$EvidenceDir\browser-diagnostics"
+  & tests/e2e/Test-E2E.ps1 -Rad11 $Rad11 -Rad12 $Rad12 -Rad13 $Rad13 -Installed:$Installed -SkipBuild -DiagnosticsOnly -ShutdownOpenPanels -DelphiOnly -ShowSplash -EvidenceDir "$EvidenceDir\open-panels-shutdown"
  }
  Write-Host "PASS. Evidence: $EvidenceDir"
 } finally {Pop-Location}

@@ -1,13 +1,17 @@
-param([ValidateSet('both','preview','direct')][string]$RealAIMode='both',[string]$AIReplayResponse='',[ValidateRange(0,300000)][int]$AITimeoutMs=0,[switch]$RealAI,[switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
+param([ValidateSet('both','preview','direct')][string]$RealAIMode='both',[string]$AIReplayResponse='',[ValidateRange(0,300000)][int]$AITimeoutMs=0,[switch]$RealAI,[switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[switch]$ShutdownOpenPanels,[switch]$DelphiOnly,[switch]$ShowSplash,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
+ [string]$BuildRoot="$env:LOCALAPPDATA\XmlDocPlugin\Improvements1",
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
  [ValidateSet('rad11-x86','rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad11-x86','rad12-x86','rad13-x86','rad13-x64'),[string]$Rad11='D:\Embarcadero RAD Studio\22.0',[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
 $ErrorActionPreference='Stop'
+if($ShutdownOpenPanels -and ($AIOnly -or $RealAI -or $ThemesOnly -or $GroupOnly -or ($MarkerAudit -ne '') -or ($BenchmarkModules -gt 0))){
+ throw 'ShutdownOpenPanels is a dedicated IDE-exit scenario; do not combine it with AI, marker, theme, group or benchmark modes.'
+}
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $EvidenceDir=[IO.Path]::GetFullPath($EvidenceDir)
 if(Test-Path -LiteralPath $EvidenceDir){throw "Use a fresh evidence directory to exclude stale exports: $EvidenceDir"}
 New-Item -ItemType Directory $EvidenceDir | Out-Null
-$build=Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Improvements1'
+$build=[IO.Path]::GetFullPath($BuildRoot)
 if($Installed){$build=[IO.Path]::GetFullPath($InstallRoot)}
 function Test-Export([string]$Output){
  & python tests/Validate-DocExport.py $Output --project XmlDocE2E
@@ -17,7 +21,7 @@ function Test-Export([string]$Output){
  if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
 }
 $savedEnvironment=@{}
-foreach($name in 'XMLDOC_E2E_REAL_MODE','XMLDOC_E2E_AI_TIMEOUT','XMLDOC_E2E_REAL_AI','XMLDOC_AI_CONFIG','XMLDOC_E2E_AI_ONLY','XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+foreach($name in 'XMLDOC_E2E_REAL_MODE','XMLDOC_E2E_AI_TIMEOUT','XMLDOC_E2E_REAL_AI','XMLDOC_AI_CONFIG','XMLDOC_E2E_AI_ONLY','XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_SHUTDOWN_OPEN_PANELS','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
 $boundsKey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\XmlDocPlugin\DocExplorer')
 try {foreach($name in 'Left','Top','Width','Height'){
@@ -34,6 +38,7 @@ try {
  $env:XMLDOC_E2E_GROUP_ONLY=if($GroupOnly){'1'}else{''}
  $env:XMLDOC_E2E_THEMES_ONLY=if($ThemesOnly){'1'}else{''}
  $env:XMLDOC_E2E_DIAGNOSTICS_ONLY=if($DiagnosticsOnly){'1'}else{''}
+ $env:XMLDOC_E2E_SHUTDOWN_OPEN_PANELS=if($ShutdownOpenPanels){'1'}else{''}
  $env:XMLDOC_E2E_BENCHMARK_MODULES=$BenchmarkModules.ToString()
  $env:XMLDOC_E2E_VERSION=(Get-Content (Join-Path $repo 'installer\Version.txt') -Raw).Trim()
  if($Installed){
@@ -103,12 +108,24 @@ try {
   New-ItemProperty $key -Name "$out\WorkbenchProbe.bpl" -Value 'Documentation workbench E2E probe' -Force | Out-Null
   if($AIOnly){$env:XMLDOC_AI_CONFIG=Join-Path $out 'ai.json'}
   $env:XMLDOC_DRAFT_DIR=Join-Path $out 'drafts';$env:XMLDOC_E2E_FIXTURE=$fixture;$env:XMLDOC_E2E_JS=Join-Path $PSScriptRoot $(if($MarkerAudit){'MarkerAuditProbe.js'}else{'WorkbenchProbe.js'});$env:XMLDOC_E2E_LOG="$out\runtime.log"
-  $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList "-r$profile",'-ns' -PassThru -WindowStyle Hidden
+  $ideArguments=@("-r$profile")
+  if($DelphiOnly){$ideArguments+='-pDelphi'}
+  if(!$ShowSplash){$ideArguments+='-ns'}
+  ('"'+$rad+'\'+$t.Bin+'\bds.exe" '+($ideArguments -join ' ')) |
+   Set-Content -LiteralPath "$out\ide-command-line.txt" -Encoding UTF8
+  $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList $ideArguments -PassThru -WindowStyle Hidden
   # Allow cold IDE startup and repeated generation/quality-gate checks.
   for($waitAttempt=0;($waitAttempt -lt $(if($RealAI){18}else{6})) -and !$p.HasExited;$waitAttempt++){$null=$p.WaitForExit(50000);if($RealAI -and !$p.HasExited){Write-Host "$($t.Name) real AI ${RealAIMode}: waiting $((1+$waitAttempt)*50)s"}}
   if(!$p.HasExited){throw "E2E timeout: $($t.Name), test-owned IDE PID $($p.Id)"}
   Get-Content "$out\runtime.log"
   if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name), process exit $($p.ExitCode)"}
+  if(!(Select-String -LiteralPath "$out\runtime.log" -Pattern '^Probe finalized$' -Quiet)){throw "Package finalization did not complete: $($t.Name)"}
+  if(Select-String -LiteralPath "$out\runtime.log" -Pattern '^FAIL|Invalid pointer operation' -Quiet){throw "IDE runtime error: $($t.Name)"}
+  if($ShutdownOpenPanels){
+   foreach($marker in '^PASS documentation panels opened through IDE commands$','^PASS shutdown with both Inspector and Explorer open$','^Finalizing probe Inspector$','^Finalizing probe Explorer$'){
+    if(!(Select-String -LiteralPath "$out\runtime.log" -Pattern $marker -Quiet)){throw "Open-panel shutdown was not exercised: $($t.Name), $marker"}
+   }
+  }
   "PASS IDE exit 0: $($t.Name)"
   if(($BenchmarkModules -eq 0) -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly){Test-Export "$out\documentation"}
   if($Installed -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly){

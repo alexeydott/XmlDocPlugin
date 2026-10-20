@@ -288,6 +288,19 @@ panels. Theme changes also apply to panels that are already open.
 Section expansion choices are saved separately for each editor. Docking is
 stored in the IDE desktop layout and follows the IDE's layout save/restore settings.
 
+The IDE startup splash screen shows the plugin icon, name and shared package version.
+
+To run the open-panel shutdown checks across RAD Studio 11/12/13, including
+Delphi-only startup with the splash screen enabled:
+
+```powershell
+pwsh ./tests/e2e/Test-E2E.ps1 -DiagnosticsOnly -ShutdownOpenPanels -DelphiOnly -ShowSplash
+```
+
+These checks are also included in `tests/Test-Improvements.ps1`. They require
+both documentation panels to be open and their browsers running before IDE exit,
+then verify that package finalization completes and the IDE exits normally.
+
 ## Help & Manual export
 
 Select **Help & Manual (HMXP project)** in **Generate API Documentation**, or run:

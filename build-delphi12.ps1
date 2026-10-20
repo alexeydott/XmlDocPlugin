@@ -45,6 +45,8 @@ try {
     try {
         & "$Bds\bin\brcc32.exe" XmlDocEditor.rc
         if ($LASTEXITCODE) { throw 'Resource compilation failed' }
+        & "$Bds\bin\brcc32.exe" XmlDocSplash.rc
+        if ($LASTEXITCODE) { throw 'Splash resource compilation failed' }
     } finally { Pop-Location }
     & cmd.exe /d /c "`"$Bds\bin\rsvars.bat`" && msbuild src\Packages\$PackageVersion\XmlDocPlugin.dproj /t:Rebuild /p:Config=$Config /p:Platform=Win32 `"/p:DCC_BplOutput=$OutputDir`" $dcpOption /v:minimal"
     if ($LASTEXITCODE) { throw 'Delphi package build failed' }

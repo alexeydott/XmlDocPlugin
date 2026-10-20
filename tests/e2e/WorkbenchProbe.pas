@@ -2,7 +2,7 @@
 interface
 procedure Register;
 implementation
-uses XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses XmlDoc.Plugin.Splash,XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Imaging.pngimage,Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedHandler)
@@ -31,7 +31,8 @@ type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedH
  protected
   procedure BeforePublication;override;
  end;
- TProbe=class
+ TProbe=class(TComponent)
+ public
  Timer,FormatConfirmation:TTimer;Inspector:TDocInspectorForm;Explorer:TDocExplorerForm;Browser,ExplorerBrowser:TXmlDocBrowser;OriginalMessage,OriginalExplorerMessage:TWebMessageReceivedEvent;ExplorerAttempted:Boolean;
  ValidationProbe:TPublicationProbe;
  StressEntered,StressContinue:TEvent;StressChecks:Integer;
@@ -49,6 +50,8 @@ type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedH
  procedure Select(const FileName,Name,TypeName:string);
  procedure AssertTrue(Value:Boolean;const Message:string);
  procedure Finish;
+ procedure OpenDocumentationPanels;
+ procedure Notification(AComponent:TComponent;Operation:TOperation);override;
 end;
 var Probe:TProbe;
 constructor TRetry503Transport.Create;
@@ -238,6 +241,34 @@ begin
   Inspector.HandleCursorChanged(Line,EditorSource(Editor),FileName);
  finally Parser.Free;end;
 end;
+procedure TProbe.Notification(AComponent:TComponent;Operation:TOperation);
+begin
+ inherited;
+ if Operation<>opRemove then Exit;
+ if AComponent=Inspector then begin Inspector:=nil;Browser:=nil;Log('PASS IDE released Inspector');end;
+ if AComponent=Explorer then begin Explorer:=nil;ExplorerBrowser:=nil;Log('PASS IDE released Explorer');end;
+end;
+procedure TProbe.OpenDocumentationPanels;
+begin
+ if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
+  var Menu:=(BorlandIDEServices as INTAServices).MainMenu;
+  var InspectorCommand:=FindMenuCommand(Menu.Items,'Doc Inspector');
+  var ExplorerCommand:=FindMenuCommand(Menu.Items,'Documentation Explorer');
+  AssertTrue(Assigned(InspectorCommand) and Assigned(ExplorerCommand),'Documentation panel IDE commands are missing');
+  InspectorCommand.Click;ExplorerCommand.Click;
+  for var I:=0 to Screen.FormCount-1 do begin
+   if Screen.Forms[I] is TDocInspectorForm then Inspector:=TDocInspectorForm(Screen.Forms[I]);
+   if Screen.Forms[I] is TDocExplorerForm then Explorer:=TDocExplorerForm(Screen.Forms[I]);
+  end;
+  AssertTrue(Assigned(Inspector) and Assigned(Explorer),'IDE commands did not create both documentation panels');
+  Inspector.FreeNotification(Self);Explorer.FreeNotification(Self);
+  Log('PASS documentation panels opened through IDE commands');
+ end else begin
+  Log('Creating Inspector');Inspector:=TDocInspectorForm.Create(nil);
+  Log('Creating Explorer');Explorer:=TDocExplorerForm.Create(nil);
+ end;
+ Inspector.Show;Explorer.Show;
+end;
 procedure TProbe.Finish;
 var Project:IOTAProject;Module:IOTAModule;Services:IOTAModuleServices;I:Integer;Menu:TMainMenu;ExitItem:TMenuItem;
  function FindExit(Parent:TMenuItem):TMenuItem;
@@ -251,7 +282,17 @@ begin
  Finished:=True;
  if PrefixSettingsSaved then begin TPluginSettings.Instance.Global:=OriginalPrefixSettings;TPluginSettings.Instance.Save;PrefixSettingsSaved:=False;end;
  if LanguageSaved then begin var SavedSettings:=TPluginSettings.Instance.Global;SavedSettings.General.Language:=OriginalLanguage;TPluginSettings.Instance.Global:=SavedSettings;TPluginSettings.Instance.Save;TI18n.Instance.SetLanguage(OriginalLanguage);end;Timer.Enabled:=False;
- Log('Closing Explorer');Explorer.Free;Explorer:=nil;Log('Closing Inspector');Inspector.Free;Inspector:=nil;Log('Closed Inspector');Services:=BorlandIDEServices as IOTAModuleServices;
+ if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
+  AssertTrue(Assigned(Inspector) and Assigned(Explorer),'Open-panel shutdown requires both forms');
+  Inspector.Show;Explorer.Show;
+  AssertTrue(Inspector.Visible and Explorer.Visible,'Documentation panels are not visible before IDE shutdown');
+  AssertTrue(Assigned(Browser) and Assigned(ExplorerBrowser),'Documentation browsers are missing before IDE shutdown');
+  AssertTrue(Browser.WebViewCreated and ExplorerBrowser.WebViewCreated,'Documentation browsers are not running before IDE shutdown');
+  Log('PASS shutdown with both Inspector and Explorer open');
+ end else begin
+  Log('Closing Explorer');FreeAndNil(Explorer);Log('Closing Inspector');FreeAndNil(Inspector);Log('Closed Inspector');
+ end;
+ Services:=BorlandIDEServices as IOTAModuleServices;
  if RealSource<>'' then begin Module:=Services.FindModule(RealSource);if Assigned(Module) then Module.CloseModule(True);Module:=nil;Log('Closed unchanged real source');end;
  Project:=Services.GetActiveProject;if Assigned(Project) then begin
   Log('Closing project '+Project.FileName);Project.CloseModule(True);Log('Closed project');end;
@@ -1035,6 +1076,15 @@ begin
     end;
     Log('PASS IDE shortcut ownership validation');
     AssertTrue(GetModuleVersion=GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'Loaded BPL version differs from the shared version');
+    AssertTrue(RegisteredSplashCaption='XmlDocPlugin '+GetModuleVersion,'Startup splash did not register the plugin name and shared version');
+    RegisterPluginSplash;
+    AssertTrue(RegisteredSplashCaption='XmlDocPlugin '+GetModuleVersion,'Repeated splash registration changed its caption');
+    for var IconSize in [24,48,96] do begin
+     var IconStream:=TResourceStream.Create(FindClassHInstance(TDocInspectorForm),'XMLDOC_SPLASH_'+IconSize.ToString,RT_RCDATA);
+     var IconImage:=TPngImage.Create;
+     try IconImage.LoadFromStream(IconStream);AssertTrue((IconImage.Width=IconSize) and (IconImage.Height=IconSize),'Splash icon resource has the wrong DPI size');finally IconImage.Free;IconStream.Free;end;
+    end;
+    Log('PASS IDE splash registration, shared version and 24/48/96 pixel icons');
     var About:=TAboutDialog.Create(nil);
     try AssertTrue(About.lblVersion.Caption=TI18n.Instance.T('Version')+' '+GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'About dialog version mismatch');finally About.Free;end;
     Log('PASS loaded BPL and About dialog shared version');
@@ -1084,7 +1134,7 @@ begin
      Log('PASS project settings reset between projects and partial files');
     finally Settings.Free;TDirectory.Delete(SettingsRoot,True);end;
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
-  1:begin if (GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1') or (GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'') or (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Log('Creating Inspector');Inspector:=TDocInspectorForm.Create(nil);Log('Showing Inspector');Inspector.Show;Log('Creating Explorer');Explorer:=TDocExplorerForm.Create(nil);Log('Showing Explorer');Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Log('Creating Inspector');Inspector:=TDocInspectorForm.Create(nil);Log('Showing Inspector');Inspector.Show;Log('Creating Explorer');Explorer:=TDocExplorerForm.Create(nil);Log('Showing Explorer');Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
+  1:begin if (GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1') or (GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'') or (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin OpenDocumentationPanels;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;OpenDocumentationPanels;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
   2:begin
     for I:=0 to Inspector.ComponentCount-1 do if Inspector.Components[I] is TXmlDocBrowser then Browser:=TXmlDocBrowser(Inspector.Components[I]);
     AssertTrue(Assigned(Browser),'Browser unavailable');
@@ -1099,6 +1149,14 @@ begin
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
    if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1','RealAIAssistantProbe.js','AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
+   if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
+    var ShutdownEditor:=SourceEditorForFile(SampleFile);
+    ReplaceSourceBuffer(ShutdownEditor,EditorSource(ShutdownEditor)+sLineBreak+'// E2E unsaved source at IDE shutdown');
+    Log('PASS unsaved source buffer before open-panel shutdown');
+    Browser.ExecuteScript('(()=>{const send=(action,message)=>window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action,message}));'+
+     'if(!window.xmlDocEditor||!document.querySelector("#workbench"))send("fail","Editor is not ready for shutdown");else send("finish");})()');
+    Inc(Step);Exit;
+   end;
    if GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1' then begin
    // A successful parse must not clear a browser failure. Inject the event only
    // after the real WebView has loaded; recover through its navigation callback.
@@ -1123,7 +1181,7 @@ begin
  except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;
 end;
 procedure Register;
-begin if Assigned(Probe) then Exit;Probe:=TProbe.Create;Probe.Timer:=TTimer.Create(nil);Probe.Timer.Interval:=2500;Probe.Timer.OnTimer:=Probe.Tick;end;
+begin if Assigned(Probe) then Exit;Probe:=TProbe.Create(nil);Probe.Timer:=TTimer.Create(nil);Probe.Timer.Interval:=2500;Probe.Timer.OnTimer:=Probe.Tick;end;
 initialization
 finalization
  Log('Finalizing probe');
@@ -1131,8 +1189,16 @@ finalization
   Log('Finalizing probe timer');FreeAndNil(Probe.Timer);
   Log('Finalizing publication probe');FreeAndNil(Probe.ValidationProbe);
   Log('Finalizing format confirmation');FreeAndNil(Probe.FormatConfirmation);
-  Log('Finalizing probe Inspector');FreeAndNil(Probe.Inspector);
-  Log('Finalizing probe Explorer');FreeAndNil(Probe.Explorer);
+  Log('Finalizing probe Inspector');
+  if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
+   if Assigned(Probe.Browser) then Probe.Browser.OnWebMessageReceived:=Probe.OriginalMessage;
+   Probe.Inspector:=nil;Probe.Browser:=nil;
+  end else FreeAndNil(Probe.Inspector);
+  Log('Finalizing probe Explorer');
+  if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
+   if Assigned(Probe.ExplorerBrowser) then Probe.ExplorerBrowser.OnWebMessageReceived:=Probe.OriginalExplorerMessage;
+   Probe.Explorer:=nil;Probe.ExplorerBrowser:=nil;
+  end else FreeAndNil(Probe.Explorer);
   Log('Finalizing probe object');FreeAndNil(Probe);
  end;
  Log('Probe finalized');

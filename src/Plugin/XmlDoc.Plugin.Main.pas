@@ -61,6 +61,7 @@ procedure Register;
 implementation
 
 uses
+  XmlDoc.Plugin.Splash,
   XmlDoc.Plugin.EditorNotifier,
   XmlDoc.Plugin.BatchGenDialog,
   XmlDoc.Plugin.CoverageDialog,
@@ -76,6 +77,7 @@ uses
 
 procedure Register;
 begin
+  RegisterPluginSplash;
   // Let the IDE release the wizard before unloading its design-time package.
   RegisterPackageWizard(TXmlDocWizard.Create);
 end;

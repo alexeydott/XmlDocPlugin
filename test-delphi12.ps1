@@ -25,6 +25,8 @@ try {
     try {
         & "$Bds\bin\brcc32.exe" XmlDocEditor.rc
         if ($LASTEXITCODE) { throw 'Editor resource compilation failed' }
+        & "$Bds\bin\brcc32.exe" XmlDocSplash.rc
+        if ($LASTEXITCODE) { throw 'Splash resource compilation failed' }
     } finally { Pop-Location }
     Push-Location tests
     try {
