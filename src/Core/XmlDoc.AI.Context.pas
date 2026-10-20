@@ -1,4 +1,5 @@
-﻿unit XmlDoc.AI.Context;
+/// <summary>Captures the exact method implementation and project dependencies used by an AI request.</summary>
+unit XmlDoc.AI.Context;
 interface
 uses XmlDoc.AI.Contracts,XmlDoc.Parser,XmlDoc.Consts;
 function CaptureMethodContext(Parser:TDocParser;const Target:TCodeElementInfo;

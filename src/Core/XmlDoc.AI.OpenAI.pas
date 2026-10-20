@@ -1,4 +1,5 @@
-﻿unit XmlDoc.AI.OpenAI;
+/// <summary>Validates profiles, builds OpenAI-compatible requests and checks JSON proposal responses.</summary>
+unit XmlDoc.AI.OpenAI;
 interface
 uses System.SysUtils,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
 function AIRequestURL(const Endpoint,RequestPath:string):string;
@@ -88,6 +89,7 @@ function ParseAIResponse(const Response:TAIHttpResponse):TAIProposal;
 var Envelope,Value:TJSONValue;Choice,Message,Content:TJSONObject;Choices,Uncertainties:TJSONArray;
 begin
  Result:=Default(TAIProposal);
+ if Response.Status=404 then raise EAIError.Create('AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog');
  if (Response.Status<200) or (Response.Status>=300) then raise EAIError.CreateFmt('AI HTTP error %d',[Response.Status]);
  Envelope:=CheckedJSON(Response.Body);Value:=nil;
  try
@@ -102,8 +104,18 @@ begin
   if not (Message.GetValue('content') is TJSONString) then raise EAIError.Create('AI message content is missing');
   Value:=CheckedJSON(Message.GetValue<string>('content'));
   if not (Value is TJSONObject) then raise EAIError.Create('Invalid proposal JSON');Content:=Value as TJSONObject;
-  if (Content.Count<>2) or not (Content.GetValue('summary') is TJSONString) or not (Content.GetValue('uncertainties') is TJSONArray) then raise EAIError.Create('Invalid proposal contract');
+  if ((Content.Count<>2) and (Content.Count<>3)) or not (Content.GetValue('summary') is TJSONString) or not (Content.GetValue('uncertainties') is TJSONArray) then raise EAIError.Create('Invalid proposal contract');
   Result.Summary:=Content.GetValue<string>('summary');if Trim(Result.Summary)='' then raise EAIError.Create('AI summary is empty');
+  if Content.Count=3 then begin
+   var Parameters:=Content.GetValue<TJSONArray>('parameters');
+   for var Item in Parameters do begin
+    if not (Item is TJSONObject) or (TJSONObject(Item).Count<>2) or not (TJSONObject(Item).GetValue('name') is TJSONString) or not (TJSONObject(Item).GetValue('description') is TJSONString) then raise EAIError.Create('Invalid proposal contract');
+    var Parameter:TAIParameter;Parameter.Name:=TJSONObject(Item).GetValue<string>('name');Parameter.Description:=TJSONObject(Item).GetValue<string>('description');
+    if Trim(Parameter.Name)='' then raise EAIError.Create('Invalid proposal contract');
+    for var Existing in Result.Parameters do if SameText(Existing.Name,Parameter.Name) then raise EAIError.Create('Invalid proposal contract');
+    Result.Parameters:=Result.Parameters+[Parameter];
+   end;
+  end;
   Uncertainties:=Content.GetValue<TJSONArray>('uncertainties');
   for var Item in Uncertainties do begin if not (Item is TJSONString) then raise EAIError.Create('Invalid uncertainty');Result.Uncertainties:=Result.Uncertainties+[Item.Value];end;
  except

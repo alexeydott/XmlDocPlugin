@@ -8,6 +8,7 @@ Dialog for supported global preferences and command shortcuts.
 
 | Name | Kind | Visibility | Description |
 |------|------|------------|-------------|
+| `btnAISettings` | field | public |  |
 | `btnCancel` | field | public |  |
 | `btnCreateTheme` | field | public |  |
 | `btnOK` | field | public |  |
@@ -34,6 +35,7 @@ Dialog for supported global preferences and command shortcuts.
 | `tsCodeGen` | field | public |  |
 | `tsGeneral` | field | public |  |
 | `tsShortcuts` | field | public |  |
+| `AISettingsClick` | method | public |  |
 | `btnCreateThemeClick` | method | public |  |
 | `btnOKClick` | method | public |  |
 | `FormCreate` | method | public |  |
@@ -41,6 +43,8 @@ Dialog for supported global preferences and command shortcuts.
 | `LoadThemes` | method | private |  |
 | `SaveSettings` | method | private |  |
 | `ShortcutsChanged` | property | public |  |
+
+### btnAISettings
 
 ### btnCancel
 
@@ -93,6 +97,8 @@ Dialog for supported global preferences and command shortcuts.
 ### tsGeneral
 
 ### tsShortcuts
+
+### AISettingsClick
 
 ### btnCreateThemeClick
 

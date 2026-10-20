@@ -1,4 +1,4 @@
-﻿/// <summary>IDE wizard registration, command wiring and plugin lifetime management.</summary>
+/// <summary>IDE wizard registration, command wiring and plugin lifetime management.</summary>
 unit XmlDoc.Plugin.Main;
 
 interface

@@ -549,7 +549,10 @@ const
   '  "Read-only: source could not be parsed": "Только чтение: не удалось разобрать исходник",' +
   '  "Some files could not be parsed": "Некоторые файлы не удалось разобрать",' +
   '  "Hide details": "Скрыть сведения",' +
-  '  "Show details": "Показать сведения"' +
+  '  "Show details": "Показать сведения",' +
+  '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "Ошибка AI HTTP 404: проверьте адрес API и точный идентификатор модели в каталоге провайдера",' +
+  '  "Preview AI requests before sending": "Предпросмотр AI-запросов перед отправкой",' +
+  '  "Waiting for AI response": "Ожидание ответа AI"' +
   '}';
  CLocale_zh =
   '{' +
@@ -1100,7 +1103,10 @@ const
   '  "Read-only: source could not be parsed": "只读：无法解析源代码",' +
   '  "Some files could not be parsed": "部分文件无法解析",' +
   '  "Hide details": "隐藏详情",' +
-  '  "Show details": "显示详情"' +
+  '  "Show details": "显示详情",' +
+  '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP 错误 404：请检查 API 地址和提供商目录中的准确模型 ID",' +
+  '  "Preview AI requests before sending": "发送前预览 AI 请求",' +
+  '  "Waiting for AI response": "正在等待 AI 回复"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1651,7 +1657,10 @@ const
   '  "Read-only: source could not be parsed": "읽기 전용: 소스를 구문 분석할 수 없습니다",' +
   '  "Some files could not be parsed": "일부 파일을 구문 분석할 수 없습니다",' +
   '  "Hide details": "세부 정보 숨기기",' +
-  '  "Show details": "세부 정보 표시"' +
+  '  "Show details": "세부 정보 표시",' +
+  '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP 오류 404: API 주소와 제공업체 목록의 정확한 모델 ID를 확인하세요",' +
+  '  "Preview AI requests before sending": "전송 전 AI 요청 미리 보기",' +
+  '  "Waiting for AI response": "AI 응답을 기다리는 중"' +
   '}';
  CLocale_ja =
   '{' +
@@ -2202,5 +2211,8 @@ const
   '  "Read-only: source could not be parsed": "読み取り専用: ソースを解析できませんでした",' +
   '  "Some files could not be parsed": "解析できなかったファイルがあります",' +
   '  "Hide details": "詳細を非表示",' +
-  '  "Show details": "詳細を表示"' +
+  '  "Show details": "詳細を表示",' +
+  '  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP エラー 404: API アドレスとプロバイダーの一覧にある正確なモデル ID を確認してください",' +
+  '  "Preview AI requests before sending": "送信前に AI リクエストをプレビュー",' +
+  '  "Waiting for AI response": "AI の応答を待っています"' +
   '}';

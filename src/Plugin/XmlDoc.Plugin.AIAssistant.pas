@@ -1,8 +1,10 @@
-﻿unit XmlDoc.Plugin.AIAssistant;
+/// <summary>Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE.</summary>
+unit XmlDoc.Plugin.AIAssistant;
 interface
 uses System.Classes,System.SysUtils,System.JSON,Vcl.ExtCtrls,XmlDoc.Plugin.Browser,XmlDoc.Parser,XmlDoc.Consts,
  XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
 type
+ /// <summary>Executes a prepared request outside the UI thread and exposes its proposal or error after completion.</summary>
  TAIWorker=class(TThread)
  private
   FTransport:IAITransport;FRequest:TAIHttpRequest;
@@ -12,12 +14,13 @@ type
   constructor Create(const Request:TAIHttpRequest;const Transport:IAITransport);
   procedure Cancel;
  end;
+ /// <summary>Owns request preparation, worker cancellation and source-checked application for an Inspector or Explorer view.</summary>
  TAIAssistant=class(TComponent)
  private
   FTimer:TTimer;FWorker:TAIWorker;FBrowser:TXmlDocBrowser;
   FPrepared:TAIHttpRequest;FContext:TAIContext;FFragments:TArray<TAIProtectedFragment>;
   FOriginal:TJSONObject;FRequestId,FFile,FSession,FError,FOriginalSummary:string;FTarget:TCodeElementInfo;
-  FReady,FCheckOnly:Boolean;FTransportFactory:TFunc<IAITransport>;
+  FReady,FCheckOnly:Boolean;FOperation:TAIOperation;FParameterNames:TArray<string>;FTransportFactory:TFunc<IAITransport>;
   function NewTransport:IAITransport;
   function IsBusy:Boolean;
   function Capture(const Summary,Instruction:string):TAIContext;
@@ -34,7 +37,7 @@ type
   function Handle(Message:TJSONObject;Browser:TXmlDocBrowser;Parser:TDocParser;const Target:TCodeElementInfo;const FileName,Session:string):Boolean;
  end;
 implementation
-uses System.IOUtils,ToolsAPI,XmlDoc.AI.Context,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.Plugin.AISettings,
+uses System.IOUtils,System.StrUtils,ToolsAPI,XmlDoc.AI.Context,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.Plugin.AISettings,
  XmlDoc.Plugin.DeclarationContext,XmlDoc.Plugin.EditSession,XmlDoc.Model,XmlDoc.SourceText;
 constructor TAIWorker.Create(const Request:TAIHttpRequest;const Transport:IAITransport);
 begin inherited Create(True);FreeOnTerminate:=False;FRequest:=Request;FTransport:=Transport;end;
@@ -97,11 +100,20 @@ begin
   if FWorker.Error<>'' then begin Reply(TJSONObject.Create.AddPair('state','error').AddPair('message',FWorker.Error));Exit;end;
   if FCheckOnly then begin Reply(TJSONObject.Create.AddPair('state','checked'));Exit;end;
   RestoreSummary(FWorker.Proposal.Summary,FFragments);
+  if FOperation=aoDescribe then for var Parameter in FWorker.Proposal.Parameters do begin
+   var Found:=False;for var Declared in FTarget.Params do if SameText(Declared.Name,Parameter.Name) then Found:=True;
+   if not Found then raise EAIError.Create('Invalid proposal contract');
+  end;
   FReady:=Fresh;Data:=TJSONObject.Create.AddPair('state','proposal').AddPair('fresh',TJSONBool.Create(FReady)).AddPair('summary',FWorker.Proposal.Summary);
+  var Parameters:=TJSONArray.Create;Data.AddPair('parameters',Parameters);FParameterNames:=nil;
+  if FOperation=aoDescribe then for var Parameter in FWorker.Proposal.Parameters do begin
+   var Name:='';for var Declared in FTarget.Params do if SameText(Declared.Name,Parameter.Name) then Name:=Declared.Name;
+   FParameterNames:=FParameterNames+[Name];Parameters.AddElement(TJSONObject.Create.AddPair('name',Name).AddPair('description',Parameter.Description));
+  end;
   Items:=TJSONArray.Create;Data.AddPair('uncertainties',Items);for var Item in FWorker.Proposal.Uncertainties do Items.Add(Item);
   // Validate opaque XML tokens before exposing an applicable proposal.
   Reply(Data);
- except on E:Exception do Reply(TJSONObject.Create.AddPair('state','error').AddPair('message',E.Message));end;
+ except on E:Exception do begin FReady:=False;Reply(TJSONObject.Create.AddPair('state','error').AddPair('message',E.Message));end;end;
  finally FreeAndNil(FWorker);FPrepared.Authorization:='';end;
 end;
 function TAIAssistant.Handle(Message:TJSONObject;Browser:TXmlDocBrowser;Parser:TDocParser;const Target:TCodeElementInfo;const FileName,Session:string):Boolean;
@@ -114,7 +126,7 @@ begin
   if Kind='aiCancel' then begin if Message.GetValue<string>('requestId','')=FRequestId then Stop;Exit;end;
   if Kind='aiSettings' then begin var Project:=DocumentationProjectForFile(FileName);if Assigned(Project) then ShowAISettings(ExtractFilePath(Project.FileName)) else ShowAISettings;Browser.ExecuteScript('window.xmlDocAI?.reload();');Exit;end;
   if Kind='aiLoad' then begin
-   var Data:=TJSONObject.Create.AddPair('state','configuration');Config:=LoadAIConfiguration;Profiles:=TJSONArray.Create;Data.AddPair('profiles',Profiles);
+   var Data:=TJSONObject.Create.AddPair('state','configuration');Config:=LoadAIConfiguration;Data.AddPair('previewRequests',TJSONBool.Create(Config.GetValue<Boolean>('previewRequests',False)));Profiles:=TJSONArray.Create;Data.AddPair('profiles',Profiles);
    for var Item in Config.GetValue<TJSONArray>('profiles') do begin Profile:=AIProfileFromJson(Item as TJSONObject);Profiles.AddElement(TJSONObject.Create.AddPair('id',Profile.Id).AddPair('name',Profile.Name).AddPair('language',Profile.Language).AddPair('hasKey',TJSONBool.Create(ReadAIKey(Profile)<>'')));end;
    var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);Data.AddPair('templates',AIPrompts(ProjectDir));FBrowser:=Browser;Browser.FreeNotification(Self);Reply(Data);Exit;
   end;
@@ -127,7 +139,18 @@ begin
   if Kind='aiApply' then begin
    if (Message.GetValue<string>('requestId','')<>FRequestId) or not FReady or not Fresh or not ValidateEdit(Message,Target,FileName,Session,Parser.SourceText) then raise EAIError.Create('Source changed — review again');
    Summary:=RestoreSummary(Message.GetValue<string>('summary'),FFragments);FReady:=False;
-   Reply(TJSONObject.Create.AddPair('state','approved').AddPair('summaryXml',Summary));Exit;
+   var Approved:=TJSONObject.Create.AddPair('state','approved').AddPair('summaryXml',Summary);var Parameters:=TJSONArray.Create;Approved.AddPair('parameters',Parameters);
+   try
+    var Submitted:=Message.GetValue<TJSONArray>('parameters',nil);if Assigned(Submitted) then for var Item in Submitted do begin
+     if not (Item is TJSONObject) then raise EAIError.Create('Invalid proposal contract');
+     var Name:=TJSONObject(Item).GetValue<string>('name');if not MatchText(Name,FParameterNames) then raise EAIError.Create('Invalid proposal contract');
+     for var Allowed in FParameterNames do if SameText(Allowed,Name) then Name:=Allowed;
+     for var Existing in Parameters do if SameText(TJSONObject(Existing).GetValue<string>('name'),Name) then raise EAIError.Create('Invalid proposal contract');
+     var Text:=TJSONObject(Item).GetValue<string>('description').Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;');
+     Parameters.AddElement(TJSONObject.Create.AddPair('name',Name).AddPair('description',Text));
+    end;
+    var Response:=Approved;Approved:=nil;Reply(Response);
+   finally Approved.Free;end;Exit;
   end;
   if (Kind<>'aiPrepare') and (Kind<>'aiCheck') then raise EAIError.Create('Unknown AI command');
   Stop;FBrowser:=Browser;Browser.FreeNotification(Self);FRequestId:=Message.GetValue<string>('requestId','');if (FRequestId='') or (Length(FRequestId)>100) then raise EAIError.Create('Invalid AI request identity');
@@ -144,11 +167,13 @@ begin
   Summary:=Message.GetValue<string>('summary','');Instruction:=Message.GetValue<string>('instruction','');FOriginalSummary:=Summary;
   Context:=Capture(Summary,Instruction);Context.Documentation:=ProtectSummary(Summary,FFragments);FContext:=Context;
   OperationName:=Message.GetValue<string>('operation','');if OperationName='describe' then Operation:=aoDescribe else if OperationName='rephrase' then Operation:=aoRephrase else raise EAIError.Create('Unknown AI operation');
-  Prompt:=TAIPrompt.BuiltIn(Operation);TemplateId:=Message.GetValue<string>('templateId',Prompt.Id);var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);
+  FOperation:=Operation;FParameterNames:=nil;Prompt:=TAIPrompt.BuiltIn(Operation);TemplateId:=Message.GetValue<string>('templateId',Prompt.Id);var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);
   Templates:=AIPrompts(ProjectDir);for var Item in Templates do if (Item as TJSONObject).GetValue<string>('id')=TemplateId then Template:=Item as TJSONObject;
   if not Assigned(Template) or (Template.GetValue<string>('operation')<>OperationName) then raise EAIError.Create('Choose a matching AI template');Prompt.SystemText:=Template.GetValue<string>('system');Prompt.UserText:=Template.GetValue<string>('user');
   FPrepared:=BuildAIRequest(Profile,Prompt,Context,ReadAIKey(Profile));
-  var Prepared:=TJSONObject.Create.AddPair('state','prepared').AddPair('url',FPrepared.URL).AddPair('request',FPrepared.Body).AddPair('fingerprint',Context.Fingerprint);
+  var Preview:=Config.GetValue<Boolean>('previewRequests',False) or Message.GetValue<Boolean>('forcePreview',False);
+  var Prepared:=TJSONObject.Create.AddPair('state','prepared').AddPair('previewRequired',TJSONBool.Create(Preview)).AddPair('fingerprint',Context.Fingerprint);
+  if Preview then begin Prepared.AddPair('url',FPrepared.URL);Prepared.AddPair('request',FPrepared.Body);end;
   var Slots:=TJSONArray.Create;Prepared.AddPair('fragments',Slots);for var Fragment in FFragments do Slots.AddElement(TJSONObject.Create.AddPair('token',Fragment.Token).AddPair('xml',Fragment.Xml));Reply(Prepared);
  except on E:Exception do begin FPrepared.Authorization:='';var ErrorState:='error';if (Kind='aiLoad') or (Kind='aiSettings') then ErrorState:='configurationError';Reply(TJSONObject.Create.AddPair('state',ErrorState).AddPair('message',E.Message));end;end;
  finally Templates.Free;Config.Free;end;

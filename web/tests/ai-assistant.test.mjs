@@ -22,3 +22,27 @@ test('AI cancellation and malformed XML tokens cannot authorize a write',()=>{
  const s=setup(),req=s.prepare();s.reply(req,'prepared',{url:'http://localhost',request:'{}',fragments:[{token:'__XMLDOC_test_0__',xml:'<see cref="Summary"/>'}]});s.reply(req,'proposal',{fresh:true,summary:'Lost token',uncertainties:[]});assert.equal(document.querySelector('#ai-apply').disabled,true);
  s.click('ai-cancel');s.reply(req,'approved',{summaryXml:'Forbidden'});assert.equal(s.sent.filter(m=>m.type==='docUpdated').length,0);s.close();
 });
+
+test('AI operation and template selectors have distinct hints and hide a redundant built-in template',()=>{
+ const s=setup();const template=document.getElementById('ai-template'),operation=document.getElementById('ai-operation');
+ assert.equal(template.hidden,true);assert.notEqual(template.title,operation.title);
+ window.xmlDocAI.receive({state:'configuration',profiles:[{id:'p',name:'Profile'}],templates:[{id:'describe',name:'Describe method from code',operation:'describe'},{id:'custom',name:'Detailed review',operation:'describe'},{id:'rephrase',name:'Rephrase summary',operation:'rephrase'}]});
+ assert.equal(template.hidden,false);template.value='custom';let req=s.prepare();assert.equal(req.templateId,'custom');
+ operation.value='rephrase';operation.dispatchEvent(new Event('change'));assert.equal(template.hidden,true);assert.equal(template.value,'rephrase');
+ operation.value='describe';operation.dispatchEvent(new Event('change'));assert.equal(template.hidden,false);assert.equal(template.value,'describe');
+ for(const language of ['ru','zh','ko','ja']){window.xmlDocSettings.apply({language,fontSize:13,theme:'dark'});assert.notEqual(template.title,'Prompt template');assert.notEqual(operation.title,'AI operation');assert.equal(template.options[1].textContent,'Detailed review');}
+ s.close();
+});
+
+test('AI preview is off by default, automatic sending waits visibly and cancellation or errors end the wait',()=>{
+ const s=setup();let req=s.prepare();assert.equal(document.querySelector('#ai-wait').hidden,false);
+ s.reply(req,'prepared',{previewRequired:false,fragments:[]});assert.equal(s.sent.at(-1).type,'aiSend');assert.equal(document.querySelector('#ai-request-preview').hidden,true);assert.equal(document.querySelector('#ai-wait').hidden,false);
+ s.reply(req,'error',{message:'AI HTTP error 429'});assert.equal(document.querySelector('#ai-wait').hidden,true);assert.equal(document.querySelector('#ai-describe').disabled,false);
+ req=s.prepare();s.reply(req,'prepared',{previewRequired:false,fragments:[]});s.click('ai-cancel');assert.equal(document.querySelector('#ai-wait').hidden,true);
+ window.xmlDocAI.receive({state:'configuration',previewRequests:true,profiles:[{id:'p',name:'Profile'}],templates:[{id:'describe',name:'Describe method from code',operation:'describe'}]});req=s.prepare();const count=s.sent.filter(m=>m.type==='aiSend').length;s.reply(req,'prepared',{previewRequired:true,url:'https://example.test/v1/chat/completions',request:'{}',fragments:[]});assert.equal(s.sent.filter(m=>m.type==='aiSend').length,count);assert.equal(document.querySelector('#ai-request-preview').hidden,false);assert.equal(document.querySelector('#ai-wait').hidden,true);s.click('ai-send');assert.equal(document.querySelector('#ai-wait').hidden,false);s.close();
+});
+test('AI parameter proposals fill missing prose after review and preserve existing parameter XML',()=>{
+ const s=setup();s.element.params=[{name:'Value',typeName:'string'},{name:'Existing',typeName:'string'}];s.bridge.receive({type:'loadDoc',data:{element:s.element,doc:{summary:'Original',params:[{name:'Value',description:''},{name:'Existing',description:'<see cref="Keep"/>'}]}}});
+ const req=s.prepare();s.reply(req,'prepared',{url:'https://example.test',request:'{}',fragments:[]});s.reply(req,'proposal',{fresh:true,summary:'New summary',parameters:[{name:'Value',description:'Input value'},{name:'Existing',description:'Do not overwrite'}],uncertainties:[]});
+ const fields=document.querySelectorAll('#ai-parameters textarea');assert.equal(fields.length,1);fields[0].value='Reviewed <value>';fields[0].dispatchEvent(new Event('input'));s.click('ai-apply');assert.deepEqual(s.sent.at(-1).parameters,[{name:'Value',description:'Reviewed <value>'}]);s.reply(req,'approved',{summaryXml:'New summary',parameters:[{name:'Value',description:'Reviewed &lt;value&gt;'}]});s.bridge.flush();const updated=s.sent.filter(m=>m.type==='docUpdated').at(-1);assert.equal(updated.doc.params[0].description,'Reviewed &lt;value&gt;');assert.equal(updated.doc.params[1].description,'<see cref="Keep"/>');s.close();
+});

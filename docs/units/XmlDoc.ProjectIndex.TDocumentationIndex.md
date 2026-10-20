@@ -9,6 +9,7 @@
 | `FModules` | field | private |  |
 | `FParsed` | field | private |  |
 | `FReused` | field | private |  |
+| `Diagnostic` | method | public |  |
 | `Elements` | method | public |  |
 | `IsCurrent` | method | public |  |
 | `IsCurrent` | method | public |  |
@@ -27,6 +28,8 @@
 ### FParsed
 
 ### FReused
+
+### Diagnostic
 
 ### Elements
 

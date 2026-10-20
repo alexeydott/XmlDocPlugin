@@ -546,5 +546,8 @@
   "Read-only: source could not be parsed": "只读：无法解析源代码",
   "Some files could not be parsed": "部分文件无法解析",
   "Hide details": "隐藏详情",
-  "Show details": "显示详情"
+  "Show details": "显示详情",
+  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP 错误 404：请检查 API 地址和提供商目录中的准确模型 ID",
+  "Preview AI requests before sending": "发送前预览 AI 请求",
+  "Waiting for AI response": "正在等待 AI 回复"
 }

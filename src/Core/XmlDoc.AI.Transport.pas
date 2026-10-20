@@ -1,7 +1,9 @@
-﻿unit XmlDoc.AI.Transport;
+/// <summary>Cancellable HTTPS transport with UTF-8 request bodies, timeouts and bounded response storage.</summary>
+unit XmlDoc.AI.Transport;
 interface
 uses System.SysUtils,System.Classes,System.Net.HttpClient,XmlDoc.AI.Contracts;
 type
+ /// <summary>Runs one cancellable HTTP request and enforces the configured timeout and response byte limit.</summary>
  TAIHTTPTransport=class(TInterfacedObject,IAITransport)
  private
   FCancelled,FMaxResponse,FTooLarge:Integer;

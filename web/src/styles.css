@@ -865,3 +865,8 @@ body.compact .doc-section {margin-bottom:2px;}body.compact .doc-heading {padding
 #ai-assistant pre {max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;}
 
 #catalog-errors pre { max-height: 16rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+#ai-wait {display:flex;align-items:center;gap:.6rem;padding:.6rem;border:1px solid var(--border-color);border-radius:4px;}
+#ai-wait[hidden] {display:none;}
+#ai-parameters label {display:block;}
+#ai-parameters textarea {width:100%;min-height:3rem;}

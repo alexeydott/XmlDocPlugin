@@ -15,9 +15,11 @@ Parses Delphi source and locates documentable declarations at a source line.
 | `FDependencyFiles` | field | private |  |
 | `FDependencyProbes` | field | private |  |
 | `FDependencySnapshots` | field | private |  |
+| `FFailedSnapshot` | field | private |  |
 | `FFlatIndex` | field | private |  |
 | `FHasDeclared` | field | private |  |
 | `FLastCommentStart` | field | private |  |
+| `FLastDiagnostic` | field | private |  |
 | `FOnCheck` | field | private |  |
 | `FOnResolveDeclaration` | field | private |  |
 | `FPlatform` | field | private |  |
@@ -31,10 +33,12 @@ Parses Delphi source and locates documentable declarations at a source line.
 | `BuildFlatIndex` | method | private |  |
 | `BuildParentPath` | method | private |  |
 | `CollectDocTargets` | method | private |  |
+| `DependenciesCurrent` | method | private |  |
 | `ExtractDocComment` | method | private |  |
 | `ExtractGenericParams` | method | private |  |
 | `ExtractParams` | method | private |  |
 | `ExtractReturnType` | method | private |  |
+| `FailedSnapshotIsCurrent` | method | public |  |
 | `FindNearestDocTarget` | method | private |  |
 | `FindNextElementAtOrBelow` | method | private |  |
 | `GetAllElements` | method | public | Returns all documentable declarations in the parsed source. |
@@ -42,8 +46,11 @@ Parses Delphi source and locates documentable declarations at a source line.
 | `HashSource` | method | private |  |
 | `IsDocTargetNode` | method | private |  |
 | `IsUpToDate` | method | public | Checks whether the supplied source matches the parsed snapshot. |
+| `MethodSource` | method | public | Resolves an explicitly selected method to its exact implementation range. |
 | `NodeToElementInfo` | method | private |  |
 | `ParseSource` | method | public | Builds the syntax tree for the supplied source and project context. |
+| `ParseSourceInternal` | method | private |  |
+| `RetryParsing` | method | public |  |
 | `SetDefines` | method | private |  |
 | `SetPlatform` | method | private |  |
 | `SetResolveDeclaration` | method | private |  |
@@ -54,6 +61,7 @@ Parses Delphi source and locates documentable declarations at a source line.
 | `DependencyFiles` | property | public |  |
 | `DependencyProbes` | property | public |  |
 | `DependencySnapshots` | property | public |  |
+| `LastDiagnostic` | property | public |  |
 | `OnCheck` | property | public |  |
 | `OnResolveDeclaration` | property | public | Returns known visibility, or False when external scope information is unavailable. |
 | `Platform` | property | public |  |
@@ -82,11 +90,15 @@ Parses Delphi source and locates documentable declarations at a source line.
 
 ### FDependencySnapshots
 
+### FFailedSnapshot
+
 ### FFlatIndex
 
 ### FHasDeclared
 
 ### FLastCommentStart
+
+### FLastDiagnostic
 
 ### FOnCheck
 
@@ -114,6 +126,8 @@ Parses Delphi source and locates documentable declarations at a source line.
 
 ### CollectDocTargets
 
+### DependenciesCurrent
+
 ### ExtractDocComment
 
 ### ExtractGenericParams
@@ -121,6 +135,8 @@ Parses Delphi source and locates documentable declarations at a source line.
 ### ExtractParams
 
 ### ExtractReturnType
+
+### FailedSnapshotIsCurrent
 
 ### FindNearestDocTarget
 
@@ -156,6 +172,10 @@ Checks whether the supplied source matches the parsed snapshot.
 
 **Returns:** True if the source has not changed.
 
+### MethodSource
+
+Resolves an explicitly selected method to its exact implementation range.
+
 ### NodeToElementInfo
 
 ### ParseSource
@@ -165,6 +185,10 @@ Builds the syntax tree for the supplied source and project context.
 **Parameters:**
 
 - **ASource** — Complete source text to parse.
+
+### ParseSourceInternal
+
+### RetryParsing
 
 ### SetDefines
 
@@ -185,6 +209,8 @@ Builds the syntax tree for the supplied source and project context.
 ### DependencyProbes
 
 ### DependencySnapshots
+
+### LastDiagnostic
 
 ### OnCheck
 

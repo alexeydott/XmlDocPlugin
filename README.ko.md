@@ -143,3 +143,7 @@ Delphi OTA/VCL, WebView2, TipTap/TypeScript/Vite 및
 네이티브 DUnitX, 브라우저/퍼즈 테스트와 IDE E2E 테스트를 포함합니다.
 
 플러그인은 [MIT 라이선스](LICENSE), DelphiAST는 [MPL 2.0](vendor/DelphiAST/LICENSE)입니다.
+
+## AI assistant
+
+- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with optional request preview, cancellation and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).

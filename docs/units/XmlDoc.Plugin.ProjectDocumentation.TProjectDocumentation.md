@@ -27,6 +27,7 @@ Inherits from `TComponent`
 | `FJobSnapshots` | field | private |  |
 | `FJobSources` | field | private |  |
 | `FJobTemplates` | field | private |  |
+| `FJobWarnings` | field | private |  |
 | `FMaxValidationPauseMs` | field | private |  |
 | `FOnWorkerCheck` | field | private |  |
 | `FPreparationMs` | field | private |  |
@@ -130,6 +131,8 @@ Inherits from `TComponent`
 ### FJobSources
 
 ### FJobTemplates
+
+### FJobWarnings
 
 ### FMaxValidationPauseMs
 

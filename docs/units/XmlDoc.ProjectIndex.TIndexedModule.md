@@ -8,6 +8,7 @@
 | `Destroy` | method | public |  |
 | `ContextKey` | field | public |  |
 | `Dependencies` | field | public |  |
+| `Diagnostic` | field | public |  |
 | `Elements` | field | public |  |
 | `SourceKey` | field | public |  |
 
@@ -18,6 +19,8 @@
 ### ContextKey
 
 ### Dependencies
+
+### Diagnostic
 
 ### Elements
 

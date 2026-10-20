@@ -10,13 +10,18 @@ Dockable unit documentation browser and editor with project tools.
 |------|------|------------|-------------|
 | `Create` | method | public |  |
 | `Destroy` | method | public |  |
+| `FAI` | field | private |  |
 | `FBrowser` | field | private |  |
 | `FBrowserError` | field | private |  |
 | `FBrowserReady` | field | private |  |
+| `FClosing` | field | private |  |
 | `FCurrentFileName` | field | private |  |
+| `FDiagnostic` | field | private |  |
 | `FDocParser` | field | private |  |
 | `FEditSessionId` | field | private |  |
 | `FElements` | field | private |  |
+| `FErrorActions` | field | private |  |
+| `FErrorViewSent` | field | private |  |
 | `FFilePollTimer` | field | private |  |
 | `FInitTimer` | field | private |  |
 | `FLastSource` | field | private |  |
@@ -37,6 +42,7 @@ Dockable unit documentation browser and editor with project tools.
 | `CMStyleChanged` | method | protected |  |
 | `FilePollTimerFired` | method | private |  |
 | `FindElementByFullName` | method | private |  |
+| `GoToError` | method | private |  |
 | `HandleDocUpdated` | method | private |  |
 | `HandleFileChanged` | method | public | Updates the view after a source file or editor snapshot changes. |
 | `HandleJumpToLine` | method | private |  |
@@ -46,8 +52,10 @@ Dockable unit documentation browser and editor with project tools.
 | `ParseEditorSource` | method | private |  |
 | `ReadEditorSource` | method | private |  |
 | `RefreshFromCurrentEditor` | method | public | Refreshes from the active source editor. |
+| `RetryParsing` | method | private |  |
 | `SaveBounds` | method | private |  |
 | `SendTreeToEditor` | method | private |  |
+| `ShowParseFailure` | method | private |  |
 | `UpdateErrorDisplay` | method | private |  |
 | `Documentation` | property | public |  |
 
@@ -55,19 +63,29 @@ Dockable unit documentation browser and editor with project tools.
 
 ### Destroy
 
+### FAI
+
 ### FBrowser
 
 ### FBrowserError
 
 ### FBrowserReady
 
+### FClosing
+
 ### FCurrentFileName
+
+### FDiagnostic
 
 ### FDocParser
 
 ### FEditSessionId
 
 ### FElements
+
+### FErrorActions
+
+### FErrorViewSent
 
 ### FFilePollTimer
 
@@ -109,6 +127,8 @@ Dockable unit documentation browser and editor with project tools.
 
 ### FindElementByFullName
 
+### GoToError
+
 ### HandleDocUpdated
 
 ### HandleFileChanged
@@ -136,9 +156,13 @@ Updates the view after a source file or editor snapshot changes.
 
 Refreshes from the active source editor.
 
+### RetryParsing
+
 ### SaveBounds
 
 ### SendTreeToEditor
+
+### ShowParseFailure
 
 ### UpdateErrorDisplay
 

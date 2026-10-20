@@ -1,0 +1,21 @@
+# record `TAIHttpRequest`
+
+## Members
+
+| Name | Kind | Visibility | Description |
+|------|------|------------|-------------|
+| `Authorization` | field | public |  |
+| `Body` | field | public |  |
+| `MaxResponseBytes` | field | public |  |
+| `TimeoutMs` | field | public |  |
+| `URL` | field | public |  |
+
+### Authorization
+
+### Body
+
+### MaxResponseBytes
+
+### TimeoutMs
+
+### URL

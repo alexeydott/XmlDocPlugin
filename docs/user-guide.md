@@ -9,6 +9,7 @@ XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API r
 - [How editing works](#how-editing-works)
 - [Write and review a comment](#write-and-review-a-comment)
 - [Documentation tools](#documentation-tools)
+- [Use the AI assistant](#use-the-ai-assistant)
 - [Recover drafts](#recover-drafts)
 - [Synchronize a changed signature](#synchronize-a-changed-signature)
 - [Find declarations and insert references](#find-declarations-and-insert-references)
@@ -116,6 +117,75 @@ Expand **Documentation tools** above the editor. Most actions use SVG icons. Hov
 The Documentation tools **Format** action formats the documentation XML. The IDE **Format Source / Ctrl+D** command formats Pascal source and is available in RAD Studio 12; RAD Studio 13 does not include that built-in formatter.
 
 The expandable sections below these actions are **Project workspace**, **Inheritance and reusable text**, and **Examples and search**. **Review documentation changes** appears when an operation has something to preview. The left XML is the current comment; the right XML is the proposed replacement. The checkmark applies it and the cross cancels it.
+
+## Use the AI assistant
+
+Open a method in Inspector or Explorer and expand **AI assistant**. **Describe method from code** proposes a summary and descriptions for undocumented parameters from the selected implementation. **Rephrase summary** improves existing prose without deliberately changing its facts. Existing parameter descriptions and other XML sections are preserved. A proposal never writes source until you review it and choose **Apply reviewed summary**.
+
+### Configure a connection
+
+Open **Settings → General → AI profiles and prompts**, or the settings icon in the assistant. Create a named profile, fill its connection fields, and choose **Save profile**. Names must be unique; matching duplicate connections are rejected. You can rename or delete profiles. Deleting a profile also removes its stored credential.
+
+![AI connection settings with preview preference](assets/user-guide/ai-settings.png)
+
+*The connection tab holds the endpoint, model, request limits and preview preference. API keys are masked; an empty key field keeps the saved credential.*
+
+For an OpenAI connection, use the following fields. Model access depends on your API account; enter an exact Chat Completions model ID available to that account.
+
+| Field | Value or purpose |
+| --- | --- |
+| Profile name | A recognizable name, such as `OpenAI` |
+| Endpoint | `https://api.openai.com/v1` |
+| Request path | `chat/completions` |
+| Authorization | `Bearer` |
+| API key | Your OpenAI API key |
+| Documentation language | The language for generated prose; independent of interface language |
+| Output limit parameter | `max_completion_tokens` for compatible OpenAI models; includes reasoning tokens |
+| Output token limit | A positive limit large enough for both reasoning and the JSON answer |
+| Request JSON mode | Enable only when the selected model supports JSON object output |
+
+These connection details follow the [official Chat Completions reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create). The plugin uses Chat Completions, not the Responses endpoint.
+
+**Timeout** is measured in milliseconds; **Context limit** counts characters, not tokens; **Response limit** caps received bytes. They are separate from the model's context window and output-token limits. Large methods can need a larger context limit and longer timeout. The plugin rejects an oversized context before sending it; it does not silently truncate the method. A token limit that is too small can cut off the JSON answer, which is rejected as incomplete.
+
+Keys are stored in Windows Credential Manager, separately from profile JSON. Changing the endpoint or request path changes the credential destination; enter a key for the new destination. **Delete stored key** removes that credential. **Test connection** performs an API request without method source and can consume provider quota. A 401 usually concerns credentials; for 404 check both the endpoint and the exact model ID; 429 indicates a provider limit. Account access and billing are managed by the provider.
+
+### Send, wait and review
+
+1. Select the connection profile and operation. If multiple templates exist for that operation, select a template too. Add optional instructions.
+2. Choose **Describe method from code** or **Rephrase summary**. By default the request is sent immediately.
+3. To inspect requests before sending, enable **Preview AI requests before sending** in AI settings. This preference is off by default and is saved for the current Windows user. The existing **Preview AI request** action also opens a preview for an individual request. Inspect the destination and JSON, then choose **Send reviewed request**. Authorization headers are excluded from the preview.
+4. While the request runs, the assistant shows an indeterminate progress indicator and **Waiting for AI response**. Connection controls are temporarily disabled; **Cancel** remains available. Cancellation discards the local operation; provider processing or usage may already have occurred.
+5. Review the proposed summary, missing parameter descriptions and uncertainties. You can edit the proposed prose before applying it. Existing parameter descriptions are retained, including inline XML. Keep protected XML tokens unchanged.
+6. Choose **Apply reviewed summary** to apply the reviewed summary and missing parameter descriptions through the IDE's source writer. Save the source normally; IDE Undo/Redo remains available.
+
+![Optional AI request preview](assets/user-guide/ai-preview.png)
+
+*With preview enabled, inspect the destination and prompt before sending. A custom template can be selected independently from the operation.*
+
+![AI request in progress](assets/user-guide/ai-waiting.png)
+
+*The progress indicator remains visible while waiting. Cancel stays available while connection controls are disabled.*
+
+![Review an AI documentation proposal](assets/user-guide/ai-proposal.png)
+
+*Review the suggested prose, protected tokens, uncertainty list and XML comparison before Apply. Existing parameter XML remains intact.*
+
+If you switch declarations, edit the source or documentation, or open an unapplied XML draft, a stale proposal cannot be applied. Rebuild the request against the current source. Read-only and installed system sources remain view-only. Closing a documentation window cancels its pending operation.
+
+### Customize prompts
+
+The **Prompt templates** tab supports duplication, naming, editing, import/export and restoration of built-in templates. Global templates apply across projects; project overrides are saved in `.xmldocplugin.json`. Customized saved templates keep their text when the built-in prompt changes; restore the built-in description template to adopt its parameter instructions.
+
+![AI prompt template settings](assets/user-guide/ai-prompts.png)
+
+*Duplicate a built-in template to customize its instructions, or restore the built-in version. Project overrides take precedence over global templates with the same ID.*
+
+Available variables are `{{language}}`, `{{signature}}`, `{{implementation}}`, `{{documentation}}`, `{{parameters}}`, `{{return_type}}`, `{{type_context}}`, `{{project_terms}}` and `{{user_instruction}}`. Unknown variables and missing required context are errors. A description template must include the signature and implementation; rephrasing must include the current documentation.
+
+The response must be JSON containing `summary` and `uncertainties`; descriptions may additionally return `parameters`, an array of `{name, description}` objects. Parameter names must match the selected declaration; duplicate and unknown names are rejected. The built-in description prompt requests every parameter and asks the model to state uncertainty rather than invent unsupported facts. Legacy summary-only custom templates remain usable.
+
+The exact selected implementation, signature, parameter types and relevant project context are sent to the configured provider. Imported implementation bodies are not all included. Review source-sharing requirements before enabling a connection. AI prose can still be wrong: confirm behavior, units, ownership and side effects against the code, especially for large methods and calls into other modules.
 
 ## Recover drafts
 

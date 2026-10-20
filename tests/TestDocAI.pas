@@ -10,6 +10,7 @@ type [TestFixture] TDocAITests=class
  [Test] procedure PromptAndReplyFuzz;
  [Test] procedure RealQualityCorpusContexts;
  [Test] procedure MethodContextFuzz;
+ [Test] procedure ParameterProposals;
  [Test] procedure ProfileIdentity;
  end;
 implementation
@@ -48,7 +49,17 @@ var R:TAIHttpResponse;P:TAIProposal;
 begin
  R.Status:=200;R.Body:='{"choices":[{"finish_reason":"stop","message":{"content":"{\"summary\":\"Пример\",\"uncertainties\":[]}"}}]}';P:=ParseAIResponse(R);Assert.AreEqual('Пример',P.Summary);
  for var Status in [401,404,429,500,503] do begin R.Status:=Status;Assert.WillRaise(procedure begin ParseAIResponse(R);end,EAIError);end;
+ R.Status:=404;try ParseAIResponse(R);Assert.Fail('404 must fail');except on E:EAIError do Assert.IsTrue(E.Message.Contains('exact model ID'));end;
  R.Status:=200;for var Body in ['','{','{}','{} trailing','{}{}','{"choices":[]}','{"choices":[{"finish_reason":"length","message":{"content":"{}"}}]}'] do begin R.Body:=Body;Assert.WillRaise(procedure begin ParseAIResponse(R);end,EAIError);end;
+end;
+procedure TDocAITests.ParameterProposals;
+var R:TAIHttpResponse;Envelope,Content:TJSONObject;P:TAIProposal;
+begin
+ Assert.IsTrue(TAIPrompt.BuiltIn(aoDescribe).SystemText.Contains('every method parameter'));
+ for var Payload in ['{"summary":"Text","uncertainties":[],"parameters":[{"name":"Value","description":"Input"}]}','{"summary":"Text","uncertainties":[],"parameters":[{"name":"Value","description":"Input"},{"name":"value","description":"Duplicate"}]}','{"summary":"Text","uncertainties":[],"parameters":[{"name":"","description":"Input"}]}'] do begin
+  Content:=TJSONObject.Create.AddPair('content',Payload);Envelope:=TJSONObject.Create.AddPair('choices',TJSONArray.Create(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',Content)));
+  try R.Status:=200;R.Body:=Envelope.ToJSON;if Payload.Contains('Duplicate') or Payload.Contains('"name":""') then Assert.WillRaise(procedure begin ParseAIResponse(R);end,EAIError) else begin P:=ParseAIResponse(R);Assert.AreEqual<NativeInt>(1,Length(P.Parameters));Assert.AreEqual('Value',P.Parameters[0].Name);end;finally Envelope.Free;end;
+ end;
 end;
 procedure TDocAITests.GenericConditionalIncludeContext;
 var P:TDocParser;E:TCodeElementInfo;Directory,FileName,IncludeFile,Source,Expected,Code,Reason,Fingerprint:string;C:TAIContext;Snapshot:TSourceSnapshot;

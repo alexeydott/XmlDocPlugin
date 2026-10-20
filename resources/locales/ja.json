@@ -546,5 +546,8 @@
   "Read-only: source could not be parsed": "読み取り専用: ソースを解析できませんでした",
   "Some files could not be parsed": "解析できなかったファイルがあります",
   "Hide details": "詳細を非表示",
-  "Show details": "詳細を表示"
+  "Show details": "詳細を表示",
+  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "AI HTTP エラー 404: API アドレスとプロバイダーの一覧にある正確なモデル ID を確認してください",
+  "Preview AI requests before sending": "送信前に AI リクエストをプレビュー",
+  "Waiting for AI response": "AI の応答を待っています"
 }

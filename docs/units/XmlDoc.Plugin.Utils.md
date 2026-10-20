@@ -2,6 +2,12 @@
 
 IDE theme detection, readable diagnostic colors and UI utilities.
 
+## Types
+
+| Type | Kind | Description |
+|------|------|-------------|
+| [`TDocumentationErrorActions`](XmlDoc.Plugin.Utils.TDocumentationErrorActions.md) | class |  |
+
 ## Functions & Procedures
 
 ### ApplyDocumentationErrorTheme

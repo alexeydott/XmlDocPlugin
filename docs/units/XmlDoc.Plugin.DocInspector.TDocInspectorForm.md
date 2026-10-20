@@ -10,14 +10,19 @@ Dockable declaration documentation editor hosted in WebView2.
 |------|------|------------|-------------|
 | `Create` | method | public |  |
 | `Destroy` | method | public |  |
+| `FAI` | field | private |  |
 | `FBrowser` | field | private |  |
 | `FBrowserError` | field | private |  |
 | `FBrowserReady` | field | private |  |
+| `FClosing` | field | private |  |
 | `FCurrentElement` | field | private |  |
 | `FCursorPollTimer` | field | private |  |
+| `FDiagnostic` | field | private |  |
 | `FDocModel` | field | private |  |
 | `FDocParser` | field | private |  |
 | `FEditSessionId` | field | private |  |
+| `FErrorActions` | field | private |  |
+| `FErrorViewSent` | field | private |  |
 | `FInitTimer` | field | private |  |
 | `FLastElementLine` | field | private |  |
 | `FLastElementName` | field | private |  |
@@ -44,6 +49,7 @@ Dockable declaration documentation editor hosted in WebView2.
 | `EnsureParamDictLoaded` | method | private |  |
 | `ExecuteCommand` | method | public |  |
 | `GetParamDictPath` | method | private |  |
+| `GoToError` | method | private |  |
 | `HandleCursorChanged` | method | public | Updates the selected declaration after the cursor changes. |
 | `HandleDocUpdated` | method | private |  |
 | `HandleJumpToLine` | method | private |  |
@@ -52,7 +58,9 @@ Dockable declaration documentation editor hosted in WebView2.
 | `KeyDown` | method | protected |  |
 | `ParseEditorSource` | method | private |  |
 | `RefreshFromCurrentEditor` | method | public | Refreshes the declaration at the active editor's cursor. |
+| `RetryParsing` | method | private |  |
 | `SendToEditor` | method | private |  |
+| `ShowParseFailure` | method | private |  |
 | `UpdateErrorDisplay` | method | private |  |
 | `UpdateFromCursor` | method | private |  |
 | `Documentation` | property | public |  |
@@ -61,21 +69,31 @@ Dockable declaration documentation editor hosted in WebView2.
 
 ### Destroy
 
+### FAI
+
 ### FBrowser
 
 ### FBrowserError
 
 ### FBrowserReady
 
+### FClosing
+
 ### FCurrentElement
 
 ### FCursorPollTimer
+
+### FDiagnostic
 
 ### FDocModel
 
 ### FDocParser
 
 ### FEditSessionId
+
+### FErrorActions
+
+### FErrorViewSent
 
 ### FInitTimer
 
@@ -129,6 +147,8 @@ Dockable declaration documentation editor hosted in WebView2.
 
 ### GetParamDictPath
 
+### GoToError
+
 ### HandleCursorChanged
 
 Updates the selected declaration after the cursor changes.
@@ -155,7 +175,11 @@ Updates the selected declaration after the cursor changes.
 
 Refreshes the declaration at the active editor's cursor.
 
+### RetryParsing
+
 ### SendToEditor
+
+### ShowParseFailure
 
 ### UpdateErrorDisplay
 

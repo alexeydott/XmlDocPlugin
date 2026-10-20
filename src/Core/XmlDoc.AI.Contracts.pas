@@ -1,7 +1,9 @@
-﻿unit XmlDoc.AI.Contracts;
+/// <summary>Shared request, context, transport and reviewable proposal contracts for AI documentation.</summary>
+unit XmlDoc.AI.Contracts;
 interface
 uses System.SysUtils;
 type
+ /// <summary>Reports invalid AI configuration, context, transport or response data without accepting a proposal.</summary>
  EAIError=class(Exception);
  TAIOperation=(aoDescribe,aoRephrase);
  TAIContext=record
@@ -26,8 +28,12 @@ type
   function Execute(const Request:TAIHttpRequest):TAIHttpResponse;
   procedure Cancel;
  end;
+ /// <summary>Plain parameter prose returned by a provider; the host validates declaration names before applying it.</summary>
+ TAIParameter=record Name,Description:string;end;
+ /// <summary>Reviewable summary, optional parameter descriptions and explicit uncertainties.</summary>
  TAIProposal=record
   Summary:string;
+  Parameters:TArray<TAIParameter>;
   Uncertainties:TArray<string>;
  end;
 implementation

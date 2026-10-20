@@ -546,5 +546,8 @@
   "Read-only: source could not be parsed": "Только чтение: не удалось разобрать исходник",
   "Some files could not be parsed": "Некоторые файлы не удалось разобрать",
   "Hide details": "Скрыть сведения",
-  "Show details": "Показать сведения"
+  "Show details": "Показать сведения",
+  "AI HTTP error 404: check the API endpoint and exact model ID in the provider catalog": "Ошибка AI HTTP 404: проверьте адрес API и точный идентификатор модели в каталоге провайдера",
+  "Preview AI requests before sending": "Предпросмотр AI-запросов перед отправкой",
+  "Waiting for AI response": "Ожидание ответа AI"
 }

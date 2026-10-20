@@ -1,4 +1,5 @@
-﻿unit XmlDoc.Plugin.AISettings;
+/// <summary>Persists connection profiles and prompt overrides while keeping API keys in Windows Credential Manager.</summary>
+unit XmlDoc.Plugin.AISettings;
 interface
 uses System.SysUtils,System.JSON,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
 function AIConfigurationPath:string;
@@ -132,66 +133,136 @@ begin
  finally Config.Free;end;
 end;
 
-type TAISettingsForm=class(TForm)
+type TAIPageControlAccess=class(TPageControl);
+ /// <summary>Edits named profiles, preview preferences and prompt templates with DPI-aware minimum sizes and anchored controls.</summary>
+ TAISettingsForm=class(TForm)
  private
   Config:TJSONObject;Templates:TJSONArray;ProjectDir:string;NewProfileDraft:TAIProfile;
+  Pages:TPageControl;ProfileScroll,PromptScroll:TScrollBox;LayoutReady:Boolean;
+  ContentWidth,ContentHeight:Integer;
   Profiles,TemplateList:TComboBox;Fields:TArray<TEdit>;Auth,Limit:TComboBox;JsonMode,ProjectScope:TCheckBox;
+  PreviewRequests:TCheckBox;
+  procedure PreviewChanged(Sender:TObject);
+  private
   KeyEdit:TEdit;FullURL:TLabel;SystemPrompt,UserPrompt:TMemo;TemplateName:TEdit;Operation:TComboBox;
+  procedure FitToControls(PPI:Integer=0);
   procedure ProfileChanged(Sender:TObject);procedure SaveProfile(Sender:TObject);procedure NewProfile(Sender:TObject);
   procedure DeleteProfile(Sender:TObject);procedure LoadProfileFields(const P:TAIProfile);
   procedure TemplateChanged(Sender:TObject);procedure SaveTemplate(Sender:TObject);procedure NewTemplate(Sender:TObject);procedure ResetTemplate(Sender:TObject);
   procedure ImportTemplates(Sender:TObject);procedure ExportTemplates(Sender:TObject);procedure UpdateURL(Sender:TObject);
   procedure ClearKey(Sender:TObject);
+ protected
+  procedure DoAfterMonitorDpiChanged(OldDPI,NewDPI:Integer);override;
  public
   constructor CreateForProject(const Directory:string);
+  procedure ScaleForPPI(NewPPI:Integer);override;
   destructor Destroy;override;
  end;
 constructor TAISettingsForm.CreateForProject(const Directory:string);
-var Pages:TPageControl;Page:TTabSheet;ProfileScroll:TScrollBox;LabelControl:TLabel;Button:TButton;Names:TArray<string>;I:Integer;
+var Page:TTabSheet;LabelControl:TLabel;Button:TButton;Names:TArray<string>;I:Integer;
  procedure AddButton(Parent:TWinControl;const Text:string;X,Y:Integer;Handler:TNotifyEvent);
- begin Button:=TButton.Create(Self);Button.Parent:=Parent;Button.SetBounds(X,Y,170,28);Button.Name:='AIButton'+Text.Replace(' ','').Replace('-','');Button.Caption:=Text;Button.OnClick:=Handler;end;
+ begin Button:=TButton.Create(Self);Button.ScaleForPPI(96);Button.Parent:=Parent;Button.SetBounds(X,Y,170,28);Button.Name:='AIButton'+Text.Replace(' ','').Replace('-','');Button.Caption:=Text;Button.OnClick:=Handler;end;
 begin
- inherited CreateNew(nil);ScaleForPPI(96);Font.PixelsPerInch:=96;Font.Name:='Segoe UI';Font.Height:=-12;
+ inherited CreateNew(nil);AutoScroll:=False;ScaleForPPI(96);Font.PixelsPerInch:=96;Font.Name:='Segoe UI';Font.Height:=-12;
  ProjectDir:=Directory;Caption:='AI profiles and prompts';Position:=poScreenCenter;ClientWidth:=850;ClientHeight:=760;
- Config:=LoadAIConfiguration;Templates:=AIPrompts(ProjectDir);Pages:=TPageControl.Create(Self);Pages.Parent:=Self;Pages.Align:=alClient;
- Page:=TTabSheet.Create(Self);Page.PageControl:=Pages;Page.Caption:='Connection profiles';
- ProfileScroll:=TScrollBox.Create(Self);ProfileScroll.Name:='AIProfilesScroll';ProfileScroll.Parent:=Page;ProfileScroll.Align:=alClient;ProfileScroll.BorderStyle:=bsNone;
- Profiles:=TComboBox.Create(Self);Profiles.Name:='AIProfiles';Profiles.Parent:=ProfileScroll;Profiles.SetBounds(16,12,784,24);Profiles.Style:=csDropDownList;Profiles.OnChange:=ProfileChanged;
+ Config:=LoadAIConfiguration;Templates:=AIPrompts(ProjectDir);Pages:=TPageControl.Create(Self);Pages.ScaleForPPI(96);Pages.Parent:=Self;Pages.Align:=alClient;
+ Page:=TTabSheet.Create(Self);Page.ScaleForPPI(96);Page.PageControl:=Pages;Page.Caption:='Connection profiles';
+ ProfileScroll:=TScrollBox.Create(Self);ProfileScroll.ScaleForPPI(96);ProfileScroll.Name:='AIProfilesScroll';ProfileScroll.Parent:=Page;ProfileScroll.Align:=alClient;ProfileScroll.BorderStyle:=bsNone;
+ Profiles:=TComboBox.Create(Self);Profiles.ScaleForPPI(96);Profiles.Name:='AIProfiles';Profiles.Parent:=ProfileScroll;Profiles.SetBounds(16,12,784,24);Profiles.Style:=csDropDownList;Profiles.OnChange:=ProfileChanged;
  for var Item in Config.GetValue<TJSONArray>('profiles') do Profiles.Items.Add((Item as TJSONObject).GetValue<string>('name'));
  AddButton(ProfileScroll,'New profile',16,48,NewProfile);Button.Width:=230;
  AddButton(ProfileScroll,'Save profile',260,48,SaveProfile);Button.Width:=230;
  AddButton(ProfileScroll,'Delete profile',504,48,DeleteProfile);Button.Width:=230;
  Names:= ['Profile name','Endpoint','Request path','Model','Documentation language','Timeout (ms)','Context limit (characters)','Response limit (bytes)','Output token limit'];SetLength(Fields,Length(Names));
- for I:=0 to High(Names) do begin LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,55+I*36,230,24);LabelControl.Caption:=Names[I];Fields[I]:=TEdit.Create(Self);Fields[I].Name:='AIField'+IntToStr(I);Fields[I].Parent:=Page;Fields[I].SetBounds(260,52+I*36,540,24);end;
+ for I:=0 to High(Names) do begin LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,55+I*36,230,24);LabelControl.Caption:=Names[I];Fields[I]:=TEdit.Create(Self);Fields[I].Name:='AIField'+IntToStr(I);Fields[I].Parent:=Page;Fields[I].SetBounds(260,52+I*36,540,24);end;
  Fields[1].OnChange:=UpdateURL;Fields[2].OnChange:=UpdateURL;
- LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,382,230,24);LabelControl.Caption:='Authorization';Auth:=TComboBox.Create(Self);Auth.Parent:=Page;Auth.SetBounds(260,378,170,24);Auth.Style:=csDropDownList;Auth.Items.Add('Bearer');Auth.Items.Add(TI18n.Instance.T('None'));
- LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,416,230,24);LabelControl.Caption:='API key';KeyEdit:=TEdit.Create(Self);KeyEdit.Name:='AIKey';KeyEdit.Parent:=Page;KeyEdit.SetBounds(260,412,360,24);KeyEdit.PasswordChar:='*';KeyEdit.TextHint:='Blank keeps the stored key';AddButton(Page,'Delete stored key',630,410,ClearKey);
- LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,450,230,24);LabelControl.Caption:='Output limit parameter';Limit:=TComboBox.Create(Self);Limit.Parent:=Page;Limit.SetBounds(260,446,240,24);Limit.Style:=csDropDownList;Limit.Items.Add('');Limit.Items.Add('max_tokens');Limit.Items.Add('max_completion_tokens');
- JsonMode:=TCheckBox.Create(Self);JsonMode.Parent:=Page;JsonMode.SetBounds(260,480,400,24);JsonMode.Caption:='Request JSON mode (if supported)';
- FullURL:=TLabel.Create(Self);FullURL.Parent:=Page;FullURL.SetBounds(16,525,780,65);FullURL.AutoSize:=False;FullURL.WordWrap:=True;
- LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,600,780,45);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:='Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.';
+ LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,382,230,24);LabelControl.Caption:='Authorization';Auth:=TComboBox.Create(Self);Auth.ScaleForPPI(96);Auth.Parent:=Page;Auth.SetBounds(260,378,170,24);Auth.Style:=csDropDownList;Auth.Items.Add('Bearer');Auth.Items.Add(TI18n.Instance.T('None'));
+ LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,416,230,24);LabelControl.Caption:='API key';KeyEdit:=TEdit.Create(Self);KeyEdit.ScaleForPPI(96);KeyEdit.Name:='AIKey';KeyEdit.Parent:=Page;KeyEdit.SetBounds(260,412,360,24);KeyEdit.PasswordChar:='*';KeyEdit.TextHint:='Blank keeps the stored key';AddButton(Page,'Delete stored key',630,410,ClearKey);
+ LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,450,230,24);LabelControl.Caption:='Output limit parameter';Limit:=TComboBox.Create(Self);Limit.ScaleForPPI(96);Limit.Parent:=Page;Limit.SetBounds(260,446,240,24);Limit.Style:=csDropDownList;Limit.Items.Add('');Limit.Items.Add('max_tokens');Limit.Items.Add('max_completion_tokens');
+ JsonMode:=TCheckBox.Create(Self);JsonMode.ScaleForPPI(96);JsonMode.Parent:=Page;JsonMode.SetBounds(260,480,400,24);JsonMode.Caption:='Request JSON mode (if supported)';
+ FullURL:=TLabel.Create(Self);FullURL.ScaleForPPI(96);FullURL.Parent:=Page;FullURL.SetBounds(16,525,780,65);FullURL.AutoSize:=False;FullURL.WordWrap:=True;
+ LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,600,780,45);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:='Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.';
  // Keep the selector and its actions above the editable profile name.
  for I:=0 to ComponentCount-1 do if Components[I] is TControl then begin
   var Control:=TControl(Components[I]);
   if (Control<>ProfileScroll) and (Control.Parent=Page) then begin Control.Parent:=ProfileScroll;Control.Top:=Control.Top+40;end;
  end;
  KeyEdit.Width:=310;var DeleteKeyButton:=TButton(FindComponent('AIButtonDeletestoredkey'));DeleteKeyButton.Left:=584;DeleteKeyButton.Width:=216;
- Page:=TTabSheet.Create(Self);Page.PageControl:=Pages;Page.Caption:='Prompt templates';TemplateList:=TComboBox.Create(Self);TemplateList.Parent:=Page;TemplateList.SetBounds(16,12,370,24);TemplateList.Style:=csDropDownList;TemplateList.OnChange:=TemplateChanged;
+ Page:=TTabSheet.Create(Self);Page.ScaleForPPI(96);Page.PageControl:=Pages;Page.Caption:='Prompt templates';PromptScroll:=TScrollBox.Create(Self);PromptScroll.ScaleForPPI(96);PromptScroll.Name:='AIPromptsScroll';PromptScroll.Parent:=Page;PromptScroll.Align:=alClient;PromptScroll.BorderStyle:=bsNone;TemplateList:=TComboBox.Create(Self);TemplateList.ScaleForPPI(96);TemplateList.Parent:=Page;TemplateList.SetBounds(16,12,370,24);TemplateList.Style:=csDropDownList;TemplateList.OnChange:=TemplateChanged;
  for var Item in Templates do TemplateList.Items.Add(TI18n.Instance.T((Item as TJSONObject).GetValue<string>('name')));
  AddButton(Page,'Duplicate template',410,10,NewTemplate);AddButton(Page,'Restore built-in',600,10,ResetTemplate);
- TemplateName:=TEdit.Create(Self);TemplateName.Parent:=Page;TemplateName.SetBounds(16,52,370,24);Operation:=TComboBox.Create(Self);Operation.Parent:=Page;Operation.SetBounds(410,52,200,24);Operation.Style:=csDropDownList;Operation.Items.Add(TI18n.Instance.T('Describe method from code'));Operation.Items.Add(TI18n.Instance.T('Rephrase summary'));
- SystemPrompt:=TMemo.Create(Self);SystemPrompt.Name:='AISystemPrompt';SystemPrompt.Parent:=Page;SystemPrompt.SetBounds(16,92,780,135);SystemPrompt.ScrollBars:=ssVertical;SystemPrompt.Hint:='System instruction';SystemPrompt.ShowHint:=True;
- UserPrompt:=TMemo.Create(Self);UserPrompt.Name:='AIUserPrompt';UserPrompt.Parent:=Page;UserPrompt.SetBounds(16,240,780,245);UserPrompt.ScrollBars:=ssVertical;UserPrompt.Hint:='User prompt';UserPrompt.ShowHint:=True;
- ProjectScope:=TCheckBox.Create(Self);ProjectScope.Parent:=Page;ProjectScope.SetBounds(16,500,780,24);ProjectScope.Caption:='Save templates as project overrides';ProjectScope.Enabled:=ProjectDir<>'';
+ TemplateName:=TEdit.Create(Self);TemplateName.ScaleForPPI(96);TemplateName.Parent:=Page;TemplateName.SetBounds(16,52,370,24);Operation:=TComboBox.Create(Self);Operation.ScaleForPPI(96);Operation.Parent:=Page;Operation.SetBounds(410,52,200,24);Operation.Style:=csDropDownList;Operation.Items.Add(TI18n.Instance.T('Describe method from code'));Operation.Items.Add(TI18n.Instance.T('Rephrase summary'));
+ SystemPrompt:=TMemo.Create(Self);SystemPrompt.ScaleForPPI(96);SystemPrompt.Name:='AISystemPrompt';SystemPrompt.Parent:=Page;SystemPrompt.SetBounds(16,92,780,135);SystemPrompt.ScrollBars:=ssVertical;SystemPrompt.Hint:='System instruction';SystemPrompt.ShowHint:=True;
+ UserPrompt:=TMemo.Create(Self);UserPrompt.ScaleForPPI(96);UserPrompt.Name:='AIUserPrompt';UserPrompt.Parent:=Page;UserPrompt.SetBounds(16,240,780,245);UserPrompt.ScrollBars:=ssVertical;UserPrompt.Hint:='User prompt';UserPrompt.ShowHint:=True;
+ ProjectScope:=TCheckBox.Create(Self);ProjectScope.ScaleForPPI(96);ProjectScope.Parent:=Page;ProjectScope.SetBounds(16,500,780,24);ProjectScope.Caption:='Save templates as project overrides';ProjectScope.Enabled:=ProjectDir<>'';
  AddButton(Page,'Save template',16,540,SaveTemplate);AddButton(Page,'Import templates',210,540,ImportTemplates);AddButton(Page,'Export templates',410,540,ExportTemplates);
- LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,585,780,60);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:=TI18n.Instance.T('Prompt variables')+': {{language}}, {{signature}}, {{implementation}}, {{documentation}}, {{parameters}}, {{return_type}}, {{type_context}}, {{project_terms}}, {{user_instruction}}';LabelControl.Tag:=-1;
+ LabelControl:=TLabel.Create(Self);LabelControl.ScaleForPPI(96);LabelControl.Parent:=Page;LabelControl.SetBounds(16,585,780,60);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:=TI18n.Instance.T('Prompt variables')+': {{language}}, {{signature}}, {{implementation}}, {{documentation}}, {{parameters}}, {{return_type}}, {{type_context}}, {{project_terms}}, {{user_instruction}}';LabelControl.Tag:=-1;
+ for I:=0 to ComponentCount-1 do if Components[I] is TControl then begin
+  var Control:=TControl(Components[I]);if (Control<>PromptScroll) and (Control.Parent=Page) then Control.Parent:=PromptScroll;
+ end;
+ PreviewRequests:=TCheckBox.Create(Self);PreviewRequests.ScaleForPPI(96);PreviewRequests.Name:='AIPreviewRequests';PreviewRequests.Parent:=ProfileScroll;PreviewRequests.SetBounds(16,700,784,24);PreviewRequests.Caption:='Preview AI requests before sending';PreviewRequests.Hint:=PreviewRequests.Caption;PreviewRequests.ShowHint:=True;PreviewRequests.Checked:=Config.GetValue<Boolean>('previewRequests',False);PreviewRequests.OnClick:=PreviewChanged;
  if Profiles.Items.Count>0 then begin Profiles.ItemIndex:=0;ProfileChanged(nil);end else NewProfile(nil);
  TemplateList.ItemIndex:=0;TemplateChanged(nil);LocalizePluginUi(Self);
- ScaleForPPI(Screen.PixelsPerInch);if Height>Screen.WorkAreaHeight-40 then Height:=Screen.WorkAreaHeight-40;
+ // Capture minimum content bounds at the common 96-DPI design scale.
+ // Anchored controls may subsequently grow without raising that minimum.
+ for var Scroll in [ProfileScroll,PromptScroll] do for I:=0 to Scroll.ControlCount-1 do begin
+  var Control:=Scroll.Controls[I];
+  if Control.Left+Control.Width>ContentWidth then ContentWidth:=Control.Left+Control.Width;
+  if Control.Top+Control.Height>ContentHeight then ContentHeight:=Control.Top+Control.Height;
+ end;
+ ScaleForPPI(Screen.PixelsPerInch);
  var Theme:IOTAIDEThemingServices;if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) and Theme.IDEThemingEnabled then Theme.ApplyTheme(Self);
+ LayoutReady:=True;FitToControls;
+ for I:=0 to ComponentCount-1 do if Components[I] is TControl then begin
+  var Control:=TControl(Components[I]);
+  if ((Control.Parent=ProfileScroll) or (Control.Parent=PromptScroll)) and
+    ((Control is TEdit) or (Control is TMemo) or ((Control is TLabel) and not TLabel(Control).AutoSize)) then
+    Control.Anchors:=[akLeft,akTop,akRight];
+ end;
+ Profiles.Anchors:=[akLeft,akTop,akRight];TemplateList.Anchors:=[akLeft,akTop,akRight];
+ ProjectScope.Anchors:=[akLeft,akTop,akRight];Operation.Anchors:=[akTop,akRight];
+ DeleteKeyButton.Anchors:=[akTop,akRight];
+ TButton(FindComponent('AIButtonDuplicatetemplate')).Anchors:=[akTop,akRight];
+ TButton(FindComponent('AIButtonRestorebuiltin')).Anchors:=[akTop,akRight];
 end;
+procedure TAISettingsForm.FitToControls(PPI:Integer);
+var NeededWidth,NeededHeight,Padding,FrameWidth,FrameHeight,AvailableWidth,AvailableHeight:Integer;Area,Bounds:TRect;
+begin
+ if not LayoutReady then Exit;
+ if PPI=0 then PPI:=CurrentPPI;
+ Padding:=MulDiv(16,PPI,96);NeededWidth:=MulDiv(ContentWidth,PPI,96);NeededHeight:=MulDiv(ContentHeight,PPI,96);
+ for var Scroll in [ProfileScroll,PromptScroll] do begin
+  // Scroll offsets must not affect the content's minimum size after a DPI change.
+  Scroll.HorzScrollBar.Position:=0;Scroll.VertScrollBar.Position:=0;
+ end;
+ Pages.HandleNeeded;Bounds:=TAIPageControlAccess(Pages).DisplayRect;
+ Inc(NeededWidth,Padding+Pages.Width-Bounds.Width);Inc(NeededHeight,Padding+Pages.Height-Bounds.Height);
+ FrameWidth:=Width-ClientWidth;FrameHeight:=Height-ClientHeight;Area:=Monitor.WorkareaRect;
+ AvailableWidth:=Area.Width-Padding*2-FrameWidth;AvailableHeight:=Area.Height-Padding*2-FrameHeight;
+ if NeededHeight>AvailableHeight then Inc(NeededWidth,GetSystemMetricsForDpi(SM_CXVSCROLL,PPI));
+ if NeededWidth>AvailableWidth then Inc(NeededHeight,GetSystemMetricsForDpi(SM_CYHSCROLL,PPI));
+ Constraints.MinWidth:=0;Constraints.MinHeight:=0;
+ if NeededWidth>AvailableWidth then NeededWidth:=AvailableWidth;
+ if NeededHeight>AvailableHeight then NeededHeight:=AvailableHeight;
+ ClientWidth:=NeededWidth;ClientHeight:=NeededHeight;
+ Constraints.MinWidth:=Width;Constraints.MinHeight:=Height;
+end;
+procedure TAISettingsForm.ScaleForPPI(NewPPI:Integer);
+begin
+ Constraints.MinWidth:=0;Constraints.MinHeight:=0;
+ inherited;FitToControls(NewPPI);
+end;
+procedure TAISettingsForm.DoAfterMonitorDpiChanged(OldDPI,NewDPI:Integer);
+begin
+ inherited;FitToControls(NewDPI);
+end;
+
 destructor TAISettingsForm.Destroy;
 begin Templates.Free;Config.Free;inherited;end;
+procedure TAISettingsForm.PreviewChanged(Sender:TObject);
+begin
+ var Updated:=Config.Clone as TJSONObject;try Updated.RemovePair('previewRequests').Free;Updated.AddPair('previewRequests',TJSONBool.Create(PreviewRequests.Checked));SaveAIConfiguration(Updated);Config.Free;Config:=Updated;Updated:=nil;finally Updated.Free;end;
+end;
 procedure TAISettingsForm.NewProfile(Sender:TObject);
 var Name:string;Suffix:Integer;Exists:Boolean;
 begin
@@ -258,13 +329,13 @@ procedure TAISettingsForm.ClearKey(Sender:TObject);
 begin if Profiles.ItemIndex>=0 then WriteAIKey(AIProfileFromJson(Config.GetValue<TJSONArray>('profiles')[Profiles.ItemIndex] as TJSONObject),'');KeyEdit.Clear;end;
 procedure TAISettingsForm.TemplateChanged(Sender:TObject);
 var P:TJSONObject;
-begin if TemplateList.ItemIndex<0 then Exit;P:=Templates[TemplateList.ItemIndex] as TJSONObject;TemplateName.Text:=P.GetValue<string>('name');if P.GetValue<string>('operation')='describe' then Operation.ItemIndex:=0 else Operation.ItemIndex:=1;SystemPrompt.Text:=P.GetValue<string>('system');UserPrompt.Text:=P.GetValue<string>('user');end;
+begin if TemplateList.ItemIndex<0 then Exit;P:=Templates[TemplateList.ItemIndex] as TJSONObject;TemplateName.Text:=P.GetValue<string>('name');if P.GetValue<string>('operation')='describe' then Operation.ItemIndex:=0 else Operation.ItemIndex:=1;SystemPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('system'));UserPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('user'));end;
 procedure TAISettingsForm.NewTemplate(Sender:TObject);
 var P:TJSONObject;
 begin P:=Templates[TemplateList.ItemIndex].Clone as TJSONObject;P.RemovePair('id').Free;P.AddPair('id',TGUID.NewGuid.ToString);P.RemovePair('name').Free;P.AddPair('name',TemplateName.Text+' (copy)');Templates.AddElement(P);TemplateList.Items.Add(P.GetValue<string>('name'));TemplateList.ItemIndex:=Templates.Count-1;TemplateChanged(nil);end;
 procedure TAISettingsForm.ResetTemplate(Sender:TObject);
 var P:TJSONObject;
-begin P:=PromptJson(TAIOperation(Operation.ItemIndex));SystemPrompt.Text:=P.GetValue<string>('system');UserPrompt.Text:=P.GetValue<string>('user');P.Free;end;
+begin P:=PromptJson(TAIOperation(Operation.ItemIndex));SystemPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('system'));UserPrompt.Text:=AdjustLineBreaks(P.GetValue<string>('user'));P.Free;end;
 procedure TAISettingsForm.SaveTemplate(Sender:TObject);
 var Context:TAIContext;P:TJSONObject;
 begin

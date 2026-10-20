@@ -4,6 +4,11 @@
 
 | Unit | Description |
 |------|-------------|
+| [XmlDoc.AI.Context](units/XmlDoc.AI.Context.md) | Captures the exact method implementation and project dependencies used by an AI request. |
+| [XmlDoc.AI.Contracts](units/XmlDoc.AI.Contracts.md) | Shared request, context, transport and reviewable proposal contracts for AI documentation. |
+| [XmlDoc.AI.OpenAI](units/XmlDoc.AI.OpenAI.md) | Validates profiles, builds OpenAI-compatible requests and checks JSON proposal responses. |
+| [XmlDoc.AI.Prompts](units/XmlDoc.AI.Prompts.md) | Built-in description and rephrasing prompts, variable expansion and protected XML tokens. |
+| [XmlDoc.AI.Transport](units/XmlDoc.AI.Transport.md) | Cancellable HTTPS transport with UTF-8 request bodies, timeouts and bounded response storage. |
 | [XmlDoc.CLI.Main](units/XmlDoc.CLI.Main.md) | Command-line documentation generation, project analysis and coverage checks. |
 | [XmlDoc.CodeGen](units/XmlDoc.CodeGen.md) | Documentation comment rendering and source-text replacement. |
 | [XmlDoc.CodeGen.OTA](units/XmlDoc.CodeGen.OTA.md) | Undoable documentation writes through the IDE source editor. |
@@ -35,6 +40,8 @@
 | [XmlDoc.ParamDict](units/XmlDoc.ParamDict.md) | Persistent parameter-description hints used by documentation stub generation. |
 | [XmlDoc.Parser](units/XmlDoc.Parser.md) | DelphiAST integration, project-aware conditional parsing and declaration lookup. |
 | [XmlDoc.Plugin.AboutDialog](units/XmlDoc.Plugin.AboutDialog.md) | Plugin information and version display. |
+| [XmlDoc.Plugin.AIAssistant](units/XmlDoc.Plugin.AIAssistant.md) | Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE. |
+| [XmlDoc.Plugin.AISettings](units/XmlDoc.Plugin.AISettings.md) | Persists connection profiles and prompt overrides while keeping API keys in Windows Credential Manager. |
 | [XmlDoc.Plugin.BatchGenDialog](units/XmlDoc.Plugin.BatchGenDialog.md) | IDE documentation generation dialog and output orchestration. |
 | [XmlDoc.Plugin.Browser](units/XmlDoc.Plugin.Browser.md) | WebView2 resource hosting, editor settings and persistent section state. |
 | [XmlDoc.Plugin.CoverageDialog](units/XmlDoc.Plugin.CoverageDialog.md) | IDE coverage analysis dialog with source navigation. |

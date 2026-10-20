@@ -12,6 +12,8 @@ Documentation write authorization, source revisions and edit acknowledgement sta
 
 ### EditResult
 
+### NavigateToSource
+
 ### ParseHostMessage
 
 ### SourceEditorForFile
@@ -19,5 +21,7 @@ Documentation write authorization, source revisions and edit acknowledgement sta
 ### SourceEditProtection
 
 ### SourceRevision
+
+### UnavailableSourceScript
 
 ### ValidateEdit

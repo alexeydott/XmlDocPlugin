@@ -137,6 +137,9 @@ indexed records so inherited comments reflect updated dependencies.
 
 ### IDE Plugin (BPL)
 
+- **AI assistant** — Describe methods and undocumented parameters or rephrase summaries using configurable OpenAI-compatible profiles and prompts, with optional request preview, cancellation and reviewed Apply. See the [user guide](docs/user-guide.md#use-the-ai-assistant).
+
+
 - **Doc Inspector** — A docking panel that provides real-time editing of XML documentation for the code element at the cursor position
 - **Documentation Explorer** — Browse the entire unit's classes, methods, and properties in a tree view while editing their documentation
 - **WYSIWYG Editor** — TipTap-based rich text editor rendered via TEdgeBrowser (WebView2)

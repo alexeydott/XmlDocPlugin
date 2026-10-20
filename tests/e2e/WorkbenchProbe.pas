@@ -2,10 +2,14 @@ unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
- Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
+uses System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+ Vcl.Imaging.pngimage,Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
-type TAIProbeTransport=class(TInterfacedObject,IAITransport)
+type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedHandler)
+ public Stream:IStream;Name:string;Browser:TXmlDocBrowser;
+ function Invoke(errorCode:HResult):HResult;stdcall;
+ end;
+ TAIProbeTransport=class(TInterfacedObject,IAITransport)
  private FCancelled:Integer;
  public function Execute(const Request:TAIHttpRequest):TAIHttpResponse;procedure Cancel;
  end;
@@ -26,7 +30,7 @@ type TAIProbeTransport=class(TInterfacedObject,IAITransport)
  PrefixSettingsSaved:Boolean;OriginalPrefixSettings:TGlobalSettings;LastGenerationMessage:string;
  ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
  FormatWait,Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
- procedure CheckAISettings(Sender:TObject);
+ procedure CheckAISettings(Sender:TObject);procedure CheckAILocalization(Sender:TObject);
  procedure ConfirmFormat(Sender:TObject);procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
  procedure ExplorerMessage(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
  procedure MessageReceived(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
@@ -62,14 +66,20 @@ begin
  for var I:=0 to Parent.Count-1 do begin Result:=FindMenuCommand(Parent[I],Caption);if Assigned(Result) then Exit;end;
  Result:=nil;
 end;
+function TAIScreenshot.Invoke(errorCode:HResult):HResult;
+begin
+ Stream:=nil;Result:=S_OK;
+ if errorCode<0 then Log('FAIL AI screenshot '+Name) else Browser.ExecuteScript('window.__aiScreenshot='+('"'+Name+'"')+';');
+end;
 function TAIProbeTransport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
 begin
  if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
- for var I:=0 to 30 do begin if TInterlocked.CompareExchange(FCancelled,0,0)<>0 then raise Exception.Create('AI request cancelled');Sleep(10);end;
+ var Steps:=30;if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then Steps:=160;
+ for var I:=0 to Steps do begin if TInterlocked.CompareExchange(FCancelled,0,0)<>0 then raise Exception.Create('AI request cancelled');Sleep(10);end;
  var Summary:='Native AI proposed summary';var Seen:=TStringList.Create;var Root:=TJSONObject.Create;
  try
   for var Match in TRegEx.Matches(Request.Body,'__XMLDOC_[0-9a-fA-F]+_[0-9]+__') do if Seen.IndexOf(Match.Value)<0 then begin Seen.Add(Match.Value);Summary:=Summary+' '+Match.Value;end;
-  var Content:=TJSONObject.Create.AddPair('summary',Summary).AddPair('uncertainties',TJSONArray.Create(TJSONString.Create('Ownership is not specified.')));
+  var Content:=TJSONObject.Create.AddPair('summary',Summary).AddPair('uncertainties',TJSONArray.Create(TJSONString.Create('Ownership is not specified.'))).AddPair('parameters',TJSONArray.Create(TJSONObject.Create.AddPair('name','Value').AddPair('description','Input text to process.')));
   try var Choices:=TJSONArray.Create;Root.AddPair('choices',Choices);Choices.AddElement(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',TJSONObject.Create.AddPair('content',Content.ToJSON)));Result.Status:=200;Result.Body:=Root.ToJSON;finally Content.Free;end;
  finally Root.Free;Seen.Free;end;
 end;
@@ -79,16 +89,31 @@ function AssistantFor(Form:TForm):TAIAssistant;
 begin for var I:=0 to Form.ComponentCount-1 do if Form.Components[I] is TAIAssistant then Exit(TAIAssistant(Form.Components[I]));raise Exception.Create('AI component missing');end;
 procedure TProbe.CheckAISettings(Sender:TObject);
 begin
+ try
  for var I:=0 to Screen.FormCount-1 do if Screen.Forms[I].ClassName='TAISettingsForm' then begin
   TTimer(Sender).Enabled:=False;var Form:=Screen.Forms[I];
   AssertTrue(Form.Caption=TI18n.Instance.T('AI profiles and prompts'),'AI settings caption not localized');
-  AssertTrue(TEdit(Form.FindComponent('AIField3')).Text='fixture','AI model did not load');AssertTrue(TEdit(Form.FindComponent('AIKey')).Text='','Credential was exposed in native key field');
+  var ShotDir:=GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS');
+  if ShotDir<>'' then begin
+   ForceDirectories(ShotDir);var Name:=TEdit(Form.FindComponent('AIField0'));var Endpoint:=TEdit(Form.FindComponent('AIField1'));var Model:=TEdit(Form.FindComponent('AIField3'));
+   var OldName:=Name.Text;var OldEndpoint:=Endpoint.Text;var OldModel:=Model.Text;var AuthCombo:TComboBox:=nil;for var N:=0 to Form.ComponentCount-1 do if (Form.Components[N] is TComboBox) and (TComboBox(Form.Components[N]).Items.IndexOf('Bearer')>=0) then AuthCombo:=TComboBox(Form.Components[N]);var OldAuth:=-1;if Assigned(AuthCombo) then OldAuth:=AuthCombo.ItemIndex;
+   try if Assigned(AuthCombo) then AuthCombo.ItemIndex:=0;Name.Text:='OpenAI';Endpoint.Text:='https://api.openai.com/v1';Model.Text:='your-model-id';Form.Repaint;
+    var Bitmap:=Form.GetFormImage;var PNG:=TPngImage.Create;try PNG.Assign(Bitmap);PNG.SaveToFile(TPath.Combine(ShotDir,'ai-settings.png'));finally PNG.Free;Bitmap.Free;end;
+   finally if Assigned(AuthCombo) then AuthCombo.ItemIndex:=OldAuth;Name.Text:=OldName;Endpoint.Text:=OldEndpoint;Model.Text:=OldModel;end;
+  end;
+  var Preview:=TCheckBox(Form.FindComponent('AIPreviewRequests'));AssertTrue(Assigned(Preview) and not Preview.Checked,'AI request preview must default to off');Preview.Checked:=True;var PreviewConfig:=LoadAIConfiguration;try AssertTrue(PreviewConfig.GetValue<Boolean>('previewRequests',False),'AI request preview setting not saved');finally PreviewConfig.Free;end;
+  AssertTrue(TEdit(Form.FindComponent('AIField3')).Text='your-model-id','AI model did not load');AssertTrue(TEdit(Form.FindComponent('AIKey')).Text='','Credential was exposed in native key field');
   for var J:=0 to Form.ComponentCount-1 do if Form.Components[J] is TPageControl then begin var Pages:=TPageControl(Form.Components[J]);
    for var Tab:=0 to Pages.PageCount-1 do begin Pages.ActivePageIndex:=Tab;
     for var K:=0 to Form.ComponentCount-1 do if Form.Components[K] is TWinControl then begin var Control:=TWinControl(Form.Components[K]);if Control.Parent=Pages.Pages[Tab] then AssertTrue(Control.Visible and Control.Enabled and Control.CanFocus,'AI control inaccessible: '+Control.ClassName);end;
    end;
   end;
   AssertTrue(Pos('{{implementation}}',TMemo(Form.FindComponent('AIUserPrompt')).Text)>0,'Prompt source was localized or lost');
+  AssertTrue(TMemo(Form.FindComponent('AIUserPrompt')).Lines.Count>5,'Prompt variable lines collapsed in native editor');
+  if ShotDir<>'' then begin
+   for var J:=0 to Form.ComponentCount-1 do if Form.Components[J] is TPageControl then TPageControl(Form.Components[J]).ActivePageIndex:=1;
+   Form.Repaint;var Bitmap:=Form.GetFormImage;var PNG:=TPngImage.Create;try PNG.Assign(Bitmap);PNG.SaveToFile(TPath.Combine(ShotDir,'ai-prompts.png'));finally PNG.Free;Bitmap.Free;end;
+  end;
   for var J:=0 to Form.ComponentCount-1 do if Form.Components[J] is TPageControl then TPageControl(Form.Components[J]).ActivePageIndex:=0;
   var Profiles:=TComboBox(Form.FindComponent('AIProfiles'));var NameField:=TEdit(Form.FindComponent('AIField0'));
   var NewButton:=TButton(Form.FindComponent('AIButtonNewprofile'));var SaveButton:=TButton(Form.FindComponent('AIButtonSaveprofile'));var DeleteButton:=TButton(Form.FindComponent('AIButtonDeleteprofile'));
@@ -100,6 +125,25 @@ begin
   DeleteButton.Click;AssertTrue(Profiles.Items.Count=OriginalCount,'Delete profile did not remove the saved row');
   for var PPI in [96,144,192] do begin
    Form.ScaleForPPI(PPI);
+   var Padding:=MulDiv(16,PPI,96);var Area:=Form.Monitor.WorkareaRect;
+   Log(Format('AI window at %d DPI: %dx%d; minimum %dx%d; profile field width %d; actual DPI %d/%d',[PPI,Form.Width,Form.Height,Form.Constraints.MinWidth,Form.Constraints.MinHeight,NameField.Width,Form.CurrentPPI,NameField.CurrentPPI]));
+   AssertTrue(Abs(NameField.Width-MulDiv(540,PPI,96))<=MulDiv(32,PPI,96),'AI field did not scale with its form');
+   AssertTrue((Abs(Form.Constraints.MinWidth-Form.Width)<=MulDiv(32,PPI,96)) and (Abs(Form.Constraints.MinHeight-Form.Height)<=MulDiv(32,PPI,96)),'AI window minimum does not match its content');
+   AssertTrue((Form.Width<=Area.Width-Padding*2) and (Form.Height<=Area.Height-Padding*2),'AI settings exceed the monitor work area');
+   for var ScrollName in ['AIProfilesScroll','AIPromptsScroll'] do begin
+    var Scroll:=TScrollBox(Form.FindComponent(ScrollName));AssertTrue(Assigned(Scroll),'AI tab must support scrolling on small screens');
+    var RightEdge:=0;var BottomEdge:=0;
+    for var N:=0 to Scroll.ControlCount-1 do begin var C:=Scroll.Controls[N];if C.Left+C.Width>RightEdge then RightEdge:=C.Left+C.Width;if C.Top+C.Height>BottomEdge then BottomEdge:=C.Top+C.Height;end;
+    AssertTrue((Scroll.HorzScrollBar.Range>=RightEdge) or (Scroll.ClientWidth>=RightEdge),'AI controls extend beyond horizontal scroll range');
+    AssertTrue((Scroll.VertScrollBar.Range>=BottomEdge) or (Scroll.ClientHeight>=BottomEdge),'AI controls extend beyond vertical scroll range');
+   end;
+   var OriginalWidth:=Form.Width;var OriginalFieldWidth:=NameField.Width;var OriginalPromptWidth:=TMemo(Form.FindComponent('AIUserPrompt')).Width;
+   var KeyButton:=TButton(Form.FindComponent('AIButtonDeletestoredkey'));var OriginalKeyLeft:=KeyButton.Left;
+   Form.Width:=OriginalWidth+80;Form.Realign;
+   AssertTrue(NameField.Width=OriginalFieldWidth+80,'Profile field does not follow window width');
+   AssertTrue(TMemo(Form.FindComponent('AIUserPrompt')).Width=OriginalPromptWidth+80,'Prompt editor does not follow window width');
+   AssertTrue(KeyButton.Left=OriginalKeyLeft+80,'Delete key action lost its right anchor');
+   Form.Width:=OriginalWidth;Form.Realign;
    AssertTrue(NewButton.Top>=Profiles.Top+Profiles.Height,'Profile actions overlap selector');
    AssertTrue(NameField.Top>=SaveButton.Top+SaveButton.Height,'Profile name overlaps actions');
    Form.Canvas.Font.Assign(DeleteButton.Font);AssertTrue(Form.Canvas.TextWidth(DeleteButton.Caption)+16<DeleteButton.Width,'Delete profile caption is clipped');
@@ -111,6 +155,21 @@ begin
   Log('PASS native AI profile create, rename, delete and 100/150/200 percent layout');
   Form.ModalResult:=mrCancel;Log('PASS native AI settings loads profiles, protects keys and exposes both tabs');
  end;
+except on E:Exception do begin Log('FAIL '+E.Message);if GetEnvironmentVariable('XMLDOC_E2E_KEEP_FAILURE')<>'1' then ExitProcess(1);end;end;
+end;
+procedure TProbe.CheckAILocalization(Sender:TObject);
+begin
+ try
+ for var I:=0 to Screen.FormCount-1 do if Screen.Forms[I].ClassName='TAISettingsForm' then begin
+  TTimer(Sender).Enabled:=False;var Form:=Screen.Forms[I];var Preview:=TCheckBox(Form.FindComponent('AIPreviewRequests'));
+  AssertTrue(Form.Caption=TI18n.Instance.T('AI profiles and prompts'),'AI locale title mismatch');
+  AssertTrue((Preview.Caption=TI18n.Instance.T('Preview AI requests before sending')) and (Preview.Hint=Preview.Caption),'AI preview caption/hint mismatch');
+  AssertTrue(TEdit(Form.FindComponent('AIKey')).TextHint=TI18n.Instance.T('Blank keeps the stored key'),'AI key hint mismatch');
+  AssertTrue(TButton(Form.FindComponent('AIButtonNewprofile')).Caption=TI18n.Instance.T('New profile'),'AI action caption mismatch');
+  AssertTrue(TEdit(Form.FindComponent('AIKey')).Text='','AI key exposed while changing locale');
+  Form.ModalResult:=mrCancel;Log('PASS native AI captions and hints: '+TI18n.Instance.CurrentLanguage);
+ end;
+ except on E:Exception do begin Log('FAIL '+E.Message);ExitProcess(1);end;end;
 end;
 procedure TProbe.AssertTrue(Value:Boolean;const Message:string);
 begin if not Value then raise Exception.Create(Message);end;
@@ -242,28 +301,49 @@ begin
    end
    else if Action='ai-test-arm' then begin
     var Config:=TJSONObject.Create.AddPair('version',TJSONNumber.Create(1));var Profiles:=TJSONArray.Create;Config.AddPair('profiles',Profiles);
-    var Profile:=TAIProfile.Defaults;Profile.Id:=TGUID.NewGuid.ToString;Profile.Name:='E2E';Profile.Model:='fixture';Profile.Authorization:='none';Profile.Endpoint:='https://fixture.invalid/v1';Profiles.AddElement(AIProfileJson(Profile));try SaveAIConfiguration(Config);finally Config.Free;end;
+    var Profile:=TAIProfile.Defaults;Profile.Id:=TGUID.NewGuid.ToString;Profile.Name:='OpenAI';Profile.Model:='your-model-id';Profile.Authorization:='none';Profile.Endpoint:='https://api.openai.com/v1';Profiles.AddElement(AIProfileJson(Profile));try SaveAIConfiguration(Config);finally Config.Free;end;
     Profile.Id:=TGUID.NewGuid.ToString;var KeyProfile:=Profile;
     try WriteAIKey(Profile,'E2E-not-a-real-secret');AssertTrue(ReadAIKey(Profile)='E2E-not-a-real-secret','Credential round trip failed');Profile.Endpoint:='https://other.invalid/v1';AssertTrue(ReadAIKey(Profile)='','Changed destination reused a credential');Profile.Endpoint:='https://fixture.invalid/v1';finally WriteAIKey(KeyProfile,'');end;
     AssertTrue(not TFile.ReadAllText(AIConfigurationPath).Contains('E2E-not-a-real-secret'),'Credential leaked to JSON');
     var Templates:=AIPrompts('');
     try
-     var Custom:=Templates[0].Clone as TJSONObject;Custom.RemovePair('id').Free;Custom.AddPair('id','custom-describe');Custom.RemovePair('name').Free;Custom.AddPair('name','Custom E2E');Templates.AddElement(Custom);SaveAIPrompts(Templates,'');SaveAIPrompts(Templates,Root);
+     var Custom:=Templates[0].Clone as TJSONObject;Custom.RemovePair('id').Free;Custom.AddPair('id','custom-describe');Custom.RemovePair('name').Free;Custom.AddPair('name','Detailed description');Templates.AddElement(Custom);SaveAIPrompts(Templates,'');SaveAIPrompts(Templates,Root);
      var Reloaded:=AIPrompts(Root);try AssertTrue(Reloaded.Count=3,'Project/global AI templates did not merge');finally Reloaded.Free;end;
      var Previous:=TFile.ReadAllText(AIConfigurationPath);Custom.RemovePair('user').Free;Custom.AddPair('user','{{unknown_variable}}');var Rejected:=False;
      try SaveAIPrompts(Templates,'');except on E:Exception do Rejected:=True;end;AssertTrue(Rejected and (TFile.ReadAllText(AIConfigurationPath)=Previous),'Invalid prompt changed saved configuration');
     finally Templates.Free;end;
-    var SettingsTimer:=TTimer.Create(nil);try SettingsTimer.Interval:=100;SettingsTimer.OnTimer:=CheckAISettings;ShowAISettings(Root);finally SettingsTimer.Free;end;
+    var CaptureLanguage:=TI18n.Instance.CurrentLanguage;if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then TI18n.Instance.SetLanguage('en');
+    var SettingsTimer:=TTimer.Create(nil);try SettingsTimer.Interval:=100;SettingsTimer.OnTimer:=CheckAISettings;ShowAISettings(Root);finally SettingsTimer.Free;TI18n.Instance.SetLanguage(CaptureLanguage);end;
+    if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then Inspector.SetBounds(100,100,1120,1000);
     Inspector.BringToFront;Browser.SetFocus;
     AssistantFor(Inspector).TransportFactory:=function:IAITransport begin Result:=TAIProbeTransport.Create;end;
     AssistantFor(Explorer).TransportFactory:=function:IAITransport begin Result:=TAIProbeTransport.Create;end;
     AIBefore:=EditorSource(SourceEditorForFile(SampleFile));Browser.ExecuteScript('window.xmlDocAI.reload();window.__aiTestArmed=true;');Log('PASS AI profile and credential recipient binding');
+   end
+   else if Action='ai-screenshot' then begin
+    var Directory:=GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS');if Directory<>'' then begin
+     var Name:=Json.GetValue<string>('name');if not MatchText(Name,['ai-preview','ai-waiting','ai-proposal']) then raise Exception.Create('Invalid screenshot name');
+     var Capture:=TAIScreenshot.Create;Capture.Name:=Name;Capture.Browser:=Browser;
+     Capture.Stream:=TStreamAdapter.Create(TFileStream.Create(TPath.Combine(Directory,Name+'.png'),fmCreate),soOwned);
+     OleCheck(Browser.DefaultInterface.CapturePreview(COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG,Capture.Stream,Capture));
+    end else Browser.ExecuteScript('window.__aiScreenshot='+('"'+Json.GetValue<string>('name')+'"')+';');
+   end
+   else if Action='ai-preview-off' then begin
+    var Config:=LoadAIConfiguration;try Config.RemovePair('previewRequests').Free;Config.AddPair('previewRequests',TJSONBool.Create(False));SaveAIConfiguration(Config);finally Config.Free;end;
+    Browser.ExecuteScript('window.xmlDocAI.reload();window.__previewOff=true;');
    end
    else if Action='ai-write-checked' then begin
     AIWritten:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(AIWritten.Contains('Native AI reviewed summary'),'AI apply did not use OTA');AssertTrue(AIWritten.Contains('custom-root keep="yes"'),'AI apply lost unknown XML');Log('PASS manually edited AI proposal applies through OTA and retains other XML');
     Supports(SourceEditorForFile(SampleFile),IOTAEditBuffer,EditBuffer);UndoMarkers:=0;repeat EditBuffer.Undo;Inc(UndoMarkers);until (EditorSource(EditBuffer)<>AIWritten) or (UndoMarkers=4);AssertTrue(EditorSource(EditBuffer)=AIBefore,'AI Undo did not restore original');UndoMarkers:=0;repeat EditBuffer.Redo;Inc(UndoMarkers);until (EditorSource(EditBuffer)<>AIBefore) or (UndoMarkers=4);AssertTrue(EditorSource(EditBuffer)=AIWritten,'AI Redo failed');Inspector.RefreshFromCurrentEditor;Browser.ExecuteScript('window.__aiUndoRedo=true;');Log('PASS AI OTA Undo/Redo');
    end
    else if Action='ai-rephrase-checked' then begin AssertTrue(EditorSource(SourceEditorForFile(SampleFile)).Contains('Rephrased native summary'),'Rephrase did not reach OTA');Log('PASS native rephrase with independent template and reviewed apply');end
+   else if Action='ai-clear-param' then begin
+    Editor:=SourceEditorForFile(SampleFile);Source:=EditorSource(Editor);AssertTrue(Source.Contains('The text to process.'),'Existing parameter text absent');
+    ReplaceSourceBuffer(Editor,Source.Replace('The text to process.',''));Select(SampleFile,'Run','string');Inspector.RefreshFromCurrentEditor;Browser.ExecuteScript('window.__aiParamCleared=true;');
+   end
+   else if Action='ai-param-checked' then begin
+    AssertTrue(EditorSource(SourceEditorForFile(SampleFile)).Contains('Reviewed input parameter'),'AI parameter did not reach OTA source');Log('PASS reviewed AI parameter description applies through OTA');
+   end
    else if Action='ai-body-change' then begin
     Editor:=SourceEditorForFile(SampleFile);Source:=EditorSource(Editor);AssertTrue(Source.Contains('if Value='),'AI body token absent');Source:=Source.Replace('begin if Value=','begin {changed during AI request} if Value=');
     var Reader:=Editor.CreateReader;var B:TBytes;SetLength(B,32768);var Total:=0;var N:Integer;repeat N:=Reader.GetText(Total,PAnsiChar(B),Length(B));Inc(Total,N);until N<Length(B);Reader:=nil;
@@ -286,11 +366,13 @@ begin
      NativeTitle:=Dialog.Caption;NativeHint:=Dialog.memPlaceholderMarkers.Hint;
      Log('AUDIT native language='+Language+' caption='+Dialog.Caption+' markerHint='+Dialog.memPlaceholderMarkers.Hint);
     finally Dialog.Free;end;
+    var AILocaleTimer:=TTimer.Create(nil);try AILocaleTimer.Interval:=100;AILocaleTimer.OnTimer:=CheckAILocalization;ShowAISettings(Root);finally AILocaleTimer.Free;end;
     var Generation:=TBatchGenDialog.Create(nil);try GenerationTitle:=Generation.Caption;if Language<>'en' then AssertTrue(GenerationTitle<>'Generate API Documentation','Generation language pack missing');AssertTrue(Generation.Caption=TI18n.Instance.T('Generate API Documentation'),'Generation dialog not translated');finally Generation.Free;end;
     var Coverage:=TCoverageDialog.Create(nil);try CoverageTitle:=Coverage.Caption;if Language<>'en' then AssertTrue(CoverageTitle<>'Documentation Coverage Report','Coverage language pack missing');AssertTrue(Coverage.Caption=TI18n.Instance.T('Documentation Coverage Report'),'Coverage dialog not translated');finally Coverage.Free;end;
     var MenuRoot:=(BorlandIDEServices as INTAServices).MainMenu.Items;for var I:=0 to MenuRoot.Count-1 do if MenuRoot[I].Name='XmlDocDocumentMenu' then LocalizePluginUi(MenuRoot[I].Owner);
     AssertTrue(Assigned(FindMenuCommand(MenuRoot,'User Guide')),'Localized guide menu missing');Browser.ApplySettings;ExplorerBrowser.ApplySettings;
     var LocaleAudit:=TJSONObject.Create;try LocaleAudit.AddPair('language',Language);LocaleAudit.AddPair('settingsTitle',NativeTitle);LocaleAudit.AddPair('markerHint',NativeHint);LocaleAudit.AddPair('generationTitle',GenerationTitle);LocaleAudit.AddPair('coverageTitle',CoverageTitle);Browser.ExecuteScript('window.__nativeLocaleAudit='+LocaleAudit.ToJSON);finally LocaleAudit.Free;end;
+    if GetEnvironmentVariable('XMLDOC_E2E_SCREENSHOTS')<>'' then Inspector.SetBounds(100,100,1120,1000);
     Inspector.BringToFront;Browser.SetFocus;
     Browser.ExecuteScript('window.__xmlDocLanguageUi="'+Language+'"');Log('PASS native Settings, generation, coverage and menus language '+Language);
    end

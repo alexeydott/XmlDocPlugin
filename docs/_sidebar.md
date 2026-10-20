@@ -1,4 +1,103 @@
 - **XmlDocPlugin API Reference**
+  - [XmlDoc.AI.Context](units/XmlDoc.AI.Context.md)
+    - **Routines**
+      - [CaptureMethodContext](units/XmlDoc.AI.Context.md#capturemethodcontext)
+  - [XmlDoc.AI.Contracts](units/XmlDoc.AI.Contracts.md)
+    - **Classes**
+      - [EAIError](units/XmlDoc.AI.Contracts.EAIError.md)
+    - **Interfaces**
+      - [IAITransport](units/XmlDoc.AI.Contracts.IAITransport.md)
+        - **Methods**
+          - [Cancel](units/XmlDoc.AI.Contracts.IAITransport.md#cancel)
+          - [Execute](units/XmlDoc.AI.Contracts.IAITransport.md#execute)
+    - **Records**
+      - [TAIContext](units/XmlDoc.AI.Contracts.TAIContext.md)
+        - **Fields**
+          - [Code](units/XmlDoc.AI.Contracts.TAIContext.md#code)
+          - [Documentation](units/XmlDoc.AI.Contracts.TAIContext.md#documentation)
+          - [Fingerprint](units/XmlDoc.AI.Contracts.TAIContext.md#fingerprint)
+          - [Parameters](units/XmlDoc.AI.Contracts.TAIContext.md#parameters)
+          - [ProjectTerms](units/XmlDoc.AI.Contracts.TAIContext.md#projectterms)
+          - [ReturnType](units/XmlDoc.AI.Contracts.TAIContext.md#returntype)
+          - [Signature](units/XmlDoc.AI.Contracts.TAIContext.md#signature)
+          - [TypeContext](units/XmlDoc.AI.Contracts.TAIContext.md#typecontext)
+          - [UserInstruction](units/XmlDoc.AI.Contracts.TAIContext.md#userinstruction)
+      - [TAIHttpRequest](units/XmlDoc.AI.Contracts.TAIHttpRequest.md)
+        - **Fields**
+          - [Authorization](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#authorization)
+          - [Body](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#body)
+          - [MaxResponseBytes](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#maxresponsebytes)
+          - [TimeoutMs](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#timeoutms)
+          - [URL](units/XmlDoc.AI.Contracts.TAIHttpRequest.md#url)
+      - [TAIHttpResponse](units/XmlDoc.AI.Contracts.TAIHttpResponse.md)
+        - **Fields**
+          - [Body](units/XmlDoc.AI.Contracts.TAIHttpResponse.md#body)
+          - [Status](units/XmlDoc.AI.Contracts.TAIHttpResponse.md#status)
+      - [TAIParameter](units/XmlDoc.AI.Contracts.TAIParameter.md)
+        - **Fields**
+          - [Description](units/XmlDoc.AI.Contracts.TAIParameter.md#description)
+          - [Name](units/XmlDoc.AI.Contracts.TAIParameter.md#name)
+      - [TAIProfile](units/XmlDoc.AI.Contracts.TAIProfile.md)
+        - **Fields**
+          - [Authorization](units/XmlDoc.AI.Contracts.TAIProfile.md#authorization)
+          - [Endpoint](units/XmlDoc.AI.Contracts.TAIProfile.md#endpoint)
+          - [Id](units/XmlDoc.AI.Contracts.TAIProfile.md#id)
+          - [JsonMode](units/XmlDoc.AI.Contracts.TAIProfile.md#jsonmode)
+          - [Language](units/XmlDoc.AI.Contracts.TAIProfile.md#language)
+          - [MaxContextChars](units/XmlDoc.AI.Contracts.TAIProfile.md#maxcontextchars)
+          - [MaxOutputTokens](units/XmlDoc.AI.Contracts.TAIProfile.md#maxoutputtokens)
+          - [MaxResponseBytes](units/XmlDoc.AI.Contracts.TAIProfile.md#maxresponsebytes)
+          - [Model](units/XmlDoc.AI.Contracts.TAIProfile.md#model)
+          - [Name](units/XmlDoc.AI.Contracts.TAIProfile.md#name)
+          - [OutputLimitParameter](units/XmlDoc.AI.Contracts.TAIProfile.md#outputlimitparameter)
+          - [RequestPath](units/XmlDoc.AI.Contracts.TAIProfile.md#requestpath)
+          - [TimeoutMs](units/XmlDoc.AI.Contracts.TAIProfile.md#timeoutms)
+        - **Methods**
+          - [Defaults](units/XmlDoc.AI.Contracts.TAIProfile.md#defaults)
+      - [TAIProposal](units/XmlDoc.AI.Contracts.TAIProposal.md)
+        - **Fields**
+          - [Parameters](units/XmlDoc.AI.Contracts.TAIProposal.md#parameters)
+          - [Summary](units/XmlDoc.AI.Contracts.TAIProposal.md#summary)
+          - [Uncertainties](units/XmlDoc.AI.Contracts.TAIProposal.md#uncertainties)
+    - **Types**
+      - [TAIOperation](units/XmlDoc.AI.Contracts.TAIOperation.md)
+  - [XmlDoc.AI.OpenAI](units/XmlDoc.AI.OpenAI.md)
+    - **Routines**
+      - [AIRequestURL](units/XmlDoc.AI.OpenAI.md#airequesturl)
+      - [BuildAIRequest](units/XmlDoc.AI.OpenAI.md#buildairequest)
+      - [ExecuteAI](units/XmlDoc.AI.OpenAI.md#executeai)
+      - [ParseAIResponse](units/XmlDoc.AI.OpenAI.md#parseairesponse)
+      - [ValidateAIProfileIdentity](units/XmlDoc.AI.OpenAI.md#validateaiprofileidentity)
+  - [XmlDoc.AI.Prompts](units/XmlDoc.AI.Prompts.md)
+    - **Records**
+      - [TAIPrompt](units/XmlDoc.AI.Prompts.TAIPrompt.md)
+        - **Fields**
+          - [Id](units/XmlDoc.AI.Prompts.TAIPrompt.md#id)
+          - [Name](units/XmlDoc.AI.Prompts.TAIPrompt.md#name)
+          - [Operation](units/XmlDoc.AI.Prompts.TAIPrompt.md#operation)
+          - [SystemText](units/XmlDoc.AI.Prompts.TAIPrompt.md#systemtext)
+          - [UserText](units/XmlDoc.AI.Prompts.TAIPrompt.md#usertext)
+        - **Methods**
+          - [BuiltIn](units/XmlDoc.AI.Prompts.TAIPrompt.md#builtin)
+      - [TAIProtectedFragment](units/XmlDoc.AI.Prompts.TAIProtectedFragment.md)
+        - **Fields**
+          - [Token](units/XmlDoc.AI.Prompts.TAIProtectedFragment.md#token)
+          - [Xml](units/XmlDoc.AI.Prompts.TAIProtectedFragment.md#xml)
+    - **Routines**
+      - [ExpandPrompt](units/XmlDoc.AI.Prompts.md#expandprompt)
+      - [ProtectSummary](units/XmlDoc.AI.Prompts.md#protectsummary)
+      - [RestoreSummary](units/XmlDoc.AI.Prompts.md#restoresummary)
+  - [XmlDoc.AI.Transport](units/XmlDoc.AI.Transport.md)
+    - **Classes**
+      - [TAIHTTPTransport](units/XmlDoc.AI.Transport.TAIHTTPTransport.md)
+        - **Fields**
+          - [FCancelled](units/XmlDoc.AI.Transport.TAIHTTPTransport.md#fcancelled)
+          - [FMaxResponse](units/XmlDoc.AI.Transport.TAIHTTPTransport.md#fmaxresponse)
+          - [FTooLarge](units/XmlDoc.AI.Transport.TAIHTTPTransport.md#ftoolarge)
+        - **Methods**
+          - [Cancel](units/XmlDoc.AI.Transport.TAIHTTPTransport.md#cancel)
+          - [Execute](units/XmlDoc.AI.Transport.TAIHTTPTransport.md#execute)
+          - [ReceiveData](units/XmlDoc.AI.Transport.TAIHTTPTransport.md#receivedata)
   - [XmlDoc.CLI.Main](units/XmlDoc.CLI.Main.md)
     - **Classes**
       - [TCLIMain](units/XmlDoc.CLI.Main.TCLIMain.md)
@@ -793,9 +892,11 @@
           - [FDependencyFiles](units/XmlDoc.Parser.TDocParser.md#fdependencyfiles)
           - [FDependencyProbes](units/XmlDoc.Parser.TDocParser.md#fdependencyprobes)
           - [FDependencySnapshots](units/XmlDoc.Parser.TDocParser.md#fdependencysnapshots)
+          - [FFailedSnapshot](units/XmlDoc.Parser.TDocParser.md#ffailedsnapshot)
           - [FFlatIndex](units/XmlDoc.Parser.TDocParser.md#fflatindex)
           - [FHasDeclared](units/XmlDoc.Parser.TDocParser.md#fhasdeclared)
           - [FLastCommentStart](units/XmlDoc.Parser.TDocParser.md#flastcommentstart)
+          - [FLastDiagnostic](units/XmlDoc.Parser.TDocParser.md#flastdiagnostic)
           - [FOnCheck](units/XmlDoc.Parser.TDocParser.md#foncheck)
           - [FOnResolveDeclaration](units/XmlDoc.Parser.TDocParser.md#fonresolvedeclaration)
           - [FPlatform](units/XmlDoc.Parser.TDocParser.md#fplatform)
@@ -810,10 +911,12 @@
           - [BuildFlatIndex](units/XmlDoc.Parser.TDocParser.md#buildflatindex)
           - [BuildParentPath](units/XmlDoc.Parser.TDocParser.md#buildparentpath)
           - [CollectDocTargets](units/XmlDoc.Parser.TDocParser.md#collectdoctargets)
+          - [DependenciesCurrent](units/XmlDoc.Parser.TDocParser.md#dependenciescurrent)
           - [ExtractDocComment](units/XmlDoc.Parser.TDocParser.md#extractdoccomment)
           - [ExtractGenericParams](units/XmlDoc.Parser.TDocParser.md#extractgenericparams)
           - [ExtractParams](units/XmlDoc.Parser.TDocParser.md#extractparams)
           - [ExtractReturnType](units/XmlDoc.Parser.TDocParser.md#extractreturntype)
+          - [FailedSnapshotIsCurrent](units/XmlDoc.Parser.TDocParser.md#failedsnapshotiscurrent)
           - [FindNearestDocTarget](units/XmlDoc.Parser.TDocParser.md#findnearestdoctarget)
           - [FindNextElementAtOrBelow](units/XmlDoc.Parser.TDocParser.md#findnextelementatorbelow)
           - [GetAllElements](units/XmlDoc.Parser.TDocParser.md#getallelements)
@@ -821,8 +924,11 @@
           - [HashSource](units/XmlDoc.Parser.TDocParser.md#hashsource)
           - [IsDocTargetNode](units/XmlDoc.Parser.TDocParser.md#isdoctargetnode)
           - [IsUpToDate](units/XmlDoc.Parser.TDocParser.md#isuptodate)
+          - [MethodSource](units/XmlDoc.Parser.TDocParser.md#methodsource)
           - [NodeToElementInfo](units/XmlDoc.Parser.TDocParser.md#nodetoelementinfo)
           - [ParseSource](units/XmlDoc.Parser.TDocParser.md#parsesource)
+          - [ParseSourceInternal](units/XmlDoc.Parser.TDocParser.md#parsesourceinternal)
+          - [RetryParsing](units/XmlDoc.Parser.TDocParser.md#retryparsing)
           - [SetDefines](units/XmlDoc.Parser.TDocParser.md#setdefines)
           - [SetPlatform](units/XmlDoc.Parser.TDocParser.md#setplatform)
           - [SetResolveDeclaration](units/XmlDoc.Parser.TDocParser.md#setresolvedeclaration)
@@ -834,6 +940,7 @@
           - [DependencyFiles](units/XmlDoc.Parser.TDocParser.md#dependencyfiles)
           - [DependencyProbes](units/XmlDoc.Parser.TDocParser.md#dependencyprobes)
           - [DependencySnapshots](units/XmlDoc.Parser.TDocParser.md#dependencysnapshots)
+          - [LastDiagnostic](units/XmlDoc.Parser.TDocParser.md#lastdiagnostic)
           - [OnCheck](units/XmlDoc.Parser.TDocParser.md#oncheck)
           - [OnResolveDeclaration](units/XmlDoc.Parser.TDocParser.md#onresolvedeclaration)
           - [Platform](units/XmlDoc.Parser.TDocParser.md#platform)
@@ -843,6 +950,22 @@
           - [SourceFiles](units/XmlDoc.Parser.TDocParser.md#sourcefiles)
           - [SourceSnapshots](units/XmlDoc.Parser.TDocParser.md#sourcesnapshots)
           - [SourceText](units/XmlDoc.Parser.TDocParser.md#sourcetext)
+    - **Records**
+      - [TDocParseDiagnostic](units/XmlDoc.Parser.TDocParseDiagnostic.md)
+        - **Fields**
+          - [Column](units/XmlDoc.Parser.TDocParseDiagnostic.md#column)
+          - [Context](units/XmlDoc.Parser.TDocParseDiagnostic.md#context)
+          - [ExceptionClass](units/XmlDoc.Parser.TDocParseDiagnostic.md#exceptionclass)
+          - [Excerpt](units/XmlDoc.Parser.TDocParseDiagnostic.md#excerpt)
+          - [FileName](units/XmlDoc.Parser.TDocParseDiagnostic.md#filename)
+          - [Line](units/XmlDoc.Parser.TDocParseDiagnostic.md#line)
+          - [Message](units/XmlDoc.Parser.TDocParseDiagnostic.md#message)
+          - [RequestedFile](units/XmlDoc.Parser.TDocParseDiagnostic.md#requestedfile)
+          - [Stack](units/XmlDoc.Parser.TDocParseDiagnostic.md#stack)
+          - [Stage](units/XmlDoc.Parser.TDocParseDiagnostic.md#stage)
+        - **Methods**
+          - [DetailText](units/XmlDoc.Parser.TDocParseDiagnostic.md#detailtext)
+          - [FromException](units/XmlDoc.Parser.TDocParseDiagnostic.md#fromexception)
   - [XmlDoc.Plugin.AboutDialog](units/XmlDoc.Plugin.AboutDialog.md)
     - **Classes**
       - [TAboutDialog](units/XmlDoc.Plugin.AboutDialog.TAboutDialog.md)
@@ -872,6 +995,69 @@
           - [OnLinkClick](units/XmlDoc.Plugin.AboutDialog.TAboutDialog.md#onlinkclick)
     - **Routines**
       - [ShowAboutDialog](units/XmlDoc.Plugin.AboutDialog.md#showaboutdialog)
+  - [XmlDoc.Plugin.AIAssistant](units/XmlDoc.Plugin.AIAssistant.md)
+    - **Classes**
+      - [TAIAssistant](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md)
+        - **Constructors**
+          - [Create](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#create)
+        - **Destructors**
+          - [Destroy](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#destroy)
+        - **Fields**
+          - [FBrowser](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fbrowser)
+          - [FCheckOnly](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fcheckonly)
+          - [FContext](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fcontext)
+          - [FError](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ferror)
+          - [FFile](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ffile)
+          - [FFragments](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ffragments)
+          - [FOperation](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#foperation)
+          - [FOriginal](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#foriginal)
+          - [FOriginalSummary](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#foriginalsummary)
+          - [FParameterNames](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fparameternames)
+          - [FPrepared](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fprepared)
+          - [FReady](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fready)
+          - [FRequestId](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#frequestid)
+          - [FSession](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fsession)
+          - [FTarget](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ftarget)
+          - [FTimer](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ftimer)
+          - [FTransportFactory](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#ftransportfactory)
+          - [FWorker](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fworker)
+        - **Methods**
+          - [Capture](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#capture)
+          - [Fresh](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#fresh)
+          - [Handle](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#handle)
+          - [IsBusy](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#isbusy)
+          - [NewTransport](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#newtransport)
+          - [Notification](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#notification)
+          - [Reply](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#reply)
+          - [Stop](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#stop)
+          - [Tick](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#tick)
+        - **Properties**
+          - [Busy](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#busy)
+          - [TransportFactory](units/XmlDoc.Plugin.AIAssistant.TAIAssistant.md#transportfactory)
+      - [TAIWorker](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md)
+        - **Constructors**
+          - [Create](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md#create)
+        - **Fields**
+          - [Error](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md#error)
+          - [FRequest](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md#frequest)
+          - [FTransport](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md#ftransport)
+          - [Proposal](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md#proposal)
+        - **Methods**
+          - [Cancel](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md#cancel)
+          - [Execute](units/XmlDoc.Plugin.AIAssistant.TAIWorker.md#execute)
+  - [XmlDoc.Plugin.AISettings](units/XmlDoc.Plugin.AISettings.md)
+    - **Routines**
+      - [AIConfigurationPath](units/XmlDoc.Plugin.AISettings.md#aiconfigurationpath)
+      - [AICredentialTarget](units/XmlDoc.Plugin.AISettings.md#aicredentialtarget)
+      - [AIProfileFromJson](units/XmlDoc.Plugin.AISettings.md#aiprofilefromjson)
+      - [AIProfileJson](units/XmlDoc.Plugin.AISettings.md#aiprofilejson)
+      - [AIPrompts](units/XmlDoc.Plugin.AISettings.md#aiprompts)
+      - [LoadAIConfiguration](units/XmlDoc.Plugin.AISettings.md#loadaiconfiguration)
+      - [ReadAIKey](units/XmlDoc.Plugin.AISettings.md#readaikey)
+      - [SaveAIConfiguration](units/XmlDoc.Plugin.AISettings.md#saveaiconfiguration)
+      - [SaveAIPrompts](units/XmlDoc.Plugin.AISettings.md#saveaiprompts)
+      - [ShowAISettings](units/XmlDoc.Plugin.AISettings.md#showaisettings)
+      - [WriteAIKey](units/XmlDoc.Plugin.AISettings.md#writeaikey)
   - [XmlDoc.Plugin.BatchGenDialog](units/XmlDoc.Plugin.BatchGenDialog.md)
     - **Classes**
       - [TBatchGenDialog](units/XmlDoc.Plugin.BatchGenDialog.TBatchGenDialog.md)
@@ -1008,13 +1194,18 @@
         - **Destructors**
           - [Destroy](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#destroy)
         - **Fields**
+          - [FAI](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fai)
           - [FBrowser](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fbrowser)
           - [FBrowserError](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fbrowsererror)
           - [FBrowserReady](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fbrowserready)
+          - [FClosing](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fclosing)
           - [FCurrentFileName](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fcurrentfilename)
+          - [FDiagnostic](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fdiagnostic)
           - [FDocParser](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#fdocparser)
           - [FEditSessionId](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#feditsessionid)
           - [FElements](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#felements)
+          - [FErrorActions](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#ferroractions)
+          - [FErrorViewSent](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#ferrorviewsent)
           - [FFilePollTimer](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#ffilepolltimer)
           - [FInitTimer](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#finittimer)
           - [FLastSource](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#flastsource)
@@ -1036,6 +1227,7 @@
           - [CMStyleChanged](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#cmstylechanged)
           - [FilePollTimerFired](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#filepolltimerfired)
           - [FindElementByFullName](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#findelementbyfullname)
+          - [GoToError](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#gotoerror)
           - [HandleDocUpdated](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#handledocupdated)
           - [HandleFileChanged](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#handlefilechanged)
           - [HandleJumpToLine](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#handlejumptoline)
@@ -1045,8 +1237,10 @@
           - [ParseEditorSource](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#parseeditorsource)
           - [ReadEditorSource](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#readeditorsource)
           - [RefreshFromCurrentEditor](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#refreshfromcurrenteditor)
+          - [RetryParsing](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#retryparsing)
           - [SaveBounds](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#savebounds)
           - [SendTreeToEditor](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#sendtreetoeditor)
+          - [ShowParseFailure](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#showparsefailure)
           - [UpdateErrorDisplay](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#updateerrordisplay)
         - **Properties**
           - [Documentation](units/XmlDoc.Plugin.DocExplorer.TDocExplorerForm.md#documentation)
@@ -1058,14 +1252,19 @@
         - **Destructors**
           - [Destroy](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#destroy)
         - **Fields**
+          - [FAI](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fai)
           - [FBrowser](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fbrowser)
           - [FBrowserError](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fbrowsererror)
           - [FBrowserReady](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fbrowserready)
+          - [FClosing](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fclosing)
           - [FCurrentElement](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fcurrentelement)
           - [FCursorPollTimer](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fcursorpolltimer)
+          - [FDiagnostic](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fdiagnostic)
           - [FDocModel](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fdocmodel)
           - [FDocParser](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#fdocparser)
           - [FEditSessionId](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#feditsessionid)
+          - [FErrorActions](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#ferroractions)
+          - [FErrorViewSent](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#ferrorviewsent)
           - [FInitTimer](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#finittimer)
           - [FLastElementLine](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#flastelementline)
           - [FLastElementName](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#flastelementname)
@@ -1093,6 +1292,7 @@
           - [EnsureParamDictLoaded](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#ensureparamdictloaded)
           - [ExecuteCommand](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#executecommand)
           - [GetParamDictPath](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#getparamdictpath)
+          - [GoToError](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#gotoerror)
           - [HandleCursorChanged](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#handlecursorchanged)
           - [HandleDocUpdated](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#handledocupdated)
           - [HandleJumpToLine](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#handlejumptoline)
@@ -1101,7 +1301,9 @@
           - [KeyDown](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#keydown)
           - [ParseEditorSource](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#parseeditorsource)
           - [RefreshFromCurrentEditor](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#refreshfromcurrenteditor)
+          - [RetryParsing](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#retryparsing)
           - [SendToEditor](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#sendtoeditor)
+          - [ShowParseFailure](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#showparsefailure)
           - [UpdateErrorDisplay](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#updateerrordisplay)
           - [UpdateFromCursor](units/XmlDoc.Plugin.DocInspector.TDocInspectorForm.md#updatefromcursor)
         - **Properties**
@@ -1143,10 +1345,12 @@
       - [CurrentSourceSnapshots](units/XmlDoc.Plugin.EditSession.md#currentsourcesnapshots)
       - [EditorSource](units/XmlDoc.Plugin.EditSession.md#editorsource)
       - [EditResult](units/XmlDoc.Plugin.EditSession.md#editresult)
+      - [NavigateToSource](units/XmlDoc.Plugin.EditSession.md#navigatetosource)
       - [ParseHostMessage](units/XmlDoc.Plugin.EditSession.md#parsehostmessage)
       - [SourceEditorForFile](units/XmlDoc.Plugin.EditSession.md#sourceeditorforfile)
       - [SourceEditProtection](units/XmlDoc.Plugin.EditSession.md#sourceeditprotection)
       - [SourceRevision](units/XmlDoc.Plugin.EditSession.md#sourcerevision)
+      - [UnavailableSourceScript](units/XmlDoc.Plugin.EditSession.md#unavailablesourcescript)
       - [ValidateEdit](units/XmlDoc.Plugin.EditSession.md#validateedit)
   - [XmlDoc.Plugin.Localization](units/XmlDoc.Plugin.Localization.md)
     - **Routines**
@@ -1214,6 +1418,7 @@
           - [FJobSnapshots](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobsnapshots)
           - [FJobSources](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobsources)
           - [FJobTemplates](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobtemplates)
+          - [FJobWarnings](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fjobwarnings)
           - [FMaxValidationPauseMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fmaxvalidationpausems)
           - [FOnWorkerCheck](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fonworkercheck)
           - [FPreparationMs](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md#fpreparationms)
@@ -1387,6 +1592,7 @@
     - **Classes**
       - [TSettingsDialog](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md)
         - **Fields**
+          - [btnAISettings](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btnaisettings)
           - [btnCancel](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btncancel)
           - [btnCreateTheme](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btncreatetheme)
           - [btnOK](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btnok)
@@ -1414,6 +1620,7 @@
           - [tsGeneral](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#tsgeneral)
           - [tsShortcuts](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#tsshortcuts)
         - **Methods**
+          - [AISettingsClick](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#aisettingsclick)
           - [btnCreateThemeClick](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btncreatethemeclick)
           - [btnOKClick](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#btnokclick)
           - [FormCreate](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#formcreate)
@@ -1529,6 +1736,19 @@
           - [LatestVersion](units/XmlDoc.Plugin.UpdateChecker.TUpdateInfo.md#latestversion)
           - [ReleaseNotes](units/XmlDoc.Plugin.UpdateChecker.TUpdateInfo.md#releasenotes)
   - [XmlDoc.Plugin.Utils](units/XmlDoc.Plugin.Utils.md)
+    - **Classes**
+      - [TDocumentationErrorActions](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md)
+        - **Constructors**
+          - [CreateForMemo](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md#createformemo)
+        - **Fields**
+          - [FCollapse](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md#fcollapse)
+          - [FExpanded](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md#fexpanded)
+          - [FMemo](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md#fmemo)
+        - **Methods**
+          - [CopyDetails](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md#copydetails)
+          - [ToggleDetails](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md#toggledetails)
+        - **Properties**
+          - [Expanded](units/XmlDoc.Plugin.Utils.TDocumentationErrorActions.md#expanded)
     - **Routines**
       - [ApplyDocumentationErrorTheme](units/XmlDoc.Plugin.Utils.md#applydocumentationerrortheme)
       - [DocumentationThemeName](units/XmlDoc.Plugin.Utils.md#documentationthemename)
@@ -1570,6 +1790,7 @@
           - [FParsed](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#fparsed)
           - [FReused](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#freused)
         - **Methods**
+          - [Diagnostic](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#diagnostic)
           - [Elements](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#elements)
           - [IsCurrent](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#m51408737a6b16c55e50a)
           - [IsCurrent](units/XmlDoc.ProjectIndex.TDocumentationIndex.md#m83d86ccded47e796545d)
@@ -1587,6 +1808,7 @@
         - **Fields**
           - [ContextKey](units/XmlDoc.ProjectIndex.TIndexedModule.md#contextkey)
           - [Dependencies](units/XmlDoc.ProjectIndex.TIndexedModule.md#dependencies)
+          - [Diagnostic](units/XmlDoc.ProjectIndex.TIndexedModule.md#diagnostic)
           - [Elements](units/XmlDoc.ProjectIndex.TIndexedModule.md#elements)
           - [SourceKey](units/XmlDoc.ProjectIndex.TIndexedModule.md#sourcekey)
       - [TIndexValidation](units/XmlDoc.ProjectIndex.TIndexValidation.md)
