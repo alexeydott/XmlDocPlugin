@@ -67,6 +67,8 @@ type
     /// <summary>Returns all documentable declarations in the parsed source.</summary>
     /// <returns>Parsed declaration metadata.</returns>
     function GetAllElements: TArray<TCodeElementInfo>;
+    /// <summary>Resolves an explicitly selected method to its exact implementation range.</summary>
+    function MethodSource(const Target:TCodeElementInfo;out Code,Reason:string):Boolean;
 
     /// <summary>Checks whether the supplied source matches the parsed snapshot.</summary>
     /// <param name="ASource">Source text to compare.</param>
@@ -994,6 +996,52 @@ begin
     if Assigned(FOnCheck) then FOnCheck();
     Result[I] := NodeToElementInfo(FFlatIndex[I]);
   end;
+end;
+
+function TDocParser.MethodSource(const Target:TCodeElementInfo;out Code,Reason:string):Boolean;
+var Selected,Match,Body,Parent:TSyntaxNode;Info:TCodeElementInfo;Count,SelectedCount,StartPos,EndPos:Integer;
+ function Offset(Line,Col:Integer):Integer;
+ var I,L:Integer;
+ begin
+  Result:=1;L:=1;I:=1;
+  while (I<=Length(FCachedSource)) and (L<Line) do begin
+   if FCachedSource[I]=#10 then begin Inc(L);Result:=I+1;end;Inc(I);
+  end;
+  if L<>Line then Exit(0);Inc(Result,Col-1);
+  if (Col<1) or (Result>Length(FCachedSource)+1) then Result:=0;
+ end;
+ function IsBody(N:TSyntaxNode):Boolean;
+ begin Result:=Assigned(N.FindNode(ntStatements));end;
+begin
+ Result:=False;Code:='';Reason:='Method implementation is unavailable';
+ if Target.Kind<>dekMethod then begin Reason:='Select a method';Exit;end;
+ Selected:=nil;Match:=nil;Count:=0;SelectedCount:=0;
+ for var N in FFlatIndex do if N.Typ=ntMethod then begin
+  Info:=NodeToElementInfo(N);
+  if SameText(Info.SymbolId,Target.SymbolId) and (Info.LineNumber=Target.LineNumber) and SameText(Info.SourceSection,Target.SourceSection) then begin Selected:=N;Inc(SelectedCount);end;
+ end;
+ if (SelectedCount<>1) or not Assigned(Selected) then begin Reason:='Selected declaration has changed';Exit;end;
+ if IsBody(Selected) then Match:=Selected else
+  for var N in FFlatIndex do if (N.Typ=ntMethod) and IsBody(N) then begin
+   Info:=NodeToElementInfo(N);Parent:=N.ParentNode;
+   while Assigned(Parent) and (Parent.Typ<>ntMethod) do Parent:=Parent.ParentNode;
+   if not Assigned(Parent) and SameText(Info.SymbolId,Target.SymbolId) then begin Match:=N;Inc(Count);end;
+  end;
+ if Count>1 then begin Reason:='Method implementation is ambiguous';Exit;end;
+ if not Assigned(Match) then Exit;
+ Body:=Match.FindNode(ntStatements);
+ if not (Body is TCompoundSyntaxNode) then Exit;
+ if ((Match.FileName<>'') and not SameText(Match.FileName,FSourceFileName)) or
+    ((Body.FileName<>'') and not SameText(Body.FileName,FSourceFileName)) then begin
+  Reason:='Implementation is in an include file; open that source explicitly';Exit;
+ end;
+ StartPos:=Offset(Match.Line,Match.Col);
+ EndPos:=Offset(TCompoundSyntaxNode(Body).EndLine,TCompoundSyntaxNode(Body).EndCol);
+ if (StartPos<1) or (EndPos<=StartPos) then begin Reason:='Invalid implementation source range';Exit;end;
+ if (EndPos<=Length(FCachedSource)) and (FCachedSource[EndPos]=';') then Inc(EndPos);
+ Code:=Copy(FCachedSource,StartPos,EndPos-StartPos).TrimRight;
+ if not Code.EndsWith(';') then begin Code:='';Reason:='Incomplete implementation source range';Exit;end;
+ Reason:='';Result:=True;
 end;
 
 function TDocParser.FindNextElementAtOrBelow(ALine: Integer): TSyntaxNode;

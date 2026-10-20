@@ -858,3 +858,8 @@ body.compact .doc-section {margin-bottom:2px;}body.compact .doc-heading {padding
 #analysis-state { white-space:normal;overflow-wrap:anywhere; }
 
 .workbench-icon[hidden] {display:none;}
+#ai-assistant {border-top:1px solid var(--border);padding:6px;min-width:0;}
+#ai-assistant input,#ai-assistant select,#ai-assistant textarea {box-sizing:border-box;min-width:0;max-width:100%;}
+#ai-assistant select {flex:1 1 130px;}
+#ai-assistant textarea {display:block;width:100%;min-height:4rem;resize:vertical;font-family:inherit;}
+#ai-assistant pre {max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;}

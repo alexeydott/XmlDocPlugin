@@ -1,4 +1,4 @@
-param([ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
+﻿param([switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
  [ValidateSet('rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad12-x86','rad13-x86','rad13-x64'),[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
@@ -17,7 +17,7 @@ function Test-Export([string]$Output){
  if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
 }
 $savedEnvironment=@{}
-foreach($name in 'XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+foreach($name in 'XMLDOC_AI_CONFIG','XMLDOC_E2E_AI_ONLY','XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
 $boundsKey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\XmlDocPlugin\DocExplorer')
 try {foreach($name in 'Left','Top','Width','Height'){
@@ -25,6 +25,7 @@ try {foreach($name in 'Left','Top','Width','Height'){
 }} finally {if($boundsKey){$boundsKey.Dispose()}}
 Push-Location $repo
 try {
+ $env:XMLDOC_E2E_AI_ONLY=if($AIOnly){'1'}else{''}
  $env:XMLDOC_E2E_MARKER_PHASE=$MarkerAudit
  $env:XMLDOC_E2E_LARGE_PROJECT=$LargeProject;$env:XMLDOC_E2E_LARGE_SOURCE=$LargeSource
  $env:XMLDOC_E2E_GROUP_ONLY=if($GroupOnly){'1'}else{''}
@@ -43,7 +44,7 @@ try {
   $cli=Join-Path $build 'bin\XmlDocGen.exe'
   $bytes=[IO.File]::ReadAllBytes($cli);$pe=[BitConverter]::ToInt32($bytes,60)
   if([BitConverter]::ToUInt16($bytes,$pe+4) -ne 0x8664){throw 'Installed CLI must be x64'}
-  if(!$MarkerAudit){
+  if(!$MarkerAudit -and !$AIOnly){
   & $cli -p "$PSScriptRoot\DocumentationWorkbench\XmlDocE2E.dproj" -o "$EvidenceDir\cli" -f html,chm,md,json,hmxp,mkdocs,docusaurus,vitepress -t XmlDocE2E --site-name XmlDocE2E --numeric-file-names --coverage *> "$EvidenceDir\cli.log"
   if($LASTEXITCODE){throw "Installed CLI generation failed: $EvidenceDir\cli.log"}
   Test-Export "$EvidenceDir\cli"
@@ -95,6 +96,7 @@ try {
   $key="$profileRoot\$($t.Version)\$($t.Node)";New-Item $key -Force | Out-Null
   New-ItemProperty $key -Name "$bplDir\XmlDocPlugin$($t.Suffix).bpl" -Value 'XmlDocPlugin E2E' -Force | Out-Null
   New-ItemProperty $key -Name "$out\WorkbenchProbe.bpl" -Value 'Documentation workbench E2E probe' -Force | Out-Null
+  if($AIOnly){$env:XMLDOC_AI_CONFIG=Join-Path $out 'ai.json'}
   $env:XMLDOC_DRAFT_DIR=Join-Path $out 'drafts';$env:XMLDOC_E2E_FIXTURE=$fixture;$env:XMLDOC_E2E_JS=Join-Path $PSScriptRoot $(if($MarkerAudit){'MarkerAuditProbe.js'}else{'WorkbenchProbe.js'});$env:XMLDOC_E2E_LOG="$out\runtime.log"
   $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList "-r$profile",'-ns' -PassThru -WindowStyle Hidden
   # Allow cold IDE startup and repeated generation/quality-gate checks.
@@ -103,8 +105,8 @@ try {
   Get-Content "$out\runtime.log"
   if($p.ExitCode -ne 0 -or !(Select-String -LiteralPath "$out\runtime.log" -Pattern '^PASS$' -Quiet)){throw "E2E failed: $($t.Name)"}
   "PASS IDE exit 0: $($t.Name)"
-  if(($BenchmarkModules -eq 0) -and !$DiagnosticsOnly -and !$MarkerAudit){Test-Export "$out\documentation"}
-  if($Installed -and !$DiagnosticsOnly -and !$MarkerAudit -and (Get-Content "$out\documentation\topic-map.json" -Raw) -ne (Get-Content "$EvidenceDir\cli\topic-map.json" -Raw)){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
+  if(($BenchmarkModules -eq 0) -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly){Test-Export "$out\documentation"}
+  if($Installed -and !$DiagnosticsOnly -and !$MarkerAudit -and !$AIOnly -and (Get-Content "$out\documentation\topic-map.json" -Raw) -ne (Get-Content "$EvidenceDir\cli\topic-map.json" -Raw)){throw "IDE and CLI numeric topic mappings differ: $($t.Name)"}
   # Keep isolated profile and copied sources for reproducible failure analysis.
  }
 } finally {

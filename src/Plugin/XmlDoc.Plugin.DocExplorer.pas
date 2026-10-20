@@ -19,6 +19,7 @@ uses
   Vcl.Forms,
   Vcl.Edge,
   Vcl.StdCtrls,
+  XmlDoc.Plugin.AIAssistant,
   XmlDoc.Plugin.Browser,
   WebView2,
   DockForm,
@@ -42,6 +43,8 @@ type
     FBrowserReady: Boolean;
     FParseError:string;
     FWebViewError:string;
+    FClosing:Boolean;
+    FAI:TAIAssistant;
     FProjectDocs:TProjectDocumentation;
     FEditSessionId:string;
     FPinned:Boolean;
@@ -104,6 +107,7 @@ constructor TDocExplorerForm.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FProjectDocs:=TProjectDocumentation.Create;
+  FAI:=TAIAssistant.Create(Self);
 
   Caption := 'Documentation Explorer';
   DeskSection := 'XmlDocPlugin';
@@ -166,6 +170,7 @@ begin
 end;
 destructor TDocExplorerForm.Destroy;
 begin
+  FClosing:=True;FreeAndNil(FAI);
   if Assigned(FInitTimer) then FInitTimer.Enabled:=False;
   if Assigned(FFilePollTimer) then FFilePollTimer.Enabled:=False;
   if Assigned(FBrowser) then begin
@@ -305,6 +310,7 @@ var
   LFullName: string;
   LLine: Integer;
 begin
+  if FClosing then Exit;
   LJson := nil;
   Args.ArgsInterface.TryGetWebMessageAsString(LJson);
   if LJson = nil then
@@ -321,6 +327,11 @@ begin
   try
    try
     LMsgType := LMsg.GetValue<string>('type','');
+    if LMsgType.StartsWith('ai') then begin
+     var AITarget:=Default(TCodeElementInfo);
+     for var Candidate in FElements do if ValidateEdit(LMsg,Candidate,FCurrentFileName,FEditSessionId,FDocParser.SourceText) then AITarget:=Candidate;
+     if FAI.Handle(LMsg,FBrowser,FDocParser,AITarget,FCurrentFileName,FEditSessionId) then Exit;
+    end;
     if FProjectDocs.Handle(LMsg,FBrowser) then begin
       if (LMsgType='openSymbol') or (LMsgType='recoverDraft') then begin
        var TargetEditor:=SourceEditorForFile(LMsg.GetValue<string>('fileName',''));if Assigned(TargetEditor) then begin

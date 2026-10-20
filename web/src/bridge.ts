@@ -10,6 +10,12 @@ export class DelphiBridge {
   private pending: OutboundMessage | null = null;
   private context: EditContext = {};
   saveDebounceMs = 500;
+  private localVersion=0;
+  get draftVersion():number {return this.localVersion;}
+  captureStamp():EditContext & {draftVersion:number} {return {...this.context,draftVersion:this.localVersion};}
+  isCurrentStamp(stamp:EditContext & {draftVersion:number}):boolean {
+    return stamp.draftVersion===this.localVersion && ['fileName','locationId','declarationId','symbolId','sessionId','sourceRevision','projectFile'].every(key=>(stamp as any)[key]===(this.context as any)[key]);
+  }
   status = 'Applied';
   pinned = false;
   readOnly = false;
@@ -65,6 +71,7 @@ export class DelphiBridge {
       const element=message.data.element;
       const sameTarget=this.sameLocation(element,this.context);
       if (this.pinned && !sameTarget) { this.held = message; return; }
+      this.localVersion++;
       const pending=this.pending?.type==='docUpdated' && this.key(this.pending)===this.key(element) && this.pending.sourceRevision===element.sourceRevision ? this.pending : null;
       const flight=this.inFlight;
       const rebase=!!(sameTarget && flight?.applied && this.sameLocation(flight.context,element));
@@ -108,6 +115,7 @@ export class DelphiBridge {
   }
   saveDraft(doc:DocModel):void {
     if(this.readOnly){this.setStatus(this.readOnlyReason);return;}
+    this.localVersion++;
     const snapshot=JSON.parse(JSON.stringify(doc));const context={...this.context};
     const baseXml=this.drafts.get(this.key(context))?.baseXml??this.originalXml;
     if(snapshot.xmlEdited){const raw={xml:snapshot.rawXml??'',sourceRevision:context.sourceRevision,baseXml};this.rawDrafts.set(this.key(context),raw);snapshot.unappliedXml=raw;}
@@ -117,6 +125,7 @@ export class DelphiBridge {
   }
   notifyDocChanged(doc: DocModel): void {
     if(this.readOnly){this.cancelPending();this.setStatus(this.readOnlyReason);return;}
+    this.localVersion++;
     this.cancelPending();
     const snapshot = JSON.parse(JSON.stringify(doc));
     const context = { ...this.context };

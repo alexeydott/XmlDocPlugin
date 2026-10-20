@@ -53,3 +53,7 @@ Desktop.ini
 
 # Per-user Delphi language-server state
 *.delphilsp.json
+
+# Python test caches
+__pycache__/
+*.py[cod]

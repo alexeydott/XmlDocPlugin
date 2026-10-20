@@ -1,0 +1,8 @@
+{
+ "version": 1,
+ "cases": [
+  {"id":"anchor","file":"src/Core/XmlDoc.Consts.pas","method":"MemberAnchor","existingFacts":["overload"],"facts":[{"id":"overload","pattern":"overload"},{"id":"hash","pattern":"hash|SHA"},{"id":"fallback","pattern":"otherwise|fallback|non.overload|original name"}],"unsupported":[{"id":"collision-free","pattern":"guarantees? (?:a )?unique|collision.free"}],"uncertainties":["collision guarantees are not established"]},
+  {"id":"resource","file":"src/Core/XmlDoc.SourceText.pas","method":"ResolveDocumentationResource","existingFacts":["relative"],"facts":[{"id":"relative","pattern":"relative"},{"id":"traversal","pattern":"parent|traversal|\\.\\."},{"id":"absolute","pattern":"absolute|full path"}],"unsupported":[{"id":"existence","pattern":"(?:checks?|verifies?|ensures?) (?:that )?(?:the )?file exists"},{"id":"creates","pattern":"creates? (?:the )?(?:resource )?file"}],"uncertainties":["the returned resource need not exist"]},
+  {"id":"decode","file":"src/Core/XmlDoc.SourceText.pas","method":"DecodeSource","existingFacts":["bom"],"facts":[{"id":"bom","pattern":"BOM|byte.order"},{"id":"utf8","pattern":"UTF.?8"},{"id":"fallback","pattern":"default|code.?page|fallback"}],"unsupported":[{"id":"all-encodings","pattern":"all (?:possible )?encodings|always succeeds|never (?:fails|throws)"}],"uncertainties":["behavior depends on the default code page for unmarked input"]}
+ ]
+}

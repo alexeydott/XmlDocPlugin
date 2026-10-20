@@ -18,6 +18,7 @@ uses
   Vcl.Forms,
   Vcl.Edge,
   Vcl.StdCtrls,
+  XmlDoc.Plugin.AIAssistant,
   XmlDoc.Plugin.Browser,
   WebView2,
   DockForm,
@@ -44,6 +45,8 @@ type
     FPendingCommand:string;
     FParseError:string;
     FWebViewError:string;
+    FClosing:Boolean;
+    FAI:TAIAssistant;
     FProjectDocs:TProjectDocumentation;
     FEditSessionId:string;
     FPinned:Boolean;
@@ -113,6 +116,7 @@ constructor TDocInspectorForm.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FProjectDocs:=TProjectDocumentation.Create;
+  FAI:=TAIAssistant.Create(Self);
 
   Caption := 'Doc Inspector';
   Name := 'XmlDocDocInspector';
@@ -182,6 +186,7 @@ begin
 end;
 destructor TDocInspectorForm.Destroy;
 begin
+  FClosing:=True;FreeAndNil(FAI);
   if Assigned(FInitTimer) then FInitTimer.Enabled:=False;
   if Assigned(FCursorPollTimer) then FCursorPollTimer.Enabled:=False;
   if Assigned(FBrowser) then begin
@@ -368,6 +373,7 @@ var
   LMsgType: string;
   LDocObj: TJSONObject;
 begin
+  if FClosing then Exit;
   LJson := nil;
   Args.ArgsInterface.TryGetWebMessageAsString(LJson);
   if LJson = nil then
@@ -384,6 +390,7 @@ begin
   try
    try
     LMsgType := LMsg.GetValue<string>('type','');
+    if FAI.Handle(LMsg,FBrowser,FDocParser,FCurrentElement,FLastFileName,FEditSessionId) then Exit;
     if FProjectDocs.Handle(LMsg,FBrowser) then begin
       if (LMsgType='openSymbol') or (LMsgType='recoverDraft') then begin
        var TargetEditor:=SourceEditorForFile(LMsg.GetValue<string>('fileName',''));if Assigned(TargetEditor) then begin

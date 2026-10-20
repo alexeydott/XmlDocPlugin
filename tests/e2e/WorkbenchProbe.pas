@@ -2,10 +2,14 @@
 interface
 procedure Register;
 implementation
-uses XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
- Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
+uses XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+ Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
-type TPublicationProbe=class(TProjectDocumentation)
+type TAIProbeTransport=class(TInterfacedObject,IAITransport)
+ private FCancelled:Integer;
+ public function Execute(const Request:TAIHttpRequest):TAIHttpResponse;procedure Cancel;
+ end;
+ TPublicationProbe=class(TProjectDocumentation)
  public
   IncludeFile,NewModule:string;Armed,Changed:Boolean;
  protected
@@ -16,10 +20,12 @@ type TPublicationProbe=class(TProjectDocumentation)
  ValidationProbe:TPublicationProbe;
  StressEntered,StressContinue:TEvent;StressChecks:Integer;
  StressRound:Integer;StressGeneration,StressStarted:UInt64;
+ AIBefore,AIWritten:string;
  LanguageSaved:Boolean;OriginalLanguage:string;
  PrefixSettingsSaved:Boolean;OriginalPrefixSettings:TGlobalSettings;LastGenerationMessage:string;
  ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
  FormatWait,Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
+ procedure CheckAISettings(Sender:TObject);
  procedure ConfirmFormat(Sender:TObject);procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
  procedure ExplorerMessage(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
  procedure MessageReceived(Sender:TCustomEdgeBrowser;Args:TWebMessageReceivedEventArgs);
@@ -47,6 +53,36 @@ begin
  if SameText(StringReplace(Parent.Caption,'&','',[rfReplaceAll]),TI18n.Instance.T(Caption)) then Exit(Parent);
  for var I:=0 to Parent.Count-1 do begin Result:=FindMenuCommand(Parent[I],Caption);if Assigned(Result) then Exit;end;
  Result:=nil;
+end;
+function TAIProbeTransport.Execute(const Request:TAIHttpRequest):TAIHttpResponse;
+begin
+ if not Request.Body.Contains('TDocumented.Run') and not Request.Body.Contains('Connection check') then raise Exception.Create('AI request missed the selected method');
+ for var I:=0 to 30 do begin if TInterlocked.CompareExchange(FCancelled,0,0)<>0 then raise Exception.Create('AI request cancelled');Sleep(10);end;
+ var Summary:='Native AI proposed summary';var Seen:=TStringList.Create;var Root:=TJSONObject.Create;
+ try
+  for var Match in TRegEx.Matches(Request.Body,'__XMLDOC_[0-9a-fA-F]+_[0-9]+__') do if Seen.IndexOf(Match.Value)<0 then begin Seen.Add(Match.Value);Summary:=Summary+' '+Match.Value;end;
+  var Content:=TJSONObject.Create.AddPair('summary',Summary).AddPair('uncertainties',TJSONArray.Create(TJSONString.Create('Ownership is not specified.')));
+  try var Choices:=TJSONArray.Create;Root.AddPair('choices',Choices);Choices.AddElement(TJSONObject.Create.AddPair('finish_reason','stop').AddPair('message',TJSONObject.Create.AddPair('content',Content.ToJSON)));Result.Status:=200;Result.Body:=Root.ToJSON;finally Content.Free;end;
+ finally Root.Free;Seen.Free;end;
+end;
+procedure TAIProbeTransport.Cancel;
+begin TInterlocked.Exchange(FCancelled,1);end;
+function AssistantFor(Form:TForm):TAIAssistant;
+begin for var I:=0 to Form.ComponentCount-1 do if Form.Components[I] is TAIAssistant then Exit(TAIAssistant(Form.Components[I]));raise Exception.Create('AI component missing');end;
+procedure TProbe.CheckAISettings(Sender:TObject);
+begin
+ for var I:=0 to Screen.FormCount-1 do if Screen.Forms[I].ClassName='TAISettingsForm' then begin
+  TTimer(Sender).Enabled:=False;var Form:=Screen.Forms[I];
+  AssertTrue(Form.Caption=TI18n.Instance.T('AI profiles and prompts'),'AI settings caption not localized');
+  AssertTrue(TEdit(Form.FindComponent('AIField3')).Text='fixture','AI model did not load');AssertTrue(TEdit(Form.FindComponent('AIKey')).Text='','Credential was exposed in native key field');
+  for var J:=0 to Form.ComponentCount-1 do if Form.Components[J] is TPageControl then begin var Pages:=TPageControl(Form.Components[J]);
+   for var Tab:=0 to Pages.PageCount-1 do begin Pages.ActivePageIndex:=Tab;
+    for var K:=0 to Form.ComponentCount-1 do if Form.Components[K] is TWinControl then begin var Control:=TWinControl(Form.Components[K]);if Control.Parent=Pages.Pages[Tab] then AssertTrue(Control.Visible and Control.Enabled and Control.CanFocus,'AI control inaccessible: '+Control.ClassName);end;
+   end;
+  end;
+  AssertTrue(Pos('{{implementation}}',TMemo(Form.FindComponent('AIUserPrompt')).Text)>0,'Prompt source was localized or lost');
+  Form.ModalResult:=mrCancel;Log('PASS native AI settings loads profiles, protects keys and exposes both tabs');
+ end;
 end;
 procedure TProbe.AssertTrue(Value:Boolean;const Message:string);
 begin if not Value then raise Exception.Create(Message);end;
@@ -142,6 +178,40 @@ begin
     TPluginSettings.Instance.Global:=OriginalPrefixSettings;TPluginSettings.Instance.Save;PrefixSettingsSaved:=False;
     Browser.ApplySettings;ExplorerBrowser.ApplySettings;Initial:=EditorSource(SourceEditorForFile(SampleFile));Select(SampleFile,'Run','string');
     Browser.ExecuteScript('window.__prefixRestored=true');Log('PASS custom prefix settings restored after native editor checks');
+   end
+   else if Action='ai-test-arm' then begin
+    var Config:=TJSONObject.Create.AddPair('version',TJSONNumber.Create(1));var Profiles:=TJSONArray.Create;Config.AddPair('profiles',Profiles);
+    var Profile:=TAIProfile.Defaults;Profile.Id:=TGUID.NewGuid.ToString;Profile.Name:='E2E';Profile.Model:='fixture';Profile.Authorization:='none';Profile.Endpoint:='https://fixture.invalid/v1';Profiles.AddElement(AIProfileJson(Profile));try SaveAIConfiguration(Config);finally Config.Free;end;
+    Profile.Id:=TGUID.NewGuid.ToString;var KeyProfile:=Profile;
+    try WriteAIKey(Profile,'E2E-not-a-real-secret');AssertTrue(ReadAIKey(Profile)='E2E-not-a-real-secret','Credential round trip failed');Profile.Endpoint:='https://other.invalid/v1';AssertTrue(ReadAIKey(Profile)='','Changed destination reused a credential');Profile.Endpoint:='https://fixture.invalid/v1';finally WriteAIKey(KeyProfile,'');end;
+    AssertTrue(not TFile.ReadAllText(AIConfigurationPath).Contains('E2E-not-a-real-secret'),'Credential leaked to JSON');
+    var Templates:=AIPrompts('');
+    try
+     var Custom:=Templates[0].Clone as TJSONObject;Custom.RemovePair('id').Free;Custom.AddPair('id','custom-describe');Custom.RemovePair('name').Free;Custom.AddPair('name','Custom E2E');Templates.AddElement(Custom);SaveAIPrompts(Templates,'');SaveAIPrompts(Templates,Root);
+     var Reloaded:=AIPrompts(Root);try AssertTrue(Reloaded.Count=3,'Project/global AI templates did not merge');finally Reloaded.Free;end;
+     var Previous:=TFile.ReadAllText(AIConfigurationPath);Custom.RemovePair('user').Free;Custom.AddPair('user','{{unknown_variable}}');var Rejected:=False;
+     try SaveAIPrompts(Templates,'');except on E:Exception do Rejected:=True;end;AssertTrue(Rejected and (TFile.ReadAllText(AIConfigurationPath)=Previous),'Invalid prompt changed saved configuration');
+    finally Templates.Free;end;
+    var SettingsTimer:=TTimer.Create(nil);try SettingsTimer.Interval:=100;SettingsTimer.OnTimer:=CheckAISettings;ShowAISettings(Root);finally SettingsTimer.Free;end;
+    Inspector.BringToFront;Browser.SetFocus;
+    AssistantFor(Inspector).TransportFactory:=function:IAITransport begin Result:=TAIProbeTransport.Create;end;
+    AssistantFor(Explorer).TransportFactory:=function:IAITransport begin Result:=TAIProbeTransport.Create;end;
+    AIBefore:=EditorSource(SourceEditorForFile(SampleFile));Browser.ExecuteScript('window.xmlDocAI.reload();window.__aiTestArmed=true;');Log('PASS AI profile and credential recipient binding');
+   end
+   else if Action='ai-write-checked' then begin
+    AIWritten:=EditorSource(SourceEditorForFile(SampleFile));AssertTrue(AIWritten.Contains('Native AI reviewed summary'),'AI apply did not use OTA');AssertTrue(AIWritten.Contains('custom-root keep="yes"'),'AI apply lost unknown XML');Log('PASS manually edited AI proposal applies through OTA and retains other XML');
+    Supports(SourceEditorForFile(SampleFile),IOTAEditBuffer,EditBuffer);UndoMarkers:=0;repeat EditBuffer.Undo;Inc(UndoMarkers);until (EditorSource(EditBuffer)<>AIWritten) or (UndoMarkers=4);AssertTrue(EditorSource(EditBuffer)=AIBefore,'AI Undo did not restore original');UndoMarkers:=0;repeat EditBuffer.Redo;Inc(UndoMarkers);until (EditorSource(EditBuffer)<>AIBefore) or (UndoMarkers=4);AssertTrue(EditorSource(EditBuffer)=AIWritten,'AI Redo failed');Inspector.RefreshFromCurrentEditor;Browser.ExecuteScript('window.__aiUndoRedo=true;');Log('PASS AI OTA Undo/Redo');
+   end
+   else if Action='ai-rephrase-checked' then begin AssertTrue(EditorSource(SourceEditorForFile(SampleFile)).Contains('Rephrased native summary'),'Rephrase did not reach OTA');Log('PASS native rephrase with independent template and reviewed apply');end
+   else if Action='ai-body-change' then begin
+    Editor:=SourceEditorForFile(SampleFile);Source:=EditorSource(Editor);AssertTrue(Source.Contains('if Value='),'AI body token absent');Source:=Source.Replace('begin if Value=','begin {changed during AI request} if Value=');
+    var Reader:=Editor.CreateReader;var B:TBytes;SetLength(B,32768);var Total:=0;var N:Integer;repeat N:=Reader.GetText(Total,PAnsiChar(B),Length(B));Inc(Total,N);until N<Length(B);Reader:=nil;
+    Writer:=Editor.CreateUndoableWriter;Writer.CopyTo(0);Writer.DeleteTo(Total);Utf8:=UTF8String(Source);Writer.Insert(PAnsiChar(Utf8));Writer:=nil;Browser.ExecuteScript('window.__aiBodyChanged=true;');
+   end
+   else if Action='ai-close-pending' then begin
+    Select(SampleFile,'Run','string');Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));
+    ExplorerBrowser.ExecuteScript('(()=>{const row=Array.from(document.querySelectorAll(".tree-row")).find(r=>r.dataset.symbolId?.includes("tdocumented.run(const string)"));if(row)row.click();window.xmlDocAI.reload();})();');
+    Step:=110;Timer.Interval:=150;Timer.Enabled:=True;
    end
    else if Action='language-ui' then begin
     var Language:=Json.GetValue<string>('language');AssertTrue((Language='ru') or (Language='zh') or (Language='en') or (Language='ko') or (Language='ja'),'Unexpected language');
@@ -637,6 +707,16 @@ begin
    AssertTrue(ValidationProbe.Changed,'Project membership did not change at the publication boundary');AssertTrue(ValidationProbe.PublishedGeneration=1,'Catalog published with a stale project module set');
    Log('PASS publication rejects changed project membership and retains the previous catalog');FreeAndNil(ValidationProbe);Step:=96;Timer.Enabled:=True;Exit;
   end;
+  110:begin
+   Browser.ExecuteScript('document.getElementById("ai-describe").click();');ExplorerBrowser.ExecuteScript('document.getElementById("ai-describe").click();');Step:=111;Timer.Interval:=300;Timer.Enabled:=True;Exit;
+  end;
+  111:begin
+   Browser.ExecuteScript('document.getElementById("ai-send").click();');ExplorerBrowser.ExecuteScript('document.getElementById("ai-send").click();');Step:=112;Timer.Interval:=50;Timer.Enabled:=True;Exit;
+  end;
+  112:begin
+   AssertTrue(AssistantFor(Inspector).Busy and AssistantFor(Explorer).Busy,'Both AI operations must be active at close');var Started:=GetTickCount64;
+   FreeAndNil(Explorer);FreeAndNil(Inspector);AssertTrue(GetTickCount64-Started<1500,'AI close blocked IDE');Log('PASS close Inspector/Explorer with active AI workers: '+IntToStr(GetTickCount64-Started)+' ms');Log('PASS');Finish;Exit;
+  end;
   90:begin Finish;Exit;end;
   80:begin
    Log('Adding project B outside WebView callback');
@@ -746,7 +826,7 @@ begin
      Log('PASS project settings reset between projects and partial files');
     finally Settings.Free;TDirectory.Delete(SettingsRoot,True);end;
     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(TPath.Combine(Root,'XmlDocE2E.dproj')),'Cannot open E2E project');Inc(Step);end;
-  1:begin if (GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'') or (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
+  1:begin if (GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1') or (GetEnvironmentVariable('XMLDOC_E2E_MARKER_PHASE')<>'') or (StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0) or (GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1') then begin Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;Inc(Step);Timer.Enabled:=True;Exit;end;ExportAll;if GetEnvironmentVariable('XMLDOC_E2E_THEMES_ONLY')='1' then begin Log('PASS');Finish;Exit;end;Inspector:=TDocInspectorForm.Create(nil);Inspector.Show;Explorer:=TDocExplorerForm.Create(nil);Explorer.Show;AssertErrorLabelTheme(Inspector);AssertErrorLabelTheme(Explorer);Inc(Step);end;
   2:begin
     for I:=0 to Inspector.ComponentCount-1 do if Inspector.Components[I] is TXmlDocBrowser then Browser:=TXmlDocBrowser(Inspector.Components[I]);
     AssertTrue(Assigned(Browser),'Browser unavailable');
@@ -760,6 +840,7 @@ begin
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
+   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'AIAssistantProbe.js')));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_DIAGNOSTICS_ONLY')='1' then begin
    // A successful parse must not clear a browser failure. Inject the event only
    // after the real WebView has loaded; recover through its navigation callback.

@@ -24,11 +24,13 @@ export function translate(text:string):string {
  return text;
 }
 const protectedContent=(e:Element)=>!!e.closest('.tiptap,[contenteditable],[data-code],[translate="no"],pre,code,#member-signature:not([data-ui-placeholder]),#doc-preview,#template-choice,.td-name,.symbol-caption,.tree-label') || (!!e.closest('#tree-content') && !e.closest('.tree-empty'));
+// Field contents are user data. Their UI attributes remain translatable below.
+const protectedText=(e:Element)=>protectedContent(e)||!!e.closest('textarea,input,script,style');
 export function localizeUi():void {
  observer?.disconnect();
- const walker=document.createTreeWalker(document.body,5,{acceptNode(node){return node.nodeType===1 && (node as Element).id==='tree-content'?3:node.nodeType===1 && protectedContent(node as Element)?2:node.nodeType===3?1:3;}});let node:Node|null;
+ const walker=document.createTreeWalker(document.body,5,{acceptNode(node){return node.nodeType===1 && (node as Element).id==='tree-content'?3:node.nodeType===1 && protectedText(node as Element)?2:node.nodeType===3?1:3;}});let node:Node|null;
  while((node=walker.nextNode())){
-  const text=node as Text,parent=text.parentElement;if(!parent || protectedContent(parent))continue;
+  const text=node as Text,parent=text.parentElement;if(!parent || protectedText(parent))continue;
   const saved=texts.get(text),value=text.data;const source=saved && value===saved.translated?saved.source:value;
   const trimmed=source.trim();if(parent.tagName==='OPTION' && !parent.hasAttribute('value'))parent.setAttribute('value',(parent as HTMLOptionElement).value);
   const result=source.replace(trimmed,translate(trimmed));if(result!==value)text.data=result;texts.set(text,{source,translated:result});

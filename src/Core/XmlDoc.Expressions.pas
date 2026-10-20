@@ -12,14 +12,34 @@ type
   First,Last:Integer;
   IsName:Boolean;
  end;
-function ExtractReference(const Source:string;Position:Integer;out Query,Owner,Member,Reason:string;out AfterMember:Integer):Boolean;
-var Tokens:TList<TExpressionToken>;I,Start,Seed,Last,First,Nesting,Cursor:Integer;Token:TExpressionToken;
+function ExtractReference(const Source:string;Position:Integer;out Query,Owner,Member,Reason:string;out AfterMember:Integer;out HasTypeArguments:Boolean):Boolean;
+var Tokens:TList<TExpressionToken>;I,Start,Seed,Last,First,Nesting,Cursor,N:Integer;Token:TExpressionToken;
  function NameChar(C:Char):Boolean;
  begin Result:=C.IsLetterOrDigit or (C='_');end;
  function At(const Index:Integer;const Text:string):Boolean;
  begin Result:=(Index>=0) and (Index<Tokens.Count) and (Tokens[Index].Text=Text);end;
+ function GenericEnd(Index:Integer):Integer;
+ var Level:Integer;ExpectName:Boolean;
+ begin
+  Result:=-1;Level:=0;ExpectName:=True;
+  while Index<Tokens.Count do begin
+   if At(Index,'<') then begin Inc(Level);ExpectName:=True;end
+   else if Tokens[Index].IsName then begin if not ExpectName then Exit;ExpectName:=False;end
+   else if At(Index,'.') then begin if ExpectName then Exit;ExpectName:=True;end
+   else if At(Index,',') then begin if ExpectName then Exit;ExpectName:=True;end
+   else if At(Index,'>') then begin
+    if ExpectName then Exit;Dec(Level);
+    if Level=0 then begin
+     // A receiver specialization continues with a dot; a method specialization with a call.
+     if At(Index+1,'.') or At(Index+1,'(') then Result:=Index+1;
+     Exit;
+    end;
+   end else Exit;
+   Inc(Index);
+  end;
+ end;
 begin
- Result:=False;Query:='';Owner:='';Member:='';Reason:='';AfterMember:=0;Seed:=-1;
+ Result:=False;Query:='';Owner:='';Member:='';Reason:='';AfterMember:=0;HasTypeArguments:=False;Seed:=-1;
  Tokens:=TList<TExpressionToken>.Create;
  try
   I:=1;
@@ -46,12 +66,11 @@ begin
   while Last+1<Tokens.Count do begin
    Cursor:=Last+1;
    if At(Cursor,'<') then begin
-    Nesting:=1;Inc(Cursor);while (Cursor<Tokens.Count) and (Nesting>0) do begin if At(Cursor,'<') then Inc(Nesting) else if At(Cursor,'>') then Dec(Nesting);Inc(Cursor);end;
-    if Nesting<>0 then begin Reason:='The receiver expression is incomplete; choose a declaration explicitly.';Exit;end;
+    N:=GenericEnd(Cursor);if N<0 then Break;Cursor:=N;if At(Cursor,'(') then HasTypeArguments:=True;
    end;
    if At(Cursor,'.') and (Cursor+1<Tokens.Count) and Tokens[Cursor+1].IsName then Last:=Cursor+1 else Break;
   end;
-  First:=Last;Member:=Tokens[Last].Text;AfterMember:=Tokens[Last].Last+1;
+  First:=Last;Member:=Tokens[Last].Text;AfterMember:=Length(Source)+1;if Last+1<Tokens.Count then AfterMember:=Tokens[Last+1].First;
   while At(First-1,'.') do begin
    Cursor:=First-2;
    if At(Cursor,'>') then begin
@@ -85,7 +104,7 @@ begin
 end;
 function ResolveDocumentationExpression(Parser:TDocParser;const Source:string;Position,Line:Integer;
  const Symbols:TArray<TCodeElementInfo>;out Query,Reason:string):TArray<TCodeElementInfo>;
-var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string;Args:TList<string>;Candidates,Best:TList<TCodeElementInfo>;HasCall,InString,UncertainOwners,UncertainCandidate:Boolean;Bindings:TDictionary<string,string>;
+var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string;Args:TList<string>;Candidates,Best:TList<TCodeElementInfo>;HasCall,InString,UncertainOwners,UncertainCandidate,ImplicitSelf,UnknownScope,HasTypeArguments:Boolean;Bindings:TDictionary<string,string>;
  function ExpressionType(const Expression:string):string;
  var Text:string;
  begin
@@ -171,19 +190,31 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
 begin
  Result:=nil;Reason:='';Query:='';if not Assigned(Parser) or (Source='') then Exit;
  Position:=EnsureRange(Position,0,Length(Source));First:=Position;Last:=Position+1;UncertainOwners:=False;UncertainCandidate:=False;
- if not ExtractReference(Source,Position,Query,Owner,Member,Reason,Last) then Exit;
+ if not ExtractReference(Source,Position,Query,Owner,Member,Reason,Last,HasTypeArguments) then Exit;
  Candidates:=TList<TCodeElementInfo>.Create;Best:=TList<TCodeElementInfo>.Create;Args:=TList<string>.Create;Bindings:=TDictionary<string,string>.Create;
  try
   Receiver:=Owner;if Owner<>'' then begin
    Receiver:=ExpressionType(Owner);if Receiver='' then Receiver:=Owner;
    if Receiver='' then begin Reason:='The receiver type is unknown; choose a declaration explicitly.';Exit;end;
   end;
+  ImplicitSelf:=Owner='';if ImplicitSelf then Receiver:=Parser.BindingType('Self',Line);
   var OwnerNames:=Owners(Receiver);if (Owner<>'') and (Length(OwnerNames)=0) then begin Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';Exit;end;
   for var E in Symbols do if SameText(E.Name,Member) then begin
-   if Owner='' then Candidates.Add(E) else for var OwnerName in OwnerNames do if SameText(LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent),OwnerName) then begin Candidates.Add(E);Break;end;
+   if (Owner='') and (Length(OwnerNames)=0) then Candidates.Add(E) else for var OwnerName in OwnerNames do if SameText(LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent),OwnerName) then begin Candidates.Add(E);Break;end;
+  end;
+  if ImplicitSelf and (Length(OwnerNames)>0) and (Candidates.Count=0) then
+   for var E in Symbols do if SameText(E.Name,Member) and (E.QualifiedParent='') then
+    for var Local in Parser.GetAllElements do if (Local.Kind=dekUnit) and SameText(Local.UnitName,E.UnitName) then begin Candidates.Add(E);Break;end;
+  UnknownScope:=False;
+  if ImplicitSelf and (Length(OwnerNames)=0) and (Candidates.Count>0) then
+   for var E in Candidates do if (E.QualifiedParent<>'') or not SameText(E.FileName+#0+E.QualifiedParent,Candidates[0].FileName+#0+Candidates[0].QualifiedParent) then UnknownScope:=True;
+  if UnknownScope then begin
+   if Candidates.Count>1 then Reason:='Several declarations match this context; choose an overload.'
+   else Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';
+   Result:=Candidates.ToArray;Exit;
   end;
   OpenAt:=Last;while (OpenAt<=Length(Source)) and Source[OpenAt].IsWhiteSpace do Inc(OpenAt);
-  if (OpenAt<=Length(Source)) and (Source[OpenAt]='<') then Reason:='Explicit method type arguments are not resolved; choose a declaration explicitly.';
+  if HasTypeArguments then Reason:='Explicit method type arguments are not resolved; choose a declaration explicitly.';
   HasCall:=(OpenAt<=Length(Source)) and (Source[OpenAt]='(');InString:=False;Depth:=0;Angle:=0;
   if HasCall then begin
    var Part:='';var I:=OpenAt+1;while I<=Length(Source) do begin var C:=Source[I];

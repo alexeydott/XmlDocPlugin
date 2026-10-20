@@ -1,4 +1,4 @@
-/// <summary>Project documentation catalog, background analysis and source update coordination.</summary>
+﻿/// <summary>Project documentation catalog, background analysis and source update coordination.</summary>
 unit XmlDoc.Plugin.ProjectDocumentation;
 interface
 uses System.Classes,System.SyncObjs,Vcl.ExtCtrls,XmlDoc.Parser,XmlDoc.ProjectIndex,System.SysUtils,System.JSON,System.Generics.Collections,ToolsAPI,XmlDoc.Consts,XmlDoc.Plugin.Browser,XmlDoc.Plugin.QuickDocPreview;
@@ -398,7 +398,9 @@ begin
    Scope:=Message.GetValue<string>('scope','project');
    if Scope='global' then begin Global.Free;Global:=TJSONObject.ParseJSONValue(Payload.ToJSON) as TJSONObject;Registry.WriteString('Data',Global.ToJSON);end
    else begin
-    Root.RemovePair('authoring').Free;Root.AddPair('authoring',TJSONObject.ParseJSONValue(Payload.ToJSON));
+    var NewAuthoring:=Payload.Clone as TJSONObject;
+    if not Assigned(NewAuthoring.GetValue('ai')) and Assigned(Root.GetValue('authoring.ai')) then NewAuthoring.AddPair('ai',Root.GetValue('authoring.ai').Clone as TJSONValue);
+    Root.RemovePair('authoring').Free;Root.AddPair('authoring',NewAuthoring);
     TFile.WriteAllText(FileName,Root.Format(2),TEncoding.UTF8);TPluginSettings.Instance.LoadProject(ExtractFilePath(Project.FileName));
    end;
   end;

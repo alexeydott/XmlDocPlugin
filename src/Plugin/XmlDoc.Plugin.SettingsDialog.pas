@@ -51,6 +51,7 @@ type
   private
     FShortcutsChanged: Boolean;
 
+    procedure AISettingsClick(Sender:TObject);
     procedure LoadThemes(const Selected: string);
     procedure LoadSettings;
     procedure SaveSettings;
@@ -65,7 +66,7 @@ function ShowSettingsDialog: Boolean;
 
 implementation
 
-uses System.IOUtils,XmlDoc.HelpGen.ThemeEngine,XmlDoc.I18n,XmlDoc.Plugin.Localization, ToolsAPI,Vcl.ActnList,XmlDoc.ShortcutValidation,Vcl.Dialogs;
+uses XmlDoc.Plugin.AISettings,System.IOUtils,XmlDoc.HelpGen.ThemeEngine,XmlDoc.I18n,XmlDoc.Plugin.Localization, ToolsAPI,Vcl.ActnList,XmlDoc.ShortcutValidation,Vcl.Dialogs;
 
 {$R *.dfm}
 
@@ -88,9 +89,14 @@ end;
 procedure TSettingsDialog.FormCreate(Sender: TObject);
 begin
   FShortcutsChanged := False;
+  var AIButton:=TButton.Create(Self);AIButton.Parent:=tsGeneral;AIButton.SetBounds(16,200,360,30);AIButton.Caption:='AI profiles and prompts';AIButton.OnClick:=AISettingsClick;
   LoadSettings;
   LocalizePluginUi(Self);
 end;
+
+procedure TSettingsDialog.AISettingsClick(Sender:TObject);
+var Project:IOTAProject;
+begin Project:=GetActiveProject;if Assigned(Project) then ShowAISettings(ExtractFilePath(Project.FileName)) else ShowAISettings;end;
 
 procedure TSettingsDialog.btnOKClick(Sender: TObject);
 var Services:INTAServices;Actions:TCustomActionList;Conflicts:TArray<string>;RootMenu:TMenuItem;Previous:TShortcutSettings;

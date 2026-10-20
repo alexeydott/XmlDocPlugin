@@ -1,4 +1,5 @@
 import { bridge } from './bridge';
+import {initAIAssistant} from './aiAssistant';
 import { analyze, synchronize, modelXml, parseXml, inheritDoc, ready, issueKey, replaceProse, compatibleInheritedMember, genericArguments, isPublicApi, wordingMatches, editableXml } from './docTools';
 import type { DocModel, ElementInfo, TreeElementInfo } from './types';
 import { escapeXml } from './xmlCodec';
@@ -22,6 +23,7 @@ export function initWorkbench(hooks:Hooks):void {
  <div id="documentation-problems" aria-live="polite"></div><div id="operation-preview" hidden><h4>Review documentation changes</h4><div class="xml-diff"><pre id="xml-before"></pre><pre id="xml-after"></pre></div><button id="apply-operation">Apply changes</button><button id="cancel-operation">Cancel</button></div>`;
  initWorkbenchIcons(box);
  document.getElementById('doc-toolbar')?.before(box);
+ initAIAssistant(hooks);
  const raw=document.createElement('section');raw.id='doc-xml';raw.className='hidden';raw.innerHTML='<label for="xml-source">Documentation XML</label><textarea id="xml-source" spellcheck="false" aria-label="Documentation XML"></textarea><button id="apply-xml">Validate and apply XML</button><output id="xml-error" aria-live="polite"></output>';
  initWorkbenchIcons(raw);document.getElementById('doc-preview')?.after(raw);
  const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
@@ -42,17 +44,17 @@ export function initWorkbench(hooks:Hooks):void {
  const showRecovery=()=>{
   if(!recovery)return;const target=current().element;
   if(!target || target.fileName!==recovery.fileName || target.locationId!==recovery.locationId || target.sourceRevision!==recovery.currentRevision)return;
-  const data=recovery;recovery=null;const panel=$('documentation-problems');panel.replaceChildren();
+  const data=recovery;const stamp=bridge.captureStamp();recovery=null;const panel=$('documentation-problems');panel.replaceChildren();
   const heading=document.createElement('h4');heading.textContent='Recover documentation draft';panel.append(heading);
   const explanation=document.createElement('p');explanation.textContent=data.readOnly?'The source is read-only. The draft can be viewed but cannot be applied.':data.conflict?'Conflict: the source comment changed after this draft was created. Review all three versions before applying.':'The source comment matches the original version. Review the saved draft before applying.';panel.append(explanation);
   const versions=document.createElement('div');versions.className='draft-comparison';
   for(const [label,text] of [['Original comment',data.baseXml??'(Original version unavailable)'],['Current source comment',data.currentXml??''],['Saved draft',editableXml(data.doc)]]){const section=document.createElement('section');const title=document.createElement('h5');title.textContent=label;const code=document.createElement('pre');code.textContent=text;section.append(title,code);versions.append(section);}panel.append(versions);
   const apply=document.createElement('button');apply.textContent=data.conflict?'Apply draft over current comment':'Apply recovered draft';setWorkbenchIcon(apply,'apply-operation');apply.disabled=!!data.readOnly || bridge.readOnly;
-  apply.onclick=()=>{const now=current().element;if(!now || now.fileName!==target.fileName || now.locationId!==target.locationId || now.sessionId!==target.sessionId || now.sourceRevision!==target.sourceRevision){bridge.setStatus('Source changed — recover the draft again');return;}bridge.prepareRecovery(now);hooks.apply({...data.doc,unappliedXml:undefined});panel.replaceChildren();};
+  apply.onclick=()=>{const now=current().element;if(!bridge.isCurrentStamp(stamp)||!now || now.fileName!==target.fileName || now.locationId!==target.locationId || now.sessionId!==target.sessionId || now.sourceRevision!==target.sourceRevision){bridge.setStatus('Source changed — recover the draft again');return;}bridge.prepareRecovery(now);hooks.apply({...data.doc,unappliedXml:undefined});panel.replaceChildren();};
   const cancel=document.createElement('button');cancel.textContent='Keep draft and close';setWorkbenchIcon(cancel,'cancel-operation');cancel.onclick=()=>panel.replaceChildren();panel.append(apply,cancel);
  };
  const review=(doc:DocModel)=>{
-  preview=doc;const target=current().element;applyPreview=()=>{if(current().element?.declarationId!==target?.declarationId || current().element?.sourceRevision!==target?.sourceRevision){bridge.setStatus('Source changed — review again');return;}hooks.apply(doc);};$('xml-before').textContent=editableXml(current().doc);$('xml-after').textContent=modelXml(doc);$('operation-preview').hidden=false;
+  preview=doc;const target=current().element,stamp=bridge.captureStamp();applyPreview=()=>{if(!bridge.isCurrentStamp(stamp)||current().element?.declarationId!==target?.declarationId || current().element?.sourceRevision!==target?.sourceRevision){bridge.setStatus('Source changed — review again');return;}hooks.apply(doc);};$('xml-before').textContent=editableXml(current().doc);$('xml-after').textContent=modelXml(doc);$('operation-preview').hidden=false;
  };
  const issues=()=>{const c=current();return c.element?analyze(c.element,c.doc,catalog):[];};
  const showProblems=()=>{
@@ -68,12 +70,12 @@ export function initWorkbench(hooks:Hooks):void {
   if(!container.childElementCount)container.textContent=current().doc.summary?'Documentation checks passed.':'No summary yet.';
  };
  const sync=()=>{
-  const c=current();if(!c.element)return;
+  const c=current();if(!c.element)return;const syncStamp=bridge.captureStamp();
   const expected=c.element.params.map(p=>p.name);const old=(c.doc.params??[]).filter(p=>!expected.some(n=>n.toLowerCase()===p.name.toLowerCase()));
   const mappings:Record<string,string>={};
   const panel=document.createElement('div');panel.id='rename-mapping';
   for(const param of old){const label=document.createElement('label');label.textContent=`Map ${param.name}: `;const select=document.createElement('select');select.innerHTML='<option value="">Keep unmatched description</option>'+expected.map(n=>`<option data-code>${escapeXml(n)}</option>`).join('');select.onchange=()=>{if(select.value)mappings[param.name]=select.value;else delete mappings[param.name];};label.append(select);panel.append(label);}
-  const next=document.createElement('button');next.textContent='Preview synchronization';setWorkbenchIcon(next,'preview-change');next.onclick=()=>{try{review(synchronize(c.element!,c.doc,mappings));panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);
+  const next=document.createElement('button');next.textContent='Preview synchronization';setWorkbenchIcon(next,'preview-change');next.onclick=()=>{try{if(!bridge.isCurrentStamp(syncStamp)){bridge.setStatus('Source changed — review again');return;}review(synchronize(c.element!,c.doc,mappings));panel.remove();}catch(e){bridge.setStatus(String(e));}};panel.append(next);
   $('documentation-problems').replaceChildren(panel);if(!old.length)next.click();
  };
  $('cancel-analysis').onclick=()=>bridge.sendToHost({type:'cancelAnalysis'} as any);

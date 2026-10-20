@@ -5,7 +5,7 @@ uses
   System.SysUtils,
   Winapi.ActiveX,
   DUnitX.TestFramework, DUnitX.Loggers.Console,
-  TestDocModel, TestDocParser, TestDocCodeGen, TestDocStubGen, TestDocHMXP, TestDocCoverage, TestDocPublish, TestDocNavigation, TestDocUnit, TestDocASTCompatibility, TestDocDeclared, TestDocAutomaticDeclared, TestDocImprovements, TestDocThemes, TestDocReview;
+  TestDocModel, TestDocParser, TestDocCodeGen, TestDocStubGen, TestDocHMXP, TestDocCoverage, TestDocPublish, TestDocNavigation, TestDocUnit, TestDocASTCompatibility, TestDocDeclared, TestDocAutomaticDeclared, TestDocImprovements, TestDocThemes, TestDocReview, TestDocQuickScope, TestDocAI;
 var
   Runner: ITestRunner;
   Results: IRunResults;

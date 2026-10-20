@@ -40,6 +40,13 @@ requires
   VclSmp;
 
 contains
+  XmlDoc.AI.Contracts in '..\..\Core\XmlDoc.AI.Contracts.pas',
+  XmlDoc.AI.Context in '..\..\Core\XmlDoc.AI.Context.pas',
+  XmlDoc.AI.Prompts in '..\..\Core\XmlDoc.AI.Prompts.pas',
+  XmlDoc.AI.OpenAI in '..\..\Core\XmlDoc.AI.OpenAI.pas',
+  XmlDoc.AI.Transport in '..\..\Core\XmlDoc.AI.Transport.pas',
+  XmlDoc.Plugin.AISettings in '..\..\Plugin\XmlDoc.Plugin.AISettings.pas',
+  XmlDoc.Plugin.AIAssistant in '..\..\Plugin\XmlDoc.Plugin.AIAssistant.pas',
   XmlDoc.SourceAccess in '..\..\Core\XmlDoc.SourceAccess.pas',
   XmlDoc.HelpGen.Renderer.HMXP in '..\..\HelpGen\XmlDoc.HelpGen.Renderer.HMXP.pas',
   XmlDoc.Plugin.Browser in '..\..\Plugin\XmlDoc.Plugin.Browser.pas',

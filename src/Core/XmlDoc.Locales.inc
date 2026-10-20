@@ -429,7 +429,115 @@ const
   '  "Property": "свойство",' +
   '  "Field": "поле",' +
   '  "Type": "тип",' +
-  '  "Constant": "константа"' +
+  '  "Constant": "константа",' +
+  '  "AI assistant": "AI-помощник",' +
+  '  "AI profiles and prompts": "Профили и промпты AI",' +
+  '  "Connection profiles": "Профили подключения",' +
+  '  "Prompt templates": "Шаблоны промптов",' +
+  '  "New profile": "Новый профиль",' +
+  '  "Save profile": "Сохранить профиль",' +
+  '  "Profile name": "Название профиля",' +
+  '  "Endpoint": "Адрес API",' +
+  '  "Request path": "Путь запроса",' +
+  '  "Model": "Модель",' +
+  '  "Documentation language": "Язык документации",' +
+  '  "Timeout (ms)": "Таймаут (мс)",' +
+  '  "Context limit (characters)": "Лимит контекста (символы)",' +
+  '  "Response limit (bytes)": "Лимит ответа (байты)",' +
+  '  "Output token limit": "Лимит токенов ответа",' +
+  '  "Authorization": "Авторизация",' +
+  '  "API key": "Ключ API",' +
+  '  "Blank keeps the stored key": "Пустое поле сохраняет прежний ключ",' +
+  '  "Delete stored key": "Удалить сохранённый ключ",' +
+  '  "Output limit parameter": "Параметр лимита ответа",' +
+  '  "Request JSON mode (if supported)": "Режим JSON (если поддерживается)",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "Ключи хранятся в диспетчере учётных данных Windows. При смене адресата нужен новый ключ. Перед отправкой кода проверьте подключение в AI-помощнике.",' +
+  '  "Duplicate template": "Дублировать шаблон",' +
+  '  "Restore built-in": "Восстановить встроенный",' +
+  '  "System instruction": "Системная инструкция",' +
+  '  "User prompt": "Пользовательский промпт",' +
+  '  "Save templates as project overrides": "Сохранить шаблоны для текущего проекта",' +
+  '  "Save template": "Сохранить шаблон",' +
+  '  "Import templates": "Импорт шаблонов",' +
+  '  "Export templates": "Экспорт шаблонов",' +
+  '  "Prompt variables": "Переменные промпта",' +
+  '  "AI profile": "Профиль AI",' +
+  '  "AI operation": "Действие AI",' +
+  '  "Prompt template": "Шаблон промпта",' +
+  '  "Describe method from code": "Описать метод по коду",' +
+  '  "Rephrase summary": "Переформулировать описание",' +
+  '  "Test connection": "Проверить подключение",' +
+  '  "Additional instructions (optional)": "Дополнительные пожелания (необязательно)",' +
+  '  "Additional instructions": "Дополнительные пожелания",' +
+  '  "Preview AI request": "Просмотреть запрос AI",' +
+  '  "Send reviewed request": "Отправить проверенный запрос",' +
+  '  "Request preview": "Просмотр запроса",' +
+  '  "Suggested summary": "Предлагаемое описание",' +
+  '  "Keep protected XML tokens unchanged.": "Не изменяйте защищённые маркеры XML.",' +
+  '  "Apply reviewed summary": "Применить проверенное описание",' +
+  '  "Documentation changed — rebuild the AI proposal": "Документация изменена — заново создайте предложение AI",' +
+  '  "Resolve the XML draft before using AI": "Сначала примените или отмените XML-черновик",' +
+  '  "Select a method": "Выберите метод",' +
+  '  "Preparing AI request": "Подготовка запроса AI",' +
+  '  "Checking connection": "Проверка подключения",' +
+  '  "Cancelled": "Отменено",' +
+  '  "Connection OK": "Подключение работает",' +
+  '  "Review the request before sending": "Проверьте запрос перед отправкой",' +
+  '  "AI request running": "Выполняется запрос AI",' +
+  '  "Review and edit the AI proposal before applying": "Перед применением проверьте и отредактируйте предложение AI",' +
+  '  "AI proposal introduces documentation errors": "Предложение AI добавляет ошибки документации",' +
+  '  "AI proposal applied": "Предложение AI применено",' +
+  '  "Protected XML token was lost or duplicated": "Защищённый маркер XML потерян или повторён",' +
+  '  "Unknown protected XML token": "Неизвестный защищённый маркер XML",' +
+  '  "Method implementation is unavailable": "Реализация метода недоступна",' +
+  '  "Selected declaration has changed": "Выбранное объявление изменено",' +
+  '  "Method implementation is ambiguous": "Неоднозначная реализация метода",' +
+  '  "Implementation is in an include file; open that source explicitly": "Реализация находится во включаемом файле; откройте его явно",' +
+  '  "Invalid implementation source range": "Некорректный диапазон реализации",' +
+  '  "Incomplete implementation source range": "Неполный диапазон реализации",' +
+  '  "Unknown prompt variable: {0}": "Неизвестная переменная промпта: {0}",' +
+  '  "Required prompt context is empty: {0}": "Пустое обязательное поле контекста: {0}",' +
+  '  "Unclosed prompt variable": "Незакрытая переменная промпта",' +
+  '  "Invalid summary markup": "Некорректная разметка описания",' +
+  '  "AI HTTP error {0}": "Ошибка HTTP при запросе AI: {0}",' +
+  '  "Invalid API JSON response": "Некорректный JSON в ответе API",' +
+  '  "Expected one AI choice": "Ожидался один вариант ответа AI",' +
+  '  "AI response is incomplete or refused": "Ответ AI неполон или отклонён",' +
+  '  "AI message content is missing": "В ответе AI отсутствует содержимое",' +
+  '  "Invalid proposal JSON": "Некорректный JSON предложения",' +
+  '  "Invalid proposal contract": "Некорректная структура предложения",' +
+  '  "AI summary is empty": "AI вернул пустое описание",' +
+  '  "Invalid uncertainty": "Некорректный пункт неясностей",' +
+  '  "Invalid API response structure": "Некорректная структура ответа API",' +
+  '  "AI response exceeds the configured limit": "Ответ AI превышает заданный лимит",' +
+  '  "AI request cancelled": "Запрос AI отменён",' +
+  '  "AI request timed out": "Истекло время ожидания AI",' +
+  '  "AI transport failed": "Сбой передачи запроса AI",' +
+  '  "Choose an AI profile": "Выберите профиль AI",' +
+  '  "Choose a matching AI template": "Выберите подходящий шаблон AI",' +
+  '  "Model is required": "Укажите модель",' +
+  '  "API key is required": "Укажите ключ API",' +
+  '  "Invalid AI limits": "Некорректные ограничения AI",' +
+  '  "Unsupported authorization mode": "Неподдерживаемый способ авторизации",' +
+  '  "Method implementation is required": "Необходима реализация метода",' +
+  '  "Summary is empty": "Описание пустое",' +
+  '  "Method context exceeds the configured limit; no source was sent": "Контекст метода превышает лимит; исходник не отправлен",' +
+  '  "Use HTTPS or a local HTTP endpoint": "Используйте HTTPS или локальный HTTP-адрес",' +
+  '  "Invalid API endpoint": "Некорректный адрес API",' +
+  '  "Invalid API request path": "Некорректный путь запроса API",' +
+  '  "Unsupported output limit parameter": "Неподдерживаемый параметр лимита ответа",' +
+  '  "Output token limit is required": "Укажите лимит токенов ответа",' +
+  '  "Unsupported AI configuration version": "Неподдерживаемая версия настроек AI",' +
+  '  "Unsupported AI template version": "Неподдерживаемая версия шаблонов AI",' +
+  '  "Invalid AI template": "Некорректный шаблон AI",' +
+  '  "AI request is no longer current": "Запрос AI уже устарел",' +
+  '  "AI request is already running": "Запрос AI уже выполняется",' +
+  '  "Unknown AI command": "Неизвестная команда AI",' +
+  '  "Unknown AI operation": "Неизвестное действие AI",' +
+  '  "Invalid AI request identity": "Некорректный идентификатор запроса AI",' +
+  '  "Template must include signature and implementation": "Шаблон должен включать сигнатуру и реализацию",' +
+  '  "Template must include existing documentation": "Шаблон должен включать текущее описание",' +
+  '  "Invalid AI configuration": "Некорректные настройки AI"' +
   '}';
  CLocale_zh =
   '{' +
@@ -860,7 +968,115 @@ const
   '  "Property": "属性",' +
   '  "Field": "字段",' +
   '  "Type": "类型",' +
-  '  "Constant": "常量"' +
+  '  "Constant": "常量",' +
+  '  "AI assistant": "AI 助手",' +
+  '  "AI profiles and prompts": "AI 配置与提示词",' +
+  '  "Connection profiles": "连接配置",' +
+  '  "Prompt templates": "提示词模板",' +
+  '  "New profile": "新建配置",' +
+  '  "Save profile": "保存配置",' +
+  '  "Profile name": "配置名称",' +
+  '  "Endpoint": "API 地址",' +
+  '  "Request path": "请求路径",' +
+  '  "Model": "模型",' +
+  '  "Documentation language": "文档语言",' +
+  '  "Timeout (ms)": "超时（毫秒）",' +
+  '  "Context limit (characters)": "上下文限制（字符）",' +
+  '  "Response limit (bytes)": "响应限制（字节）",' +
+  '  "Output token limit": "输出令牌限制",' +
+  '  "Authorization": "身份验证",' +
+  '  "API key": "API 密钥",' +
+  '  "Blank keeps the stored key": "留空以保留已存密钥",' +
+  '  "Delete stored key": "删除已存密钥",' +
+  '  "Output limit parameter": "输出限制参数",' +
+  '  "Request JSON mode (if supported)": "请求 JSON 模式（如果支持）",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "密钥保存在 Windows 凭据管理器中。更改目标地址后需要重新设置密钥。发送源代码前请在助手中测试连接。",' +
+  '  "Duplicate template": "复制模板",' +
+  '  "Restore built-in": "恢复内置模板",' +
+  '  "System instruction": "系统指令",' +
+  '  "User prompt": "用户提示词",' +
+  '  "Save templates as project overrides": "保存为项目覆盖模板",' +
+  '  "Save template": "保存模板",' +
+  '  "Import templates": "导入模板",' +
+  '  "Export templates": "导出模板",' +
+  '  "Prompt variables": "提示词变量",' +
+  '  "AI profile": "AI 配置",' +
+  '  "AI operation": "AI 操作",' +
+  '  "Prompt template": "提示词模板",' +
+  '  "Describe method from code": "根据代码描述方法",' +
+  '  "Rephrase summary": "改写摘要",' +
+  '  "Test connection": "测试连接",' +
+  '  "Additional instructions (optional)": "附加指令（可选）",' +
+  '  "Additional instructions": "附加指令",' +
+  '  "Preview AI request": "预览 AI 请求",' +
+  '  "Send reviewed request": "发送已审核请求",' +
+  '  "Request preview": "请求预览",' +
+  '  "Suggested summary": "建议摘要",' +
+  '  "Keep protected XML tokens unchanged.": "请勿更改受保护的 XML 标记。",' +
+  '  "Apply reviewed summary": "应用已审核摘要",' +
+  '  "Documentation changed — rebuild the AI proposal": "文档已更改 — 请重新生成 AI 建议",' +
+  '  "Resolve the XML draft before using AI": "使用 AI 前请先处理 XML 草稿",' +
+  '  "Select a method": "请选择方法",' +
+  '  "Preparing AI request": "正在准备 AI 请求",' +
+  '  "Checking connection": "正在测试连接",' +
+  '  "Cancelled": "已取消",' +
+  '  "Connection OK": "连接正常",' +
+  '  "Review the request before sending": "发送前请审核请求",' +
+  '  "AI request running": "AI 请求进行中",' +
+  '  "Review and edit the AI proposal before applying": "应用前请审核并编辑 AI 建议",' +
+  '  "AI proposal introduces documentation errors": "AI 建议引入了文档错误",' +
+  '  "AI proposal applied": "已应用 AI 建议",' +
+  '  "Protected XML token was lost or duplicated": "受保护的 XML 标记丢失或重复",' +
+  '  "Unknown protected XML token": "未知的受保护 XML 标记",' +
+  '  "Method implementation is unavailable": "方法实现不可用",' +
+  '  "Selected declaration has changed": "所选声明已更改",' +
+  '  "Method implementation is ambiguous": "方法实现不明确",' +
+  '  "Implementation is in an include file; open that source explicitly": "实现位于包含文件中，请显式打开该源文件",' +
+  '  "Invalid implementation source range": "实现源码范围无效",' +
+  '  "Incomplete implementation source range": "实现源码范围不完整",' +
+  '  "Unknown prompt variable: {0}": "未知的提示词变量：{0}",' +
+  '  "Required prompt context is empty: {0}": "必需的提示词上下文为空：{0}",' +
+  '  "Unclosed prompt variable": "提示词变量未闭合",' +
+  '  "Invalid summary markup": "摘要标记无效",' +
+  '  "AI HTTP error {0}": "AI HTTP 错误：{0}",' +
+  '  "Invalid API JSON response": "API JSON 响应无效",' +
+  '  "Expected one AI choice": "应返回一个 AI 选项",' +
+  '  "AI response is incomplete or refused": "AI 响应不完整或被拒绝",' +
+  '  "AI message content is missing": "AI 消息内容缺失",' +
+  '  "Invalid proposal JSON": "建议 JSON 无效",' +
+  '  "Invalid proposal contract": "建议结构无效",' +
+  '  "AI summary is empty": "AI 摘要为空",' +
+  '  "Invalid uncertainty": "不确定项无效",' +
+  '  "Invalid API response structure": "API 响应结构无效",' +
+  '  "AI response exceeds the configured limit": "AI 响应超过配置限制",' +
+  '  "AI request cancelled": "AI 请求已取消",' +
+  '  "AI request timed out": "AI 请求超时",' +
+  '  "AI transport failed": "AI 传输失败",' +
+  '  "Choose an AI profile": "请选择 AI 配置",' +
+  '  "Choose a matching AI template": "请选择匹配的 AI 模板",' +
+  '  "Model is required": "必须指定模型",' +
+  '  "API key is required": "必须指定 API 密钥",' +
+  '  "Invalid AI limits": "AI 限制无效",' +
+  '  "Unsupported authorization mode": "不支持的身份验证模式",' +
+  '  "Method implementation is required": "必须提供方法实现",' +
+  '  "Summary is empty": "摘要为空",' +
+  '  "Method context exceeds the configured limit; no source was sent": "方法上下文超过限制，未发送源代码",' +
+  '  "Use HTTPS or a local HTTP endpoint": "请使用 HTTPS 或本地 HTTP 地址",' +
+  '  "Invalid API endpoint": "API 地址无效",' +
+  '  "Invalid API request path": "API 请求路径无效",' +
+  '  "Unsupported output limit parameter": "不支持的输出限制参数",' +
+  '  "Output token limit is required": "必须指定输出令牌限制",' +
+  '  "Unsupported AI configuration version": "不支持的 AI 配置版本",' +
+  '  "Unsupported AI template version": "不支持的 AI 模板版本",' +
+  '  "Invalid AI template": "AI 模板无效",' +
+  '  "AI request is no longer current": "AI 请求已过期",' +
+  '  "AI request is already running": "AI 请求已在运行",' +
+  '  "Unknown AI command": "未知的 AI 命令",' +
+  '  "Unknown AI operation": "未知的 AI 操作",' +
+  '  "Invalid AI request identity": "AI 请求标识无效",' +
+  '  "Template must include signature and implementation": "模板必须包含签名和实现",' +
+  '  "Template must include existing documentation": "模板必须包含现有文档",' +
+  '  "Invalid AI configuration": "AI 配置无效"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1291,7 +1507,115 @@ const
   '  "Property": "속성",' +
   '  "Field": "필드",' +
   '  "Type": "형식",' +
-  '  "Constant": "상수"' +
+  '  "Constant": "상수",' +
+  '  "AI assistant": "AI 도우미",' +
+  '  "AI profiles and prompts": "AI 프로필 및 프롬프트",' +
+  '  "Connection profiles": "연결 프로필",' +
+  '  "Prompt templates": "프롬프트 템플릿",' +
+  '  "New profile": "새 프로필",' +
+  '  "Save profile": "프로필 저장",' +
+  '  "Profile name": "프로필 이름",' +
+  '  "Endpoint": "API 주소",' +
+  '  "Request path": "요청 경로",' +
+  '  "Model": "모델",' +
+  '  "Documentation language": "문서 언어",' +
+  '  "Timeout (ms)": "제한 시간(ms)",' +
+  '  "Context limit (characters)": "컨텍스트 제한(문자)",' +
+  '  "Response limit (bytes)": "응답 제한(바이트)",' +
+  '  "Output token limit": "출력 토큰 제한",' +
+  '  "Authorization": "인증",' +
+  '  "API key": "API 키",' +
+  '  "Blank keeps the stored key": "비워 두면 저장된 키를 유지합니다",' +
+  '  "Delete stored key": "저장된 키 삭제",' +
+  '  "Output limit parameter": "출력 제한 매개변수",' +
+  '  "Request JSON mode (if supported)": "JSON 모드 요청(지원하는 경우)",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "키는 Windows 자격 증명 관리자에 저장됩니다. 대상 주소를 변경하면 새 키가 필요합니다. 소스를 보내기 전에 도우미에서 연결을 테스트하세요.",' +
+  '  "Duplicate template": "템플릿 복제",' +
+  '  "Restore built-in": "기본 템플릿 복원",' +
+  '  "System instruction": "시스템 지침",' +
+  '  "User prompt": "사용자 프롬프트",' +
+  '  "Save templates as project overrides": "프로젝트별 템플릿으로 저장",' +
+  '  "Save template": "템플릿 저장",' +
+  '  "Import templates": "템플릿 가져오기",' +
+  '  "Export templates": "템플릿 내보내기",' +
+  '  "Prompt variables": "프롬프트 변수",' +
+  '  "AI profile": "AI 프로필",' +
+  '  "AI operation": "AI 작업",' +
+  '  "Prompt template": "프롬프트 템플릿",' +
+  '  "Describe method from code": "코드로 메서드 설명",' +
+  '  "Rephrase summary": "요약 다시 작성",' +
+  '  "Test connection": "연결 테스트",' +
+  '  "Additional instructions (optional)": "추가 지침(선택 사항)",' +
+  '  "Additional instructions": "추가 지침",' +
+  '  "Preview AI request": "AI 요청 미리 보기",' +
+  '  "Send reviewed request": "검토한 요청 보내기",' +
+  '  "Request preview": "요청 미리 보기",' +
+  '  "Suggested summary": "제안된 요약",' +
+  '  "Keep protected XML tokens unchanged.": "보호된 XML 토큰을 변경하지 마세요.",' +
+  '  "Apply reviewed summary": "검토한 요약 적용",' +
+  '  "Documentation changed — rebuild the AI proposal": "문서가 변경되었습니다 — AI 제안을 다시 생성하세요",' +
+  '  "Resolve the XML draft before using AI": "AI를 사용하기 전에 XML 초안을 처리하세요",' +
+  '  "Select a method": "메서드를 선택하세요",' +
+  '  "Preparing AI request": "AI 요청 준비 중",' +
+  '  "Checking connection": "연결 확인 중",' +
+  '  "Cancelled": "취소됨",' +
+  '  "Connection OK": "연결 성공",' +
+  '  "Review the request before sending": "보내기 전에 요청을 검토하세요",' +
+  '  "AI request running": "AI 요청 진행 중",' +
+  '  "Review and edit the AI proposal before applying": "적용 전에 AI 제안을 검토하고 수정하세요",' +
+  '  "AI proposal introduces documentation errors": "AI 제안으로 문서 오류가 발생합니다",' +
+  '  "AI proposal applied": "AI 제안을 적용했습니다",' +
+  '  "Protected XML token was lost or duplicated": "보호된 XML 토큰이 누락되었거나 중복되었습니다",' +
+  '  "Unknown protected XML token": "알 수 없는 보호된 XML 토큰",' +
+  '  "Method implementation is unavailable": "메서드 구현을 사용할 수 없습니다",' +
+  '  "Selected declaration has changed": "선택한 선언이 변경되었습니다",' +
+  '  "Method implementation is ambiguous": "메서드 구현이 모호합니다",' +
+  '  "Implementation is in an include file; open that source explicitly": "구현이 포함 파일에 있습니다. 해당 소스를 직접 여세요",' +
+  '  "Invalid implementation source range": "구현 소스 범위가 잘못되었습니다",' +
+  '  "Incomplete implementation source range": "구현 소스 범위가 불완전합니다",' +
+  '  "Unknown prompt variable: {0}": "알 수 없는 프롬프트 변수: {0}",' +
+  '  "Required prompt context is empty: {0}": "필수 프롬프트 컨텍스트가 비어 있습니다: {0}",' +
+  '  "Unclosed prompt variable": "닫히지 않은 프롬프트 변수",' +
+  '  "Invalid summary markup": "요약 마크업이 잘못되었습니다",' +
+  '  "AI HTTP error {0}": "AI HTTP 오류: {0}",' +
+  '  "Invalid API JSON response": "API JSON 응답이 잘못되었습니다",' +
+  '  "Expected one AI choice": "AI 응답은 하나여야 합니다",' +
+  '  "AI response is incomplete or refused": "AI 응답이 불완전하거나 거부되었습니다",' +
+  '  "AI message content is missing": "AI 메시지 내용이 없습니다",' +
+  '  "Invalid proposal JSON": "제안 JSON이 잘못되었습니다",' +
+  '  "Invalid proposal contract": "제안 구조가 잘못되었습니다",' +
+  '  "AI summary is empty": "AI 요약이 비어 있습니다",' +
+  '  "Invalid uncertainty": "불확실성 항목이 잘못되었습니다",' +
+  '  "Invalid API response structure": "API 응답 구조가 잘못되었습니다",' +
+  '  "AI response exceeds the configured limit": "AI 응답이 설정된 제한을 초과합니다",' +
+  '  "AI request cancelled": "AI 요청이 취소되었습니다",' +
+  '  "AI request timed out": "AI 요청 시간이 초과되었습니다",' +
+  '  "AI transport failed": "AI 전송에 실패했습니다",' +
+  '  "Choose an AI profile": "AI 프로필을 선택하세요",' +
+  '  "Choose a matching AI template": "일치하는 AI 템플릿을 선택하세요",' +
+  '  "Model is required": "모델을 지정하세요",' +
+  '  "API key is required": "API 키를 지정하세요",' +
+  '  "Invalid AI limits": "AI 제한이 잘못되었습니다",' +
+  '  "Unsupported authorization mode": "지원하지 않는 인증 모드",' +
+  '  "Method implementation is required": "메서드 구현이 필요합니다",' +
+  '  "Summary is empty": "요약이 비어 있습니다",' +
+  '  "Method context exceeds the configured limit; no source was sent": "메서드 컨텍스트가 제한을 초과하여 소스를 보내지 않았습니다",' +
+  '  "Use HTTPS or a local HTTP endpoint": "HTTPS 또는 로컬 HTTP 주소를 사용하세요",' +
+  '  "Invalid API endpoint": "API 주소가 잘못되었습니다",' +
+  '  "Invalid API request path": "API 요청 경로가 잘못되었습니다",' +
+  '  "Unsupported output limit parameter": "지원하지 않는 출력 제한 매개변수",' +
+  '  "Output token limit is required": "출력 토큰 제한을 지정하세요",' +
+  '  "Unsupported AI configuration version": "지원하지 않는 AI 설정 버전",' +
+  '  "Unsupported AI template version": "지원하지 않는 AI 템플릿 버전",' +
+  '  "Invalid AI template": "AI 템플릿이 잘못되었습니다",' +
+  '  "AI request is no longer current": "AI 요청이 더 이상 유효하지 않습니다",' +
+  '  "AI request is already running": "AI 요청이 이미 실행 중입니다",' +
+  '  "Unknown AI command": "알 수 없는 AI 명령",' +
+  '  "Unknown AI operation": "알 수 없는 AI 작업",' +
+  '  "Invalid AI request identity": "AI 요청 식별자가 잘못되었습니다",' +
+  '  "Template must include signature and implementation": "템플릿에 시그니처와 구현을 포함해야 합니다",' +
+  '  "Template must include existing documentation": "템플릿에 기존 문서를 포함해야 합니다",' +
+  '  "Invalid AI configuration": "AI 설정이 잘못되었습니다"' +
   '}';
  CLocale_ja =
   '{' +
@@ -1722,5 +2046,113 @@ const
   '  "Property": "プロパティ",' +
   '  "Field": "フィールド",' +
   '  "Type": "型",' +
-  '  "Constant": "定数"' +
+  '  "Constant": "定数",' +
+  '  "AI assistant": "AI アシスタント",' +
+  '  "AI profiles and prompts": "AI プロファイルとプロンプト",' +
+  '  "Connection profiles": "接続プロファイル",' +
+  '  "Prompt templates": "プロンプトテンプレート",' +
+  '  "New profile": "新しいプロファイル",' +
+  '  "Save profile": "プロファイルを保存",' +
+  '  "Profile name": "プロファイル名",' +
+  '  "Endpoint": "API エンドポイント",' +
+  '  "Request path": "リクエストのパス",' +
+  '  "Model": "モデル",' +
+  '  "Documentation language": "ドキュメントの言語",' +
+  '  "Timeout (ms)": "タイムアウト (ms)",' +
+  '  "Context limit (characters)": "コンテキストの上限 (文字)",' +
+  '  "Response limit (bytes)": "応答の上限 (バイト)",' +
+  '  "Output token limit": "出力トークンの上限",' +
+  '  "Authorization": "認証",' +
+  '  "API key": "API キー",' +
+  '  "Blank keeps the stored key": "空欄で保存済みのキーを維持",' +
+  '  "Delete stored key": "保存済みのキーを削除",' +
+  '  "Output limit parameter": "出力上限のパラメーター",' +
+  '  "Request JSON mode (if supported)": "JSON モードを要求 (対応時)",' +
+  '  "Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.": "キーは Windows 資格情報マネージャーに保存されます。送信先の変更後はキーを再設定してください。ソースを送信する前にアシスタントで接続をテストしてください。",' +
+  '  "Duplicate template": "テンプレートを複製",' +
+  '  "Restore built-in": "組み込みを復元",' +
+  '  "System instruction": "システム指示",' +
+  '  "User prompt": "ユーザープロンプト",' +
+  '  "Save templates as project overrides": "プロジェクトの上書きとして保存",' +
+  '  "Save template": "テンプレートを保存",' +
+  '  "Import templates": "テンプレートをインポート",' +
+  '  "Export templates": "テンプレートをエクスポート",' +
+  '  "Prompt variables": "プロンプト変数",' +
+  '  "AI profile": "AI プロファイル",' +
+  '  "AI operation": "AI 操作",' +
+  '  "Prompt template": "プロンプトテンプレート",' +
+  '  "Describe method from code": "コードからメソッドを説明",' +
+  '  "Rephrase summary": "概要を言い換え",' +
+  '  "Test connection": "接続をテスト",' +
+  '  "Additional instructions (optional)": "追加の指示 (省略可)",' +
+  '  "Additional instructions": "追加の指示",' +
+  '  "Preview AI request": "AI リクエストを確認",' +
+  '  "Send reviewed request": "確認済みリクエストを送信",' +
+  '  "Request preview": "リクエストの確認",' +
+  '  "Suggested summary": "提案された概要",' +
+  '  "Keep protected XML tokens unchanged.": "保護された XML トークンを変更しないでください。",' +
+  '  "Apply reviewed summary": "確認済み概要を適用",' +
+  '  "Documentation changed — rebuild the AI proposal": "ドキュメントが変更されました — AI の提案を作り直してください",' +
+  '  "Resolve the XML draft before using AI": "AI を使用する前に XML の下書きを確定または破棄してください",' +
+  '  "Select a method": "メソッドを選択してください",' +
+  '  "Preparing AI request": "AI リクエストを準備中",' +
+  '  "Checking connection": "接続を確認中",' +
+  '  "Cancelled": "キャンセル済み",' +
+  '  "Connection OK": "接続成功",' +
+  '  "Review the request before sending": "送信前にリクエストを確認してください",' +
+  '  "AI request running": "AI リクエストを実行中",' +
+  '  "Review and edit the AI proposal before applying": "適用前に AI の提案を確認して編集してください",' +
+  '  "AI proposal introduces documentation errors": "AI の提案によりドキュメントのエラーが増えます",' +
+  '  "AI proposal applied": "AI の提案を適用しました",' +
+  '  "Protected XML token was lost or duplicated": "保護された XML トークンが欠落または重複しています",' +
+  '  "Unknown protected XML token": "不明な保護された XML トークン",' +
+  '  "Method implementation is unavailable": "メソッドの実装を取得できません",' +
+  '  "Selected declaration has changed": "選択した宣言が変更されました",' +
+  '  "Method implementation is ambiguous": "メソッドの実装が曖昧です",' +
+  '  "Implementation is in an include file; open that source explicitly": "実装はインクルードファイル内にあります。そのソースを明示的に開いてください",' +
+  '  "Invalid implementation source range": "実装ソースの範囲が無効です",' +
+  '  "Incomplete implementation source range": "実装ソースの範囲が不完全です",' +
+  '  "Unknown prompt variable: {0}": "不明なプロンプト変数: {0}",' +
+  '  "Required prompt context is empty: {0}": "必須のプロンプトコンテキストが空です: {0}",' +
+  '  "Unclosed prompt variable": "プロンプト変数が閉じられていません",' +
+  '  "Invalid summary markup": "概要のマークアップが無効です",' +
+  '  "AI HTTP error {0}": "AI HTTP エラー: {0}",' +
+  '  "Invalid API JSON response": "API の JSON 応答が無効です",' +
+  '  "Expected one AI choice": "AI の応答候補は 1 つ必要です",' +
+  '  "AI response is incomplete or refused": "AI の応答が不完全か拒否されました",' +
+  '  "AI message content is missing": "AI メッセージの内容がありません",' +
+  '  "Invalid proposal JSON": "提案の JSON が無効です",' +
+  '  "Invalid proposal contract": "提案の構造が無効です",' +
+  '  "AI summary is empty": "AI の概要が空です",' +
+  '  "Invalid uncertainty": "不確実な項目が無効です",' +
+  '  "Invalid API response structure": "API 応答の構造が無効です",' +
+  '  "AI response exceeds the configured limit": "AI の応答が設定された上限を超えています",' +
+  '  "AI request cancelled": "AI リクエストがキャンセルされました",' +
+  '  "AI request timed out": "AI リクエストがタイムアウトしました",' +
+  '  "AI transport failed": "AI の通信に失敗しました",' +
+  '  "Choose an AI profile": "AI プロファイルを選択してください",' +
+  '  "Choose a matching AI template": "対応する AI テンプレートを選択してください",' +
+  '  "Model is required": "モデルを指定してください",' +
+  '  "API key is required": "API キーを指定してください",' +
+  '  "Invalid AI limits": "AI の上限が無効です",' +
+  '  "Unsupported authorization mode": "未対応の認証モード",' +
+  '  "Method implementation is required": "メソッドの実装が必要です",' +
+  '  "Summary is empty": "概要が空です",' +
+  '  "Method context exceeds the configured limit; no source was sent": "メソッドのコンテキストが上限を超えたためソースは送信されませんでした",' +
+  '  "Use HTTPS or a local HTTP endpoint": "HTTPS またはローカル HTTP アドレスを使用してください",' +
+  '  "Invalid API endpoint": "API エンドポイントが無効です",' +
+  '  "Invalid API request path": "API リクエストのパスが無効です",' +
+  '  "Unsupported output limit parameter": "未対応の出力上限パラメーター",' +
+  '  "Output token limit is required": "出力トークンの上限を指定してください",' +
+  '  "Unsupported AI configuration version": "未対応の AI 設定バージョン",' +
+  '  "Unsupported AI template version": "未対応の AI テンプレートバージョン",' +
+  '  "Invalid AI template": "AI テンプレートが無効です",' +
+  '  "AI request is no longer current": "AI リクエストが古くなっています",' +
+  '  "AI request is already running": "AI リクエストは既に実行中です",' +
+  '  "Unknown AI command": "不明な AI コマンド",' +
+  '  "Unknown AI operation": "不明な AI 操作",' +
+  '  "Invalid AI request identity": "AI リクエストの識別子が無効です",' +
+  '  "Template must include signature and implementation": "テンプレートにはシグネチャと実装が必要です",' +
+  '  "Template must include existing documentation": "テンプレートには既存のドキュメントが必要です",' +
+  '  "Invalid AI configuration": "AI 設定が無効です"' +
   '}';

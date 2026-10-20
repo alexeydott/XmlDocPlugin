@@ -239,7 +239,7 @@ begin
 end;
 procedure TXmlDocMenuIntegration.OnCommand(Sender:TObject);
 begin
- if Assigned(GDocumentationCommand) then GDocumentationCommand(TAction(Sender).Hint);
+ if Assigned(GDocumentationCommand) then GDocumentationCommand(TAction(Sender).HelpKeyword);
 end;
 procedure SetToggleInspectorCallback(ACallback: TFunc<Boolean>);
 begin
@@ -510,7 +510,7 @@ begin
   FMenuItems.Add(LItem);
 
   FContextActions:=TActionList.Create(nil);
-  for Command in ['sync-document','show-problems','open-xml','quick-documentation','pin-document','compact-document','insert-selection','format-document','fold-documentation'] do begin
+  for Command in ['sync-document','show-problems','open-xml','quick-documentation','pin-document','compact-document','insert-selection','format-document','fold-documentation','ai-describe','ai-rephrase'] do begin
     Caption:=Command;
     if Command='sync-document' then Caption:='Synchronize Documentation'
     else if Command='show-problems' then Caption:='Documentation Problems'
@@ -520,11 +520,13 @@ begin
     else if Command='compact-document' then Caption:='Compact Documentation Inspector'
     else if Command='insert-selection' then Caption:='Selected Source as Documentation Example'
     else if Command='format-document' then Caption:='Format Documentation'
-    else if Command='fold-documentation' then Caption:='Fold Documentation Comments';
+    else if Command='fold-documentation' then Caption:='Fold Documentation Comments'
+    else if Command='ai-describe' then Caption:='Describe method from code'
+    else if Command='ai-rephrase' then Caption:='Rephrase summary';
     Action:=TAction.Create(Self);Action.Name:='XmlDocAction'+StringReplace(Command,'-','',[rfReplaceAll]);
-    Action.Caption:=Caption;Action.Category:='Documentation';Action.Hint:=Command;
+    Action.Caption:=Caption;Action.Category:='Documentation';Action.HelpKeyword:=Command;Action.Hint:=Caption;
     Action.ActionList:=LNTAServices.ActionList;Action.OnExecute:=OnCommand;FCommandActions.Add(Action);
-    ContextAction:=TAction.Create(FContextActions);ContextAction.Caption:=Caption;ContextAction.Category:='Documentation';ContextAction.Hint:=Command;ContextAction.OnExecute:=OnCommand;ContextAction.ActionList:=FContextActions;
+    ContextAction:=TAction.Create(FContextActions);ContextAction.Caption:=Caption;ContextAction.Category:='Documentation';ContextAction.HelpKeyword:=Command;ContextAction.Hint:=Caption;ContextAction.OnExecute:=OnCommand;ContextAction.ActionList:=FContextActions;
     LItem:=TMenuItem.Create(Self);LItem.Action:=Action;LXmlDocMenu.Add(LItem);FMenuItems.Add(LItem);
   end;
 
