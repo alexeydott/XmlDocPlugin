@@ -555,6 +555,21 @@ begin
     AssertTrue(not CalcSource.Contains('Proposed calculation summary.') and not CalcSource.Contains('Proposed second operand.') and not CalcSource.Contains('Proposed calculation remarks.'),'An unselected AI field was written');
     Browser.ExecuteScript('window.__reviewCalculateChecked=true');Log('PASS independent AI summary, parameter, returns and remarks selection through OTA');
    end
+   else if Action='review-custom-templates' then begin
+    var Templates:=AIPrompts(Root);
+    try
+     var BuiltIn:=TAIPrompt.BuiltIn(aoReview);
+     for var Scope in ['missing','system','user'] do begin
+      var SystemText:=BuiltIn.SystemText+' Custom Review '+Scope;
+      var UserText:='{{ signature }}'+#10+'{{ implementation }}'+#10+'{{ parameters }}';
+      if Scope='system' then SystemText:=SystemText+#10+'{{ documentation }}';
+      if Scope='user' then UserText:=UserText+#10+'{{  documentation  }}';
+      Templates.AddElement(TJSONObject.Create.AddPair('id','custom-review-'+Scope).AddPair('name','Custom Review '+Scope).AddPair('operation','review').AddPair('system',SystemText).AddPair('user',UserText));
+     end;
+     SaveAIPrompts(Templates,Root);
+    finally Templates.Free;end;
+    Browser.ExecuteScript('window.xmlDocAI.reload();window.__customReviewReady=true;');
+   end
    else if Action='review-queue-start' then begin
     var P:=TDocParser.Create;try P.ParseSource(EditorSource(SourceEditorForFile(SecondFile)),SecondFile);
      for var E in P.GetAllElements do if (E.Name='Run') and (E.SourceSection='interface') then begin

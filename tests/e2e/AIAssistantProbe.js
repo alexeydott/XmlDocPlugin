@@ -69,7 +69,22 @@
    else assert(!quick.resolved&&quick.matches.length===0,'Inline variable falsely resolved to a method: '+JSON.stringify(quick));
   }
   await checkSource('procedure TDocumented.ScopeProbe;','Quick Documentation lexical target and explicit Self candidates');
-  await select('Calculate','Integer');click('ai-review');await until(()=>!document.querySelector('#ai-proposal').hidden,'Review operation did not return a proposal');
+  await select('Calculate','Integer');send('review-custom-templates');await until(()=>window.__customReviewReady,'Custom Review templates not saved');
+  const operationSelect=document.getElementById('ai-operation');operationSelect.value='review';operationSelect.dispatchEvent(new Event('change'));
+  await until(()=>Array.from(document.querySelector('#ai-template').options).some(o=>o.value==='custom-review-missing'),'Custom Review templates not loaded');
+  document.getElementById('ai-template').value='custom-review-missing';click('ai-prepare');
+  await until(()=>document.getElementById('ai-assistant').getAttribute('aria-busy')==='false','Missing documentation validation did not finish');
+  assert(document.getElementById('ai-status').textContent.includes('Template must include existing documentation'),'Custom Review without documentation was accepted');
+  assert(document.getElementById('ai-send').disabled&&document.getElementById('ai-proposal').hidden,'Invalid Review enabled sending');
+  for(const scope of ['system','user']){
+   document.getElementById('ai-template').value='custom-review-'+scope;click('ai-prepare');await until(()=>!document.getElementById('ai-send').disabled,'Valid custom Review did not prepare');
+   const request=JSON.parse(document.getElementById('ai-request').textContent),messages=request.messages;
+   assert(messages.some(m=>m.content.includes('function TDocumented.Calculate'))&&messages.some(m=>m.content.includes('Value+Other')),'Custom Review lost method context');
+   assert(messages.some(m=>m.content.includes('Adds two numbers.')),'Custom Review lost current documentation');
+   assert(messages[0].content.includes('Custom Review '+scope),'Wrong custom Review selected');click('ai-cancel');
+  }
+  window.__reviewSourceChecked=false;send('review-source-check',{text:'Adds two numbers.',label:'custom Review requires documentation and supports spaced variables in System/User prompts'});await until(()=>window.__reviewSourceChecked,'Custom Review source check missing');
+  document.getElementById('ai-template').value='review';click('ai-review');await until(()=>!document.querySelector('#ai-proposal').hidden,'Review operation did not return a proposal');
   assert(document.querySelector('#ai-changes').textContent.includes('Value + Other'),'Review explanation missing');
   for(const id of ['ai-accept-summary','ai-accept-remarks']){const check=document.getElementById(id);check.checked=false;check.dispatchEvent(new Event('change'));}
   const other=document.querySelector('#ai-parameters textarea[data-name=Other]');assert(other,'Review did not expose an existing parameter');
