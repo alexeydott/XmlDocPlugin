@@ -29,3 +29,20 @@ test('old preview rejects local edits and Undo without cancelling their pending 
  assert.ok(!sent.filter(m=>m.type==='docUpdated').some(m=>m.doc.summary==='Original'));
  bridge.cancelPending();dom.window.close();
 });
+
+test('parse failure locks only source mutation and a corrected snapshot restores the real editor',async()=>{
+ const {dom,sent,element,bridge}=editor();
+ bridge.receive({type:'loadDoc',data:{element,doc:{summary:'Original'}}});
+ bridge.receive({type:'loadDoc',data:{element:{kind:'unit',name:'Case.pas',fileName:'Case.pas',symbolId:'',sessionId:'',lineNumber:1,params:[],genericParams:[],readOnly:true,readOnlyReason:'Read-only: source could not be parsed'},doc:{summary:''}}});
+ await new Promise(r=>setTimeout(r,0));
+ assert.equal(bridge.readOnly,true);assert.equal(document.querySelector('#summary-editor .tiptap').editor.isEditable,false);
+ assert.equal(document.querySelector('#reload-document').disabled,false);assert.equal(document.querySelector('#refresh-catalog').disabled,false);
+ bridge.notifyDocChanged({summary:'Forbidden'});bridge.flush();assert.equal(sent.filter(m=>m.type==='docUpdated').length,0);
+ window.xmlDocWorkbench.receiveCatalog({elements:[],errors:['File: Case.pas\nLine: 7; Column: 18\nReason: Value']});
+ assert.equal(document.querySelector('#catalog-errors').hidden,false);assert.match(document.querySelector('#catalog-errors pre').textContent,/Line: 7; Column: 18/);
+ bridge.receive({type:'loadDoc',data:{element:{...element,sourceRevision:'r2'},doc:{summary:'Restored'}}});
+ await new Promise(r=>setTimeout(r,0));assert.equal(bridge.readOnly,false);assert.equal(document.querySelector('#summary-editor .tiptap').editor.isEditable,true);
+ assert.equal(window.xmlDocEditor.get().doc.summary,'Restored');
+ window.xmlDocWorkbench.receiveCatalog({elements:[],errors:[]});assert.equal(document.querySelector('#catalog-errors').hidden,true);
+ bridge.cancelPending();dom.window.close();
+});

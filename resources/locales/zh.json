@@ -328,6 +328,7 @@
   "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "分析已取消：{0}/{1}；已解析 {2}，已复用 {3}",
   "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "分析失败：{0}/{1}；已解析 {2}，已复用 {3}",
   "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "分析已完成：{0}/{1}；已解析 {2}，已复用 {3}",
+  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "分析完成但存在错误：{0}/{1}；已解析 {2}，已复用 {3}",
   "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "分析 {0}：{1}/{2}；已解析 {3}，已复用 {4}",
   "Select source directory": "选择源文件目录",
   "Select output directory": "选择输出目录",
@@ -534,5 +535,16 @@
   "Invalid AI request identity": "AI 请求标识无效",
   "Template must include signature and implementation": "模板必须包含签名和实现",
   "Template must include existing documentation": "模板必须包含现有文档",
-  "Invalid AI configuration": "AI 配置无效"
+  "Invalid AI configuration": "AI 配置无效",
+  "Delete profile": "删除配置",
+  "Profile name is required": "请输入配置名称",
+  "Profile name already exists": "配置名称已存在",
+  "A matching connection profile already exists": "相同连接的配置已存在",
+  "Go to error": "转到错误",
+  "Retry parsing": "重新解析",
+  "Copy details": "复制详细信息",
+  "Read-only: source could not be parsed": "只读：无法解析源代码",
+  "Some files could not be parsed": "部分文件无法解析",
+  "Hide details": "隐藏详情",
+  "Show details": "显示详情"
 }

@@ -2,11 +2,27 @@
 interface
 uses System.SysUtils,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
 function AIRequestURL(const Endpoint,RequestPath:string):string;
+procedure ValidateAIProfileIdentity(const Profile:TAIProfile;const Existing:TArray<TAIProfile>);
 function BuildAIRequest(const Profile:TAIProfile;const Prompt:TAIPrompt;const Context:TAIContext;const Key:string):TAIHttpRequest;
 function ParseAIResponse(const Response:TAIHttpResponse):TAIProposal;
 function ExecuteAI(const Transport:IAITransport;const Request:TAIHttpRequest):TAIProposal;
 implementation
 uses System.JSON,System.Net.URLClient;
+procedure ValidateAIProfileIdentity(const Profile:TAIProfile;const Existing:TArray<TAIProfile>);
+var URL:string;UnchangedConnection:Boolean;
+begin
+ if Trim(Profile.Name)='' then raise EAIError.Create('Profile name is required');
+ URL:=AIRequestURL(Profile.Endpoint,Profile.RequestPath);
+ UnchangedConnection:=False;
+ for var Other in Existing do if (Other.Id=Profile.Id) and
+   (AIRequestURL(Other.Endpoint,Other.RequestPath)=URL) and (Other.Model=Profile.Model) and
+   (Other.Authorization=Profile.Authorization) then UnchangedConnection:=True;
+ for var Other in Existing do if Other.Id<>Profile.Id then begin
+  if SameText(Trim(Other.Name),Trim(Profile.Name)) then raise EAIError.Create('Profile name already exists');
+  if not UnchangedConnection and (AIRequestURL(Other.Endpoint,Other.RequestPath)=URL) and (Other.Model=Profile.Model) and
+    (Other.Authorization=Profile.Authorization) then raise EAIError.Create('A matching connection profile already exists');
+ end;
+end;
 function AIRequestURL(const Endpoint,RequestPath:string):string;
 var Base,Path:string;URI:TURI;
 begin

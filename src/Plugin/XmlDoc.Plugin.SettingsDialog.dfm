@@ -24,6 +24,15 @@
     TabOrder = 0
     object tsGeneral: TTabSheet
       Caption = 'General'
+      object btnAISettings: TButton
+        Left = 16
+        Top = 184
+        Width = 428
+        Height = 30
+        Caption = 'AI profiles and prompts'
+        TabOrder = 4
+        OnClick = AISettingsClick
+      end
       object lblTheme: TLabel
         Left = 16
         Top = 16

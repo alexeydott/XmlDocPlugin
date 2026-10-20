@@ -2,7 +2,13 @@
 unit XmlDoc.Plugin.Utils;
 
 interface
-uses Vcl.StdCtrls,Vcl.Graphics;
+uses System.Classes,Vcl.StdCtrls,Vcl.Graphics,Vcl.ExtCtrls,Vcl.Controls;
+
+type TDocumentationErrorActions=class(TFlowPanel)
+ private FMemo:TMemo;FCollapse:TButton;FExpanded:Boolean;procedure CopyDetails(Sender:TObject);procedure ToggleDetails(Sender:TObject);
+ public constructor CreateForMemo(Owner:TComponent;Memo:TMemo;Retry,Navigate:TNotifyEvent);
+ property Expanded:Boolean read FExpanded;
+end;
 
 /// <summary>Keep diagnostic text readable against the actual host background.</summary>
 procedure ApplyDocumentationErrorTheme(Error:TMemo;Background:TColor);
@@ -15,8 +21,20 @@ function GetModuleVersion: string;
 implementation
 
 uses
-  System.SysUtils,System.Math,Vcl.Controls,
+  System.SysUtils,System.Math,XmlDoc.I18n,
   Winapi.Windows;
+
+constructor TDocumentationErrorActions.CreateForMemo(Owner:TComponent;Memo:TMemo;Retry,Navigate:TNotifyEvent);
+ function Add(const Caption:string;Handler:TNotifyEvent):TButton;
+ begin Result:=TButton.Create(Self);Result.Parent:=Self;Result.Caption:=TI18n.Instance.T(Caption);Result.SetBounds(0,0,MulDiv(170,CurrentPPI,96),MulDiv(30,CurrentPPI,96));Result.OnClick:=Handler;end;
+begin
+ inherited Create(Owner);FMemo:=Memo;Parent:=Memo.Parent;Align:=alTop;AutoSize:=True;AutoWrap:=True;BevelOuter:=bvNone;
+ FExpanded:=True;Add('Go to error',Navigate);Add('Retry parsing',Retry);Add('Copy details',CopyDetails);FCollapse:=Add('Hide details',ToggleDetails);Visible:=False;
+end;
+procedure TDocumentationErrorActions.ToggleDetails(Sender:TObject);
+begin FExpanded:=not FExpanded;FMemo.Visible:=FExpanded;if FExpanded then FCollapse.Caption:=TI18n.Instance.T('Hide details') else FCollapse.Caption:=TI18n.Instance.T('Show details');end;
+procedure TDocumentationErrorActions.CopyDetails(Sender:TObject);
+begin FMemo.SelectAll;FMemo.CopyToClipboard;end;
 
 function DocumentationThemeName(Background:TColor):string;
  function Linear(Value:Byte):Double;

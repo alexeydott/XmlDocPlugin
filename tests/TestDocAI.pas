@@ -10,6 +10,7 @@ type [TestFixture] TDocAITests=class
  [Test] procedure PromptAndReplyFuzz;
  [Test] procedure RealQualityCorpusContexts;
  [Test] procedure MethodContextFuzz;
+ [Test] procedure ProfileIdentity;
  end;
 implementation
 uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport;
@@ -108,6 +109,19 @@ begin
    Assert.AreEqual(1,Count);
   end;
  finally Parser.Free;end;
+end;
+procedure TDocAITests.ProfileIdentity;
+var Profile,Other:TAIProfile;
+begin
+ Profile:=TAIProfile.Defaults;Profile.Id:='first';Profile.Name:='Work';Profile.Model:='model';Other:=Profile;
+ ValidateAIProfileIdentity(Profile,[Other]);
+ Other.Id:='second';Other.Name:=' work ';Other.Model:='another';
+ Assert.WillRaise(procedure begin ValidateAIProfileIdentity(Profile,[Other]);end,EAIError);
+ Other.Name:='Other';Other.Model:='model';Other.Endpoint:=Other.Endpoint+'/';
+ Assert.WillRaise(procedure begin ValidateAIProfileIdentity(Profile,[Other]);end,EAIError);
+ ValidateAIProfileIdentity(Profile,[Profile,Other]);
+ Other.Model:='another';ValidateAIProfileIdentity(Profile,[Other]);
+ Profile.Name:='  ';Assert.WillRaise(procedure begin ValidateAIProfileIdentity(Profile,[]);end,EAIError);
 end;
 initialization TDUnitX.RegisterTestFixture(TDocAITests);
 end.

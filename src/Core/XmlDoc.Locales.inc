@@ -331,6 +331,7 @@ const
   '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "Анализ отменён: {0}/{1}; разобрано {2}, из кэша {3}",' +
   '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "Анализ ошибка: {0}/{1}; разобрано {2}, из кэша {3}",' +
   '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "Анализ завершён: {0}/{1}; разобрано {2}, из кэша {3}",' +
+  '  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "Анализ завершён с ошибками: {0}/{1}; разобрано {2}, из кэша {3}",' +
   '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "Анализ {0}: {1}/{2}; разобрано {3}, из кэша {4}",' +
   '  "Select source directory": "Выберите каталог исходников",' +
   '  "Select output directory": "Выберите каталог документации",' +
@@ -537,7 +538,18 @@ const
   '  "Invalid AI request identity": "Некорректный идентификатор запроса AI",' +
   '  "Template must include signature and implementation": "Шаблон должен включать сигнатуру и реализацию",' +
   '  "Template must include existing documentation": "Шаблон должен включать текущее описание",' +
-  '  "Invalid AI configuration": "Некорректные настройки AI"' +
+  '  "Invalid AI configuration": "Некорректные настройки AI",' +
+  '  "Delete profile": "Удалить профиль",' +
+  '  "Profile name is required": "Укажите имя профиля",' +
+  '  "Profile name already exists": "Профиль с таким именем уже существует",' +
+  '  "A matching connection profile already exists": "Профиль с таким подключением уже существует",' +
+  '  "Go to error": "Перейти к ошибке",' +
+  '  "Retry parsing": "Повторить разбор",' +
+  '  "Copy details": "Копировать сведения",' +
+  '  "Read-only: source could not be parsed": "Только чтение: не удалось разобрать исходник",' +
+  '  "Some files could not be parsed": "Некоторые файлы не удалось разобрать",' +
+  '  "Hide details": "Скрыть сведения",' +
+  '  "Show details": "Показать сведения"' +
   '}';
  CLocale_zh =
   '{' +
@@ -870,6 +882,7 @@ const
   '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "分析已取消：{0}/{1}；已解析 {2}，已复用 {3}",' +
   '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "分析失败：{0}/{1}；已解析 {2}，已复用 {3}",' +
   '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "分析已完成：{0}/{1}；已解析 {2}，已复用 {3}",' +
+  '  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "分析完成但存在错误：{0}/{1}；已解析 {2}，已复用 {3}",' +
   '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "分析 {0}：{1}/{2}；已解析 {3}，已复用 {4}",' +
   '  "Select source directory": "选择源文件目录",' +
   '  "Select output directory": "选择输出目录",' +
@@ -1076,7 +1089,18 @@ const
   '  "Invalid AI request identity": "AI 请求标识无效",' +
   '  "Template must include signature and implementation": "模板必须包含签名和实现",' +
   '  "Template must include existing documentation": "模板必须包含现有文档",' +
-  '  "Invalid AI configuration": "AI 配置无效"' +
+  '  "Invalid AI configuration": "AI 配置无效",' +
+  '  "Delete profile": "删除配置",' +
+  '  "Profile name is required": "请输入配置名称",' +
+  '  "Profile name already exists": "配置名称已存在",' +
+  '  "A matching connection profile already exists": "相同连接的配置已存在",' +
+  '  "Go to error": "转到错误",' +
+  '  "Retry parsing": "重新解析",' +
+  '  "Copy details": "复制详细信息",' +
+  '  "Read-only: source could not be parsed": "只读：无法解析源代码",' +
+  '  "Some files could not be parsed": "部分文件无法解析",' +
+  '  "Hide details": "隐藏详情",' +
+  '  "Show details": "显示详情"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1409,6 +1433,7 @@ const
   '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "분석 취소됨: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
   '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "분석 실패: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
   '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "분석 완료: {0}/{1}, 구문 분석 {2}, 재사용 {3}",' +
+  '  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "분석 완료(오류 있음): {0}/{1}; 분석 {2}, 재사용 {3}",' +
   '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "분석 {0}: {1}/{2}, 구문 분석 {3}, 재사용 {4}",' +
   '  "Select source directory": "소스 디렉터리 선택",' +
   '  "Select output directory": "출력 디렉터리 선택",' +
@@ -1615,7 +1640,18 @@ const
   '  "Invalid AI request identity": "AI 요청 식별자가 잘못되었습니다",' +
   '  "Template must include signature and implementation": "템플릿에 시그니처와 구현을 포함해야 합니다",' +
   '  "Template must include existing documentation": "템플릿에 기존 문서를 포함해야 합니다",' +
-  '  "Invalid AI configuration": "AI 설정이 잘못되었습니다"' +
+  '  "Invalid AI configuration": "AI 설정이 잘못되었습니다",' +
+  '  "Delete profile": "프로필 삭제",' +
+  '  "Profile name is required": "프로필 이름을 입력하세요",' +
+  '  "Profile name already exists": "같은 이름의 프로필이 이미 있습니다",' +
+  '  "A matching connection profile already exists": "동일한 연결 프로필이 이미 있습니다",' +
+  '  "Go to error": "오류 위치로 이동",' +
+  '  "Retry parsing": "다시 구문 분석",' +
+  '  "Copy details": "세부 정보 복사",' +
+  '  "Read-only: source could not be parsed": "읽기 전용: 소스를 구문 분석할 수 없습니다",' +
+  '  "Some files could not be parsed": "일부 파일을 구문 분석할 수 없습니다",' +
+  '  "Hide details": "세부 정보 숨기기",' +
+  '  "Show details": "세부 정보 표시"' +
   '}';
  CLocale_ja =
   '{' +
@@ -1948,6 +1984,7 @@ const
   '  "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "分析をキャンセルしました: {0}/{1}、解析 {2}、再利用 {3}",' +
   '  "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "分析に失敗しました: {0}/{1}、解析 {2}、再利用 {3}",' +
   '  "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "分析完了: {0}/{1}、解析 {2}、再利用 {3}",' +
+  '  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "エラーありで解析完了: {0}/{1}; 解析 {2}、再利用 {3}",' +
   '  "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "分析 {0}: {1}/{2}、解析 {3}、再利用 {4}",' +
   '  "Select source directory": "ソース ディレクトリを選択",' +
   '  "Select output directory": "出力ディレクトリを選択",' +
@@ -2154,5 +2191,16 @@ const
   '  "Invalid AI request identity": "AI リクエストの識別子が無効です",' +
   '  "Template must include signature and implementation": "テンプレートにはシグネチャと実装が必要です",' +
   '  "Template must include existing documentation": "テンプレートには既存のドキュメントが必要です",' +
-  '  "Invalid AI configuration": "AI 設定が無効です"' +
+  '  "Invalid AI configuration": "AI 設定が無効です",' +
+  '  "Delete profile": "プロファイルを削除",' +
+  '  "Profile name is required": "プロファイル名を入力してください",' +
+  '  "Profile name already exists": "同じ名前のプロファイルが既に存在します",' +
+  '  "A matching connection profile already exists": "同じ接続のプロファイルが既に存在します",' +
+  '  "Go to error": "エラー位置へ移動",' +
+  '  "Retry parsing": "再解析",' +
+  '  "Copy details": "詳細をコピー",' +
+  '  "Read-only: source could not be parsed": "読み取り専用: ソースを解析できませんでした",' +
+  '  "Some files could not be parsed": "解析できなかったファイルがあります",' +
+  '  "Hide details": "詳細を非表示",' +
+  '  "Show details": "詳細を表示"' +
   '}';

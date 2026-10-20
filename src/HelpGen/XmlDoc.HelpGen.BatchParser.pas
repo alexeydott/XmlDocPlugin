@@ -133,7 +133,11 @@ begin
       if Assigned(FConfigure) then FConfigure(LDocParser,AFilePath);
       if not Assigned(FParsedElements) then LDocParser.ParseSource(LSource,AFilePath);
     except
-      on E:Exception do raise Exception.CreateFmt('Cannot parse %s: %s', [AFilePath,E.Message]);
+      on E:EAbort do raise;
+      on E:Exception do begin
+       if LDocParser.LastDiagnostic.Message<>'' then raise Exception.Create(LDocParser.LastDiagnostic.DetailText);
+       raise Exception.CreateFmt('Cannot parse %s: %s (%s)', [AFilePath,E.Message,E.ClassName]);
+      end;
     end;
 
     if not Assigned(FParsedElements) and not Assigned(LDocParser.RootNode) then

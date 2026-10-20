@@ -20,6 +20,7 @@ type
   TSettingsDialog = class(TForm)
     btnCancel: TButton;
     btnOK: TButton;
+    btnAISettings: TButton;
     chkAutoGenerate: TCheckBox;
     chkCollapseEmptySections: TCheckBox;
     chkShowSignatureHeader: TCheckBox;
@@ -47,11 +48,11 @@ type
     procedure btnCreateThemeClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure btnOKClick(Sender: TObject);
+    procedure AISettingsClick(Sender:TObject);
 
   private
     FShortcutsChanged: Boolean;
 
-    procedure AISettingsClick(Sender:TObject);
     procedure LoadThemes(const Selected: string);
     procedure LoadSettings;
     procedure SaveSettings;
@@ -89,7 +90,6 @@ end;
 procedure TSettingsDialog.FormCreate(Sender: TObject);
 begin
   FShortcutsChanged := False;
-  var AIButton:=TButton.Create(Self);AIButton.Parent:=tsGeneral;AIButton.SetBounds(16,200,360,30);AIButton.Caption:='AI profiles and prompts';AIButton.OnClick:=AISettingsClick;
   LoadSettings;
   LocalizePluginUi(Self);
 end;

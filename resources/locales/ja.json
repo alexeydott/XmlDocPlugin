@@ -328,6 +328,7 @@
   "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "分析をキャンセルしました: {0}/{1}、解析 {2}、再利用 {3}",
   "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "分析に失敗しました: {0}/{1}、解析 {2}、再利用 {3}",
   "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "分析完了: {0}/{1}、解析 {2}、再利用 {3}",
+  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "エラーありで解析完了: {0}/{1}; 解析 {2}、再利用 {3}",
   "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "分析 {0}: {1}/{2}、解析 {3}、再利用 {4}",
   "Select source directory": "ソース ディレクトリを選択",
   "Select output directory": "出力ディレクトリを選択",
@@ -534,5 +535,16 @@
   "Invalid AI request identity": "AI リクエストの識別子が無効です",
   "Template must include signature and implementation": "テンプレートにはシグネチャと実装が必要です",
   "Template must include existing documentation": "テンプレートには既存のドキュメントが必要です",
-  "Invalid AI configuration": "AI 設定が無効です"
+  "Invalid AI configuration": "AI 設定が無効です",
+  "Delete profile": "プロファイルを削除",
+  "Profile name is required": "プロファイル名を入力してください",
+  "Profile name already exists": "同じ名前のプロファイルが既に存在します",
+  "A matching connection profile already exists": "同じ接続のプロファイルが既に存在します",
+  "Go to error": "エラー位置へ移動",
+  "Retry parsing": "再解析",
+  "Copy details": "詳細をコピー",
+  "Read-only: source could not be parsed": "読み取り専用: ソースを解析できませんでした",
+  "Some files could not be parsed": "解析できなかったファイルがあります",
+  "Hide details": "詳細を非表示",
+  "Show details": "詳細を表示"
 }

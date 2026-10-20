@@ -134,10 +134,11 @@ end;
 
 type TAISettingsForm=class(TForm)
  private
-  Config:TJSONObject;Templates:TJSONArray;ProjectDir:string;
+  Config:TJSONObject;Templates:TJSONArray;ProjectDir:string;NewProfileDraft:TAIProfile;
   Profiles,TemplateList:TComboBox;Fields:TArray<TEdit>;Auth,Limit:TComboBox;JsonMode,ProjectScope:TCheckBox;
   KeyEdit:TEdit;FullURL:TLabel;SystemPrompt,UserPrompt:TMemo;TemplateName:TEdit;Operation:TComboBox;
   procedure ProfileChanged(Sender:TObject);procedure SaveProfile(Sender:TObject);procedure NewProfile(Sender:TObject);
+  procedure DeleteProfile(Sender:TObject);procedure LoadProfileFields(const P:TAIProfile);
   procedure TemplateChanged(Sender:TObject);procedure SaveTemplate(Sender:TObject);procedure NewTemplate(Sender:TObject);procedure ResetTemplate(Sender:TObject);
   procedure ImportTemplates(Sender:TObject);procedure ExportTemplates(Sender:TObject);procedure UpdateURL(Sender:TObject);
   procedure ClearKey(Sender:TObject);
@@ -146,16 +147,20 @@ type TAISettingsForm=class(TForm)
   destructor Destroy;override;
  end;
 constructor TAISettingsForm.CreateForProject(const Directory:string);
-var Pages:TPageControl;Page:TTabSheet;LabelControl:TLabel;Button:TButton;Names:TArray<string>;I:Integer;
+var Pages:TPageControl;Page:TTabSheet;ProfileScroll:TScrollBox;LabelControl:TLabel;Button:TButton;Names:TArray<string>;I:Integer;
  procedure AddButton(Parent:TWinControl;const Text:string;X,Y:Integer;Handler:TNotifyEvent);
  begin Button:=TButton.Create(Self);Button.Parent:=Parent;Button.SetBounds(X,Y,170,28);Button.Name:='AIButton'+Text.Replace(' ','').Replace('-','');Button.Caption:=Text;Button.OnClick:=Handler;end;
 begin
- inherited CreateNew(nil);ProjectDir:=Directory;Caption:='AI profiles and prompts';Position:=poScreenCenter;ClientWidth:=850;ClientHeight:=700;
+ inherited CreateNew(nil);ScaleForPPI(96);Font.PixelsPerInch:=96;Font.Name:='Segoe UI';Font.Height:=-12;
+ ProjectDir:=Directory;Caption:='AI profiles and prompts';Position:=poScreenCenter;ClientWidth:=850;ClientHeight:=760;
  Config:=LoadAIConfiguration;Templates:=AIPrompts(ProjectDir);Pages:=TPageControl.Create(Self);Pages.Parent:=Self;Pages.Align:=alClient;
  Page:=TTabSheet.Create(Self);Page.PageControl:=Pages;Page.Caption:='Connection profiles';
- Profiles:=TComboBox.Create(Self);Profiles.Parent:=Page;Profiles.SetBounds(16,12,400,24);Profiles.Style:=csDropDownList;Profiles.OnChange:=ProfileChanged;
+ ProfileScroll:=TScrollBox.Create(Self);ProfileScroll.Name:='AIProfilesScroll';ProfileScroll.Parent:=Page;ProfileScroll.Align:=alClient;ProfileScroll.BorderStyle:=bsNone;
+ Profiles:=TComboBox.Create(Self);Profiles.Name:='AIProfiles';Profiles.Parent:=ProfileScroll;Profiles.SetBounds(16,12,784,24);Profiles.Style:=csDropDownList;Profiles.OnChange:=ProfileChanged;
  for var Item in Config.GetValue<TJSONArray>('profiles') do Profiles.Items.Add((Item as TJSONObject).GetValue<string>('name'));
- AddButton(Page,'New profile',430,10,NewProfile);AddButton(Page,'Save profile',610,10,SaveProfile);
+ AddButton(ProfileScroll,'New profile',16,48,NewProfile);Button.Width:=230;
+ AddButton(ProfileScroll,'Save profile',260,48,SaveProfile);Button.Width:=230;
+ AddButton(ProfileScroll,'Delete profile',504,48,DeleteProfile);Button.Width:=230;
  Names:= ['Profile name','Endpoint','Request path','Model','Documentation language','Timeout (ms)','Context limit (characters)','Response limit (bytes)','Output token limit'];SetLength(Fields,Length(Names));
  for I:=0 to High(Names) do begin LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,55+I*36,230,24);LabelControl.Caption:=Names[I];Fields[I]:=TEdit.Create(Self);Fields[I].Name:='AIField'+IntToStr(I);Fields[I].Parent:=Page;Fields[I].SetBounds(260,52+I*36,540,24);end;
  Fields[1].OnChange:=UpdateURL;Fields[2].OnChange:=UpdateURL;
@@ -165,6 +170,12 @@ begin
  JsonMode:=TCheckBox.Create(Self);JsonMode.Parent:=Page;JsonMode.SetBounds(260,480,400,24);JsonMode.Caption:='Request JSON mode (if supported)';
  FullURL:=TLabel.Create(Self);FullURL.Parent:=Page;FullURL.SetBounds(16,525,780,65);FullURL.AutoSize:=False;FullURL.WordWrap:=True;
  LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,600,780,45);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:='Keys stay in Windows Credential Manager. Changing the destination requires a new key. Test the connection from the assistant before sending source.';
+ // Keep the selector and its actions above the editable profile name.
+ for I:=0 to ComponentCount-1 do if Components[I] is TControl then begin
+  var Control:=TControl(Components[I]);
+  if (Control<>ProfileScroll) and (Control.Parent=Page) then begin Control.Parent:=ProfileScroll;Control.Top:=Control.Top+40;end;
+ end;
+ KeyEdit.Width:=310;var DeleteKeyButton:=TButton(FindComponent('AIButtonDeletestoredkey'));DeleteKeyButton.Left:=584;DeleteKeyButton.Width:=216;
  Page:=TTabSheet.Create(Self);Page.PageControl:=Pages;Page.Caption:='Prompt templates';TemplateList:=TComboBox.Create(Self);TemplateList.Parent:=Page;TemplateList.SetBounds(16,12,370,24);TemplateList.Style:=csDropDownList;TemplateList.OnChange:=TemplateChanged;
  for var Item in Templates do TemplateList.Items.Add(TI18n.Instance.T((Item as TJSONObject).GetValue<string>('name')));
  AddButton(Page,'Duplicate template',410,10,NewTemplate);AddButton(Page,'Restore built-in',600,10,ResetTemplate);
@@ -175,35 +186,72 @@ begin
  AddButton(Page,'Save template',16,540,SaveTemplate);AddButton(Page,'Import templates',210,540,ImportTemplates);AddButton(Page,'Export templates',410,540,ExportTemplates);
  LabelControl:=TLabel.Create(Self);LabelControl.Parent:=Page;LabelControl.SetBounds(16,585,780,60);LabelControl.AutoSize:=False;LabelControl.WordWrap:=True;LabelControl.Caption:=TI18n.Instance.T('Prompt variables')+': {{language}}, {{signature}}, {{implementation}}, {{documentation}}, {{parameters}}, {{return_type}}, {{type_context}}, {{project_terms}}, {{user_instruction}}';LabelControl.Tag:=-1;
  if Profiles.Items.Count>0 then begin Profiles.ItemIndex:=0;ProfileChanged(nil);end else NewProfile(nil);
- TemplateList.ItemIndex:=0;TemplateChanged(nil);LocalizePluginUi(Self);var Theme:IOTAIDEThemingServices;if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) and Theme.IDEThemingEnabled then Theme.ApplyTheme(Self);
+ TemplateList.ItemIndex:=0;TemplateChanged(nil);LocalizePluginUi(Self);
+ ScaleForPPI(Screen.PixelsPerInch);if Height>Screen.WorkAreaHeight-40 then Height:=Screen.WorkAreaHeight-40;
+ var Theme:IOTAIDEThemingServices;if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) and Theme.IDEThemingEnabled then Theme.ApplyTheme(Self);
 end;
 destructor TAISettingsForm.Destroy;
 begin Templates.Free;Config.Free;inherited;end;
 procedure TAISettingsForm.NewProfile(Sender:TObject);
-var Profile:TAIProfile;
-begin Profile:=TAIProfile.Defaults;Profile.Id:=TGUID.NewGuid.ToString;Config.GetValue<TJSONArray>('profiles').AddElement(AIProfileJson(Profile));Profiles.Items.Add(Profile.Name);Profiles.ItemIndex:=Profiles.Items.Count-1;ProfileChanged(nil);end;
-procedure TAISettingsForm.ProfileChanged(Sender:TObject);
-var P:TAIProfile;
+var Name:string;Suffix:Integer;Exists:Boolean;
 begin
- if Profiles.ItemIndex<0 then Exit;P:=AIProfileFromJson(Config.GetValue<TJSONArray>('profiles')[Profiles.ItemIndex] as TJSONObject);
+ NewProfileDraft:=TAIProfile.Defaults;NewProfileDraft.Id:=TGUID.NewGuid.ToString;Suffix:=1;
+ repeat
+  Name:=TI18n.Instance.T('New profile');if Suffix>1 then Name:=Name+' ('+IntToStr(Suffix)+')';Exists:=False;
+  for var Item in Config.GetValue<TJSONArray>('profiles') do if SameText(Trim((Item as TJSONObject).GetValue<string>('name')),Name) then Exists:=True;
+  Inc(Suffix);
+ until not Exists;
+ NewProfileDraft.Name:=Name;Profiles.ItemIndex:=-1;LoadProfileFields(NewProfileDraft);
+ if Visible then begin Fields[0].SetFocus;Fields[0].SelectAll;end;
+end;
+procedure TAISettingsForm.ProfileChanged(Sender:TObject);
+begin
+ if Profiles.ItemIndex<0 then Exit;LoadProfileFields(AIProfileFromJson(Config.GetValue<TJSONArray>('profiles')[Profiles.ItemIndex] as TJSONObject));
+end;
+procedure TAISettingsForm.LoadProfileFields(const P:TAIProfile);
+begin
  Fields[0].Text:=P.Name;Fields[1].Text:=P.Endpoint;Fields[2].Text:=P.RequestPath;Fields[3].Text:=P.Model;Fields[4].Text:=P.Language;
  Fields[5].Text:=IntToStr(P.TimeoutMs);Fields[6].Text:=IntToStr(P.MaxContextChars);Fields[7].Text:=IntToStr(P.MaxResponseBytes);Fields[8].Text:=IntToStr(P.MaxOutputTokens);
  if P.Authorization='bearer' then Auth.ItemIndex:=0 else Auth.ItemIndex:=1;Limit.ItemIndex:=Limit.Items.IndexOf(P.OutputLimitParameter);JsonMode.Checked:=P.JsonMode;KeyEdit.Clear;UpdateURL(nil);
+ TButton(FindComponent('AIButtonDeleteprofile')).Enabled:=Profiles.ItemIndex>=0;
 end;
 procedure TAISettingsForm.UpdateURL(Sender:TObject);
 begin try FullURL.Caption:=AIRequestURL(Fields[1].Text,Fields[2].Text);except on E:Exception do FullURL.Caption:=TI18n.Instance.T(E.Message);end;end;
 procedure TAISettingsForm.SaveProfile(Sender:TObject);
-var P,Old:TAIProfile;ProfilesJson:TJSONArray;Context:TAIContext;Request:TAIHttpRequest;
+var P,Validation:TAIProfile;ProfilesJson:TJSONArray;Context:TAIContext;Request:TAIHttpRequest;Existing:TArray<TAIProfile>;Updated:TJSONObject;Index:Integer;
 begin
  try
-  ProfilesJson:=Config.GetValue<TJSONArray>('profiles');Old:=AIProfileFromJson(ProfilesJson[Profiles.ItemIndex] as TJSONObject);P:=Old;
-  P.Name:=Fields[0].Text;P.Endpoint:=Fields[1].Text;P.RequestPath:=Fields[2].Text;P.Model:=Fields[3].Text;P.Language:=Fields[4].Text;
+  ProfilesJson:=Config.GetValue<TJSONArray>('profiles');Index:=Profiles.ItemIndex;
+  if Index>=0 then P:=AIProfileFromJson(ProfilesJson[Index] as TJSONObject) else P:=NewProfileDraft;
+  P.Name:=Trim(Fields[0].Text);P.Endpoint:=Trim(Fields[1].Text);P.RequestPath:=Trim(Fields[2].Text);P.Model:=Trim(Fields[3].Text);P.Language:=Fields[4].Text;
   P.TimeoutMs:=StrToInt(Fields[5].Text);P.MaxContextChars:=StrToInt(Fields[6].Text);P.MaxResponseBytes:=StrToInt(Fields[7].Text);P.MaxOutputTokens:=StrToInt(Fields[8].Text);P.Authorization:=IfThen(Auth.ItemIndex=0,'bearer','none');P.OutputLimitParameter:=Limit.Text;P.JsonMode:=JsonMode.Checked;
   Context:=Default(TAIContext);Context.Signature:='Connection check';Context.Code:='No source code is included.';
-  Request:=BuildAIRequest(P,TAIPrompt.BuiltIn(aoDescribe),Context,'validation-placeholder');
+  // A name can be saved before the model is chosen. Sending still requires it.
+  Validation:=P;if Validation.Model='' then Validation.Model:='validation-placeholder';
+  Request:=BuildAIRequest(Validation,TAIPrompt.BuiltIn(aoDescribe),Context,'validation-placeholder');
+  for var Item in ProfilesJson do Existing:=Existing+[AIProfileFromJson(Item as TJSONObject)];ValidateAIProfileIdentity(P,Existing);
   if KeyEdit.Text<>'' then WriteAIKey(P,KeyEdit.Text);
-  ProfilesJson.Remove(Profiles.ItemIndex).Free;ProfilesJson.AddElement(AIProfileJson(P));SaveAIConfiguration(Config);
-  Profiles.Items.Delete(Profiles.ItemIndex);Profiles.Items.Add(P.Name);Profiles.ItemIndex:=Profiles.Items.Count-1;ProfileChanged(nil);
+  Updated:=Config.Clone as TJSONObject;
+  try
+   ProfilesJson:=Updated.GetValue<TJSONArray>('profiles');if Index>=0 then ProfilesJson.Remove(Index).Free;
+   ProfilesJson.AddElement(AIProfileJson(P));SaveAIConfiguration(Updated);Config.Free;Config:=Updated;Updated:=nil;
+  finally Updated.Free;end;
+  if Index>=0 then Profiles.Items.Delete(Index);Profiles.Items.Add(P.Name);Profiles.ItemIndex:=Profiles.Items.Count-1;ProfileChanged(nil);
+ except on E:Exception do ShowMessage(TI18n.Instance.T(E.Message));end;
+end;
+procedure TAISettingsForm.DeleteProfile(Sender:TObject);
+var Index:Integer;Profile:TAIProfile;Updated:TJSONObject;
+begin
+ Index:=Profiles.ItemIndex;if Index<0 then Exit;
+ try
+  Profile:=AIProfileFromJson(Config.GetValue<TJSONArray>('profiles')[Index] as TJSONObject);
+  Updated:=Config.Clone as TJSONObject;
+  try
+   Updated.GetValue<TJSONArray>('profiles').Remove(Index).Free;SaveAIConfiguration(Updated);
+   Config.Free;Config:=Updated;Updated:=nil;
+  finally Updated.Free;end;
+  WriteAIKey(Profile,'');Profiles.Items.Delete(Index);
+  if Profiles.Items.Count=0 then NewProfile(nil) else begin Profiles.ItemIndex:=0;ProfileChanged(nil);end;
  except on E:Exception do ShowMessage(TI18n.Instance.T(E.Message));end;
 end;
 procedure TAISettingsForm.ClearKey(Sender:TObject);

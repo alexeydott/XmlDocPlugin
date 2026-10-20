@@ -328,6 +328,7 @@
   "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "Анализ отменён: {0}/{1}; разобрано {2}, из кэша {3}",
   "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "Анализ ошибка: {0}/{1}; разобрано {2}, из кэша {3}",
   "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "Анализ завершён: {0}/{1}; разобрано {2}, из кэша {3}",
+  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "Анализ завершён с ошибками: {0}/{1}; разобрано {2}, из кэша {3}",
   "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "Анализ {0}: {1}/{2}; разобрано {3}, из кэша {4}",
   "Select source directory": "Выберите каталог исходников",
   "Select output directory": "Выберите каталог документации",
@@ -534,5 +535,16 @@
   "Invalid AI request identity": "Некорректный идентификатор запроса AI",
   "Template must include signature and implementation": "Шаблон должен включать сигнатуру и реализацию",
   "Template must include existing documentation": "Шаблон должен включать текущее описание",
-  "Invalid AI configuration": "Некорректные настройки AI"
+  "Invalid AI configuration": "Некорректные настройки AI",
+  "Delete profile": "Удалить профиль",
+  "Profile name is required": "Укажите имя профиля",
+  "Profile name already exists": "Профиль с таким именем уже существует",
+  "A matching connection profile already exists": "Профиль с таким подключением уже существует",
+  "Go to error": "Перейти к ошибке",
+  "Retry parsing": "Повторить разбор",
+  "Copy details": "Копировать сведения",
+  "Read-only: source could not be parsed": "Только чтение: не удалось разобрать исходник",
+  "Some files could not be parsed": "Некоторые файлы не удалось разобрать",
+  "Hide details": "Скрыть сведения",
+  "Show details": "Показать сведения"
 }

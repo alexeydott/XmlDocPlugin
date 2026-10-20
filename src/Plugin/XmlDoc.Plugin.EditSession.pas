@@ -11,8 +11,32 @@ function SourceRevision(const Source:string):string;
 procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string);
 function ValidateEdit(Message:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string):Boolean;
 function EditResult(const SessionId,Status:string;const EditId:string=''):string;
+function UnavailableSourceScript(const FileName:string;Line:Integer):string;
+procedure NavigateToSource(const FileName:string;Line,Column:Integer);
 implementation
 uses XmlDoc.SourceAccess,System.Classes,System.Hash,System.Generics.Collections,XmlDoc.SourceText,XmlDoc.Plugin.DeclarationContext;
+procedure NavigateToSource(const FileName:string;Line,Column:Integer);
+var Actions:IOTAActionServices;Editor:IOTASourceEditor;Position:TOTAEditPos;
+begin
+ if (FileName='') or not Supports(BorlandIDEServices,IOTAActionServices,Actions) then Exit;
+ if not Actions.OpenFile(FileName) then Exit;Editor:=SourceEditorForFile(FileName);if not Assigned(Editor) then Exit;
+ if Line<1 then Line:=1;if Column<1 then Column:=1;Position.Line:=Line;Position.Col:=Column;
+ Editor.Show;if Editor.EditViewCount>0 then begin Editor.EditViews[0].SetCursorPos(Position);Editor.EditViews[0].Paint;end;
+end;
+
+function UnavailableSourceScript(const FileName:string;Line:Integer):string;
+var Root,Data,Element,Doc:TJSONObject;
+begin
+ Root:=TJSONObject.Create;try
+  Root.AddPair('type','loadDoc');Data:=TJSONObject.Create;Root.AddPair('data',Data);
+  Element:=TJSONObject.Create;Data.AddPair('element',Element);Doc:=TJSONObject.Create;Data.AddPair('doc',Doc);
+  Element.AddPair('kind','unit').AddPair('name',ExtractFileName(FileName)).AddPair('fileName',FileName).AddPair('symbolId','').AddPair('sessionId','');
+  Element.AddPair('lineNumber',TJSONNumber.Create(Line)).AddPair('readOnly',TJSONBool.Create(True)).AddPair('readOnlyReason','Read-only: source could not be parsed');
+  Element.AddPair('params',TJSONArray.Create).AddPair('genericParams',TJSONArray.Create);Doc.AddPair('summary','');
+  Result:='window.bridge.receive('+Root.ToJSON+');';
+ finally Root.Free;end;
+end;
+
 function ParseHostMessage(const Text:string):TJSONObject;
 var Value:TJSONValue;
 begin

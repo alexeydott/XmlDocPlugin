@@ -18,6 +18,7 @@ type
  TIndexedModule=class
   Elements:TArray<TCodeElementInfo>;
   SourceKey,ContextKey:string;
+  Diagnostic:TDocParseDiagnostic;
   Dependencies:TDictionary<string,string>;
   constructor Create;
   destructor Destroy;override;
@@ -32,7 +33,8 @@ type
   destructor Destroy;override;
   function IsCurrent(const FileName,Source:string;Parser:TDocParser):Boolean;overload;
   function IsCurrent(const FileName,Source:string;Parser:TDocParser;Validation:TIndexValidation):Boolean;overload;
-  function Update(const FileName,Source:string;Parser:TDocParser):TArray<TCodeElementInfo>;
+  function Update(const FileName,Source:string;Parser:TDocParser;TolerateErrors:Boolean=False):TArray<TCodeElementInfo>;
+  function Diagnostic(const FileName:string):TDocParseDiagnostic;
   function Elements(const FileName:string):TArray<TCodeElementInfo>;
   procedure ResetStatistics;
   property Parsed:Integer read FParsed;
@@ -90,7 +92,11 @@ begin
  Result:=(Module.SourceKey=THashSHA2.GetHashString(Source)) and (Module.ContextKey=Validation.ContextKey(Parser));
  if Result then for var Pair in Module.Dependencies do if Pair.Value<>Validation.Revision(Pair.Key) then Exit(False);
 end;
-function TDocumentationIndex.Update(const FileName,Source:string;Parser:TDocParser):TArray<TCodeElementInfo>;
+function TDocumentationIndex.Diagnostic(const FileName:string):TDocParseDiagnostic;
+var Module:TIndexedModule;
+begin Result:=Default(TDocParseDiagnostic);if FModules.TryGetValue(LowerCase(TPath.GetFullPath(FileName)),Module) then Result:=Module.Diagnostic;end;
+
+function TDocumentationIndex.Update(const FileName,Source:string;Parser:TDocParser;TolerateErrors:Boolean):TArray<TCodeElementInfo>;
 var Module:TIndexedModule;Key,SourceKey,ContextKey:string;Valid:Boolean;
 begin
  Key:=LowerCase(TPath.GetFullPath(FileName));SourceKey:=THashSHA2.GetHashString(Source);
@@ -100,14 +106,23 @@ begin
   Valid:=(Module.SourceKey=SourceKey) and (Module.ContextKey=ContextKey);
   if Valid then for var Pair in Module.Dependencies do if Pair.Value<>Revision(Pair.Key,Parser.SourceSnapshots) then begin Valid:=False;Break;end;
  end;
- if Valid then begin Inc(FReused);Exit(Copy(Module.Elements));end;
- Parser.ParseSource(Source,FileName);Module:=TIndexedModule.Create;
+ if Valid and ((Module.Diagnostic.Message='') or TolerateErrors) then begin if Module.Diagnostic.Message='' then Inc(FReused);Exit(Copy(Module.Elements));end;
+ Module:=TIndexedModule.Create;
  try
+  try Parser.ParseSource(Source,FileName);
+  except
+   on E:EAbort do raise;
+   on E:Exception do begin
+    if not TolerateErrors then raise;
+    Module.Diagnostic:=Parser.LastDiagnostic;
+    if Module.Diagnostic.Message='' then Module.Diagnostic:=TDocParseDiagnostic.FromException(E,FileName,'Project indexing');
+   end;
+  end;
   Module.Elements:=Parser.GetAllElements;Module.SourceKey:=SourceKey;Module.ContextKey:=ContextKey;
   for var Dependency in Parser.DependencySnapshots do Module.Dependencies.AddOrSetValue(Dependency.FileName,THashSHA2.GetHashString(Dependency.Source));
   for var Probe in Parser.DependencyProbes do if not Module.Dependencies.ContainsKey(Probe) then Module.Dependencies.Add(Probe,'missing');
   // The dependency set includes transitive imported DECLARED sources and their includes.
-  FModules.AddOrSetValue(Key,Module);Result:=Copy(Module.Elements);Module:=nil;Inc(FParsed);
+  FModules.AddOrSetValue(Key,Module);Result:=Copy(Module.Elements);if Module.Diagnostic.Message='' then Inc(FParsed);Module:=nil;
  finally Module.Free;end;
 end;
 end.

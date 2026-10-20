@@ -1,8 +1,8 @@
-﻿unit WorkbenchProbe;
+unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TAIProbeTransport=class(TInterfacedObject,IAITransport)
@@ -21,6 +21,7 @@ type TAIProbeTransport=class(TInterfacedObject,IAITransport)
  StressEntered,StressContinue:TEvent;StressChecks:Integer;
  StressRound:Integer;StressGeneration,StressStarted:UInt64;
  AIBefore,AIWritten:string;
+ RecoveryFile,RecoveryOriginal:string;
  LanguageSaved:Boolean;OriginalLanguage:string;
  PrefixSettingsSaved:Boolean;OriginalPrefixSettings:TGlobalSettings;LastGenerationMessage:string;
  ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
@@ -34,6 +35,13 @@ type TAIProbeTransport=class(TInterfacedObject,IAITransport)
  procedure Finish;
 end;
 var Probe:TProbe;
+procedure ReplaceSourceBuffer(const Editor:IOTASourceEditor;const Source:string);
+var Reader:IOTAEditReader;Writer:IOTAEditWriter;Buffer:array[0..32767] of AnsiChar;Count,Total:Integer;Bytes:UTF8String;Position:TOTAEditPos;
+begin
+ Reader:=Editor.CreateReader;Total:=0;repeat Count:=Reader.GetText(Total,@Buffer[0],SizeOf(Buffer));Inc(Total,Count);until Count<SizeOf(Buffer);Reader:=nil;
+ Bytes:=UTF8Encode(Source);Writer:=Editor.CreateUndoableWriter;Writer.CopyTo(0);Writer.DeleteTo(Total);Writer.Insert(PAnsiChar(Bytes));Writer:=nil;
+ Position.Line:=4;Position.Col:=1;Editor.EditViews[0].SetCursorPos(Position);
+end;
 procedure TPublicationProbe.BeforePublication;
 begin
  inherited;
@@ -81,6 +89,26 @@ begin
    end;
   end;
   AssertTrue(Pos('{{implementation}}',TMemo(Form.FindComponent('AIUserPrompt')).Text)>0,'Prompt source was localized or lost');
+  for var J:=0 to Form.ComponentCount-1 do if Form.Components[J] is TPageControl then TPageControl(Form.Components[J]).ActivePageIndex:=0;
+  var Profiles:=TComboBox(Form.FindComponent('AIProfiles'));var NameField:=TEdit(Form.FindComponent('AIField0'));
+  var NewButton:=TButton(Form.FindComponent('AIButtonNewprofile'));var SaveButton:=TButton(Form.FindComponent('AIButtonSaveprofile'));var DeleteButton:=TButton(Form.FindComponent('AIButtonDeleteprofile'));
+  var OriginalCount:=Profiles.Items.Count;
+  NewButton.Click;NewButton.Click;AssertTrue(Profiles.Items.Count=OriginalCount,'New profile created duplicate placeholder rows');
+  AssertTrue(NameField.Visible and NameField.CanFocus,'Profile name is inaccessible');NameField.Text:='Native profile name';TEdit(Form.FindComponent('AIField3')).Clear;SaveButton.Click;
+  AssertTrue(Profiles.Items.Count=OriginalCount+1,'New named profile was not saved');AssertTrue(Profiles.Text='Native profile name','Saved profile name missing');
+  NameField.Text:='Renamed native profile';SaveButton.Click;AssertTrue((Profiles.Items.Count=OriginalCount+1) and (Profiles.Text='Renamed native profile'),'Profile rename created a duplicate');
+  DeleteButton.Click;AssertTrue(Profiles.Items.Count=OriginalCount,'Delete profile did not remove the saved row');
+  for var PPI in [96,144,192] do begin
+   Form.ScaleForPPI(PPI);
+   AssertTrue(NewButton.Top>=Profiles.Top+Profiles.Height,'Profile actions overlap selector');
+   AssertTrue(NameField.Top>=SaveButton.Top+SaveButton.Height,'Profile name overlaps actions');
+   Form.Canvas.Font.Assign(DeleteButton.Font);AssertTrue(Form.Canvas.TextWidth(DeleteButton.Caption)+16<DeleteButton.Width,'Delete profile caption is clipped');
+  end;
+  Form.ScaleForPPI(Screen.PixelsPerInch);
+  var General:=TSettingsDialog.Create(nil);try
+   for var PPI in [96,144,192] do begin General.ScaleForPPI(PPI);AssertTrue(General.btnAISettings.Top>=General.chkShowSignatureHeader.Top+General.chkShowSignatureHeader.Height,'AI settings button overlaps general settings');end;
+  finally General.Free;end;
+  Log('PASS native AI profile create, rename, delete and 100/150/200 percent layout');
   Form.ModalResult:=mrCancel;Log('PASS native AI settings loads profiles, protects keys and exposes both tabs');
  end;
 end;
@@ -149,7 +177,40 @@ begin
   if not Assigned(Json) or (Json.GetValue<string>('type','')<>'e2e') then begin if Assigned(OriginalMessage) then OriginalMessage(Sender,Args);Exit;end;
   Action:=Json.GetValue<string>('action','');
   try
-   if Action='marker-log' then Log('AUDIT '+Json.GetValue<string>('result'))
+   if Action='parser-break-source' then begin
+    RecoveryFile:=TPath.Combine(Root,'Units\ParserRecovery.pas');
+    RecoveryOriginal:='unit ParserRecovery;'+#10+'interface'+#10+'/// <summary>Recovery sample</summary>'+#10+'procedure Healthy;'+#10+'implementation'+#10+'procedure Healthy;'+#10+'var Value:Integer;'+#10+'begin'+#10+'  Value := 1;'+#10+'end;'+#10+'end.';
+    TFile.WriteAllText(RecoveryFile,RecoveryOriginal,TEncoding.UTF8);GetActiveProject.AddFile(RecoveryFile,True);
+    (BorlandIDEServices as IOTAActionServices).OpenFile(RecoveryFile);Editor:=SourceEditorForFile(RecoveryFile);AssertTrue(Assigned(Editor),'Recovery source did not open');Editor.Show;
+    Inspector.HandleCursorChanged(4,RecoveryOriginal,RecoveryFile);Explorer.HandleFileChanged(RecoveryFile,RecoveryOriginal);
+    for var Panel in [TForm(Inspector),TForm(Explorer)] do begin var Poll:=TTimer(Panel.FindComponent('SourcePollTimer'));AssertTrue(Assigned(Poll),'Native source polling is unavailable');Poll.Interval:=100;Poll.Enabled:=True;end;
+    ReplaceSourceBuffer(Editor,RecoveryOriginal.Replace('Value := 1;','Value := (1;'));
+   end
+   else if Action='parser-poll-state' then begin
+    var HasErrors:=True;var Recovered:=True;
+    for var Panel in [TForm(Inspector),TForm(Explorer)] do begin var Memo:=TMemo(Panel.FindComponent('DocumentationError'));HasErrors:=HasErrors and Memo.Visible and string(Memo.Text).Contains(RecoveryFile) and string(Memo.Text).Contains('Line: 9') and string(Memo.Text).Contains('Exception: ESyntaxTreeException');Recovered:=Recovered and not Memo.Visible;end;
+    Browser.ExecuteScript('window.__nativeParseErrors='+LowerCase(BoolToStr(HasErrors,True))+';window.__nativeParseRecovered='+LowerCase(BoolToStr(Recovered,True))+';');
+   end
+   else if Action='parser-error-observed' then begin
+    AssertTrue(Browser.Visible and ExplorerBrowser.Visible,'Parser error hid the browser/editor');
+    AssertTrue(EditorSource(SourceEditorForFile(RecoveryFile)).Contains('Value := (1;'),'Parse failure wrote to the source');
+    for var Panel in [TForm(Inspector),TForm(Explorer)] do for var N:=0 to Panel.ComponentCount-1 do if Panel.Components[N] is TDocumentationErrorActions then begin
+     var Actions:=TDocumentationErrorActions(Panel.Components[N]);for var B:=0 to Actions.ControlCount-1 do if Actions.Controls[B] is TButton then begin
+      var Button:=TButton(Actions.Controls[B]);
+      if Button.Caption=TI18n.Instance.T('Hide details') then begin Button.Click;AssertTrue(not TMemo(Panel.FindComponent('DocumentationError')).Visible,'Error details did not collapse');Button.Click;end;
+      if Button.Caption=TI18n.Instance.T('Go to error') then begin Button.Click;AssertTrue(SourceEditorForFile(RecoveryFile).EditViews[0].CursorPos.Line=9,'Error navigation used the wrong source line');end;
+      if Button.Caption=TI18n.Instance.T('Retry parsing') then begin Button.Click;AssertTrue(TMemo(Panel.FindComponent('DocumentationError')).Visible,'Retry hid an unresolved parse error');end;
+     end;
+    end;
+    Log('PASS parser failure details, visible browser, collapsed diagnostics and blocked writes');
+   end
+   else if Action='parser-fix-source' then ReplaceSourceBuffer(SourceEditorForFile(RecoveryFile),RecoveryOriginal.Replace('Recovery sample','Recovered automatically'))
+   else if Action='parser-recovery-complete' then begin
+    AssertTrue(ReadSourceFile(RecoveryFile)=RecoveryOriginal,'Automatic recovery must read the unsaved OTA buffer');
+    AssertTrue(EditorSource(SourceEditorForFile(RecoveryFile)).Contains('Recovered automatically'),'Corrected source was lost');
+    Log('PASS automatic unsaved-buffer recovery in Inspector/Explorer and partial project catalog');Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;
+   end
+   else if Action='marker-log' then Log('AUDIT '+Json.GetValue<string>('result'))
    else if Action='marker-select' then begin Select(SampleFile,'UndocumentedFirst','');Browser.ExecuteScript('window.__markerSelected=true');end
    else if Action='marker-coverage' then begin
     var D:=TCoverageDialog.Create(nil);
@@ -857,7 +918,7 @@ begin
     AssertTrue(Browser.Visible and ExplorerBrowser.Visible,'Successful browser recovery did not restore the editor');
     Log('PASS independent parser/browser diagnostics and browser recovery');
    end;
-    Log('PASS');Step:=90;Timer.Interval:=100;Timer.Enabled:=True;Exit;
+    Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'ParseRecoveryProbe.js')));Inc(Step);Exit;
    end;
    if StrToIntDef(GetEnvironmentVariable('XMLDOC_E2E_BENCHMARK_MODULES'),0)>0 then begin Step:=104;Timer.Enabled:=True;Exit;end;Inc(Step);Select(SampleFile,'Run','string');if GetEnvironmentVariable('XMLDOC_E2E_GROUP_ONLY')='1' then Browser.ExecuteScript('window.chrome.webview.postMessage(JSON.stringify({type:"e2e",action:"prepare-group"}));') else Browser.ExecuteScript(TFile.ReadAllText(GetEnvironmentVariable('XMLDOC_E2E_JS')));end;
  end;

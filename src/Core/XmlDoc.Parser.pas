@@ -1,4 +1,4 @@
-﻿/// <summary>DelphiAST integration, project-aware conditional parsing and declaration lookup.</summary>
+/// <summary>DelphiAST integration, project-aware conditional parsing and declaration lookup.</summary>
 unit XmlDoc.Parser;
 
 interface
@@ -16,6 +16,12 @@ uses
   XmlDoc.Consts;
 
 type
+  TDocParseDiagnostic = record
+    FileName,RequestedFile,Stage,ExceptionClass,Message,Excerpt,Stack,Context:string;
+    Line,Column:Integer;
+    class function FromException(E:Exception;const FileName,Stage:string):TDocParseDiagnostic;static;
+    function DetailText:string;
+  end;
   /// <summary>Parses Delphi source and locates documentable declarations at a source line.</summary>
   TDocParser = class
   private
@@ -32,6 +38,10 @@ type
     FSnapshots,FDependencySnapshots:TArray<TSourceSnapshot>;
     FHasDeclared:Boolean;
     FOnCheck:TProc;
+    FLastDiagnostic:TDocParseDiagnostic;
+    FFailedSnapshot:Boolean;
+    function DependenciesCurrent:Boolean;
+    procedure ParseSourceInternal(const ASource,AFileName:string);
     procedure SetPlatform(const Value:string);
     procedure SetSnapshots(const Value:TArray<TSourceSnapshot>);
     procedure SetDefines(const Value:TArray<string>);
@@ -58,6 +68,9 @@ type
     /// <summary>Builds the syntax tree for the supplied source and project context.</summary>
     /// <param name="ASource">Complete source text to parse.</param>
     procedure ParseSource(const ASource: string; const AFileName:string = '');
+    function FailedSnapshotIsCurrent(const Source,FileName:string):Boolean;
+    procedure RetryParsing;
+    property LastDiagnostic:TDocParseDiagnostic read FLastDiagnostic;
 
     /// <summary>Finds the declaration at the supplied source line.</summary>
     /// <param name="ALine">One-based cursor line number.</param>
@@ -619,24 +632,24 @@ begin
 end;
 
 procedure TDocParser.SetPlatform(const Value:string);
-begin if FPlatform=Value then Exit;FPlatform:=Value;FCachedHash:='';end;
+begin if FPlatform=Value then Exit;FPlatform:=Value;FCachedHash:='';FFailedSnapshot:=False;end;
 
 procedure TDocParser.SetSnapshots(const Value:TArray<TSourceSnapshot>);
 var I:Integer;Equal:Boolean;
-begin Equal:=Length(Value)=Length(FSnapshots);if Equal then for I:=0 to High(Value) do if (Value[I].FileName<>FSnapshots[I].FileName) or (Value[I].Source<>FSnapshots[I].Source) then begin Equal:=False;Break;end;if Equal then Exit;FSnapshots:=Copy(Value);FCachedHash:='';end;
+begin Equal:=Length(Value)=Length(FSnapshots);if Equal then for I:=0 to High(Value) do if (Value[I].FileName<>FSnapshots[I].FileName) or (Value[I].Source<>FSnapshots[I].Source) then begin Equal:=False;Break;end;if Equal then Exit;FSnapshots:=Copy(Value);FCachedHash:='';FFailedSnapshot:=False;end;
 
 procedure TDocParser.SetDefines(const Value:TArray<string>);
-begin if string.Join(#0,FDefines)=string.Join(#0,Value) then Exit;FDefines:=Copy(Value);FCachedHash:='';end;
+begin if string.Join(#0,FDefines)=string.Join(#0,Value) then Exit;FDefines:=Copy(Value);FCachedHash:='';FFailedSnapshot:=False;end;
 
 procedure TDocParser.SetSearchPaths(const Value:TArray<string>);
-begin if string.Join(#0,FSearchPaths)=string.Join(#0,Value) then Exit;FSearchPaths:=Copy(Value);FCachedHash:='';end;
+begin if string.Join(#0,FSearchPaths)=string.Join(#0,Value) then Exit;FSearchPaths:=Copy(Value);FCachedHash:='';FFailedSnapshot:=False;end;
 procedure TDocParser.SetSourceFiles(const Value:TArray<string>);
-begin if string.Join(#0,FSourceFiles)=string.Join(#0,Value) then Exit;FSourceFiles:=Copy(Value);FCachedHash:='';end;
+begin if string.Join(#0,FSourceFiles)=string.Join(#0,Value) then Exit;FSourceFiles:=Copy(Value);FCachedHash:='';FFailedSnapshot:=False;end;
 
 procedure TDocParser.SetResolveDeclaration(const Value:TResolveDeclarationEvent);
 begin
   FOnResolveDeclaration:=Value;
-  FCachedHash:='';
+  FCachedHash:='';FFailedSnapshot:=False;
 end;
 
 { TDocParser }
@@ -1111,6 +1124,28 @@ begin
     Result := NodeToElementInfo(LNode);
 end;
 
+class function TDocParseDiagnostic.FromException(E:Exception;const FileName,Stage:string):TDocParseDiagnostic;
+begin
+ Result:=Default(TDocParseDiagnostic);Result.RequestedFile:=FileName;Result.FileName:=FileName;
+ Result.Stage:=Stage;Result.ExceptionClass:=E.ClassName;Result.Message:=E.Message;Result.Stack:=E.StackTrace;
+ if E is EParserException then begin
+  if EParserException(E).FileName<>'' then Result.FileName:=EParserException(E).FileName;
+  Result.Line:=EParserException(E).Line;Result.Column:=EParserException(E).Col;
+ end;
+end;
+
+function TDocParseDiagnostic.DetailText:string;
+begin
+ Result:='Cannot parse '+RequestedFile+sLineBreak+'File: '+FileName+sLineBreak;
+ if Line>0 then Result:=Result+'Line: '+IntToStr(Line)+'; Column: '+IntToStr(Column)+sLineBreak
+ else Result:=Result+'Location: unavailable'+sLineBreak;
+ Result:=Result+'Stage: '+Stage+sLineBreak+'Exception: '+ExceptionClass+sLineBreak+'Reason: '+Message;
+ if Context<>'' then Result:=Result+sLineBreak+Context;
+ if Excerpt<>'' then Result:=Result+sLineBreak+sLineBreak+Excerpt;
+ if Stack<>'' then Result:=Result+sLineBreak+sLineBreak+'Stack trace:'+sLineBreak+Stack
+ else Result:=Result+sLineBreak+'Stack trace: unavailable';
+end;
+
 function TDocParser.HashSource(const ASource: string): string;
 begin
   Result := THashMD5.GetHashString(ASource);
@@ -1154,6 +1189,12 @@ begin
   Result := not Assigned(FOnResolveDeclaration) and Assigned(FRootNode) and
     (FCachedHash <> '') and (FCachedSource = ASource);
   if not Result then Exit;
+  Result:=DependenciesCurrent;
+end;
+
+function TDocParser.DependenciesCurrent:Boolean;
+begin
+  Result:=True;
   // Include lookup order is part of the cache: a previously missing local file
   // can shadow an unchanged include selected from the search path.
   for var Probe in FDependencyProbes do begin
@@ -1168,6 +1209,15 @@ begin
     if Current<>Dependency.Source then Exit(False);
   end;
 end;
+
+function TDocParser.FailedSnapshotIsCurrent(const Source,FileName:string):Boolean;
+begin
+ Result:=FFailedSnapshot and not Assigned(FOnResolveDeclaration) and SameText(FileName,FSourceFileName) and
+   (Source=FCachedSource) and DependenciesCurrent;
+end;
+
+procedure TDocParser.RetryParsing;
+begin FFailedSnapshot:=False;FCachedHash:='';end;
 
 function TDocParser.NodeToElementInfo(ANode: TSyntaxNode): TCodeElementInfo;
 var
@@ -1367,7 +1417,38 @@ begin
  Result:=SyntaxTypeName(N);
 end;
 
-procedure TDocParser.ParseSource(const ASource: string; const AFileName:string);
+procedure TDocParser.ParseSource(const ASource: string;const AFileName:string);
+var Text:string;Lines:TArray<string>;First,Last:Integer;
+begin
+ FFailedSnapshot:=False;FLastDiagnostic:=Default(TDocParseDiagnostic);
+ try ParseSourceInternal(ASource,AFileName);
+ except
+  on E:EAbort do raise;
+  on E:Exception do begin
+   if FLastDiagnostic.Message='' then FLastDiagnostic:=TDocParseDiagnostic.FromException(E,AFileName,'Source preparation or AST indexing');
+   FLastDiagnostic.Context:='Compiler version: '+FloatToStr(CompilerVersion)+sLineBreak+'Platform: '+FPlatform+sLineBreak+'Defines: '+string.Join(';',FDefines)+sLineBreak+'Search paths: '+string.Join(';',FSearchPaths);
+   Text:=ASource;
+   if not SameText(FLastDiagnostic.FileName,AFileName) then begin
+    Text:='';for var Dependency in FDependencySnapshots do if SameText(Dependency.FileName,FLastDiagnostic.FileName) then Text:=Dependency.Source;
+    for var Snapshot in FSnapshots do if SameText(Snapshot.FileName,FLastDiagnostic.FileName) then Text:=Snapshot.Source;
+   end;
+   Lines:=Text.Replace(#13#10,#10).Replace(#13,#10).Split([#10]);
+   if (FLastDiagnostic.Line>0) and (FLastDiagnostic.Line<=Length(Lines)) then begin
+    First:=FLastDiagnostic.Line-2;if First<1 then First:=1;Last:=FLastDiagnostic.Line+2;if Last>Length(Lines) then Last:=Length(Lines);
+    for var I:=First to Last do begin FLastDiagnostic.Excerpt:=FLastDiagnostic.Excerpt+Format('%d | %s',[I,Lines[I-1]])+sLineBreak;
+     if (I=FLastDiagnostic.Line) and (FLastDiagnostic.Column>0) and (FLastDiagnostic.Column<=Length(Lines[I-1])+1) then FLastDiagnostic.Excerpt:=FLastDiagnostic.Excerpt+StringOfChar(' ',Length(IntToStr(I))+3+FLastDiagnostic.Column-1)+'^'+sLineBreak;
+    end;
+   end;
+   FFailedSnapshot:=True;
+   // Preserve the exception type and coordinates, but do not lose diagnostics
+   // in callers that can only display Exception.Message (CLI and IDE actions).
+   E.Message:=FLastDiagnostic.DetailText;
+   raise;
+  end;
+ end;
+end;
+
+procedure TDocParser.ParseSourceInternal(const ASource: string;const AFileName:string);
 var
   LStream: TStringStream;
   LHash,Define: string;
@@ -1387,6 +1468,7 @@ begin
 
   FCachedSource := ASource;
   FCachedHash := LHash;
+  FDependencyFiles:=nil;FDependencyProbes:=nil;FDependencySnapshots:=nil;
   FSourceLines := ASource.Split([#10]);
 
   // 줄 끝의 #13 제거
@@ -1409,11 +1491,17 @@ begin
     try
       try
         FRootNode := FBuilder.Run(LStream);
-      except
+      except on E:Exception do begin
         // 파싱 실패 시 이전 캐시 무효화
         FCachedHash := '';
         FRootNode := nil;
+        if not (E is EAbort) then begin
+         FLastDiagnostic:=TDocParseDiagnostic.FromException(E,AFileName,'AST parsing');
+         if FLastDiagnostic.Line<=0 then begin FLastDiagnostic.Line:=FBuilder.Lexer.PosXY.Y;FLastDiagnostic.Column:=FBuilder.Lexer.PosXY.X;end;
+         if (not (E is EParserException) or (EParserException(E).FileName='')) and (FBuilder.Lexer.FileName<>'') then FLastDiagnostic.FileName:=FBuilder.Lexer.FileName;
+        end;
         raise;
+      end;
       end;
     finally
       FBuilder.Free;

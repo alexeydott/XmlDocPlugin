@@ -7,6 +7,8 @@ type
     [Test] procedure GenericMethodAndParameterNames;
     [Test] procedure ImplementationMethodScope;
     [Test] procedure FieldsAndConstructors;
+    [Test] procedure DirectiveAfterUnterminatedAssignment;
+    [Test] procedure RealLiteralWithoutFractionDigits;
   end;
 implementation
 uses System.SysUtils, XmlDoc.Parser, XmlDoc.Consts;
@@ -50,6 +52,32 @@ begin
     E:=P.GetElementAtLine(5);Assert.AreEqual('Create',E.Name);Assert.AreEqual('constructor',E.MethodKind);
     E:=P.GetElementAtLine(8);Assert.AreEqual('Create',E.Name);Assert.AreEqual('TBox.Create',E.FullName);
   finally P.Free;end;
+end;
+procedure TTestDocASTCompatibility.DirectiveAfterUnterminatedAssignment;
+var P:TDocParser;Source,Code,Reason:string;Count:Integer;
+begin
+ P:=TDocParser.Create;
+ try
+  Source:='unit ExpressionCase; interface procedure Run; implementation '+
+   'procedure Run; begin {$region ''calculation''} R:=TRect.Create(TPoint.Create(X,Y),W,H) {$endregion} end; end.';
+  P.ParseSource(Source,'ExpressionCase.pas');Count:=0;
+  for var Element in P.GetAllElements do if (Element.Name='Run') and (Element.SourceSection='interface') then begin
+   Inc(Count);Assert.IsTrue(P.MethodSource(Element,Code,Reason),Reason);
+   Assert.AreEqual('procedure Run; begin {$region ''calculation''} R:=TRect.Create(TPoint.Create(X,Y),W,H) {$endregion} end;',Code);
+  end;
+  Assert.AreEqual(1,Count);
+ finally P.Free;end;
+end;
+procedure TTestDocASTCompatibility.RealLiteralWithoutFractionDigits;
+var P:TDocParser;Count:Integer;
+begin
+ P:=TDocParser.Create;
+ try
+  P.ParseSource('unit DecimalCase; interface function Tolerance:Single; implementation '+
+   'function Tolerance:Single; begin Result:=5. end; end.','DecimalCase.pas');Count:=0;
+  for var Element in P.GetAllElements do if Element.Name='Tolerance' then Inc(Count);
+  Assert.AreEqual(2,Count);
+ finally P.Free;end;
 end;
 initialization
  TDUnitX.RegisterTestFixture(TTestDocASTCompatibility);

@@ -8,9 +8,12 @@ type
   [Test] procedure UncertainGenericKeepsBothCandidates;
   [Test] procedure PlaceholderReadinessAndThresholds;
   [Test] procedure FreshValidationScope;
+  [Test] procedure ParserDiagnosticAndRecovery;
+  [Test] procedure IndexContinuesAfterParseFailure;
+  [Test] procedure IncludeDiagnosticUsesUnsavedSnapshot;
  end;
 implementation
-uses System.IOUtils,XmlDoc.ProjectIndex,System.SysUtils,System.Generics.Collections,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.Expressions,
+uses DelphiAST,System.IOUtils,XmlDoc.ProjectIndex,System.SysUtils,System.Generics.Collections,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.Expressions,
  XmlDoc.HelpGen.Diagnostics,XmlDoc.Model,XmlDoc.StubGen,XmlDoc.Documentation,XmlDoc.HelpGen.Types,XmlDoc.HelpGen.Coverage;
 procedure TDocReviewTests.QualifiedReceiversIgnoreTrivia;
 var P:TDocParser;Symbols:TArray<TCodeElementInfo>;Source,Query,Reason:string;Matches:TArray<TCodeElementInfo>;
@@ -101,6 +104,63 @@ begin
   P.Defines:=P.Defines+['CHANGED_CONTEXT'];
   Pass:=TIndexValidation.Create([Snapshot]);try Assert.IsFalse(Index.IsCurrent(FileName,Source,P,Pass),'Each pass must capture the current project context');finally Pass.Free;end;
  finally Index.Free;P.Free;TDirectory.Delete(Root,True);end;
+end;
+procedure TDocReviewTests.ParserDiagnosticAndRecovery;
+var P:TDocParser;Broken,FixedSource,FileName:string;
+begin
+ P:=TDocParser.Create;FileName:=TPath.Combine(TPath.GetTempPath,'BrokenUnit.pas');
+ try
+  P.Platform:='Win64';P.Defines:=['REVIEW'];
+  Broken:='unit BrokenUnit;'+#10+'interface'+#10+'procedure Run;'+#10+'implementation'+#10+'procedure Run;'+#10+'begin'+#10+'  Value := (1 + 2;'+#10+'end;'+#10+'end.';
+  Assert.WillRaise(procedure begin
+   try P.ParseSource(Broken,FileName);
+   except on E:ESyntaxTreeException do begin Assert.IsTrue(E.Message.Contains('Line: 7; Column:'));Assert.IsTrue(E.Message.Contains('Reason:'));raise;end;end;
+  end,ESyntaxTreeException);
+  Assert.AreEqual(FileName,P.LastDiagnostic.FileName);Assert.AreEqual(7,P.LastDiagnostic.Line);Assert.IsTrue(P.LastDiagnostic.Column>0);
+  Assert.IsTrue(P.LastDiagnostic.DetailText.Contains('Value := (1 + 2;'));Assert.IsTrue(P.LastDiagnostic.DetailText.Contains('REVIEW'));
+  Assert.IsTrue(P.FailedSnapshotIsCurrent(Broken,FileName));Assert.IsFalse(P.IsUpToDate(Broken));Assert.IsNull(P.RootNode);
+  P.RetryParsing;Assert.IsFalse(P.FailedSnapshotIsCurrent(Broken,FileName));
+  Assert.WillRaise(procedure begin P.ParseSource(Broken,FileName);end,ESyntaxTreeException);
+  FixedSource:=Broken.Replace('(1 + 2;','(1 + 2);');Assert.IsFalse(P.FailedSnapshotIsCurrent(FixedSource,FileName));
+  P.ParseSource(FixedSource,FileName);Assert.AreEqual('',P.LastDiagnostic.Message);Assert.IsTrue(P.IsUpToDate(FixedSource));
+ finally P.Free;end;
+end;
+procedure TDocReviewTests.IndexContinuesAfterParseFailure;
+var P:TDocParser;Index:TDocumentationIndex;Bad,Good,Source:string;
+begin
+ P:=TDocParser.Create;Index:=TDocumentationIndex.Create;
+ try
+  Bad:=TPath.Combine(TPath.GetTempPath,'BadUnit.pas');Good:=TPath.Combine(TPath.GetTempPath,'GoodUnit.pas');
+  Source:='unit BadUnit; interface procedure Run; implementation procedure Run; begin Value := (1; end; end.';
+  Assert.AreEqual<NativeInt>(0,Length(Index.Update(Bad,Source,P,True)));Assert.IsTrue(Index.Diagnostic(Bad).Message<>'');
+  Assert.IsTrue(Length(Index.Update(Good,'unit GoodUnit; interface procedure Valid; implementation end.',P,True))>0);
+  Assert.AreEqual<NativeInt>(0,Length(Index.Elements(Bad)));
+  Assert.WillRaise(procedure begin Index.Update(Bad,Source,P);end,ESyntaxTreeException);
+  Assert.IsTrue(Length(Index.Update(Bad,Source.Replace('(1;','(1);'),P,True))>0);Assert.AreEqual('',Index.Diagnostic(Bad).Message);
+  P.OnCheck:=procedure begin Abort;end;
+  Assert.WillRaise(procedure begin Index.Update(Bad,Source,P,True);end,EAbort);
+ finally Index.Free;P.Free;end;
+end;
+procedure TDocReviewTests.IncludeDiagnosticUsesUnsavedSnapshot;
+var P:TDocParser;Directory,FileName,IncludeName,Source:string;Snapshot:TSourceSnapshot;
+begin
+ Directory:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);TDirectory.CreateDirectory(Directory);
+ P:=TDocParser.Create;
+ try
+  FileName:=TPath.Combine(Directory,'Main.pas');IncludeName:=TPath.Combine(Directory,'body.inc');
+  TFile.WriteAllText(IncludeName,'Value := 1;',TEncoding.UTF8);P.SearchPaths:=[Directory];
+  Snapshot.FileName:=IncludeName;Snapshot.Source:='Value := (1 + 2;';P.SourceSnapshots:=[Snapshot];
+  Source:='unit Main; interface implementation procedure Run; begin {$I body.inc} end; end.';
+  Assert.WillRaise(procedure begin P.ParseSource(Source,FileName);end,ESyntaxTreeException);
+  Assert.AreEqual(IncludeName,P.LastDiagnostic.FileName);Assert.AreEqual(1,P.LastDiagnostic.Line);
+  Assert.IsTrue(P.LastDiagnostic.Excerpt.Contains(Snapshot.Source));Assert.IsTrue(P.FailedSnapshotIsCurrent(Source,FileName));
+  Snapshot.Source:='Value := (1 + 2);';P.SourceSnapshots:=[Snapshot];Assert.IsFalse(P.FailedSnapshotIsCurrent(Source,FileName));
+  P.ParseSource(Source,FileName);Assert.IsTrue(P.IsUpToDate(Source));Assert.AreEqual('',P.LastDiagnostic.Message);
+  P.SourceSnapshots:=nil;TFile.WriteAllText(IncludeName,'Value := (1 + 2;',TEncoding.UTF8);
+  Assert.WillRaise(procedure begin P.ParseSource(Source,FileName);end,ESyntaxTreeException);
+  Assert.IsTrue(P.FailedSnapshotIsCurrent(Source,FileName));TFile.WriteAllText(IncludeName,'Value := (1 + 2);',TEncoding.UTF8);
+  Assert.IsFalse(P.FailedSnapshotIsCurrent(Source,FileName));P.ParseSource(Source,FileName);Assert.IsTrue(P.IsUpToDate(Source));
+ finally P.Free;TDirectory.Delete(Directory,True);end;
 end;
 initialization
  TDUnitX.RegisterTestFixture(TDocReviewTests);

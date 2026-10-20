@@ -1,4 +1,4 @@
-﻿/// <summary>Dockable unit documentation browser and editing host.</summary>
+/// <summary>Dockable unit documentation browser and editing host.</summary>
 unit XmlDoc.Plugin.DocExplorer;
 
 interface
@@ -42,6 +42,9 @@ type
     FBrowserError: TMemo;
     FBrowserReady: Boolean;
     FParseError:string;
+    FDiagnostic:TDocParseDiagnostic;
+    FErrorActions:TFlowPanel;
+    FErrorViewSent:Boolean;
     FWebViewError:string;
     FClosing:Boolean;
     FAI:TAIAssistant;
@@ -62,6 +65,9 @@ type
     procedure BrowserNavigationCompleted(Sender: TCustomEdgeBrowser; IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);
     procedure BrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
     procedure UpdateErrorDisplay;
+    procedure RetryParsing(Sender:TObject);
+    procedure GoToError(Sender:TObject);
+    procedure ShowParseFailure;
     function ParseEditorSource(const Source:string):Boolean;
     function BuildElementJson(const AElement: TCodeElementInfo): string;
     function BuildDocJson(const AElement: TCodeElementInfo): string;
@@ -123,6 +129,7 @@ begin
   FBrowserError.WordWrap := True;
   FBrowserError.AlignWithMargins := True;
   FBrowserError.Margins.SetBounds(8, 8, 8, 8);
+  FErrorActions:=TDocumentationErrorActions.CreateForMemo(Self,FBrowserError,RetryParsing,GoToError);
   FBrowserError.Text := FParseError;
   FBrowserError.Visible := FParseError<>'';
 
@@ -142,6 +149,7 @@ begin
 
   // 파일 변경 감지 폴링
   FFilePollTimer := TTimer.Create(Self);
+  FFilePollTimer.Name:='SourcePollTimer';
   FFilePollTimer.Interval := 1000;
   FFilePollTimer.Enabled := True;
   FFilePollTimer.OnTimer := FilePollTimerFired;
@@ -276,25 +284,46 @@ var MessageText:string;
 begin
  MessageText:=FWebViewError;
  if FParseError<>'' then begin if MessageText<>'' then MessageText:=MessageText+sLineBreak+sLineBreak;MessageText:=MessageText+FParseError;end;
- if Assigned(FBrowserError) then begin FBrowserError.Text:=MessageText;FBrowserError.Visible:=MessageText<>'';if FBrowserError.Visible then FBrowserError.BringToFront;end;
- if Assigned(FBrowser) then FBrowser.Visible:=(MessageText='') and FBrowserReady;
+ if Assigned(FBrowserError) then begin
+  if FBrowserError.Text<>MessageText then FBrowserError.Text:=MessageText;
+  if FWebViewError<>'' then FBrowserError.Align:=alClient else begin FBrowserError.Align:=alTop;FBrowserError.Height:=MulDiv(180,CurrentPPI,96);end;
+  FBrowserError.Visible:=(MessageText<>'') and ((FWebViewError<>'') or TDocumentationErrorActions(FErrorActions).Expanded);
+ end;
+ FErrorActions.Visible:=FParseError<>'';
+ if Assigned(FBrowser) then FBrowser.Visible:=(FWebViewError='') and FBrowserReady;
 end;
 
-function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
+procedure TDocExplorerForm.ShowParseFailure;
 begin
+ UpdateErrorDisplay;
+ if FBrowserReady and not FErrorViewSent then begin SendTreeToEditor;FBrowser.ExecuteScript(UnavailableSourceScript(FCurrentFileName,1));FErrorViewSent:=True;end;
+end;
+procedure TDocExplorerForm.RetryParsing(Sender:TObject);
+begin FDocParser.RetryParsing;FErrorViewSent:=False;RefreshFromCurrentEditor;end;
+procedure TDocExplorerForm.GoToError(Sender:TObject);
+begin NavigateToSource(FDiagnostic.FileName,FDiagnostic.Line,FDiagnostic.Column);end;
+
+function TDocExplorerForm.ParseEditorSource(const Source:string):Boolean;
+var Parsing:Boolean;
+begin
+  Parsing:=False;
   try
     ConfigureDeclarationContext(FDocParser,nil,FCurrentFileName);
+    if FDocParser.FailedSnapshotIsCurrent(Source,FCurrentFileName) then begin ShowParseFailure;Exit(False);end;
     if not FDocParser.IsUpToDate(Source) or not SameText(FDocParser.SourceFileName,FCurrentFileName) or (FEditSessionId='') then begin FLastSource:='';FEditSessionId:=TGUID.NewGuid.ToString;end;
-    FDocParser.ParseSource(Source,FCurrentFileName);
+    Parsing:=True;FDocParser.ParseSource(Source,FCurrentFileName);
     FParseError:='';
+    FErrorViewSent:=False;FDiagnostic:=Default(TDocParseDiagnostic);
     UpdateErrorDisplay;
     Result:=True;
   except
     on E:Exception do begin
       FElements:=nil;FLastSource:='';
-      if Assigned(FBrowser) then FBrowser.Visible:=False;
-      FParseError:='Cannot parse '+FCurrentFileName+': '+E.Message;
-      UpdateErrorDisplay;
+      FEditSessionId:='';FErrorViewSent:=False;
+      FDiagnostic:=Default(TDocParseDiagnostic);if Parsing then FDiagnostic:=FDocParser.LastDiagnostic;
+      if FDiagnostic.Message='' then FDiagnostic:=TDocParseDiagnostic.FromException(E,FCurrentFileName,'Project context');
+      FParseError:=FDiagnostic.DetailText;
+      ShowParseFailure;
       Result:=False;
     end;
   end;
@@ -354,6 +383,7 @@ begin
       LDocObj := LMsg.GetValue<TJSONObject>('doc');
       LFullName := LMsg.GetValue<string>('symbolId', '');
       if Assigned(LDocObj) and (LFullName <> '') then
+        if FParseError<>'' then FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),'Read-only: source could not be parsed')) else
         if SourceEditProtection(FCurrentFileName)<>'' then FBrowser.ExecuteScript(EditResult(LMsg.GetValue<string>('sessionId',''),SourceEditProtection(FCurrentFileName))) else
         begin FPreferredLocation:=LMsg.GetValue<string>('locationId','');if ValidateEdit(LMsg,FindElementByFullName(LFullName),FCurrentFileName,FEditSessionId,FDocParser.SourceText) then begin
           if HandleDocUpdated(LDocObj.ToJSON,LFullName,LMsg.GetValue<string>('editId','')) then FProjectDocs.Acknowledge(LMsg);end
@@ -711,12 +741,9 @@ begin
   if not LFileName.EndsWith('.pas', True) then
     Exit;
 
-  if not SameText(LFileName, FCurrentFileName) then
-  begin
-    LSource := ReadEditorSource(LEditor);
-    if LSource <> '' then
-      HandleFileChanged(LFileName, LSource);
-  end;
+  LSource := ReadEditorSource(LEditor);
+  if not SameText(LFileName,FCurrentFileName) or (LSource<>FLastSource) or not FDocParser.IsUpToDate(LSource) then
+    HandleFileChanged(LFileName,LSource);
 end;
 
 procedure TDocExplorerForm.LoadBounds;

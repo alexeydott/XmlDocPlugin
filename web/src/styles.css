@@ -863,3 +863,5 @@ body.compact .doc-section {margin-bottom:2px;}body.compact .doc-heading {padding
 #ai-assistant select {flex:1 1 130px;}
 #ai-assistant textarea {display:block;width:100%;min-height:4rem;resize:vertical;font-family:inherit;}
 #ai-assistant pre {max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;}
+
+#catalog-errors pre { max-height: 16rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }

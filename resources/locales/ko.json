@@ -328,6 +328,7 @@
   "Analysis cancelled: {0}/{1}; parsed {2}, reused {3}": "분석 취소됨: {0}/{1}, 구문 분석 {2}, 재사용 {3}",
   "Analysis failed: {0}/{1}; parsed {2}, reused {3}": "분석 실패: {0}/{1}, 구문 분석 {2}, 재사용 {3}",
   "Analysis completed: {0}/{1}; parsed {2}, reused {3}": "분석 완료: {0}/{1}, 구문 분석 {2}, 재사용 {3}",
+  "Analysis completed with errors: {0}/{1}; parsed {2}, reused {3}": "분석 완료(오류 있음): {0}/{1}; 분석 {2}, 재사용 {3}",
   "Analysis {0}: {1}/{2}; parsed {3}, reused {4}": "분석 {0}: {1}/{2}, 구문 분석 {3}, 재사용 {4}",
   "Select source directory": "소스 디렉터리 선택",
   "Select output directory": "출력 디렉터리 선택",
@@ -534,5 +535,16 @@
   "Invalid AI request identity": "AI 요청 식별자가 잘못되었습니다",
   "Template must include signature and implementation": "템플릿에 시그니처와 구현을 포함해야 합니다",
   "Template must include existing documentation": "템플릿에 기존 문서를 포함해야 합니다",
-  "Invalid AI configuration": "AI 설정이 잘못되었습니다"
+  "Invalid AI configuration": "AI 설정이 잘못되었습니다",
+  "Delete profile": "프로필 삭제",
+  "Profile name is required": "프로필 이름을 입력하세요",
+  "Profile name already exists": "같은 이름의 프로필이 이미 있습니다",
+  "A matching connection profile already exists": "동일한 연결 프로필이 이미 있습니다",
+  "Go to error": "오류 위치로 이동",
+  "Retry parsing": "다시 구문 분석",
+  "Copy details": "세부 정보 복사",
+  "Read-only: source could not be parsed": "읽기 전용: 소스를 구문 분석할 수 없습니다",
+  "Some files could not be parsed": "일부 파일을 구문 분석할 수 없습니다",
+  "Hide details": "세부 정보 숨기기",
+  "Show details": "세부 정보 표시"
 }

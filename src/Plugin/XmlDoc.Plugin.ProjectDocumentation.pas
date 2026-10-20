@@ -1,4 +1,4 @@
-﻿/// <summary>Project documentation catalog, background analysis and source update coordination.</summary>
+/// <summary>Project documentation catalog, background analysis and source update coordination.</summary>
 unit XmlDoc.Plugin.ProjectDocumentation;
 interface
 uses System.Classes,System.SyncObjs,Vcl.ExtCtrls,XmlDoc.Parser,XmlDoc.ProjectIndex,System.SysUtils,System.JSON,System.Generics.Collections,ToolsAPI,XmlDoc.Consts,XmlDoc.Plugin.Browser,XmlDoc.Plugin.QuickDocPreview;
@@ -22,7 +22,7 @@ type
   FValidationContexts:TObjectDictionary<string,TDocParser>;
   FValidationSnapshots:TArray<TSourceSnapshot>;
   FWorker:TThread;
-  FCancelled,FCompleted:Integer;
+  FCancelled,FCompleted,FJobWarnings:Integer;
   FPublishedGeneration:UInt64;
   FOnWorkerCheck:TProc;
   FPreparationMs,FValidationMs,FPublicationMs,FStopMs:Double;
@@ -153,7 +153,7 @@ procedure TProjectDocumentation.AnalysisState(const State:string);
 var Json:TJSONObject;
 begin
  if not Assigned(FJobBrowser) then Exit;Json:=TJSONObject.Create;
- try Json.AddPair('finalValidationMs',TJSONNumber.Create(FFinalValidationMs));Json.AddPair('maxValidationPauseMs',TJSONNumber.Create(FMaxValidationPauseMs));Json.AddPair('state',State);Json.AddPair('completed',TJSONNumber.Create(FJobPosition));Json.AddPair('total',TJSONNumber.Create(Length(FJobFiles)));Json.AddPair('parsed',TJSONNumber.Create(FIndex.Parsed));Json.AddPair('reused',TJSONNumber.Create(FIndex.Reused));Json.AddPair('preparationMs',TJSONNumber.Create(FPreparationMs));Json.AddPair('validationMs',TJSONNumber.Create(FValidationMs));Json.AddPair('publicationMs',TJSONNumber.Create(FPublicationMs));Json.AddPair('stopWorkerMs',TJSONNumber.Create(FStopMs));
+ try Json.AddPair('finalValidationMs',TJSONNumber.Create(FFinalValidationMs));Json.AddPair('maxValidationPauseMs',TJSONNumber.Create(FMaxValidationPauseMs));Json.AddPair('state',State);Json.AddPair('warnings',TJSONNumber.Create(FJobWarnings));Json.AddPair('completed',TJSONNumber.Create(FJobPosition));Json.AddPair('total',TJSONNumber.Create(Length(FJobFiles)));Json.AddPair('parsed',TJSONNumber.Create(FIndex.Parsed));Json.AddPair('reused',TJSONNumber.Create(FIndex.Reused));Json.AddPair('preparationMs',TJSONNumber.Create(FPreparationMs));Json.AddPair('validationMs',TJSONNumber.Create(FValidationMs));Json.AddPair('publicationMs',TJSONNumber.Create(FPublicationMs));Json.AddPair('stopWorkerMs',TJSONNumber.Create(FStopMs));
  FJobBrowser.ExecuteScript('window.xmlDocWorkbench?.receiveAnalysis('+Json.ToJSON+');');finally Json.Free;end;
 end;
 function TProjectDocumentation.ModuleCount:Integer;
@@ -188,7 +188,7 @@ var Files:TList<string>;Projects:TDictionary<string,IOTAProject>;Services:IOTAMo
   end;finally Context.Free;end;
  end;
 begin
- StopWorker;FFinalValidationMs:=0;FMaxValidationPauseMs:=0;FPreparationMs:=0;FValidationMs:=0;FPublicationMs:=0;FJobScope:=Scope;FJobOwners.Clear;FJobTemplates.Clear;FValidationContexts.Clear;TInterlocked.Exchange(FCancelled,0);TInterlocked.Exchange(FCompleted,0);FJobError:='';FJobPayload:='';FJobContexts.Clear;
+ StopWorker;FFinalValidationMs:=0;FMaxValidationPauseMs:=0;FPreparationMs:=0;FValidationMs:=0;FPublicationMs:=0;FJobScope:=Scope;FJobOwners.Clear;FJobTemplates.Clear;FValidationContexts.Clear;TInterlocked.Exchange(FCancelled,0);TInterlocked.Exchange(FCompleted,0);FJobError:='';FJobPayload:='';FJobWarnings:=0;FJobContexts.Clear;
  FAnalysisTimer.Enabled:=False;if Assigned(FJobBrowser) then FJobBrowser.RemoveFreeNotification(Self);FJobBrowser:=Browser;if Assigned(Browser) then Browser.FreeNotification(Self);FJobPosition:=0;FJobParsers.Clear;FJobSources.Clear;FIndex.ResetStatistics;
  Files:=TList<string>.Create;Projects:=TDictionary<string,IOTAProject>.Create;
  try
@@ -245,7 +245,7 @@ begin
     CoInitialize(nil);
     try
      try
-      for var JobFile in FJobFiles do begin CheckCancelled;if not FJobSources.ContainsKey(LowerCase(JobFile)) then FJobSources.Add(LowerCase(JobFile),ReadSourceFile(JobFile));FIndex.Update(JobFile,FJobSources[LowerCase(JobFile)],FJobParsers[LowerCase(JobFile)]);TInterlocked.Increment(FCompleted);end;
+      for var JobFile in FJobFiles do begin CheckCancelled;if not FJobSources.ContainsKey(LowerCase(JobFile)) then FJobSources.Add(LowerCase(JobFile),ReadSourceFile(JobFile));FIndex.Update(JobFile,FJobSources[LowerCase(JobFile)],FJobParsers[LowerCase(JobFile)],True);TInterlocked.Increment(FCompleted);end;
       CheckCancelled;BuildCatalog;
      except on E:Exception do FJobError:=E.Message;end;
     finally CoUninitialize;end;
@@ -281,13 +281,16 @@ begin
  end;end;
 end;
 procedure TProjectDocumentation.BuildCatalog;
-var FileName,Source,Session:string;E:TCodeElementInfo;Root,Json,Param:TJSONObject;Elements,Errors,Params,Generics,Interfaces:TJSONArray;Model:TXmlDocModel;P:TParamInfo;G:string;Batch:TBatchParser;NewElements:TDictionary<string,TCodeElementInfo>;NewSources,NewSessions,NewEffective:TDictionary<string,string>;
+var FileName,Source,Session:string;E:TCodeElementInfo;Root,Json,Param:TJSONObject;Elements,Errors,Params,Generics,Interfaces:TJSONArray;Model:TXmlDocModel;P:TParamInfo;G:string;Batch:TBatchParser;GoodFiles:TArray<string>;NewElements:TDictionary<string,TCodeElementInfo>;NewSources,NewSessions,NewEffective:TDictionary<string,string>;
 begin
  Root:=TJSONObject.Create;Elements:=TJSONArray.Create;Errors:=TJSONArray.Create;Root.AddPair('elements',Elements);Root.AddPair('errors',Errors);
  Model:=TXmlDocModel.Create;Batch:=TBatchParser.Create;NewElements:=TDictionary<string,TCodeElementInfo>.Create;NewSources:=TDictionary<string,string>.Create;NewSessions:=TDictionary<string,string>.Create;NewEffective:=TDictionary<string,string>.Create;
  try
 
   for FileName in FJobFiles do begin CheckCancelled;Source:=FJobSources[LowerCase(FileName)];var CapturedContext:=TJSONObject.ParseJSONValue(FJobContexts[LowerCase(FileName)]) as TJSONObject;try CapturedContext.AddPair('sourceRevision',SourceRevision(Source));Session:=CapturedContext.GetValue<string>('sessionId');NewSources.AddOrSetValue(LowerCase(FileName),Source);NewSessions.AddOrSetValue(LowerCase(FileName),Session);
+     var Diagnostic:=FIndex.Diagnostic(FileName);
+     if Diagnostic.Message<>'' then begin Errors.Add(Diagnostic.DetailText);Inc(FJobWarnings);Continue;end;
+     GoodFiles:=GoodFiles+[FileName];
      for E in FIndex.Elements(FileName) do begin
       CheckCancelled;if (E.Name='') or NewElements.ContainsKey(Key(FileName,E.SymbolId)) then Continue;
       NewElements.Add(Key(FileName,E.SymbolId),E);Json:=CapturedContext.Clone as TJSONObject;
@@ -307,7 +310,7 @@ begin
 
   finally CapturedContext.Free;end;end;
   Batch.ParsedElements:=function(FileName:string):TArray<TCodeElementInfo> begin Result:=FIndex.Elements(FileName);end;
-  Batch.OnCheck:=WorkerCheck;Batch.SourceSnapshots:=FJobSnapshots;Batch.OnProgress:=procedure(Current,Total:Integer;const Message:string) begin CheckCancelled;end;Batch.ParseAll(FJobFiles);CheckCancelled;
+  Batch.OnCheck:=WorkerCheck;Batch.SourceSnapshots:=FJobSnapshots;Batch.OnProgress:=procedure(Current,Total:Integer;const Message:string) begin CheckCancelled;end;Batch.ParseAll(GoodFiles);CheckCancelled;
   for var Value in Elements do begin CheckCancelled;var Item:=Value as TJSONObject;var Id:=Item.GetValue<string>('symbolId','');
    if Batch.SymbolIndex.ContainsKey(Id) then begin var Effective:=Batch.SymbolIndex[Id].Doc.ToJson;NewEffective.AddOrSetValue(Key(Item.GetValue<string>('fileName',''),Id),Effective);Item.AddPair('effectiveDoc',TJSONObject.ParseJSONValue(Effective));end;
   end;
