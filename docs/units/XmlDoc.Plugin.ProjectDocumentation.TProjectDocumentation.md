@@ -85,7 +85,7 @@ Inherits from `TComponent`
 | `FinalValidationMs` | property | public |  |
 | `LastError` | property | public |  |
 | `MaxValidationPauseMs` | property | public |  |
-| `OnWorkerCheck` | property | public |  |
+| `OnWorkerCheck` | property | public | Runs on the worker thread; callbacks must not access OTA or VCL. |
 | `PublicationMs` | property | public |  |
 | `PublishedGeneration` | property | public |  |
 | `Working` | property | public |  |
@@ -249,6 +249,8 @@ Inherits from `TComponent`
 ### MaxValidationPauseMs
 
 ### OnWorkerCheck
+
+Runs on the worker thread; callbacks must not access OTA or VCL.
 
 ### PublicationMs
 

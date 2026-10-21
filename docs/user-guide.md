@@ -103,6 +103,18 @@ Read-only files, read-only IDE buffers and sources under installed RAD Studio so
 
 XML fragments omit an enclosing `<doc>` element. Escape literal markup in XML (`&lt;`, `&amp;`). Unknown XML and mixed content are retained; malformed comments remain available in XML view for repair. Preview is useful for appearance, while Problems checks structure and references. An unapplied XML draft remains visible in XML view when a Design edit is acknowledged; it is separate from the accepted source version until you explicitly apply or discard it.
 
+## Import existing comments
+
+When a declaration has a comment without `<summary>`, stub generation reuses its description instead of replacing it with a placeholder. Existing XML summaries remain unchanged. Opening Inspector or Explorer reads the imported documentation; source changes require an explicit edit or Generate Doc Stub.
+
+PasDoc `@abstract` contains the short description and becomes `<summary>`. Parameter names in `@param` are matched without case sensitivity and written using the spelling in the declaration; unknown parameter names are ignored. `@return` and `@returns` supply the return description. Formatting, inline code, links, lists and tables are converted to XML markup.
+
+A `.pas` file accompanied by a `.txt` file of the same name is treated as a PasDoc source pair. The text file contains sections such as `# Sample.TWorker.Run`, followed by tags such as `@param Value Description`. Matching uses the unit, class and member name. Local parameter descriptions take precedence. The text file is reread after changes, including when it appears after the source was opened.
+
+`@include(file.txt)` expands another description, including its PasDoc tags. Paths are relative to the original Pascal file, including nested includes. `@includeCode(example.pas)` inserts literal code; multiple filenames are allowed. Included files participate in cache validation. Missing files, cycles and malformed tags produce errors with file details; correcting or creating the file lets the next parse recover.
+
+The importer also handles metadata, name macros, member/value descriptions, lists, tables, anchors, an internal table of contents and `@exclude`. HTML is converted to supported XML markup with active content and attributes removed. LaTeX is kept as literal code because the plugin's export formats do not include a LaTeX typesetter. Numbered lists retain explicit numbering. Complex imported markup is preserved as a protected XML block in Design and remains editable in XML mode. See [PasDoc import mappings](pasdoc-import.md) for all supported tags and [PasDoc's reference](https://pasdoc.github.io/SupportedTags) for the input syntax.
+
 ## Documentation tools
 
 Expand **Documentation tools** above the editor. Most actions use SVG icons. Hover an icon or focus it with the keyboard to read its tooltip; this guide uses those action names.

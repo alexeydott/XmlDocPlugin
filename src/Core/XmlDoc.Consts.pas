@@ -89,6 +89,7 @@ type
     CommentStartLine: Integer;
     CommentEndLine: Integer;
     ExistingDocXml: string;
+    IsLegacyComment: Boolean;
   end;
 
   TSourceSnapshot=record

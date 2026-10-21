@@ -50,7 +50,7 @@ begin
   if SourceReadOnlyReason(AEditor.FileName)<>'' then Exit;
   if Supports(AEditor,IOTAEditBuffer,Buffer) and Buffer.IsReadOnly then Exit;
   if AModel.ParseError<>'' then Exit;
-  if (AModel.SourceXml<>'') and (AModel.ToXml=AElement.ExistingDocXml) then Exit(True);
+  if not AElement.IsLegacyComment and (AModel.SourceXml<>'') and (AModel.ToXml=AElement.ExistingDocXml) then Exit(True);
   LCommentBlock := TDocCodeGenerator.ModelToCommentBlock(AModel, AElement.IndentLevel);
 
   LWriter := AEditor.CreateUndoableWriter;

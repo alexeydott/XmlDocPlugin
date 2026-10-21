@@ -1,4 +1,4 @@
-﻿unit TestDocStubGen;
+unit TestDocStubGen;
 
 interface
 
@@ -21,6 +21,8 @@ type
 
     [Test]
     procedure CustomPlaceholders;
+    [Test] procedure ExistingCommentsAndPasDoc;
+    [Test] procedure PasDocRichTextAndAbstract;
 
     [Test]
     procedure Constructor_GeneratesAutoSummary;
@@ -79,7 +81,58 @@ type
 
 implementation
 
-uses System.SysUtils;
+uses System.SysUtils,System.IOUtils,XmlDoc.PasDoc;
+
+procedure TTestDocStubGenerator.PasDocRichTextAndAbstract;
+var E:TCodeElementInfo;M:TXmlDocModel;
+begin
+ E:=MakeElement(dekMethod,'Run');
+ E.ExistingDocXml:='Long introduction'+#10+'@abstract(Runs @bold(very @italic(safely)))'+#10+
+ '@returns(@code(nil))';
+ M:=TDocStubGenerator.GenerateStub(E);
+ try
+  Assert.AreEqual('Runs <b>very <i>safely</i></b>',M.Summary);
+  Assert.IsTrue(M.Remarks.Contains('Long introduction'));
+  Assert.AreEqual('<c>nil</c>',M.Returns);
+ finally M.Free;end;
+ E.ExistingDocXml:='@abstract @link(TWorker.Run Run) @@ @nil @br @code(a < b)';
+ M:=TDocStubGenerator.GenerateStub(E);
+ try Assert.IsTrue(M.Summary.Contains('<see cref="TWorker.Run">Run</see>'));
+  Assert.IsTrue(M.Summary.Contains('@ <c>nil</c> <br/> <c>a &lt; b</c>'));
+ finally M.Free;end;
+end;
+
+procedure TTestDocStubGenerator.ExistingCommentsAndPasDoc;
+var E:TCodeElementInfo;M:TXmlDocModel;Dir:string;
+begin
+ E:=MakeElement(dekMethod,'Run');E.ExistingDocXml:='Existing < text & facts';
+ M:=TDocStubGenerator.GenerateStub(E);
+ try Assert.AreEqual('Existing &lt; text &amp; facts',M.Summary);finally M.Free;end;
+ E.ExistingDocXml:='Contact user@example.com and user@name.org';
+ M:=TDocStubGenerator.GenerateStub(E);
+ try Assert.AreEqual('Contact user@example.com and user@name.org',M.Summary);finally M.Free;end;
+ E.ExistingDocXml:='<summary>Keep me</summary><remarks>Other text</remarks>';
+ M:=TDocStubGenerator.GenerateStub(E);
+ try Assert.AreEqual('Keep me',M.Summary);finally M.Free;end;
+ Dir:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);TDirectory.CreateDirectory(Dir);
+ try
+  E.FileName:=TPath.Combine(Dir,'Sample.pas');E.UnitName:='Sample';E.FullName:='TWorker.Run';
+  SetLength(E.Params,1);E.Params[0].Name:='Value';
+  TFile.WriteAllText(ChangeFileExt(E.FileName,'.txt'),
+   '# Sample.TOther.Run'+#10+'@param Value Wrong'+#10+
+   '# Sample.TWorker.Run'+#10+'@param value Correct'+#10+'@param Missing Ignore'+#10+
+   '# Sample.TWorker.Next'+#10+'@param Value Wrong',TEncoding.UTF8);
+  E.ExistingDocXml:='Existing description';
+  M:=TDocStubGenerator.GenerateStub(E);
+  try Assert.AreEqual('Existing description',M.Summary);Assert.AreEqual<Integer>(1,M.Params.Count);
+   Assert.AreEqual('Correct',M.Params[0].Description);
+  finally M.Free;end;
+  E.ExistingDocXml:='@abstract: Runs @bold(safely)'+#10+'@param Value Local';
+  M:=TDocStubGenerator.GenerateStub(E);
+  try Assert.AreEqual('Runs <b>safely</b>',M.Summary);Assert.AreEqual('Local',M.Params[0].Description);
+  finally M.Free;end;
+ finally TDirectory.Delete(Dir,True);end;
+end;
 
 { TTestDocStubGenerator }
 

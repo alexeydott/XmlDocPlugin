@@ -18,7 +18,7 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 | `FOptionsPage` | field | private |  |
 | `FThemeNotifierIndex` | field | private |  |
 | `FUndocNavigator` | field | private |  |
-| `AfterSave` | method | public |  |
+| `AfterSave` | method | public | IOTAWizard |
 | `BeforeSave` | method | public |  |
 | `CreateDocExplorer` | method | private |  |
 | `CreateDocInspector` | method | private |  |
@@ -29,7 +29,7 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 | `GenerateForPrefix` | method | private |  |
 | `GenerateStubForCurrentElement` | method | private |  |
 | `GetIDString` | method | public |  |
-| `GetMenuText` | method | public |  |
+| `GetMenuText` | method | public | IOTAMenuWizard |
 | `GetName` | method | public |  |
 | `GetState` | method | public |  |
 | `Modified` | method | public |  |
@@ -60,6 +60,8 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 
 ### AfterSave
 
+IOTAWizard
+
 ### BeforeSave
 
 ### CreateDocExplorer
@@ -81,6 +83,8 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 ### GetIDString
 
 ### GetMenuText
+
+IOTAMenuWizard
 
 ### GetName
 

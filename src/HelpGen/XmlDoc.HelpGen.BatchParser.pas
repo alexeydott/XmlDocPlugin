@@ -1,4 +1,4 @@
-﻿/// <summary>Batch parsing of source files into documentation units, types and members.</summary>
+/// <summary>Batch parsing of source files into documentation units, types and members.</summary>
 unit XmlDoc.HelpGen.BatchParser;
 
 interface
@@ -144,6 +144,7 @@ begin
       Exit;
 
     if Assigned(FParsedElements) then LElements:=FParsedElements(AFilePath) else LElements := LDocParser.GetAllElements;
+    if Length(LElements)=0 then Exit;
 
     LUnitDoc := TUnitDocInfo.Create;
     LUnitDoc.FilePath := AFilePath;

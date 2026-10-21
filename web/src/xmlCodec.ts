@@ -69,6 +69,7 @@ export function textToHtml(text:string):string {
    switch(e.tagName){
     case 'para': return `<p>${children()}</p>`;
     case 'list':{
+      if(Array.from(e.children).some(row=>row.attributes.length>0))return opaque(node);
       const type=e.getAttribute('type');
       if(type==='table')return `<table data-doc-table><tbody>${Array.from(e.children).map(row=>`<tr data-header="${row.tagName==='listheader'}">${Array.from(row.children).map(cell=>`<td>${asBlocks(Array.from(cell.childNodes).map(convert).join(''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
       if(!e.querySelector('term') && ['bullet','number'].includes(type??'')) {const tag=type==='number'?'ol':'ul';return `<${tag}>${Array.from(e.children).map(row=>`<li>${asBlocks(Array.from(row.querySelector('description')?.childNodes??row.childNodes).map(convert).join(''))}</li>`).join('')}</${tag}>`;}

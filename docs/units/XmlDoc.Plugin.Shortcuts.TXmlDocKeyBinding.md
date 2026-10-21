@@ -8,7 +8,7 @@ Registers plugin keyboard commands through IOTAKeyboardBinding.
 
 | Name | Kind | Visibility | Description |
 |------|------|------------|-------------|
-| `BindKeyboard` | method | public |  |
+| `BindKeyboard` | method | public | IOTAKeyboardBinding |
 | `DoGenerateHelp` | method | private |  |
 | `DoGenerateStub` | method | private |  |
 | `DoToggleInspector` | method | private |  |
@@ -17,6 +17,8 @@ Registers plugin keyboard commands through IOTAKeyboardBinding.
 | `GetName` | method | public |  |
 
 ### BindKeyboard
+
+IOTAKeyboardBinding
 
 ### DoGenerateHelp
 

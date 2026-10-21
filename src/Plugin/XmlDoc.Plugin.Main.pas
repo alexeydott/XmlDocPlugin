@@ -274,7 +274,8 @@ begin
  Parser:=TDocParser.Create;
  try
   try ConfigureDeclarationContext(Parser,nil,FileName);Parser.ParseSource(Source,FileName);except Exit;end;
-  Element:=Parser.GetElementAtLine(ALine);if (Element.Name='') or (Trim(Element.ExistingDocXml)<>'') then Exit;
+  Element:=Parser.GetElementAtLine(ALine);if (Element.Name='') or
+   ((Trim(Element.ExistingDocXml)<>'') and not Element.IsLegacyComment) then Exit;
   Model:=TDocStubGenerator.GenerateStub(Element, TPluginSettings.Instance.Global.Stub.PlaceholderPrefix, TPluginSettings.Instance.Global.Stub.IncludePlaceholders);
   try TDocOTAWriter.ApplyToEditor(Editor,Element,Model);finally Model.Free;end;
  finally Parser.Free;end;
@@ -312,7 +313,8 @@ begin
       Exit;
 
     // 이미 문서가 있으면 무시
-    if LElement.ExistingDocXml <> '' then
+    if (LElement.ExistingDocXml <> '') and not LElement.IsLegacyComment and
+       LElement.ExistingDocXml.ToLower.Contains('<summary') then
       Exit;
 
     LStub := TDocStubGenerator.GenerateStub(LElement, TPluginSettings.Instance.Global.Stub.PlaceholderPrefix, TPluginSettings.Instance.Global.Stub.IncludePlaceholders);

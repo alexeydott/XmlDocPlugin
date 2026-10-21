@@ -2,6 +2,8 @@
 
 Inherits from `TEdgeBrowser`
 
+Navigation must run after TEdgeBrowser finishes restoring its previous URI.
+
 ## Members
 
 | Name | Kind | Visibility | Description |

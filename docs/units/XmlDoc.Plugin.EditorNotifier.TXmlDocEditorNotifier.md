@@ -19,7 +19,7 @@ Observes editor events and debounces source and cursor notifications.
 | `FPendingLine` | field | private |  |
 | `FPendingSource` | field | private |  |
 | `DebounceTimerFired` | method | private |  |
-| `DockFormRefresh` | method | public |  |
+| `DockFormRefresh` | method | public | INTAEditServicesNotifier |
 | `DockFormUpdated` | method | public |  |
 | `DockFormVisibleChanged` | method | public |  |
 | `EditorViewActivated` | method | public |  |
@@ -54,6 +54,8 @@ Observes editor events and debounces source and cursor notifications.
 ### DebounceTimerFired
 
 ### DockFormRefresh
+
+INTAEditServicesNotifier
 
 ### DockFormUpdated
 

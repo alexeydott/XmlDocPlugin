@@ -45,6 +45,7 @@ try {
             & "$output\$name.exe"
             if ($LASTEXITCODE) { throw "$arch $name failed" }
         }
+        & "$PSScriptRoot\tests\Validate-HMXP.ps1" (Join-Path $output 'PasDocFixture\hmxp\PasDoc.hmxp')
         foreach ($fixture in @('HMXPFixture', 'HMXPEmpty', 'MarkupFixture')) {
             & "$PSScriptRoot\tests\Validate-HMXP.ps1" (Join-Path $output "$fixture\hmxp\Documentation.hmxp")
         }

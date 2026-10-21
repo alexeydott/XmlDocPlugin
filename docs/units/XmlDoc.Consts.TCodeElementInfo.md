@@ -17,6 +17,7 @@ Declaration metadata, documentation and source ranges extracted by the parser.
 | `GenericParams` | field | public |  |
 | `Implements` | field | public |  |
 | `IndentLevel` | field | public |  |
+| `IsLegacyComment` | field | public |  |
 | `IsOverload` | field | public |  |
 | `IsReintroduce` | field | public |  |
 | `Kind` | field | public |  |
@@ -54,6 +55,8 @@ Declaration metadata, documentation and source ranges extracted by the parser.
 ### Implements
 
 ### IndentLevel
+
+### IsLegacyComment
 
 ### IsOverload
 

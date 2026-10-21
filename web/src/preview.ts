@@ -17,6 +17,7 @@ export function inlineToPreviewHtml(text:string):string {
   if(node.nodeType!==1)return '';
   const e=node as Element;const content=()=>Array.from(e.childNodes).map(render).join('');
   switch(e.tagName){
+   case 'table':case 'tr':case 'td':case 'th':case 'thead':case 'tbody':case 'ul':case 'ol':case 'li':case 'u':return `<${e.tagName}>${content()}</${e.tagName}>`;
    case 'para':return `<p>${content()}</p>`;
    case 'b':case 'strong':return `<strong>${content()}</strong>`;
    case 'i':case 'em':return `<em>${content()}</em>`;
@@ -27,7 +28,7 @@ export function inlineToPreviewHtml(text:string):string {
    case 'see':return `<span class="preview-see-ref">${content()||esc(e.getAttribute('cref')??'')}</span>`;
    case 'list':{
     if(e.getAttribute('type')==='table')return `<table>${Array.from(e.children).map(row=>`<tr>${Array.from(row.children).map(cell=>`<${row.tagName==='listheader'?'th':'td'}>${Array.from(cell.childNodes).map(render).join('')}</${row.tagName==='listheader'?'th':'td'}>`).join('')}</tr>`).join('')}</table>`;
-    const tag=e.getAttribute('type')==='number'?'ol':'ul';return `<${tag}>${Array.from(e.children).map(row=>`<li>${Array.from(row.childNodes).map(render).join('')}</li>`).join('')}</${tag}>`;
+    const tag=e.getAttribute('type')==='number'?'ol':'ul';return `<${tag}>${Array.from(e.children).map(row=>`<li${/^-?\d+$/.test(row.getAttribute('number')??'')?` value="${row.getAttribute('number')}"`:''}>${Array.from(row.childNodes).map(render).join('')}</li>`).join('')}</${tag}>`;
    }
    case 'term':return `<strong>${content()}</strong> `;
    case 'description':return content();

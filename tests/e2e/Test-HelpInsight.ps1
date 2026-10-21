@@ -1,7 +1,7 @@
 ﻿param([ValidateSet('11','12','13')][string]$Version='12',
  [ValidateSet('Light','Dark')][string]$Theme='Dark',
  [ValidateSet('Classic','Current')][string]$Backend='Current',
- [Parameter(Mandatory)][string]$BuildRoot,[Parameter(Mandatory)][string]$EvidenceDir,
+ [Parameter(Mandatory)][string]$BuildRoot,[Parameter(Mandatory)][string]$EvidenceDir,[string]$DcpRoot='',
  [string]$LongFixture="$PSScriptRoot\..\fixtures\HelpInsight\LongHintParagraphs.dpr",
  [string]$ParameterFixture="$PSScriptRoot\..\fixtures\HelpInsight\HelpInsightCssProbe.dpr",
  [switch]$CaptureXml,[string]$InitialSymbol='',
@@ -12,6 +12,7 @@ $rad=if($Version -eq '11'){'D:\Embarcadero RAD Studio\22.0'}elseif($Version -eq 
 $bdsVersion=if($Version -eq '11'){'22.0'}elseif($Version -eq '12'){'23.0'}else{'37.0'}
 $suffix=if($Version -eq '11'){'280'}elseif($Version -eq '12'){'290'}else{'370'}
 $target="rad$Version-x86";$bpl=Join-Path $BuildRoot $target;$dcp=Join-Path $BuildRoot "dcp\$target"
+if($DcpRoot){$dcp=Join-Path $DcpRoot $target}
 if(Test-Path $EvidenceDir){throw 'Use a new evidence directory'}
 New-Item -ItemType Directory $EvidenceDir|Out-Null
 $EvidenceDir=[IO.Path]::GetFullPath($EvidenceDir)

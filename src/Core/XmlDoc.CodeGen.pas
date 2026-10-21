@@ -106,7 +106,7 @@ var
   LInsertLine: Integer;
   I: Integer;
 begin
-  if (AModel.SourceXml<>'') and (AModel.ToXml=AElement.ExistingDocXml) then Exit(ASource);
+  if not AElement.IsLegacyComment and (AModel.SourceXml<>'') and (AModel.ToXml=AElement.ExistingDocXml) then Exit(ASource);
   LLines := TStringList.Create;
   try
     LLines.Text := ASource;

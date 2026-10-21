@@ -33,7 +33,7 @@ type
     FRootNode: TSyntaxNode;
     FSourceLines: TArray<string>;
     FOnResolveDeclaration: TResolveDeclarationEvent;
-    FSourceFileName,FPlatform:string;
+    FSourceFileName,FPlatform,FPasDocText:string;
     FSearchPaths,FSourceFiles,FDefines,FDependencyFiles,FDependencyProbes:TArray<string>;
     FSnapshots,FDependencySnapshots:TArray<TSourceSnapshot>;
     FHasDeclared:Boolean;
@@ -41,6 +41,7 @@ type
     FLastDiagnostic:TDocParseDiagnostic;
     FFailedSnapshot:Boolean;
     function DependenciesCurrent:Boolean;
+    function ReadPasDocFile(FileName:string):string;
     procedure ParseSourceInternal(const ASource,AFileName:string);
     procedure SetPlatform(const Value:string);
     procedure SetSnapshots(const Value:TArray<TSourceSnapshot>);
@@ -112,7 +113,7 @@ type
 
 implementation
 
-uses XmlDoc.SourceAccess,System.IOUtils,System.Win.Registry,Winapi.Windows,SimpleParser.Lexer.Types,System.RegularExpressions,XmlDoc.SourceText;
+uses XmlDoc.SourceAccess,System.IOUtils,System.Win.Registry,Winapi.Windows,SimpleParser.Lexer.Types,System.RegularExpressions,XmlDoc.SourceText,XmlDoc.PasDoc;
 
 {$I XmlDoc.SystemDeclarations.inc}
 
@@ -784,8 +785,41 @@ begin
         LLine:=Copy(LLine,4,MaxInt);if LLine.StartsWith(' ') then Delete(LLine,1,1);
         LComments.Insert(0,LLine);
       end
-      else
+      else if LLine.StartsWith('//') then begin
+        LLine:=Copy(LLine,3,MaxInt).TrimLeft;
+        if LLine.StartsWith('#') then LLine:=Copy(LLine,2,MaxInt).TrimLeft;
+        LComments.Insert(0,LLine);
+      end else
         Break;
+    end;
+
+    // Standard Pascal block comments are also valid PasDoc containers.
+    if (LComments.Count=0) and (LTargetLine>=2) then begin
+      var Last:=LTargetLine-2;var Tail:=FSourceLines[Last].Trim;
+      var OpenMark:string:='';var CloseMark:string:='';
+      if Tail.EndsWith('*)') then begin OpenMark:='(*';CloseMark:='*)';end
+      else if Tail.EndsWith('}') then begin OpenMark:='{';CloseMark:='}';end;
+      if OpenMark<>'' then begin
+        for var First:=Last downto 0 do begin
+          var Head:=FSourceLines[First].TrimLeft;
+          if Head.StartsWith(OpenMark+'$') then Break;
+          if Head.StartsWith(OpenMark) then begin
+            var Content:string:='';
+            for var N:=First to Last do begin
+              var Value:=FSourceLines[N].Trim;
+              if N=First then Delete(Value,1,Length(OpenMark));
+              if N=Last then Delete(Value,Length(Value)-Length(CloseMark)+1,Length(CloseMark));
+              if Pos(CloseMark,Value)>0 then begin Content:='';Break;end;
+              Value:=Value.Trim;
+              if Value.StartsWith('*') or Value.StartsWith('#') then Value:=Copy(Value,2,MaxInt).TrimLeft;
+              if N>First then Content:=Content+#10;Content:=Content+Value;
+            end;
+            if Content.Trim<>'' then begin FLastCommentStart:=First+1;Result:=Content.Trim;Exit;end;
+            Break;
+          end;
+          if (First<>Last) and Head.Contains(CloseMark) then Break;
+        end;
+      end;
     end;
 
     if LComments.Count > 0 then
@@ -998,14 +1032,25 @@ begin
 end;
 
 function TDocParser.GetAllElements: TArray<TCodeElementInfo>;
-var
-  I: Integer;
+var Count:Integer;Info:TCodeElementInfo;Excluded:TArray<TSyntaxNode>;Skip:Boolean;
 begin
-  SetLength(Result, FFlatIndex.Count);
-  for I := 0 to FFlatIndex.Count - 1 do begin
-    if Assigned(FOnCheck) then FOnCheck();
-    Result[I] := NodeToElementInfo(FFlatIndex[I]);
+ SetLength(Result,FFlatIndex.Count);Count:=0;Excluded:=nil;
+ for var Node in FFlatIndex do begin
+  if Assigned(FOnCheck) then FOnCheck();Skip:=False;
+  var Parent:=Node.ParentNode;
+  while Assigned(Parent) and not Skip do begin
+   for var Hidden in Excluded do if Hidden=Parent then begin Skip:=True;Break;end;
+   Parent:=Parent.ParentNode;
   end;
+  if Skip then Continue;
+  Info:=NodeToElementInfo(Node);
+  var Markup:=TRegEx.Replace(Info.ExistingDocXml,'(?s)<!\[CDATA\[.*?\]\]>|<!--.*?-->','');
+  if TRegEx.IsMatch(Markup,'<exclude\s*/>') then begin
+   if Info.Kind=dekUnit then Exit(nil);Excluded:=Excluded+[Node];Continue;
+  end;
+  Result[Count]:=Info;Inc(Count);
+ end;
+ SetLength(Result,Count);
 end;
 
 function TDocParser.MethodSource(const Target:TCodeElementInfo;out Code,Reason:string):Boolean;
@@ -1187,6 +1232,18 @@ begin
     (FCachedHash <> '') and (FCachedSource = ASource);
   if not Result then Exit;
   Result:=DependenciesCurrent;
+end;
+
+function TDocParser.ReadPasDocFile(FileName:string):string;
+begin
+ if Assigned(FOnCheck) then FOnCheck();
+ for var Snapshot in FDependencySnapshots do if SameText(Snapshot.FileName,FileName) then Exit(Snapshot.Source);
+ FDependencyProbes:=FDependencyProbes+[FileName];
+ if not TFile.Exists(FileName) then raise EFileNotFoundException.Create('PasDoc include file not found: '+FileName);
+ Result:=ReadSourceFile(FileName);
+ FDependencyFiles:=FDependencyFiles+[FileName];
+ var Snapshot:TSourceSnapshot;Snapshot.FileName:=FileName;Snapshot.Source:=Result;
+ FDependencySnapshots:=FDependencySnapshots+[Snapshot];
 end;
 
 function TDocParser.DependenciesCurrent:Boolean;
@@ -1387,12 +1444,48 @@ begin
   else
     Result.EndLineNumber := ANode.Line;
 
+  if Result.Ancestor='' then begin
+    var Owner:=ANode.ParentNode;
+    while Assigned(Owner) do begin
+      if Owner.Typ=ntTypeDecl then begin
+        var OwnerType:=Owner.FindNode(ntType);
+        if Assigned(OwnerType) then begin
+          var Ancestor:=OwnerType.FindNode(ntType);
+          if Assigned(Ancestor) then Result.Ancestor:=SyntaxTypeName(Ancestor);
+        end;
+        Break;
+      end;
+      Owner:=Owner.ParentNode;
+    end;
+  end;
   // 기존 주석 추출
   Result.ExistingDocXml := ExtractDocComment(ANode);
   if Result.ExistingDocXml <> '' then
   begin
     Result.CommentStartLine := FLastCommentStart;
     Result.CommentEndLine := ANode.Line - 1;
+    if not Result.ExistingDocXml.TrimLeft.StartsWith('<') then begin
+      Result.IsLegacyComment:=True;
+      Result.ExistingDocXml:=ImportLegacyComment(Result.ExistingDocXml,Result,FPasDocText,True,ReadPasDocFile);
+    end;
+  end else if FPasDocText<>'' then begin
+    Result.ExistingDocXml:=ImportLegacyComment('',Result,FPasDocText,True,ReadPasDocFile);
+    Result.IsLegacyComment:=Result.ExistingDocXml<>'';
+  end;
+  if Result.ExistingDocXml='' then begin
+    var Owner:=ANode.ParentNode;
+    while Assigned(Owner) do begin
+      if Owner.Typ=ntTypeDecl then begin
+        var OwnerInfo:=NodeToElementInfo(Owner);
+        for var Member in TRegEx.Matches(OwnerInfo.ExistingDocXml,'<pasdoc-member name="([^"]*)">([\s\S]*?)</pasdoc-member>') do
+          if SameText(Member.Groups[1].Value,Result.Name) then begin
+            Result.ExistingDocXml:='<summary>'+Member.Groups[2].Value+'</summary>';
+            Result.IsLegacyComment:=True;Break;
+          end;
+        Break;
+      end;
+      Owner:=Owner.ParentNode;
+    end;
   end;
 end;
 
@@ -1523,10 +1616,18 @@ begin
   // Split([#10])은 #13#10에서 #13을 남김
   // 별도 정리 불필요: Trim으로 처리됨 (ExtractDocComment에서)
 
+  FPasDocText:='';
   Session:=TDeclarationSession.Create(FSearchPaths,FSourceFiles,FDefines,FSnapshots,FPlatform);
   Session.FOnCheck:=FOnCheck;
   LStream := nil;
   try
+    if AFileName<>'' then begin
+      var Sidecar:=ChangeFileExt(AFileName,'.txt');
+      Session.FProbes.Add(Sidecar);
+      if TFile.Exists(Sidecar) then begin
+        FPasDocText:=ReadSourceFile(Sidecar);Session.FReadFiles.AddOrSetValue(Sidecar,FPasDocText);
+      end;
+    end;
     if Assigned(FOnCheck) then FOnCheck();
     LStream := TStringStream.Create(Session.PrepareSource(ASource,AFileName), TEncoding.UTF8);
     FBuilder := TScopeAwareBuilder.Create;

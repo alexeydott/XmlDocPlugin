@@ -30,7 +30,7 @@ implementation
 
 uses
   System.StrUtils,
-  XmlDoc.ParamDict;
+  XmlDoc.ParamDict,XmlDoc.PasDoc;
 
 const
   CPlaceholderPrefix = 'TODO: ';
@@ -233,6 +233,19 @@ begin
   // Returns
   if (AElement.Kind = dekMethod) and (AElement.ReturnType <> '') then
     Result.Returns := Placeholder(GenerateReturnHint(AElement.ReturnType));
+  if AElement.ExistingDocXml<>'' then begin
+    var Existing:=TXmlDocModel.Create;
+    try
+      var Xml:=AElement.ExistingDocXml;
+      if not Xml.TrimLeft.StartsWith('<') then Xml:=ImportLegacyComment(Xml,AElement);
+      Existing.LoadFromXml(Xml);
+      if Existing.ParseError='' then begin
+        if (Existing.Summary='') and (Existing.Remarks<>'') then Existing.Summary:=Existing.Remarks;
+        Existing.MergeMissing(Result,'');
+        Result.Assign(Existing);
+      end;
+    finally Existing.Free;end;
+  end;
 end;
 
 end.

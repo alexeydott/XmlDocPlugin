@@ -22,6 +22,7 @@ Parses Delphi source and locates documentable declarations at a source line.
 | `FLastDiagnostic` | field | private |  |
 | `FOnCheck` | field | private |  |
 | `FOnResolveDeclaration` | field | private |  |
+| `FPasDocText` | field | private |  |
 | `FPlatform` | field | private |  |
 | `FRootNode` | field | private |  |
 | `FSearchPaths` | field | private |  |
@@ -51,6 +52,7 @@ Parses Delphi source and locates documentable declarations at a source line.
 | `NodeToElementInfo` | method | private |  |
 | `ParseSource` | method | public | Builds the syntax tree for the supplied source and project context. |
 | `ParseSourceInternal` | method | private |  |
+| `ReadPasDocFile` | method | private |  |
 | `RetryParsing` | method | public |  |
 | `SetDefines` | method | private |  |
 | `SetPlatform` | method | private |  |
@@ -104,6 +106,8 @@ Parses Delphi source and locates documentable declarations at a source line.
 ### FOnCheck
 
 ### FOnResolveDeclaration
+
+### FPasDocText
 
 ### FPlatform
 
@@ -192,6 +196,8 @@ Builds the syntax tree for the supplied source and project context.
 - **ASource** — Complete source text to parse.
 
 ### ParseSourceInternal
+
+### ReadPasDocFile
 
 ### RetryParsing
 

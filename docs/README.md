@@ -42,6 +42,7 @@
 | [XmlDoc.Model](units/XmlDoc.Model.md) | Structured XML documentation with JSON transport and preservation of original XML. |
 | [XmlDoc.ParamDict](units/XmlDoc.ParamDict.md) | Persistent parameter-description hints used by documentation stub generation. |
 | [XmlDoc.Parser](units/XmlDoc.Parser.md) | DelphiAST integration, project-aware conditional parsing and declaration lookup. |
+| [XmlDoc.PasDoc](units/XmlDoc.PasDoc.md) | Imports PasDoc descriptions, sidecars, includes and structured tags into XML. |
 | [XmlDoc.Plugin.AboutDialog](units/XmlDoc.Plugin.AboutDialog.md) | Plugin information and version display. |
 | [XmlDoc.Plugin.AIAssistant](units/XmlDoc.Plugin.AIAssistant.md) | Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE. |
 | [XmlDoc.Plugin.AISettings](units/XmlDoc.Plugin.AISettings.md) | Persists connection profiles and prompt overrides while keeping API keys in Windows Credential Manager. |

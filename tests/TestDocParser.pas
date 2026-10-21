@@ -7,7 +7,7 @@ uses
   System.SysUtils,
   System.IOUtils,
   XmlDoc.Consts,
-  XmlDoc.Parser;
+  XmlDoc.Parser,XmlDoc.Model,XmlDoc.CodeGen;
 
 type
   [TestFixture]
@@ -26,6 +26,7 @@ type
 
     [Test]
     procedure TestParseSource_BasicUnit;
+    [Test] procedure LegacyCommentsAndSidecarRefresh;
 
     [Test]
     procedure TestParseSource_CreatesRootNode;
@@ -114,6 +115,34 @@ begin
     else
       Result := '';
   end;
+end;
+
+procedure TTestDocParser.LegacyCommentsAndSidecarRefresh;
+var Dir,FileName,Source:string;E:TCodeElementInfo;
+begin
+ Dir:=TPath.Combine(TPath.GetTempPath,TGUID.NewGuid.ToString);TDirectory.CreateDirectory(Dir);
+ try
+  FileName:=TPath.Combine(Dir,'Sample.pas');
+  Source:='unit Sample;'+#10+'interface'+#10+'type TWorker=class'+#10+
+   '// # @abstract Runs safely'+#10+'procedure Run(Value:Integer);'+#10+'end;'+#10+'implementation end.';
+  FParser.ParseSource(Source,FileName);E:=FParser.GetElementAtLine(5);
+  Assert.IsTrue(E.IsLegacyComment);Assert.IsTrue(E.ExistingDocXml.Contains('<summary>Runs safely</summary>'));
+  Assert.IsTrue(FParser.IsUpToDate(Source));
+  TFile.WriteAllText(ChangeFileExt(FileName,'.txt'),'# Sample.TWorker.Run'+#10+'@param Value First',TEncoding.UTF8);
+  Assert.IsFalse(FParser.IsUpToDate(Source));FParser.ParseSource(Source,FileName);
+  E:=FParser.GetElementAtLine(5);Assert.IsTrue(E.ExistingDocXml.Contains('First'));
+  TFile.WriteAllText(ChangeFileExt(FileName,'.txt'),'# Sample.TWorker.Run'+#10+'@param Value Second',TEncoding.UTF8);
+  Assert.IsFalse(FParser.IsUpToDate(Source));FParser.ParseSource(Source,FileName);
+  E:=FParser.GetElementAtLine(5);Assert.IsTrue(E.ExistingDocXml.Contains('Second'));
+  var Model:=TXmlDocModel.Create;
+  try
+   Model.LoadFromXml(E.ExistingDocXml);
+   var Changed:=TDocCodeGenerator.ApplyToSourceText(Source,E,Model);
+   Assert.IsFalse(Changed.Contains('// # @abstract'));
+   Assert.IsTrue(Changed.Contains('/// <summary>Runs safely</summary>'));
+   Assert.IsTrue(Changed.Contains('procedure Run(Value:Integer);'));
+  finally Model.Free;end;
+ finally TDirectory.Delete(Dir,True);end;
 end;
 
 procedure TTestDocParser.Setup;

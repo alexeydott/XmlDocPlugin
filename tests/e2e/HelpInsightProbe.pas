@@ -70,7 +70,12 @@ begin
    var Capture:=TPath.Combine(Root,'capture.xsl');
    if TFile.Exists(Capture) then begin TFile.Copy(Capture,Xsl,True);TFile.Copy(Capture,ChangeFileExt(Css,'.xsl'),True);end;
    FileName:=TPath.Combine(Root,'LongHintParagraphs.dpr');
-   (BorlandIDEServices as IOTAActionServices).OpenProject(FileName,True);Step:=1;
+   var ProjectName:=FileName;
+   if TFile.Exists(TPath.Combine(Root,'project.txt')) then begin
+    ProjectName:=TFile.ReadAllText(TPath.Combine(Root,'project.txt')).Trim;
+    FileName:=ChangeFileExt(ProjectName,'.dpr');
+   end;
+   (BorlandIDEServices as IOTAActionServices).OpenProject(ProjectName,True);Step:=1;
   end else if Step=1 then begin
    var InitialSymbol:='TMapDocumentation.PrepareAndRenderMapWithClippingAndPixelDensity';
    if TFile.Exists(TPath.Combine(Root,'initial-symbol.txt')) then InitialSymbol:=TFile.ReadAllText(TPath.Combine(Root,'initial-symbol.txt')).Trim;

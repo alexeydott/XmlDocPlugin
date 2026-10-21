@@ -1,4 +1,4 @@
-﻿/// <summary>Help and Manual project generation with topic hierarchy and bundled resources.</summary>
+/// <summary>Help and Manual project generation with topic hierarchy and bundled resources.</summary>
 unit XmlDoc.HelpGen.Renderer.HMXP;
 
 interface
@@ -248,6 +248,14 @@ begin
       LInner := RenderInline(LChild, AContext);
       if (LChild.NodeName = 'see') or (LChild.NodeName = 'seealso') then
       begin
+        if Attr(LChild,'href')<>'' then begin
+          LRef:=Attr(LChild,'href');
+          LInner:=Esc(NodeText(LChild));if LInner='' then LInner:=Esc(LRef);
+          if LRef.StartsWith('https://') or LRef.StartsWith('http://') or LRef.StartsWith('mailto:') then
+            Result:=Result+'<link type="weblink" displaytype="text" href="'+Esc(LRef)+'">'+LInner+'</link>'
+          else Result:=Result+LInner;
+          Continue;
+        end;
         LRef := Attr(LChild, 'cref');
         LLabel := LInner;
         if LLabel = '' then LLabel := Text(LRef);
@@ -296,11 +304,24 @@ begin
   begin
     LNode := LDoc.DocumentElement.ChildNodes[I];
     if (LNode.NodeName='code') and (LNode.Text='') then Continue;
-    if (LNode.NodeName = 'para') or (LNode.NodeName = 'code') or (LNode.NodeName = 'list') then
+    if (LNode.NodeName = 'para') or (LNode.NodeName = 'code') or (LNode.NodeName = 'list') or (LNode.NodeName='table') then
     begin
       if Trim(LPending) <> '' then Result := Result + Para(LPending);
       LPending := '';
-      if LNode.NodeName = 'list' then
+      if LNode.NodeName='table' then begin
+        Table:='';var ColumnCount:=0;
+        for J:=0 to LNode.ChildNodes.Count-1 do begin
+          LItem:=LNode.ChildNodes[J];if LItem.NodeName<>'tr' then Continue;
+          Row:='';var Count:=0;var Header:=False;
+          for K:=0 to LItem.ChildNodes.Count-1 do begin
+            var C:=LItem.ChildNodes[K];if not MatchText(C.NodeName,['td','th']) then Continue;
+            Header:=Header or (C.NodeName='th');Inc(Count);Row:=Row+'<td>'+Para(RenderInline(C,AContext))+'</td>';
+          end;
+          if Count>ColumnCount then ColumnCount:=Count;
+          RowTag:='tr';if Header then RowTag:='thead';Table:=Table+'<'+RowTag+'>'+Row+'</'+RowTag+'>';
+        end;
+        if ColumnCount>0 then Result:=Result+Para('<table colcount="'+IntToStr(ColumnCount)+'">'+Table+'</table>');
+      end else if LNode.NodeName = 'list' then
       begin
         if SameText(Attr(LNode,'type'),'table') then begin
           Table:='';for J:=0 to LNode.ChildNodes.Count-1 do begin
@@ -319,7 +340,7 @@ begin
         begin
           LItem := LNode.ChildNodes[J];
           if LItem.NodeName='item' then begin
-            Inc(Number);Prefix:='• ';if SameText(Attr(LNode,'type'),'number') then Prefix:=IntToStr(Number)+'. ';
+            Inc(Number);if LItem.HasAttribute('number') then TryStrToInt(Attr(LItem,'number'),Number);Prefix:='• ';if SameText(Attr(LNode,'type'),'number') then Prefix:=IntToStr(Number)+'. ';
             Result := Result + Para(Text(Prefix) + RenderInline(LItem, AContext));
           end;
         end;

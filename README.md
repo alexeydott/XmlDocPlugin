@@ -158,6 +158,7 @@ indexed records so inherited comments reflect updated dependencies.
 - **Documentation Explorer** — Browse the entire unit's classes, methods, and properties in a tree view while editing their documentation
 - **WYSIWYG Editor** — TipTap-based rich text editor rendered via TEdgeBrowser (WebView2)
 - **Doc Stub Generation** — Generate documentation stubs with a single shortcut, including parameters, return types, and generic type parameters
+- **PasDoc import** — Reuse existing comments and matching `.txt` descriptions, expand `@include`/`@includeCode`, and convert lists, tables, links and metadata. Included files are tracked as cache dependencies. See the [tag mappings](docs/pasdoc-import.md).
 - **Undocumented Element Navigation** — Jump sequentially through elements that lack documentation
 - **Coverage Report** — Analyze and report documentation coverage across your project
 - **Customizable Shortcuts** — All features are accessible via user-configurable keyboard shortcuts

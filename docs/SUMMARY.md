@@ -194,6 +194,7 @@
           - [GenericParams](units/XmlDoc.Consts.TCodeElementInfo.md#genericparams)
           - [Implements](units/XmlDoc.Consts.TCodeElementInfo.md#implements)
           - [IndentLevel](units/XmlDoc.Consts.TCodeElementInfo.md#indentlevel)
+          - [IsLegacyComment](units/XmlDoc.Consts.TCodeElementInfo.md#islegacycomment)
           - [IsOverload](units/XmlDoc.Consts.TCodeElementInfo.md#isoverload)
           - [IsReintroduce](units/XmlDoc.Consts.TCodeElementInfo.md#isreintroduce)
           - [Kind](units/XmlDoc.Consts.TCodeElementInfo.md#kind)
@@ -929,6 +930,7 @@
           - [FLastDiagnostic](units/XmlDoc.Parser.TDocParser.md#flastdiagnostic)
           - [FOnCheck](units/XmlDoc.Parser.TDocParser.md#foncheck)
           - [FOnResolveDeclaration](units/XmlDoc.Parser.TDocParser.md#fonresolvedeclaration)
+          - [FPasDocText](units/XmlDoc.Parser.TDocParser.md#fpasdoctext)
           - [FPlatform](units/XmlDoc.Parser.TDocParser.md#fplatform)
           - [FRootNode](units/XmlDoc.Parser.TDocParser.md#frootnode)
           - [FSearchPaths](units/XmlDoc.Parser.TDocParser.md#fsearchpaths)
@@ -959,6 +961,7 @@
           - [NodeToElementInfo](units/XmlDoc.Parser.TDocParser.md#nodetoelementinfo)
           - [ParseSource](units/XmlDoc.Parser.TDocParser.md#parsesource)
           - [ParseSourceInternal](units/XmlDoc.Parser.TDocParser.md#parsesourceinternal)
+          - [ReadPasDocFile](units/XmlDoc.Parser.TDocParser.md#readpasdocfile)
           - [RetryParsing](units/XmlDoc.Parser.TDocParser.md#retryparsing)
           - [SetDefines](units/XmlDoc.Parser.TDocParser.md#setdefines)
           - [SetPlatform](units/XmlDoc.Parser.TDocParser.md#setplatform)
@@ -997,6 +1000,10 @@
         - **Methods**
           - [DetailText](units/XmlDoc.Parser.TDocParseDiagnostic.md#detailtext)
           - [FromException](units/XmlDoc.Parser.TDocParseDiagnostic.md#fromexception)
+  - [XmlDoc.PasDoc](units/XmlDoc.PasDoc.md)
+    - **Routines**
+      - [ImportLegacyComment](units/XmlDoc.PasDoc.md#importlegacycomment)
+      - [PasDocMember](units/XmlDoc.PasDoc.md#pasdocmember)
   - [XmlDoc.Plugin.AboutDialog](units/XmlDoc.Plugin.AboutDialog.md)
     - **Classes**
       - [TAboutDialog](units/XmlDoc.Plugin.AboutDialog.TAboutDialog.md)

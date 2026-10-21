@@ -213,6 +213,7 @@
         <DCCReference Include="..\..\Core\XmlDoc.CodeGen.pas"/>
         <DCCReference Include="..\..\Core\XmlDoc.CodeGen.OTA.pas"/>
         <DCCReference Include="..\..\Core\XmlDoc.Parser.pas"/>
+        <DCCReference Include="..\..\Core\XmlDoc.PasDoc.pas"/>
         <DCCReference Include="..\..\Core\XmlDoc.StubGen.pas"/>
         <DCCReference Include="..\..\Core\XmlDoc.I18n.pas"/>
         <DCCReference Include="..\..\Core\XmlDoc.Logger.pas"/>
