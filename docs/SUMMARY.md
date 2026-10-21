@@ -1448,6 +1448,7 @@
           - [FEditorNotifierIndex](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#feditornotifierindex)
           - [FKeyBindingIndex](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#fkeybindingindex)
           - [FMenuIntegration](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#fmenuintegration)
+          - [FOptionsPage](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#foptionspage)
           - [FThemeNotifierIndex](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#fthemenotifierindex)
           - [FUndocNavigator](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#fundocnavigator)
         - **Methods**
@@ -1466,12 +1467,32 @@
           - [GetName](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#getname)
           - [GetState](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#getstate)
           - [Modified](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#modified)
+          - [SettingsApplied](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#settingsapplied)
           - [SetupCallbacks](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#setupcallbacks)
         - **Properties**
           - [DocExplorer](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#docexplorer)
           - [DocInspector](units/XmlDoc.Plugin.Main.TXmlDocWizard.md#docinspector)
     - **Routines**
       - [Register](units/XmlDoc.Plugin.Main.md#register)
+  - [XmlDoc.Plugin.OptionsPage](units/XmlDoc.Plugin.OptionsPage.md)
+    - **Classes**
+      - [TPluginOptionsFrame](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md)
+        - **Constructors**
+          - [Create](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md#create)
+        - **Destructors**
+          - [Destroy](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md#destroy)
+        - **Fields**
+          - [FContent](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md#fcontent)
+          - [FDialog](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md#fdialog)
+          - [FScroll](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md#fscroll)
+        - **Methods**
+          - [LayoutContent](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md#layoutcontent)
+        - **Properties**
+          - [Settings](units/XmlDoc.Plugin.OptionsPage.TPluginOptionsFrame.md#settings)
+    - **Routines**
+      - [CreatePluginOptions](units/XmlDoc.Plugin.OptionsPage.md#createpluginoptions)
+      - [RegisterPluginOptions](units/XmlDoc.Plugin.OptionsPage.md#registerpluginoptions)
+      - [UnregisterPluginOptions](units/XmlDoc.Plugin.OptionsPage.md#unregisterpluginoptions)
   - [XmlDoc.Plugin.ProjectDocumentation](units/XmlDoc.Plugin.ProjectDocumentation.md)
     - **Classes**
       - [TProjectDocumentation](units/XmlDoc.Plugin.ProjectDocumentation.TProjectDocumentation.md)
@@ -1730,6 +1751,7 @@
           - [RestoreHintClick](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#restorehintclick)
           - [SaveSettings](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#savesettings)
           - [ShellHintCssClick](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#shellhintcssclick)
+          - [ValidateSettings](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#validatesettings)
         - **Properties**
           - [ShortcutsChanged](units/XmlDoc.Plugin.SettingsDialog.TSettingsDialog.md#shortcutschanged)
     - **Routines**

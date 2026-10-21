@@ -56,6 +56,7 @@
 | [XmlDoc.Plugin.HelpInsight](units/XmlDoc.Plugin.HelpInsight.md) | Theme-aware XSLT and reversible stylesheet preferences for native IDE Help Insight. |
 | [XmlDoc.Plugin.Localization](units/XmlDoc.Plugin.Localization.md) | Localization of native plugin controls and menu text. |
 | [XmlDoc.Plugin.Main](units/XmlDoc.Plugin.Main.md) | IDE wizard registration, command wiring and plugin lifetime management. |
+| [XmlDoc.Plugin.OptionsPage](units/XmlDoc.Plugin.OptionsPage.md) | Embeds the shared plugin preferences in Tools Options under Third Party. |
 | [XmlDoc.Plugin.ProjectDocumentation](units/XmlDoc.Plugin.ProjectDocumentation.md) | Project documentation catalog, background analysis and source update coordination. |
 | [XmlDoc.Plugin.QuickDocPreview](units/XmlDoc.Plugin.QuickDocPreview.md) | Popup display of quick documentation near the source cursor. |
 | [XmlDoc.Plugin.Settings](units/XmlDoc.Plugin.Settings.md) | Global registry preferences and per-project JSON generation defaults. |

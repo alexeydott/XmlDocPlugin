@@ -74,10 +74,12 @@ type
 
     procedure LoadThemes(const Selected: string);
     procedure LoadSettings;
-    procedure SaveSettings;
+
     function HintSettingsFromControls: THelpInsightSettings;
 
   public
+    procedure SaveSettings;
+    function ValidateSettings: Boolean;
     property ShortcutsChanged: Boolean read FShortcutsChanged;
   end;
 
@@ -124,7 +126,7 @@ var Preview:TForm;Browser:TWebBrowser;FileName:string;
 begin
  FileName:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName+'.html');Preview:=TForm.CreateNew(Self);
  try
-  Preview.Caption:=TI18n.Instance.T('Help Insight preview');Preview.Position:=poOwnerFormCenter;Preview.Width:=MulDiv(800,CurrentPPI,96);Preview.Height:=MulDiv(650,CurrentPPI,96);
+  Preview.Caption:=TI18n.Instance.T('Help Insight preview');Preview.Position:=poMainFormCenter;Preview.Width:=MulDiv(800,CurrentPPI,96);Preview.Height:=MulDiv(650,CurrentPPI,96);
   var Xml:='<member DisplayName="TMapDocumentation.PrepareAndRenderMapWithClippingAndPixelDensity(Integer; Integer; Integer; Double; string; Boolean; string; out Integer): Boolean">'+
    '<summary><para>Prepares and renders a map with clipping, scaling and pixel density.</para></summary><param name="AViewportOffsetX" type="Integer">Horizontal offset. This description wraps onto several lines without overlapping the next parameter.</param>'+
    '<param name="APixelDensityScale" type="Double">Pixel density scale.</param><returns>True when rendering succeeds.</returns><remarks><para>Text with <b>emphasis</b>, a <see cref="TObject"/> reference and a line break.<br/>Second line.</para>'+
@@ -224,22 +226,23 @@ procedure TSettingsDialog.AISettingsClick(Sender:TObject);
 var Project:IOTAProject;
 begin Project:=GetActiveProject;if Assigned(Project) then ShowAISettings(ExtractFilePath(Project.FileName)) else ShowAISettings;end;
 
-procedure TSettingsDialog.btnOKClick(Sender: TObject);
+function TSettingsDialog.ValidateSettings: Boolean;
 var Services:INTAServices;Actions:TCustomActionList;Conflicts:TArray<string>;RootMenu:TMenuItem;Previous:TShortcutSettings;
 begin
   Actions:=nil;RootMenu:=nil;Previous:=TPluginSettings.Instance.Global.Shortcuts;
   if Supports(BorlandIDEServices,INTAServices,Services) then begin Actions:=Services.ActionList;if Assigned(Services.MainMenu) then RootMenu:=Services.MainMenu.Items;end;
   Conflicts:=DocumentationShortcutConflicts([hotToggleInspector.HotKey,hotGenerateStub.HotKey,hotGenerateHelp.HotKey,hotCoverageReport.HotKey,hotNextUndocumented.HotKey,hotPreviousUndocumented.HotKey],['Inspector','Generate stub','Generate help','Coverage','Next undocumented','Previous undocumented'],Actions,RootMenu,[Previous.ToggleInspector,Previous.GenerateStub,Previous.GenerateHelp,Previous.CoverageReport,Previous.NextUndocumented,Previous.PreviousUndocumented]);
-  if Length(Conflicts)>0 then begin ModalResult:=mrNone;ShowMessage(string.Join(sLineBreak,Conflicts));Exit;end;
+  Result:=Length(Conflicts)=0;
+  if not Result then ShowMessage(string.Join(sLineBreak,Conflicts));
+end;
+
+procedure TSettingsDialog.btnOKClick(Sender: TObject);
+begin
+  if not ValidateSettings then begin ModalResult:=mrNone;Exit;end;
   try
     SaveSettings;
   except
-    on E: EAbort do ModalResult := mrNone;
-    on E: Exception do
-    begin
-      ModalResult := mrNone;
-      ShowMessage(E.Message);
-    end;
+    on E: Exception do begin ModalResult:=mrNone;if not (E is EAbort) then ShowMessage(E.Message);end;
   end;
 end;
 

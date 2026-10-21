@@ -348,6 +348,9 @@ begin
  finally Parsed.Free;Value.Free;D.Free;end;
 end;
 procedure ShowAISettings(const ProjectDir:string);
-var Form:TAISettingsForm;
-begin Form:=TAISettingsForm.CreateForProject(ProjectDir);try Form.ShowModal;finally Form.Free;end;end;
+var Form:TAISettingsForm;Theme:IOTAIDEThemingServices;
+begin
+ if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) then Theme.RegisterFormClass(TAISettingsForm);
+ Form:=TAISettingsForm.CreateForProject(ProjectDir);try Form.ShowModal;finally Form.Free;end;
+end;
 end.

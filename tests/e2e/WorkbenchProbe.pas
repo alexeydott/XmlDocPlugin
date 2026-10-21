@@ -2,7 +2,7 @@
 interface
 procedure Register;
 implementation
-uses XmlDoc.Plugin.HelpInsight,XmlDoc.Plugin.Splash,XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses XmlDoc.Plugin.OptionsPage,XmlDoc.Plugin.HelpInsight,XmlDoc.Plugin.Splash,XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Imaging.pngimage,Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedHandler)
@@ -1231,6 +1231,80 @@ begin
     var OriginalThemeSettings:=TPluginSettings.Instance.Global;
     var OldThemeDirectory:=TThemeEngine.Instance.CustomThemesDir;
     TThemeEngine.Instance.SetCustomThemesDir(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'created-themes'));
+    var OptionsApplied:=0;
+    var OptionsProvider:=CreatePluginOptions(procedure begin Inc(OptionsApplied);end);
+    AssertTrue((OptionsProvider.GetArea='') and (OptionsProvider.GetCaption='XmlDocPlugin') and OptionsProvider.IncludeInIDEInsight,'Options page is not under Third Party');
+    var OptionsHost:=TForm.CreateNew(nil);
+    try
+     var OptionsFrame:=TPluginOptionsFrame.Create(OptionsHost);OptionsFrame.Parent:=OptionsHost;
+     OptionsProvider.FrameCreated(OptionsFrame);
+     OptionsFrame.Settings.PageControl.ActivePage:=OptionsFrame.Settings.tsCodeGen;
+     OptionsHost.Show;
+     for var OptionsPPI in [96,144,192] do begin
+      OptionsHost.ScaleForPPI(OptionsPPI);OptionsFrame.ScaleForPPI(OptionsPPI);
+      OptionsHost.ClientWidth:=MulDiv(900,OptionsPPI,96);OptionsHost.ClientHeight:=MulDiv(700,OptionsPPI,96);
+      var WideField:=OptionsFrame.Settings.edtPlaceholderPrefix.Width;
+      OptionsHost.ClientWidth:=MulDiv(650,OptionsPPI,96);
+      AssertTrue(OptionsFrame.Settings.edtPlaceholderPrefix.Width<WideField,'Options field did not resize: DPI='+IntToStr(OptionsPPI)+' wide='+IntToStr(WideField)+' narrow='+IntToStr(OptionsFrame.Settings.edtPlaceholderPrefix.Width));
+      OptionsHost.ClientWidth:=MulDiv(260,OptionsPPI,96);OptionsHost.ClientHeight:=MulDiv(240,OptionsPPI,96);
+      AssertTrue(OptionsFrame.Settings.PageControl.Width>=MulDiv(464,OptionsFrame.CurrentPPI,96),'Narrow options page clips controls instead of scrolling: DPI='+IntToStr(OptionsPPI)+' frame='+IntToStr(OptionsFrame.CurrentPPI)+' width='+IntToStr(OptionsFrame.Settings.PageControl.Width));
+     end;
+     OptionsFrame.Settings.spnFontSize.Value:=17;
+     OptionsProvider.DialogClosed(False);
+     AssertTrue((TPluginSettings.Instance.Global.Editor.FontSize=OriginalThemeSettings.Editor.FontSize) and (OptionsApplied=0),'Cancel applied plugin preferences');
+     OptionsProvider.FrameCreated(OptionsFrame);
+     OptionsFrame.Settings.spnFontSize.Value:=18;
+     OptionsFrame.Settings.cmbLanguage.ItemIndex:=OptionsFrame.Settings.cmbLanguage.Items.IndexOf('ru');
+     OptionsFrame.Settings.chkCollapseEmptySections.Checked:=False;
+     OptionsFrame.Settings.chkShowSignatureHeader.Checked:=False;
+     OptionsFrame.Settings.chkAutoGenerate.Checked:=not OriginalThemeSettings.Stub.AutoGenerate;
+     OptionsFrame.Settings.edtPlaceholderPrefix.Text:='OPTIONS-TODO:';
+     OptionsFrame.Settings.memPlaceholderMarkers.Text:='OPTIONS-TODO:'+sLineBreak+'待补充';
+     OptionsFrame.Settings.cmbDocumentationTheme.ItemIndex:=OptionsFrame.Settings.cmbDocumentationTheme.Items.IndexOf('dark');
+     OptionsFrame.Settings.spnDebounceMs.Value:=450;OptionsFrame.Settings.spnSaveDebounceMs.Value:=650;
+     OptionsFrame.Settings.cmbLogLevel.ItemIndex:=Ord(llDebug);
+     OptionsFrame.Settings.hotToggleInspector.HotKey:=0;OptionsFrame.Settings.hotGenerateStub.HotKey:=0;OptionsFrame.Settings.hotGenerateHelp.HotKey:=0;
+     OptionsFrame.Settings.hotCoverageReport.HotKey:=0;OptionsFrame.Settings.hotNextUndocumented.HotKey:=0;OptionsFrame.Settings.hotPreviousUndocumented.HotKey:=0;
+     OptionsFrame.Settings.chkHelpInsightEnabled.Checked:=True;OptionsFrame.Settings.cmbHintAppearance.ItemIndex:=1;
+     OptionsFrame.Settings.chkHelpInsightWrap.Checked:=True;OptionsFrame.Settings.chkHelpInsightCompact.Checked:=True;
+     OptionsFrame.Settings.spnHintWidth.Value:=880;OptionsFrame.Settings.spnHintFontSize.Value:=12;
+     OptionsFrame.Settings.spnHintLineHeight.Value:=150;OptionsFrame.Settings.spnHintParameterWidth.Value:=230;
+     OptionsFrame.Settings.HelpInsightChanged(nil);
+
+     AssertTrue(OptionsProvider.ValidateContents,'Valid Options contents rejected');
+     OptionsProvider.DialogClosed(True);
+     AssertTrue((TPluginSettings.Instance.Global.Editor.FontSize=18) and (OptionsApplied=1),'Tools Options did not apply settings exactly once');
+     var OptionsReload:=TPluginSettings.Create;
+     try
+      var ReadOptions:=OptionsReload.Global;
+      AssertTrue((ReadOptions.General.Language='ru') and (ReadOptions.Editor.FontSize=18) and not ReadOptions.Editor.CollapseEmptySections and not ReadOptions.Editor.ShowSignatureHeader,'General preferences not persisted');
+      AssertTrue((ReadOptions.Stub.AutoGenerate<>OriginalThemeSettings.Stub.AutoGenerate) and (ReadOptions.Stub.PlaceholderPrefix='OPTIONS-TODO:') and ReadOptions.Stub.PlaceholderMarkers.Contains('待补充') and (ReadOptions.General.DocumentationTheme='dark'),'Code generation preferences not persisted');
+      AssertTrue((ReadOptions.Editor.DebounceMs=450) and (ReadOptions.Editor.SaveDebounceMs=650) and (ReadOptions.General.LogLevel=llDebug) and (TLogger.Instance.Level=llDebug),'Advanced settings not persisted or logging not applied');
+      AssertTrue((ReadOptions.Shortcuts.ToggleInspector=0) and (ReadOptions.Shortcuts.GenerateStub=0) and (ReadOptions.Shortcuts.GenerateHelp=0) and (ReadOptions.Shortcuts.CoverageReport=0) and (ReadOptions.Shortcuts.NextUndocumented=0) and (ReadOptions.Shortcuts.PreviousUndocumented=0),'Shortcut settings not persisted');
+      AssertTrue(ReadOptions.HelpInsight.Enabled and ReadOptions.HelpInsight.Extended and ReadOptions.HelpInsight.WrapSignature and ReadOptions.HelpInsight.CompactParameters and (ReadOptions.HelpInsight.Width=880) and (ReadOptions.HelpInsight.FontSize=12) and (ReadOptions.HelpInsight.LineHeight=150) and (ReadOptions.HelpInsight.ParameterWidth=230),'Help Insight preferences not persisted');
+      AssertTrue(TFile.ReadAllText(HintCss).Contains('width: 880px') and TFile.ReadAllText(HintCss).Contains('font-size: 12pt'),'Embedded Help Insight controls did not update native CSS');
+      var ReopenedOptions:=TPluginOptionsFrame.Create(nil);
+      try
+       AssertTrue((ReopenedOptions.Settings.cmbLanguage.Text='ru') and (ReopenedOptions.Settings.spnFontSize.Value=18) and (ReopenedOptions.Settings.edtPlaceholderPrefix.Text='OPTIONS-TODO:') and (ReopenedOptions.Settings.spnSaveDebounceMs.Value=650) and (ReopenedOptions.Settings.cmbHintAppearance.ItemIndex=1),'Reopened Options controls did not read persisted values');
+      finally ReopenedOptions.Free;end;
+      Log('PASS embedded Options all preference fields persist, reload and apply native CSS/logging');
+     finally OptionsReload.Free;end;
+     TPluginSettings.Instance.Global:=OriginalThemeSettings;TPluginSettings.Instance.Save;
+     TI18n.Instance.SetLanguage(OriginalThemeSettings.General.Language);
+
+     Log('PASS Third Party Options Apply/Cancel, resizable fields and DPI scrolling');
+    finally
+     OptionsHost.Free;OptionsProvider:=nil;
+     TPluginSettings.Instance.Global:=OriginalThemeSettings;TPluginSettings.Instance.Save;
+     TI18n.Instance.SetLanguage(OriginalThemeSettings.General.Language);
+     TFile.WriteAllBytes(HintCss,HintOriginal);
+     for var Index:=0 to High(HintTemplates) do begin
+      TFile.WriteAllBytes(HintTemplates[Index],HintTemplateBytes[Index]);
+      if HintTemplateHadBackup[Index] then TFile.WriteAllBytes(HintTemplates[Index]+'.xmldocplugin.bak',HintTemplateBackups[Index])
+      else if TFile.Exists(HintTemplates[Index]+'.xmldocplugin.bak') then TFile.Delete(HintTemplates[Index]+'.xmldocplugin.bak');
+     end;
+     if HintHadBackup then TFile.WriteAllBytes(HintBackup,HintBackupBytes) else if TFile.Exists(HintBackup) then TFile.Delete(HintBackup);
+    end;
     var ThemeDialog:=TSettingsDialog.Create(nil);
     for var HintPPI in [96,144,192] do begin
      ThemeDialog.ScaleForPPI(HintPPI);

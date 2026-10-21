@@ -41,7 +41,13 @@ In RAD Studio 11, use the Document menu, configured shortcuts or documentation-p
 
 ## Settings
 
-Open **Document → Settings**. The editor theme follows the current IDE theme.
+Open **Document → Settings**, or **Tools → Options → Third Party → XmlDocPlugin**.
+Both entry points use the same preferences. The embedded page follows the IDE theme,
+stretches fields with the window and provides scrolling when space is limited.
+Save the IDE Options dialog to apply changes; Cancel discards pending preference edits.
+Explicit actions such as saving an AI profile, creating a theme, restoring templates
+or applying templates through Windows take effect immediately.
+The editor theme follows the current IDE theme.
 
 | Tab | Setting | Effect |
 | --- | --- | --- |

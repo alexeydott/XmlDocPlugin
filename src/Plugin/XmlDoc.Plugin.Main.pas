@@ -25,6 +25,7 @@ type
     FDocInspector: TDocInspectorForm;
     FEditorNotifierIndex: Integer;
     FThemeNotifierIndex:Integer;
+    FOptionsPage:INTAAddInOptions;
     FKeyBindingIndex: Integer;
     FMenuIntegration: TXmlDocMenuIntegration;
     FUndocNavigator: TUndocNavigator;
@@ -36,6 +37,7 @@ type
     procedure GenerateStubForCurrentElement;
     procedure GenerateForPrefix(ALine:Integer;const Source,FileName:string);
     procedure SetupCallbacks;
+    procedure SettingsApplied;
 
   public
     constructor Create;
@@ -71,6 +73,7 @@ uses
   XmlDoc.Plugin.CoverageDialog,
   XmlDoc.Plugin.Settings,
   XmlDoc.Plugin.SettingsDialog,
+  XmlDoc.Plugin.OptionsPage,
   XmlDoc.Parser,
   XmlDoc.Plugin.DeclarationContext,
   XmlDoc.Plugin.EditSession,
@@ -152,6 +155,7 @@ begin
   // IDE 메뉴 통합
   FMenuIntegration := TXmlDocMenuIntegration.Create;
   FMenuIntegration.InstallMenu;
+  FOptionsPage:=RegisterPluginOptions(SettingsApplied);
 end;
 
 destructor TXmlDocWizard.Destroy;
@@ -159,6 +163,7 @@ var
   LEditorServices: IOTAEditorServices;
   LKeyServices: IOTAKeyboardServices;
 begin
+  UnregisterPluginOptions(FOptionsPage);
   var Theme:IOTAIDEThemingServices;
   if (FThemeNotifierIndex>=0) and Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) then begin Theme.RemoveNotifier(FThemeNotifierIndex);FThemeNotifierIndex:=-1;end;
   SetDocumentationCommandCallback(nil);
@@ -421,11 +426,15 @@ begin
 
   SetSettingsCallback(
     procedure
-    var
-      LKeyServices: IOTAKeyboardServices;
     begin
-      if ShowSettingsDialog then
-      begin
+      if ShowSettingsDialog then SettingsApplied;
+    end
+  );
+end;
+
+procedure TXmlDocWizard.SettingsApplied;
+var LKeyServices:IOTAKeyboardServices;
+begin
         FMenuIntegration.RefreshShortcuts;
         if Assigned(FDocInspector) then
           FDocInspector.RefreshFromCurrentEditor;
@@ -439,9 +448,6 @@ begin
 
           FKeyBindingIndex := LKeyServices.AddKeyboardBinding(TXmlDocKeyBinding.Create);
         end;
-      end;
-    end
-  );
 end;
 
 end.

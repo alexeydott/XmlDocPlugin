@@ -15,6 +15,7 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 | `FEditorNotifierIndex` | field | private |  |
 | `FKeyBindingIndex` | field | private |  |
 | `FMenuIntegration` | field | private |  |
+| `FOptionsPage` | field | private |  |
 | `FThemeNotifierIndex` | field | private |  |
 | `FUndocNavigator` | field | private |  |
 | `AfterSave` | method | public |  |
@@ -32,6 +33,7 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 | `GetName` | method | public |  |
 | `GetState` | method | public |  |
 | `Modified` | method | public |  |
+| `SettingsApplied` | method | private |  |
 | `SetupCallbacks` | method | private |  |
 | `DocExplorer` | property | public |  |
 | `DocInspector` | property | public |  |
@@ -49,6 +51,8 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 ### FKeyBindingIndex
 
 ### FMenuIntegration
+
+### FOptionsPage
 
 ### FThemeNotifierIndex
 
@@ -83,6 +87,8 @@ Registers IDE services, menus and editor notifications and owns plugin lifetime.
 ### GetState
 
 ### Modified
+
+### SettingsApplied
 
 ### SetupCallbacks
 

@@ -99,6 +99,7 @@ contains
   XmlDoc.Plugin.CoverageDialog in '..\..\PlugIn\XmlDoc.Plugin.CoverageDialog.pas',
   XmlDoc.Plugin.QuickDocPreview in '..\..\PlugIn\XmlDoc.Plugin.QuickDocPreview.pas',
   XmlDoc.Plugin.UndocNavigator in '..\..\PlugIn\XmlDoc.Plugin.UndocNavigator.pas',
+  XmlDoc.Plugin.OptionsPage in '..\..\PlugIn\XmlDoc.Plugin.OptionsPage.pas',
   XmlDoc.Plugin.SettingsDialog in '..\..\PlugIn\XmlDoc.Plugin.SettingsDialog.pas',
   XmlDoc.Plugin.UpdateChecker in '..\..\PlugIn\XmlDoc.Plugin.UpdateChecker.pas',
   XmlDoc.Plugin.AboutDialog in '..\..\Plugin\XmlDoc.Plugin.AboutDialog.pas',

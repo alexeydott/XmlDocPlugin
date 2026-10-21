@@ -61,8 +61,9 @@ Dialog for supported global preferences and command shortcuts.
 | `LoadSettings` | method | private |  |
 | `LoadThemes` | method | private |  |
 | `RestoreHintClick` | method | public |  |
-| `SaveSettings` | method | private |  |
+| `SaveSettings` | method | public |  |
 | `ShellHintCssClick` | method | public |  |
+| `ValidateSettings` | method | public |  |
 | `ShortcutsChanged` | property | public |  |
 
 ### btnAISettings
@@ -174,5 +175,7 @@ Dialog for supported global preferences and command shortcuts.
 ### SaveSettings
 
 ### ShellHintCssClick
+
+### ValidateSettings
 
 ### ShortcutsChanged
