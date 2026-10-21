@@ -180,10 +180,19 @@ begin
  try
   for var Language in ['en','ru','zh','ko','ja'] do begin
    TI18n.Instance.SetLanguage(Language);
-   Html:=RenderHelpInsightPreview('<member DisplayName="Run"><param name="Value">payload</param><returns>result</returns></member>',S,THelpInsightPalette.Light);
-   Assert.IsTrue(Html.Contains(TI18n.Instance.T('Parameters')),Language);
-   Assert.IsTrue(Html.Contains(TI18n.Instance.T('Returns')),Language);
-   Assert.IsTrue(Html.Contains('Value'),'Parameter identifiers are not translated');
+   var Sample:='<member DisplayName="Run"><typeparam name="T">type payload</typeparam><param name="Value">payload</param><returns>result</returns><value>value payload</value><exception cref="EArgumentException">error payload</exception><remarks>remarks payload<note type="caller">caller payload</note><note type="warning">warning payload</note><note type="tip">tip payload</note><note>note payload</note></remarks><example>example payload</example><seealso cref="TObject"/></member>';
+   for var Dark in [False,True] do begin
+    var LocalPalette:=THelpInsightPalette.Light;if Dark then LocalPalette:=THelpInsightPalette.Dark;
+    Html:=RenderHelpInsightPreview(Sample,S,LocalPalette);
+    for var Heading in ['Type Parameters','Parameters','Returns','Value','Exceptions','Remarks','Examples','See Also','Notes to callers','Warning','Tip','Note'] do begin
+     var Translated:=TI18n.Instance.T(Heading);
+     if Language<>'en' then Assert.AreNotEqual(Heading,Translated,Language+' '+Heading);
+     Assert.IsTrue(Html.Contains('>'+Translated+'<'),Language+' '+Heading);
+    end;
+    Assert.IsFalse(Html.Contains('@@'),Language);
+    Assert.IsTrue(Html.Contains('Value'),'Parameter identifiers are not translated');
+    Assert.IsTrue(Html.Contains('EArgumentException') and Html.Contains('TObject') and Html.Contains('remarks payload'),'Identifiers and author prose are not translated');
+   end;
   end;
  finally TI18n.Instance.SetLanguage(OldLanguage);end;
  S.Width:=0;S.ParameterWidth:=-1;

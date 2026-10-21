@@ -16,7 +16,9 @@
 </div>
 <div class="member-card" id="ApplyHelpInsightPresentation">
 <div class="member-sig"><span class="badge">method</span> ApplyHelpInsightPresentation</div>
-<div class="doc-prose">Updates root and localized templates, preserving backups and rolling back failed writes.</div>
+<div class="doc-prose">Updates root and IDE-language templates with the current plugin language, preserving backups and rolling back failed writes.</div>
+<h3>Remarks</h3>
+<div class="doc-prose">The IDE language selects the destination folder; the plugin language selects section headings. Independent tooltip renderers do not necessarily use these templates.</div>
 </div>
 <div class="member-card" id="BuildEnhancedHelpInsightCss">
 <div class="member-sig"><span class="badge">method</span> BuildEnhancedHelpInsightCss</div>
@@ -24,7 +26,9 @@
 </div>
 <div class="member-card" id="BuildEnhancedHelpInsightXslt">
 <div class="member-sig"><span class="badge">method</span> BuildEnhancedHelpInsightXslt</div>
-<div class="doc-prose">Builds the bundled XSLT 1.0 template with localized section headings.</div>
+<div class="doc-prose">Builds the bundled XSLT 1.0 template with section headings in the active plugin UI language.</div>
+<h3>Remarks</h3>
+<div class="doc-prose">Supports English, Russian, Chinese, Korean and Japanese. Declaration identifiers, documentation text and link targets are preserved. Reapply presentation and restart the IDE after changing language because the native viewer can cache XSLT.</div>
 </div>
 <div class="member-card" id="BuildHelpInsightCss">
 <div class="member-sig"><span class="badge">method</span> BuildHelpInsightCss</div>

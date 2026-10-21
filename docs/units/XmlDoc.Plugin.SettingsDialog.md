@@ -12,10 +12,14 @@ Supported global editor preferences, stub options and command shortcuts.
 
 ### IDEHelpInsightPalette
 
+Captures native IDE theme colours for Help Insight presentation and preview.
+
 ### IDEHelpInsightXsltPath
 
-Opens the plugin settings dialog.
-
-**Returns:** True if preferences were accepted and saved.
+Returns the XSLT path selected by the IDE's preferred UI languages.
 
 ### ShowSettingsDialog
+
+Opens localized preferences shared with the Third Party IDE Options page.
+
+**Returns:** True if preferences were accepted and saved.

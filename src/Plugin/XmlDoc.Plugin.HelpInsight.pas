@@ -25,13 +25,15 @@ type
 
 /// <summary>Builds viewer-compatible styles with bounded layout dimensions.</summary>
 function BuildEnhancedHelpInsightCss(const Settings:THelpInsightSettings; const Palette:THelpInsightPalette):string;
-/// <summary>Builds the bundled XSLT 1.0 template with localized section headings.</summary>
+/// <summary>Builds the bundled XSLT 1.0 template with section headings in the active plugin UI language.</summary>
+/// <remarks>Supports English, Russian, Chinese, Korean and Japanese. Declaration identifiers, documentation text and link targets are preserved. Reapply presentation and restart the IDE after changing language because the native viewer can cache XSLT.</remarks>
 function BuildEnhancedHelpInsightXslt(const Settings: THelpInsightSettings;
   const Palette: THelpInsightPalette): string;
 /// <summary>Transforms a sample without modifying IDE files; external XML entities are disabled.</summary>
 function RenderHelpInsightPreview(const Xml: string; const Settings: THelpInsightSettings;
   const Palette: THelpInsightPalette; const NativeCssFile:string=''; const NativeXslFile:string=''): string;
-/// <summary>Updates root and localized templates, preserving backups and rolling back failed writes.</summary>
+/// <summary>Updates root and IDE-language templates with the current plugin language, preserving backups and rolling back failed writes.</summary>
+/// <remarks>The IDE language selects the destination folder; the plugin language selects section headings. Independent tooltip renderers do not necessarily use these templates.</remarks>
 procedure ApplyHelpInsightPresentation(const CssFile: string; const Settings: THelpInsightSettings;
   const Palette: THelpInsightPalette; const XslFile:string='');
 /// <summary>Restores the first saved stylesheet and root/localized templates byte for byte.</summary>

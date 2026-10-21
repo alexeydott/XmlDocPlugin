@@ -1,8 +1,8 @@
-﻿unit WorkbenchProbe;
+unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses XmlDoc.Plugin.OptionsPage,XmlDoc.Plugin.HelpInsight,XmlDoc.Plugin.Splash,XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses System.TypInfo,XmlDoc.Plugin.OptionsPage,XmlDoc.Plugin.HelpInsight,XmlDoc.Plugin.Splash,XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Imaging.pngimage,Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedHandler)
@@ -1229,6 +1229,24 @@ begin
     var HintHadBackup:=TFile.Exists(HintBackup);
     var HintBackupBytes:TBytes;if HintHadBackup then HintBackupBytes:=TFile.ReadAllBytes(HintBackup);
     var OriginalThemeSettings:=TPluginSettings.Instance.Global;
+    try
+     for var UiLanguage in ['en','ru','zh','ko','ja'] do begin
+      var LanguageSettings:=OriginalThemeSettings;LanguageSettings.General.Language:=UiLanguage;
+      TPluginSettings.Instance.Global:=LanguageSettings;
+      var LocalizedDialog:=TSettingsDialog.Create(nil);
+      try
+       AssertTrue(LocalizedDialog.cmbHintAppearance.Items[0]=TI18n.Instance.T('IDE default'),UiLanguage+' default appearance');
+       AssertTrue(LocalizedDialog.cmbHintAppearance.Items[1]=TI18n.Instance.T('Extended'),UiLanguage+' extended appearance');
+       for var CaptionSpec in ['chkHelpInsightEnabled|Customize native Help Insight','lblHintWidth|Hint width (px):','lblHintFont|Hint font size (pt):','lblHintLineHeight|Line spacing (%):','chkHelpInsightWrap|Wrap long signatures','chkHelpInsightCompact|Compact parameter descriptions','lblHintParameterWidth|Parameter name column (px):','btnHintPreview|Preview hint...','btnRestoreHint|Restore original templates','btnExportHintCss|Export templates...','btnShellHintCss|Apply through Windows...'] do begin
+        var Parts:=CaptionSpec.Split(['|']);var ExpectedCaption:=TI18n.Instance.T(Parts[1]);
+        if UiLanguage<>'en' then AssertTrue(ExpectedCaption<>Parts[1],UiLanguage+' missing translation '+Parts[1]);
+        AssertTrue(GetStrProp(LocalizedDialog.FindComponent(Parts[0]),'Caption')=ExpectedCaption,UiLanguage+' '+Parts[0]);
+       end;
+       AssertTrue(LocalizedDialog.btnShellHintCss.Hint=TI18n.Instance.T('Enhanced templates can be exported for administrator installation.'),UiLanguage+' Help Insight hint');
+      finally LocalizedDialog.Free;end;
+     end;
+     Log('PASS native Help Insight controls, appearance choices and hints in en/ru/zh/ko/ja');
+    finally TPluginSettings.Instance.Global:=OriginalThemeSettings;TI18n.Instance.SetLanguage(OriginalThemeSettings.General.Language);end;
     var OldThemeDirectory:=TThemeEngine.Instance.CustomThemesDir;
     TThemeEngine.Instance.SetCustomThemesDir(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'created-themes'));
     var OptionsApplied:=0;

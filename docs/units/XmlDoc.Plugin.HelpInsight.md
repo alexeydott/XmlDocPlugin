@@ -21,7 +21,11 @@ Uses Windows Shell copy, allowing the user to approve UAC for a protected IDE fo
 
 ### ApplyHelpInsightPresentation
 
-Updates root and localized templates, preserving backups and rolling back failed writes.
+Updates root and IDE-language templates with the current plugin language, preserving backups and rolling back failed writes.
+
+## Remarks
+
+The IDE language selects the destination folder; the plugin language selects section headings. Independent tooltip renderers do not necessarily use these templates.
 
 ### BuildEnhancedHelpInsightCss
 
@@ -29,7 +33,11 @@ Builds viewer-compatible styles with bounded layout dimensions.
 
 ### BuildEnhancedHelpInsightXslt
 
-Builds the bundled XSLT 1.0 template with localized section headings.
+Builds the bundled XSLT 1.0 template with section headings in the active plugin UI language.
+
+## Remarks
+
+Supports English, Russian, Chinese, Korean and Japanese. Declaration identifiers, documentation text and link targets are preserved. Reapply presentation and restart the IDE after changing language because the native viewer can cache XSLT.
 
 ### BuildHelpInsightCss
 

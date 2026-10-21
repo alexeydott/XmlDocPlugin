@@ -27,10 +27,10 @@ XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API r
 1. Download [XmlDocPlugin-Setup.exe](https://github.com/alexeydott/XmlDocPlugin/releases/latest/download/XmlDocPlugin-Setup.exe), close RAD Studio, and run Setup. Choose the detected IDE installations. Supported IDEs are RAD Studio 11/12 (32-bit) and RAD Studio 13 (32-bit and 64-bit).
 2. Allow installation of Microsoft Edge WebView2 Runtime if requested. Declining cancels installation.
 3. Open your Delphi project and a source unit, then put the caret on the declaration you want to document.
-4. Use **Document → Doc Inspector**. For a unit-wide tree, open **Documentation Explorer**. Shortcuts are configurable; use the menu labels or action hints to find the assigned keys.
-5. Open this guide from **Document → User Guide** whenever you need instructions.
+4. Use **Document в†’ Doc Inspector**. For a unit-wide tree, open **Documentation Explorer**. Shortcuts are configurable; use the menu labels or action hints to find the assigned keys.
+5. Open this guide from **Document в†’ User Guide** whenever you need instructions.
 
-Choose **Document → Settings → General → Language** for the interface language:
+Choose **Document в†’ Settings в†’ General в†’ Language** for the interface language:
 `en` (English), `ru` (Russian), `zh` (Simplified Chinese), `ko` (Korean),
 `ja` (Japanese), or `auto` (Windows user locale). All four translation packs are included.
 Unavailable translations use English. This changes plugin captions and tooltips,
@@ -41,7 +41,7 @@ In RAD Studio 11, use the Document menu, configured shortcuts or documentation-p
 
 ## Settings
 
-Open **Document → Settings**, or **Tools → Options → Third Party → XmlDocPlugin**.
+Open **Document в†’ Settings**, or **Tools в†’ Options в†’ Third Party в†’ XmlDocPlugin**.
 Both entry points use the same preferences. The embedded page follows the IDE theme,
 stretches fields with the window and provides scrolling when space is limited.
 Save the IDE Options dialog to apply changes; Cancel discards pending preference edits.
@@ -132,7 +132,7 @@ Open a method in Inspector or Explorer and expand **AI assistant**. **Describe m
 
 ### Configure a connection
 
-Open **Settings → General → AI profiles and prompts**, or the settings icon in the assistant. Create a named profile, fill its connection fields, and choose **Save profile**. Names must be unique; matching duplicate connections are rejected. You can rename or delete profiles. Deleting a profile also removes its stored credential.
+Open **Settings в†’ General в†’ AI profiles and prompts**, or the settings icon in the assistant. Create a named profile, fill its connection fields, and choose **Save profile**. Names must be unique; matching duplicate connections are rejected. You can rename or delete profiles. Deleting a profile also removes its stored credential.
 
 ![AI connection settings with thinking, retry and preview options](assets/user-guide/ai-settings.png)
 
@@ -150,7 +150,7 @@ For an OpenAI connection, use the following fields. Model access depends on your
 | Documentation language | The language for generated prose; independent of interface language |
 | Output limit parameter | `max_completion_tokens` for compatible OpenAI models; includes reasoning tokens |
 | Output token limit | A positive limit large enough for both reasoning and the JSON answer |
-| Automatic retries (0–10) | Default: 3 retries after the initial attempt (4 attempts total). Set 0 to disable. Retries HTTP 408/429/500/502/503/504, transport failures and timeouts after increasing delays (1, 2, 4 seconds, capped at 30). Cancel also interrupts the delay. Authentication errors, invalid JSON and incomplete proposals are not retried. A timed-out request may already have been processed by the provider. |
+| Automatic retries (0вЂ“10) | Default: 3 retries after the initial attempt (4 attempts total). Set 0 to disable. Retries HTTP 408/429/500/502/503/504, transport failures and timeouts after increasing delays (1, 2, 4 seconds, capped at 30). Cancel also interrupts the delay. Authentication errors, invalid JSON and incomplete proposals are not retried. A timed-out request may already have been processed by the provider. |
 | Disable AI thinking | Off by default. Uses a supported non-reasoning model when available and adds a no-thinking instruction. The saved model name is unchanged. Some providers or models may ignore the instruction; the option cannot guarantee support at an arbitrary endpoint. |
 | Request JSON mode | Enable only when the selected model supports JSON object output |
 
@@ -185,7 +185,7 @@ If you switch declarations, edit the source or documentation, or open an unappli
 
 ### Process selected methods
 
-In **Project workspace → Member summaries**, select writable methods and choose **Queue selected methods for AI**. The queue opens each method and captures its live source and comment; it does not reuse a possibly stale catalog comment. The selected AI operation, profile, template and preview preference apply to each request.
+In **Project workspace в†’ Member summaries**, select writable methods and choose **Queue selected methods for AI**. The queue opens each method and captures its live source and comment; it does not reuse a possibly stale catalog comment. The selected AI operation, profile, template and preview preference apply to each request.
 
 Review each proposal separately. Apply only the sections you accept, then choose **Skip and open next method** to continue. That button also discards an unaccepted proposal. **Cancel AI queue** stops the queue and cancels its active request; no later method is submitted automatically. An unopened, read-only or unapplied XML target cannot silently receive a proposal. The queue never applies documentation automatically. After Apply, **Waiting for source write** remains visible and the next-method action is disabled until the IDE confirms the write and reloads the current comment. A conflict or write refusal leaves the current method selected and shows the reason; cancel the queue to resolve it.
 
@@ -207,7 +207,7 @@ The exact selected implementation, signature, parameter types and relevant proje
 
 AI replies are converted to documentation prose before review and again when you apply edited proposal text. HTML wrappers, attributes, scripts and styles are removed. Paragraphs and line breaks become documentation `para` and `br` markup. Existing protected XML references and code remain intact; manually deleting or duplicating their placeholders blocks Apply. Review the formatted result and parameter descriptions before saving the source.
 
-Temporary HTTP errors and timeouts use the profile's **Automatic retries (0–10)** setting. The default permits three retries after the first attempt, with delays of 1, 2 and 4 seconds. The waiting indicator stays active; **Cancel** interrupts a request or retry delay. Setting 0 makes a single attempt. Authentication errors, invalid JSON and incomplete proposals require correction rather than automatic repetition. A timeout does not prove that the provider stopped processing the previous attempt.
+Temporary HTTP errors and timeouts use the profile's **Automatic retries (0вЂ“10)** setting. The default permits three retries after the first attempt, with delays of 1, 2 and 4 seconds. The waiting indicator stays active; **Cancel** interrupts a request or retry delay. Setting 0 makes a single attempt. Authentication errors, invalid JSON and incomplete proposals require correction rather than automatic repetition. A timeout does not prove that the provider stopped processing the previous attempt.
 
 If the service returns only reasoning without final content, the assistant reports **AI message content is missing** and offers nothing to apply. For an HTTP error, check the endpoint, exact model ID, service availability and profile limits. After correcting the profile, start a new request. Applied edits use the IDE's Undo/Redo history.
 
@@ -235,7 +235,7 @@ When you rename a parameter, synchronize the documentation to keep parameter des
 
 ![Signature synchronization before and after XML](assets/user-guide/synchronization.png)
 
-*The explicit OldName → NewName mapping preserves the description and updates the parameter reference. Added sections still need useful prose.*
+*The explicit OldName в†’ NewName mapping preserves the description and updates the parameter reference. Added sections still need useful prose.*
 
 Synchronization fixes structure, not the meaning of the prose. Run Problems again after completing the text.
 
@@ -255,7 +255,7 @@ Quick documentation starts from the source caret. When a name or overload cannot
 
 ## Edit member summaries together
 
-1. Select a member or its owning type and expand **Project workspace → Member summaries**.
+1. Select a member or its owning type and expand **Project workspace в†’ Member summaries**.
 2. Clear the search or choose filters that include the members you want. The table follows the filtered catalog.
 3. Select the rows to change and edit their summary XML fragments.
 4. Choose **Preview selected summaries**, review each declaration and before/after comment, and apply.
@@ -325,7 +325,7 @@ Replacement is a literal, case-sensitive operation on the **current comment**, n
 
 ## Measure coverage and check problems
 
-Use **Coverage Report → Analyze** for the current project or a selected directory. Inspect the declaration list and source positions rather than relying only on a percentage. Coverage distinguishes a comment that exists, a structurally complete comment and documentation that passes readiness checks; Generated placeholders using your configured prefix, as well as existing TODO placeholders, are unfinished.
+Use **Coverage Report в†’ Analyze** for the current project or a selected directory. Inspect the declaration list and source positions rather than relying only on a percentage. Coverage distinguishes a comment that exists, a structurally complete comment and documentation that passes readiness checks; Generated placeholders using your configured prefix, as well as existing TODO placeholders, are unfinished.
 
 Use **Problems** for the current declaration and project filters for a wider cleanup pass. Typical findings include invalid XML, missing/obsolete parameters, unresolved references, missing result documentation, TODO text, public API changes and missing linked resources.
 
@@ -360,7 +360,7 @@ For HTML, use the documentation viewer/server when available rather than assumin
 
 HTML and CHM output support `default`, `dark`, `high-contrast` and `minimal`.
 These output themes are independent of the IDE theme used by Inspector and Explorer.
-Choose the default under **Document → Settings → Code Generation → Default HTML / CHM theme**.
+Choose the default under **Document в†’ Settings в†’ Code Generation в†’ Default HTML / CHM theme**.
 Use **Create CSS theme...** to give a new theme a name and save a copy of the selected
 palette. The dialog shows its file location; edit that UTF-8 CSS file in your text
 editor to customize it. Reopen Settings or the generation dialog to reload changes.
@@ -420,11 +420,11 @@ For quality gates, distinguish comment presence from readiness:
 & $generator -p .\MyProject.dproj -o .\Generated -f json --check --placeholder-prefix 'FIXME: '
 ```
 
-`--coverage-min` checks comment presence; `--ready-min` checks readiness. Both accept 0–100 and return exit code 1 when their threshold is not met. A nonzero threshold enables coverage analysis even without `--coverage`. Pass `--placeholder-prefix` when CI uses a custom stub prefix; the CLI does not read your IDE preferences. The CLI recognizes the same multilingual defaults. Add other markers with repeatable `--placeholder-marker TEXT` options. It does not read the marker list saved in IDE Settings. Existing TODO markers remain unfinished with any configured prefix.
+`--coverage-min` checks comment presence; `--ready-min` checks readiness. Both accept 0вЂ“100 and return exit code 1 when their threshold is not met. A nonzero threshold enables coverage analysis even without `--coverage`. Pass `--placeholder-prefix` when CI uses a custom stub prefix; the CLI does not read your IDE preferences. The CLI recognizes the same multilingual defaults. Add other markers with repeatable `--placeholder-marker TEXT` options. It does not read the marker list saved in IDE Settings. Existing TODO markers remain unfinished with any configured prefix.
 
 ## Customize native Help Insight
 
-Open **Document → Settings → Help Insight** and enable **Customize native Help Insight**.
+Open **Tools в†’ Options в†’ Third Party в†’ XmlDocPlugin в†’ Help Insight**, or **Document в†’ Settings в†’ Help Insight**, and enable **Customize native Help Insight**.
 ![Help Insight settings](assets/user-guide/help-insight-settings.jpg)
 
 Choose **IDE default** to retain the IDE template, or **Extended** for a heading band,
@@ -436,6 +436,10 @@ This changes the IDE's native HTML Help Insight popup; it does not replace it wi
 *The native popup shows the declaration, wrapped descriptions, a table and a note to callers.*
 
 ![Extended native Help Insight in the light IDE theme](assets/user-guide/help-insight-light.jpg)
+
+Select the interface language on **General**: English (`en`), Russian (`ru`), Chinese (`zh`), Korean (`ko`) or Japanese (`ja`). `auto` uses the Windows user language. Save preferences and reopen Settings to see its translated captions, appearance choices and tooltips. Extended hints use this language for section headings such as Parameters, Returns, Remarks and Notes to callers. Your documentation, symbol names, parameter names and link destinations are not translated; the preview deliberately contains English sample documentation.
+
+Saving preferences writes the Help Insight headings in the selected language. Restart the IDE after a language change so its cached XSLT uses the new headings. The IDE's own interface language determines the localized template folder; it does not override the plugin language used for headings.
 
 Adjust the width, font size, line spacing, signature wrapping and compact parameter layout.
 **Preview hint** shows a sample without saving preferences or modifying the IDE templates.

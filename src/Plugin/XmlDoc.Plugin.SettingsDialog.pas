@@ -83,10 +83,12 @@ type
     property ShortcutsChanged: Boolean read FShortcutsChanged;
   end;
 
-/// <summary>Opens the plugin settings dialog.</summary>
-/// <returns>True if preferences were accepted and saved.</returns>
+/// <summary>Returns the XSLT path selected by the IDE's preferred UI languages.</summary>
 function IDEHelpInsightXsltPath:string;
+/// <summary>Captures native IDE theme colours for Help Insight presentation and preview.</summary>
 function IDEHelpInsightPalette:THelpInsightPalette;
+/// <summary>Opens localized preferences shared with the Third Party IDE Options page.</summary>
+/// <returns>True if preferences were accepted and saved.</returns>
 function ShowSettingsDialog: Boolean;
 
 implementation
@@ -161,6 +163,10 @@ begin
   FShortcutsChanged := False;
   LoadSettings;
   LocalizePluginUi(Self);
+  var AppearanceIndex:=cmbHintAppearance.ItemIndex;
+  cmbHintAppearance.Items[0]:=TI18n.Instance.T('IDE default');
+  cmbHintAppearance.Items[1]:=TI18n.Instance.T('Extended');
+  cmbHintAppearance.ItemIndex:=AppearanceIndex;
   HelpInsightChanged(nil);
   if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) then Theme.ApplyTheme(Self);
 end;
