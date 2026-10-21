@@ -75,6 +75,10 @@ begin
    end;
    if Level<>0 then raise EConvertError.CreateFmt('Unterminated PasDoc @%s at character %d',[Tag.Name,Start]);
    Tag.Body:=Copy(S,BodyStart,I-BodyStart);Inc(I);
+   // Historical PasDoc longCode accepts matching marker characters, e.g. #.
+   if (Tag.Name='longcode') and (Length(Tag.Body)>1) and
+      (Tag.Body[1]=Tag.Body[Length(Tag.Body)]) then
+    Tag.Body:=Copy(Tag.Body,2,Length(Tag.Body)-2);
   end else if not NoArgs(Tag.Name) then begin
    while (I<=Length(S)) and CharInSet(S[I],[' ',#9,':']) do Inc(I);
    BodyStart:=I;
@@ -314,7 +318,7 @@ begin
 end;
 function ImportLegacyComment(const Text:string;const Element:TCodeElementInfo;const ExternalText:string;
  ExternalLoaded:Boolean;const ReadFile:TFunc<string,string>):string;
-var Import:TPasDocImport;Sidecar,Selected,Key,Line,ExternalContent:string;Active:Boolean;
+var Import:TPasDocImport;Sidecar,Selected,Key,ExternalContent:string;Section:TMatch;
 begin
  Import:=TPasDocImport.Create(Element,ReadFile);
  try
@@ -324,13 +328,14 @@ begin
   if not ExternalLoaded and (Element.FileName<>'') and TFile.Exists(Sidecar) then begin
    if Assigned(ReadFile) then ExternalContent:=ReadFile(Sidecar) else ExternalContent:=ReadSourceFile(Sidecar);
   end;
-  Key:=Element.UnitName+'.'+Element.FullName;Selected:='';Active:=False;
-  for Line in ExternalContent.Replace(#13,'').Split([#10]) do begin
-   if Line.Trim.StartsWith('#') then begin
-    if Active then Break;Active:=SameText(Line.Trim.TrimLeft(['#',' ']),Key);
-   end else if Active then Selected:=Selected+Line+#10;
-  end;
-  if Active then begin
+  Key:=Element.UnitName+'.'+Element.FullName;
+  // Match the requested symbol directly, without allocating every sidecar
+  // line for every declaration. A historical longCode closing #) is content.
+  Section:=TRegEx.Match(ExternalContent,'(?mi)^[ \t]*#[ \t]*'+TRegEx.Escape(Key)+
+   '[ \t]*\r?(?:\n|\z)([\s\S]*?)(?=^[ \t]*#[ \t]*[\p{L}_][\p{L}\p{N}_]*'+
+   '(?:\.[\p{L}_][\p{L}\p{N}_]*)+[ \t]*\r?(?:\n|\z)|\z)');
+  if Section.Success then begin
+   Selected:=Section.Groups[1].Value;
    if not Import.AbstractSet and (Import.Prose<>'') then begin
     Import.Summary:=Import.Prose;Import.Prose:='';Import.AbstractSet:=True;
    end;

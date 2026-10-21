@@ -26,5 +26,12 @@ and files remain unchanged before closing each IDE. These requests consume the
 configured provider's quota. Response and request evidence stays outside Git;
 Authorization headers and stored credentials are not captured.
 
+The PasDoc installed-package scenario uses the bundled synthetic Pascal unit and its
+same-name text sidecar. Pass `-Installed -PasDocSourceDirectory 'tests/e2e/DocumentationWorkbench/Units'
+-LargeProject 'tests/e2e/DocumentationWorkbench/XmlDocE2E.dproj'`. It checks
+TPasDocSample and ConvertValue descriptions, sidecar parameter mapping, relative
+`@include`/`@includeCode`, acknowledged OTA application and exact Undo before
+closing each IDE. Original Pascal and text files are never written.
+
 The older `-RealAI` mode has a different purpose: it tests reviewed application
 and Undo on a large source method. Do not use that mode for review-only checks.

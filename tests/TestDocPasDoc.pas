@@ -16,6 +16,7 @@ type
   [Test] procedure MetadataMacrosAndSections;
   [Test] procedure RawTextAndHTML;
   [Test] procedure NamedSectionsAndContinuation;
+  [Test] procedure SidecarCodeDoesNotEndSection;
   [Test] procedure OwnerMembersAndExclusion;
   [Test] procedure MalformedAndFuzz;
   [Test] procedure ExportedTablesAndLinks;
@@ -138,6 +139,22 @@ begin
   M.LoadFromXml(ImportLegacyComment('',E));Assert.AreEqual('External description',M.Summary);
   M.LoadFromXml(ImportLegacyComment('Local description',E));Assert.AreEqual('Local description',M.Summary);
   Assert.IsTrue(M.Remarks.Contains('External description'));
+ finally M.Free;end;
+end;
+procedure TTestPasDoc.SidecarCodeDoesNotEndSection;
+var X:string;M:TXmlDocModel;
+begin
+ Put('Sample.txt','# Sample.TWorker.Run'+#10+'@longCode(#'+#10+
+  '  Result := Call(1);'+#10+'#)'+#10+'@param(Value Sidecar parameter)'+#10+
+  '# Sample.TWorker.Other'+#10+'@param(Value WRONG)');
+ X:=ImportLegacyComment('@abstract(Local description)',E);M:=TXmlDocModel.Create;
+ try
+  M.LoadFromXml(X);Assert.AreEqual('',M.ParseError);
+  Assert.AreEqual('Local description',M.Summary);
+  Assert.IsTrue(M.Remarks.Contains('Result := Call(1);'));
+  Assert.IsFalse(M.Remarks.Contains('#'));
+  Assert.AreEqual('Sidecar parameter',M.Params[0].Description);
+  Assert.IsFalse(X.Contains('WRONG'));
  finally M.Free;end;
 end;
 procedure TTestPasDoc.OwnerMembersAndExclusion;

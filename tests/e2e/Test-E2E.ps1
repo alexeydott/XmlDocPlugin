@@ -1,9 +1,10 @@
-param([switch]$SharedContextOnly,[switch]$LiveAIReview,[string]$LiveAIProfile='',[ValidateSet('both','preview','direct')][string]$RealAIMode='both',[string]$AIReplayResponse='',[ValidateRange(0,300000)][int]$AITimeoutMs=0,[switch]$RealAI,[switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[switch]$ShutdownOpenPanels,[switch]$DelphiOnly,[switch]$ShowSplash,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
+param([string]$PasDocSourceDirectory='', [switch]$SharedContextOnly,[switch]$LiveAIReview,[string]$LiveAIProfile='',[ValidateSet('both','preview','direct')][string]$RealAIMode='both',[string]$AIReplayResponse='',[ValidateRange(0,300000)][int]$AITimeoutMs=0,[switch]$RealAI,[switch]$AIOnly,[ValidateSet('','save','reload')][string]$MarkerAudit='', [string]$LargeProject='', [string]$LargeSource='', [string]$EvidenceDir = "$env:LOCALAPPDATA\XmlDocPlugin\E2E\$([guid]::NewGuid())",[switch]$SkipBuild,[switch]$Installed,[switch]$GroupOnly,[switch]$ThemesOnly,[switch]$DiagnosticsOnly,[switch]$ShutdownOpenPanels,[switch]$DelphiOnly,[switch]$ShowSplash,[ValidateRange(0,5000)][int]$BenchmarkModules=0,
  [string]$BuildRoot="$env:LOCALAPPDATA\XmlDocPlugin\Improvements1",
  [string]$InstallRoot="$env:LOCALAPPDATA\Programs\XmlDocPlugin",
  [string]$InstalledDcpRoot="$env:LOCALAPPDATA\XmlDocPlugin\Installer\intermediate",
  [ValidateSet('rad11-x86','rad12-x86','rad13-x86','rad13-x64')][string[]]$Targets=@('rad11-x86','rad12-x86','rad13-x86','rad13-x64'),[string]$Rad11='D:\Embarcadero RAD Studio\22.0',[string]$Rad12='D:\Embarcadero RAD Studio\23.0',[string]$Rad13='D:\Embarcadero RAD Studio\37.0')
 $ErrorActionPreference='Stop'
+if($PasDocSourceDirectory){if(!$LargeProject){throw 'LargeProject is required for the PasDoc source context'};$AIOnly=$true}
 if($SharedContextOnly){$AIOnly=$true}
 if($LiveAIReview){if(!$LiveAIProfile.Trim()){throw 'LiveAIProfile is required for real review requests'};$RealAI=$true}
 if($ShutdownOpenPanels -and ($AIOnly -or $RealAI -or $ThemesOnly -or $GroupOnly -or ($MarkerAudit -ne '') -or ($BenchmarkModules -gt 0))){
@@ -23,7 +24,7 @@ function Test-Export([string]$Output){
  if($LASTEXITCODE){throw "Export grouping or numeric filenames failed: $Output"}
 }
 $savedEnvironment=@{}
-foreach($name in 'XMLDOC_E2E_SHARED_ONLY','XMLDOC_E2E_LIVE_PROFILE','XMLDOC_E2E_LIVE_REVIEW','XMLDOC_E2E_REAL_MODE','XMLDOC_E2E_AI_TIMEOUT','XMLDOC_E2E_REAL_AI','XMLDOC_AI_CONFIG','XMLDOC_E2E_AI_ONLY','XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_SHUTDOWN_OPEN_PANELS','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
+foreach($name in 'XMLDOC_E2E_PASDOC','XMLDOC_E2E_SHARED_ONLY','XMLDOC_E2E_LIVE_PROFILE','XMLDOC_E2E_LIVE_REVIEW','XMLDOC_E2E_REAL_MODE','XMLDOC_E2E_AI_TIMEOUT','XMLDOC_E2E_REAL_AI','XMLDOC_AI_CONFIG','XMLDOC_E2E_AI_ONLY','XMLDOC_E2E_MARKER_PHASE','XMLDOC_DRAFT_DIR','XMLDOC_E2E_FIXTURE','XMLDOC_E2E_JS','XMLDOC_E2E_LOG','XMLDOC_E2E_VERSION','XMLDOC_E2E_GROUP_ONLY','XMLDOC_E2E_THEMES_ONLY','XMLDOC_E2E_DIAGNOSTICS_ONLY','XMLDOC_E2E_SHUTDOWN_OPEN_PANELS','XMLDOC_E2E_BENCHMARK_MODULES','XMLDOC_E2E_LARGE_PROJECT','XMLDOC_E2E_LARGE_SOURCE'){$savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $savedBounds=@{}
 $boundsKey=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\XmlDocPlugin\DocExplorer')
 try {foreach($name in 'Left','Top','Width','Height'){
@@ -31,6 +32,7 @@ try {foreach($name in 'Left','Top','Width','Height'){
 }} finally {if($boundsKey){$boundsKey.Dispose()}}
 Push-Location $repo
 try {
+ $env:XMLDOC_E2E_PASDOC=$PasDocSourceDirectory
  $env:XMLDOC_E2E_SHARED_ONLY=if($SharedContextOnly){'1'}else{''}
  $env:XMLDOC_E2E_LIVE_PROFILE=$LiveAIProfile
  $env:XMLDOC_E2E_LIVE_REVIEW=if($LiveAIReview){'1'}else{''}
@@ -98,7 +100,7 @@ try {
   if($LASTEXITCODE){throw "Probe build failed: $out\probe-build.log"}
   $profile='XmlDocE2E'+[guid]::NewGuid().ToString('N');$profileRoot="HKCU:\Software\Embarcadero\$profile"
   reg copy "HKCU\Software\Embarcadero\BDS\$($t.Version)" "HKCU\Software\Embarcadero\$profile\$($t.Version)" /s /f | Out-Null
-  foreach($node in 'Known Packages','Known Packages x64','Experts'){
+  foreach($node in 'Known Packages','Known Packages x64','Experts','Experts x64'){
    $key="$profileRoot\$($t.Version)\$node"
    if(Test-Path $key){(Get-Item $key).Property | Where-Object {$_ -notlike '$(BDSBIN)\*' -and $_ -notlike '$(BDS)\*'} | ForEach-Object {Remove-ItemProperty $key -Name $_}}
   }
@@ -118,7 +120,7 @@ try {
   if(!$ShowSplash){$ideArguments+='-ns'}
   ('"'+$rad+'\'+$t.Bin+'\bds.exe" '+($ideArguments -join ' ')) |
    Set-Content -LiteralPath "$out\ide-command-line.txt" -Encoding UTF8
-  $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList $ideArguments -PassThru -WindowStyle Hidden
+  $p=Start-Process "$rad\$($t.Bin)\bds.exe" -ArgumentList $ideArguments -PassThru -WindowStyle $(if($PasDocSourceDirectory){'Normal'}else{'Hidden'})
   # Allow cold IDE startup and repeated generation/quality-gate checks.
   for($waitAttempt=0;($waitAttempt -lt $(if($RealAI){18}else{6})) -and !$p.HasExited;$waitAttempt++){$null=$p.WaitForExit(50000);if($RealAI -and !$p.HasExited){Write-Host "$($t.Name) real AI ${RealAIMode}: waiting $((1+$waitAttempt)*50)s"}}
   if(!$p.HasExited){throw "E2E timeout: $($t.Name), test-owned IDE PID $($p.Id)"}

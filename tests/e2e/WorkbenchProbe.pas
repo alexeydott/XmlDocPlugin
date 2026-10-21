@@ -1,4 +1,4 @@
-unit WorkbenchProbe;
+﻿unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
@@ -341,10 +341,59 @@ begin
   // the new card's automatic catalog replace that controlled worker request.
   if Assigned(StressEntered) and Assigned(Json) and (Json.GetValue<string>('type','')='requestCatalog') then begin Log('Ignored automatic Inspector refresh during native worker barrier');Exit;end;
   if Assigned(Json) and (Json.GetValue<string>('type','')='docUpdated') then Log('EDIT '+Json.GetValue<string>('sourceRevision','')+' '+Json.GetValue<TJSONObject>('doc').GetValue<string>('summary',''));
-  if not Assigned(Json) or (Json.GetValue<string>('type','')<>'e2e') then begin if Assigned(OriginalMessage) then OriginalMessage(Sender,Args);Exit;end;
+  if not Assigned(Json) or (Json.GetValue<string>('type','')<>'e2e') then begin
+   if (GetEnvironmentVariable('XMLDOC_E2E_PASDOC')<>'') and Assigned(Json) and (Json.GetValue<string>('type','')='docUpdated') then
+   begin
+    Log('PasDoc write actual revision '+SourceRevision(EditorSource(SourceEditorForFile(RealSource))));
+    TFile.WriteAllText(TPath.Combine(RealDirectory,'pasdoc-before-write.pas'),EditorSource(SourceEditorForFile(RealSource)),TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(RealDirectory,'pasdoc-baseline.pas'),AIBefore,TEncoding.UTF8);
+   end;
+   if Assigned(OriginalMessage) then OriginalMessage(Sender,Args);
+   if (GetEnvironmentVariable('XMLDOC_E2E_PASDOC')<>'') and Assigned(Json) and (Json.GetValue<string>('type','')='docUpdated') then
+    Log('PasDoc writer returned; marker in source='+BoolToStr(EditorSource(SourceEditorForFile(RealSource)).Contains('PasDoc OTA applied marker'),True));
+   Exit;
+  end;
   Action:=Json.GetValue<string>('action','');
   try
-   if Action='parser-break-source' then begin
+   if Action='pasdoc-open' then begin
+    if RealSource='' then begin
+     RealSource:=TPath.Combine(Root,'PasDoc.Sample.pas');RealDirectory:=ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG'));
+     TFile.Copy(TPath.Combine(GetEnvironmentVariable('XMLDOC_E2E_PASDOC'),'PasDoc.Sample.pas'),RealSource,True);
+     TFile.Copy(TPath.Combine(GetEnvironmentVariable('XMLDOC_E2E_PASDOC'),'PasDoc.Sample.txt'),TPath.Combine(Root,'PasDoc.Sample.txt'),True);
+     var Context:=TProjectContext.Create(GetEnvironmentVariable('XMLDOC_E2E_LARGE_PROJECT'),'Debug','Win32');
+     try var ProjectXml:='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><PropertyGroup><MainSource>SourceLatency.dpr</MainSource><DCC_Define>'+XmlEscape(string.Join(';',Context.Defines))+'</DCC_Define><DCC_IncludePath>'+XmlEscape(ExtractFilePath(Context.ProjectFile)+';'+GetEnvironmentVariable('XMLDOC_E2E_PASDOC')+';'+string.Join(';',Context.IncludePaths))+'</DCC_IncludePath><DCC_UnitSearchPath>'+XmlEscape(GetEnvironmentVariable('XMLDOC_E2E_PASDOC')+';'+string.Join(';',Context.SearchPaths))+'</DCC_UnitSearchPath></PropertyGroup><ItemGroup><DCCReference Include="'+XmlEscape(RealSource)+'"/>';
+      for var Name in Context.SourceFiles do if not SameText(ExtractFileExt(Name),'.dpr') and not SameText(ExtractFileName(Name),'PasDoc.Sample.pas') then ProjectXml:=ProjectXml+'<DCCReference Include="'+XmlEscape(Name)+'"/>';
+      TFile.WriteAllText(GetActiveProject.FileName,ProjectXml+'</ItemGroup></Project>',TEncoding.UTF8);TFile.WriteAllText(TPath.Combine(Root,'SourceLatency.dpr'),'program SourceLatency;begin end.',TEncoding.UTF8);
+     finally Context.Free;end;
+     AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(RealSource),'Cannot open copied PasDoc fixture');AIBefore:=EditorSource(SourceEditorForFile(RealSource));
+     TParamDictionary.Instance.LoadFromFile(TPath.Combine(Root,'pasdoc-parameters.json'));
+    end;
+    var Target:=Json.GetValue<string>('name');var Watch:=TStopwatch.StartNew;Editor:=SourceEditorForFile(RealSource);RealLine:=0;
+    var Lines:=TStringList.Create;try Lines.Text:=EditorSource(Editor);for var N:=0 to Lines.Count-1 do if ((Target='TPasDocSample') and Lines[N].Trim.StartsWith('TPasDocSample = class(')) or ((Target='ConvertValue') and Lines[N].Trim.StartsWith('function ConvertValue(')) then begin RealLine:=N+1;Break;end;finally Lines.Free;end;
+    AssertTrue(RealLine>0,'PasDoc target not found: '+Target);var Position:TOTAEditPos;Position.Line:=RealLine;Position.Col:=5;Editor.EditViews[0].SetCursorPos(Position);Editor.Show;Inspector.HandleCursorChanged(RealLine,EditorSource(Editor),RealSource);
+    Log('PasDoc selected '+Target+' line '+RealLine.ToString+' ms='+FloatToStr(Watch.Elapsed.TotalMilliseconds));
+   end
+   else if Action='pasdoc-includes' then begin
+    TFile.WriteAllText(TPath.Combine(Root,'pasdoc-note.txt'),'@bold(Imported include marker)',TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(Root,'pasdoc-code.pas'),'Result := Value + 17;',TEncoding.UTF8);
+    // Prepare the fixture on disk so its construction cannot join the Undo
+    // transaction under test. Latin-1 roundtrips every original byte unchanged;
+    // only ASCII include directives are inserted, preserving the source encoding.
+    var Module:=(BorlandIDEServices as IOTAModuleServices).FindModule(RealSource);Editor:=nil;AssertTrue(Module.CloseModule(True),'Cannot close fixture for include preparation');Module:=nil;var ByteEncoding:=TEncoding.GetEncoding(28591);try var Raw:=ByteEncoding.GetString(TFile.ReadAllBytes(RealSource));AssertTrue(Raw.Contains('    function ConvertValue('),'Include insertion signature missing');Raw:=Raw.Replace('    function ConvertValue(','    // @include(pasdoc-note.txt)'+#13#10+'    // @includeCode(pasdoc-code.pas)'+#13#10+'    function ConvertValue(');TFile.WriteAllBytes(RealSource,ByteEncoding.GetBytes(Raw));finally ByteEncoding.Free;end;AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(RealSource),'Cannot reopen include fixture');Editor:=SourceEditorForFile(RealSource);AIBefore:=EditorSource(Editor);Inc(RealLine,2);var Position:TOTAEditPos;Position.Line:=RealLine;Position.Col:=5;Editor.EditViews[0].SetCursorPos(Position);Inspector.HandleCursorChanged(RealLine,AIBefore,RealSource);Log('PasDoc include fixture loaded');
+   end
+   else if Action='pasdoc-refresh' then begin
+    Editor:=SourceEditorForFile(RealSource);AIBefore:=EditorSource(Editor);Inspector.HandleCursorChanged(RealLine,AIBefore,RealSource);
+    Browser.ExecuteScript('window.__pasdocFreshRevision="'+SourceRevision(AIBefore)+'";');
+   end
+   else if Action='pasdoc-written' then begin
+    Editor:=SourceEditorForFile(RealSource);var Applied:=EditorSource(Editor);AssertTrue(Applied<>AIBefore,'PasDoc Apply did not reach OTA');AssertTrue(Applied.Contains('PasDoc OTA applied marker'),'Applied summary missing');
+    AssertTrue(Applied.Contains('<param name="Value">') and Applied.Contains('<param name="Scale">'),'Sidecar parameters were lost on Apply');
+    TFile.WriteAllText(TPath.Combine(RealDirectory,'pasdoc-applied.pas'),Applied,TEncoding.UTF8);
+    AssertTrue(Supports(Editor,IOTAEditBuffer,EditBuffer),'PasDoc Undo buffer unavailable');EditBuffer.Undo;TFile.WriteAllText(TPath.Combine(RealDirectory,'pasdoc-undo-1.pas'),EditorSource(Editor),TEncoding.UTF8);
+    AssertTrue(EditorSource(Editor)=AIBefore,'PasDoc Undo did not restore the exact pre-Apply buffer');
+    Log('PASS sample PasDoc Apply through OTA and exact Undo');Browser.ExecuteScript('window.__pasdocUndone=true;');
+   end
+   else if Action='parser-break-source' then begin
     RecoveryFile:=TPath.Combine(Root,'Units\ParserRecovery.pas');
     RecoveryOriginal:='unit ParserRecovery;'+#10+'interface'+#10+'/// <summary>Recovery sample</summary>'+#10+'procedure Healthy;'+#10+'implementation'+#10+'procedure Healthy;'+#10+'var Value:Integer;'+#10+'begin'+#10+'  Value := 1;'+#10+'end;'+#10+'end.';
     TFile.WriteAllText(RecoveryFile,RecoveryOriginal,TEncoding.UTF8);GetActiveProject.AddFile(RecoveryFile,True);
@@ -1407,6 +1456,7 @@ begin
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
+   if GetEnvironmentVariable('XMLDOC_E2E_PASDOC')<>'' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'PasDocProbe.js'),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript('window.__sharedOnly='+LowerCase(BoolToStr(GetEnvironmentVariable('XMLDOC_E2E_SHARED_ONLY')='1',True))+';'+TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'SharedContextProbe.js'),TEncoding.UTF8));Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1',IfThen(GetEnvironmentVariable('XMLDOC_E2E_LIVE_REVIEW')='1','LiveReviewProbe.js','RealAIAssistantProbe.js'),'AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
     var ShutdownEditor:=SourceEditorForFile(SampleFile);

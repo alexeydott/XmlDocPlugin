@@ -1,0 +1,10 @@
+# PasDoc.Sample.TPasDocSample
+  @longCode(#
+    Result := Sample.ConvertValue(2, 3);
+  #)
+
+# PasDoc.Sample.TPasDocSample.ConvertValue
+  @Param Value The input value to convert
+  @Param Scale The scale factor applied to the input
+  @Param Unknown This parameter must be ignored
+  @Return The converted value
