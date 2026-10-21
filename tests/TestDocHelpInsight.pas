@@ -4,6 +4,7 @@ uses DUnitX.TestFramework;
 type
   [TestFixture] THelpInsightTests = class
   public
+    [Test] procedure EmptyHintDataDoesNotCreatePopup;
     [Test] procedure ExtendedTransformAndSafeMarkup;
     [Test] procedure PresentationSwitchAndRollback;
     [Test] procedure ExtendedSettingsAndExport;
@@ -18,6 +19,20 @@ type
 implementation
 uses XmlDoc.I18n,System.Classes,System.SysUtils, System.IOUtils, System.Win.Registry, Winapi.Windows,
   XmlDoc.Plugin.HelpInsight, XmlDoc.Plugin.Settings;
+
+procedure THelpInsightTests.EmptyHintDataDoesNotCreatePopup;
+begin
+ var S:=THelpInsightSettings.Defaults;S.Enabled:=True;S.Extended:=True;
+ for var Palette in [THelpInsightPalette.Light,THelpInsightPalette.Dark] do begin
+  for var Xml in ['<member/>','<member DisplayName=" "><summary><para/> </summary><source declaredIn="Unit.pas"/></member>','<doc/>'] do
+   Assert.AreEqual('',RenderHelpInsightPreview(Xml,S,Palette),'Empty IDE data must not produce a styled blank popup');
+  var Html:=RenderHelpInsightPreview('<member DisplayName="HintBareUnit Namespace"/>',S,Palette);
+  Assert.IsTrue(Html.Contains('HintBareUnit Namespace'),'Undocumented units still display their identity');
+  Html:=RenderHelpInsightPreview('<member><summary>Unit documentation</summary></member>',S,Palette);
+  Assert.IsTrue(Html.Contains('Unit documentation'));
+  Assert.IsFalse(Html.Contains('<div class="hint-caption">'),'Nameless documentation must not have an empty heading band');
+ end;
+end;
 
 procedure THelpInsightTests.UpdateIsReversibleAndPreservesCustomCss;
 var S: THelpInsightSettings; Original, Changed: string;

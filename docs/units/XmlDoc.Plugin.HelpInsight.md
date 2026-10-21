@@ -55,6 +55,8 @@ Exports a matching HelpInsight.css and HelpInsight.xsl pair to a separate direct
 
 Transforms a sample without modifying IDE files; external XML entities are disabled.
 
+**Returns:** Rendered HTML, or an empty string when the IDE provides no displayable hint data.
+
 ### RestoreHelpInsightTemplates
 
 Restores the first saved stylesheet and root/localized templates byte for byte.

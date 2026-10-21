@@ -30,6 +30,7 @@ function BuildEnhancedHelpInsightCss(const Settings:THelpInsightSettings; const 
 function BuildEnhancedHelpInsightXslt(const Settings: THelpInsightSettings;
   const Palette: THelpInsightPalette): string;
 /// <summary>Transforms a sample without modifying IDE files; external XML entities are disabled.</summary>
+/// <returns>Rendered HTML, or an empty string when the IDE provides no displayable hint data.</returns>
 function RenderHelpInsightPreview(const Xml: string; const Settings: THelpInsightSettings;
   const Palette: THelpInsightPalette; const NativeCssFile:string=''; const NativeXslFile:string=''): string;
 /// <summary>Updates root and IDE-language templates with the current plugin language, preserving backups and rolling back failed writes.</summary>
@@ -114,6 +115,7 @@ begin
  end;
  if not Template.loadXML(Xsl) then raise EArgumentException.Create(string(Template.parseError.reason));
  Result:=Document.transformNode(Template);
+ if Result.Trim='' then Exit('');
  Result:='<!DOCTYPE html>'+Result.Replace('<head>','<head><meta http-equiv="X-UA-Compatible" content="IE=edge">');
  if Settings.Extended then Result:=Result.Replace('</head>','<style type="text/css">'+BuildEnhancedHelpInsightCss(Settings,Palette)+' body { width:auto; }</style></head>');
  if not Settings.Extended then begin

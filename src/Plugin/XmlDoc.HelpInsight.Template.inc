@@ -5,11 +5,14 @@ const CEnhancedHelpInsightXslt =
   '<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">' + #10 +
   ' <xsl:output method="html" encoding="UTF-8" omit-xml-declaration="yes"/>' + #10 +
   ' <xsl:template match="/">' + #10 +
+  '  <xsl:if test="normalize-space(member/@DisplayName) or member/*[self::summary or self::typeparam or self::param or self::returns or self::value or self::exception or self::remarks' +
+  ' or self::example or self::seealso or self::comments or self::permission][normalize-space(.) or .//@cref or .//@href or @cref or @href or @name]">' + #10 +
   '  <html><head><title><xsl:value-of select="member/@DisplayName"/></title><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><link rel="stylesheet" type="text/css" ' +
   'href="HelpInsight.css"/><style type="text/css">@@CSS@@</style></head>' + #10 +
   '   <body><div class="xmldoc-hint">' + #10 +
-  '    <div class="hint-caption"><xsl:choose><xsl:when test="member/source"><a href="helpinsight:/filelink:{member/source/@declaredIn}?{member/source/@declaredOn},{member/source/@decl' +
-  'aredAt}"><xsl:value-of select="member/@DisplayName"/></a></xsl:when><xsl:otherwise><xsl:value-of select="member/@DisplayName"/></xsl:otherwise></xsl:choose></div>' + #10 +
+  '    <xsl:if test="normalize-space(member/@DisplayName)"><div class="hint-caption"><xsl:choose><xsl:when test="member/source"><a href="helpinsight:/filelink:{member/source/@declared' +
+  'In}?{member/source/@declaredOn},{member/source/@declaredAt}"><xsl:value-of select="member/@DisplayName"/></a></xsl:when><xsl:otherwise><xsl:value-of select="member/@DisplayName"/><' +
+  '/xsl:otherwise></xsl:choose></div></xsl:if>' + #10 +
   '    <xsl:apply-templates select="member/summary"/>' + #10 +
   '    <xsl:if test="member/typeparam"><h4>@@Type Parameters@@</h4><dl><xsl:apply-templates select="member/typeparam"/></dl></xsl:if>' + #10 +
   '    <xsl:if test="member/param"><h4>@@Parameters@@</h4><dl><xsl:apply-templates select="member/param"/></dl></xsl:if>' + #10 +
@@ -22,6 +25,7 @@ const CEnhancedHelpInsightXslt =
   '    <xsl:apply-templates select="member/comments|member/permission"/>' + #10 +
   '   </div></body>' + #10 +
   '  </html>' + #10 +
+  '  </xsl:if>' + #10 +
   ' </xsl:template>' + #10 +
   ' <xsl:template match="summary|remarks|returns|value|example|comments"><div class="hint-section"><xsl:apply-templates/></div></xsl:template>' + #10 +
   ' <xsl:template match="param|typeparam"><dt><code><xsl:value-of select="@name"/></code><xsl:if test="@type"><span class="parameter-type"><xsl:text>: </xsl:text><xsl:value-of select=' +
