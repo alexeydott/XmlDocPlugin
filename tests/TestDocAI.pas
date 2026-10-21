@@ -20,6 +20,7 @@ type [TestFixture] TDocAITests=class
  [Test] procedure IndependentSectionProposals;
  [Test] procedure XMLSectionRoundTrips;
  [Test] procedure ReviewRequiresDocumentation;
+ [Test] procedure ReviewStructuredDocumentation;
  end;
 implementation
 uses System.IOUtils,System.SysUtils,System.JSON,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.AI.Contracts,XmlDoc.AI.Context,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.AI.Transport,XmlDoc.AI.Text,XmlDoc.AI.Toon,XmlDoc.Model,XmlDoc.SourceAccess;
@@ -305,6 +306,16 @@ begin
   Prompt.SystemText:=Token;BuildAIRequest(P,Prompt,C,'');Prompt.SystemText:='';Prompt.UserText:='{{ signature }} {{ implementation }} '+Token;BuildAIRequest(P,Prompt,C,'');
  end;
  C.Documentation:='  ';Assert.WillRaise(procedure begin BuildAIRequest(P,Prompt,C,'');end,EAIError);
+end;
+procedure TDocAITests.ReviewStructuredDocumentation;
+var C:TAIContext;P:TAIProfile;Prompt:TAIPrompt;
+begin
+ C:=Default(TAIContext);C.Signature:='function Run:Integer';C.Code:='begin Result:=1;end;';P:=TAIProfile.Defaults;P.Authorization:='none';P.Model:='fixture';Prompt:=TAIPrompt.BuiltIn(aoReview);
+ for var Text in ['{"summary":"","returns":"","remarks":"","parameters":[]}','{"summary":" ","returns":"<para><b/></para>","parameters":[{"name":"Value","description":" "}]}'] do begin
+  C.Documentation:=Text;Assert.WillRaise(procedure begin BuildAIRequest(P,Prompt,C,'');end,EAIError);
+  BuildAIRequest(P,TAIPrompt.BuiltIn(aoDescribe),C,'');
+ end;
+ for var Text in ['{"returns":"Computed value."}','{"remarks":"A supported side effect."}','{"parameters":[{"name":"Value","description":"The input."}]}','{"summary":"<see cref=\"TWorker\"/>"}'] do begin C.Documentation:=Text;BuildAIRequest(P,Prompt,C,'');end;
 end;
 initialization TDUnitX.RegisterTestFixture(TDocAITests);
 end.

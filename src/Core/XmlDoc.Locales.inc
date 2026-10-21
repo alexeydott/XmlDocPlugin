@@ -582,7 +582,48 @@ const
   '  "AI response requires a text summary": "Ответ AI должен содержать текстовое поле summary",' +
   '  "AI response requires an uncertainties array": "Ответ AI должен содержать массив uncertainties",' +
   '  "Waiting for source write": "Ожидание записи в исходник",' +
-  '  "Existing documentation is required": "Необходима текущая документация"' +
+  '  "Existing documentation is required": "Необходима текущая документация",' +
+  '  "Help Insight": "Help Insight",' +
+  '  "Customize native Help Insight": "Настроить встроенные подсказки Help Insight",' +
+  '  "Hint width (px):": "Ширина подсказки (px):",' +
+  '  "Hint font size (pt):": "Размер шрифта подсказки (pt):",' +
+  '  "Line spacing (%):": "Межстрочный интервал (%):",' +
+  '  "Wrap long signatures": "Переносить длинные сигнатуры",' +
+  '  "Compact parameter descriptions": "Компактные описания параметров",' +
+  '  "Parameter name column (px):": "Столбец имён параметров (px):",' +
+  '  "Applies on OK to this IDE installation. Disable to remove plugin styling. A backup is kept; theme colors are preserved.": "Применяется по ОК для этой установки IDE. Отключение убирает стили плагина' +
+  '. Сохраняются резервная копия и цвета темы.",' +
+  '  "Applies on OK. Disable to remove plugin styling. For a protected IDE folder, export CSS and copy it with administrator permission. A backup is kept.": "Применяется по ОК. Отключение убирает стили п' +
+  'лагина. Для защищённой папки экспортируйте CSS и скопируйте с правами администратора. Создаётся резервная копия.",' +
+  '  "Export CSS...": "Экспорт CSS...",' +
+  '  "Export Help Insight CSS": "Экспорт CSS для Help Insight",' +
+  '  "CSS exported. Copy it to the IDE stylesheet path with administrator permission if required.": "CSS экспортирован. Скопируйте его по пути стилей IDE; при необходимости подтвердите права администрато' +
+  'ра.",' +
+  '  "Cannot update Help Insight CSS. If the IDE folder is protected, export the CSS and copy it with administrator permission.": "Не удалось изменить CSS Help Insight. Если папка IDE защищена, экспортир' +
+  'уйте CSS и скопируйте его с правами администратора.",' +
+  '  "Apply through Windows...": "Применить через Windows...",' +
+  '  "Applies on OK. For a protected IDE folder, use Apply through Windows and approve UAC, or export CSS. Disable to remove plugin styling. A backup is kept.": "Применяется по ОК. Для защищённой папки н' +
+  'ажмите «Применить через Windows» и подтвердите UAC либо экспортируйте CSS. Отключение убирает стили плагина. Создаётся копия.",' +
+  '  "Cannot update Help Insight CSS. For a protected IDE folder, use Apply through Windows or export the CSS and copy it with administrator permission.": "Не удалось изменить CSS Help Insight. Для защищ' +
+  'ённой папки используйте «Применить через Windows» либо экспортируйте CSS и скопируйте с правами администратора.",' +
+  '  "Hint appearance:": "Оформление подсказок:",' +
+  '  "IDE default": "Как в IDE",' +
+  '  "Extended": "Расширенное",' +
+  '  "Preview hint...": "Предпросмотр подсказки...",' +
+  '  "Restore original templates": "Восстановить исходные шаблоны",' +
+  '  "Help Insight preview": "Предпросмотр Help Insight",' +
+  '  "Notes to callers": "Примечания для вызывающего кода",' +
+  '  "Warning": "Предупреждение",' +
+  '  "Tip": "Совет",' +
+  '  "Note": "Примечание",' +
+  '  "Enhanced templates can be exported for administrator installation.": "Расширенные шаблоны можно экспортировать для установки с правами администратора.",' +
+  '  "Export or restore templates with write access to the IDE folder.": "Для экспорта или восстановления шаблонов нужен доступ на запись в папку IDE.",' +
+  '  "Template changes require restarting the IDE. CSS follows the current IDE theme. Disable or restore to return to the original template.": "Изменение шаблона требует перезапуска IDE. CSS соответствуе' +
+  'т текущей теме IDE. Отключите оформление или восстановите исходный шаблон.",' +
+  '  "Export templates...": "Экспорт шаблонов...",' +
+  '  "Export Help Insight templates": "Экспорт шаблонов Help Insight",' +
+  '  "Templates exported. Copy HelpInsight.css to ObjRepos and HelpInsight.xsl to ObjRepos and the IDE language folder. Restart the IDE.": "Шаблоны экспортированы. Скопируйте HelpInsight.css в ObjRepos, ' +
+  'а HelpInsight.xsl — в ObjRepos и языковую папку IDE. Перезапустите IDE."' +
   '}';
  CLocale_zh =
   '{' +
@@ -1162,7 +1203,44 @@ const
   '  "AI response requires a text summary": "AI 响应必须包含文本 summary 字段",' +
   '  "AI response requires an uncertainties array": "AI 响应必须包含 uncertainties 数组",' +
   '  "Waiting for source write": "正在等待写入源代码",' +
-  '  "Existing documentation is required": "需要现有文档"' +
+  '  "Existing documentation is required": "需要现有文档",' +
+  '  "Help Insight": "Help Insight",' +
+  '  "Customize native Help Insight": "自定义 IDE 的 Help Insight",' +
+  '  "Hint width (px):": "提示宽度（像素）：",' +
+  '  "Hint font size (pt):": "提示字号（磅）：",' +
+  '  "Line spacing (%):": "行距（%）：",' +
+  '  "Parameter name column (px):": "参数名称列宽（像素）：",' +
+  '  "Wrap long signatures": "自动换行长签名",' +
+  '  "Compact parameter descriptions": "紧凑显示参数说明",' +
+  '  "Export CSS...": "导出 CSS...",' +
+  '  "Export Help Insight CSS": "导出 Help Insight CSS",' +
+  '  "Apply through Windows...": "通过 Windows 应用...",' +
+  '  "CSS exported. Copy it to the IDE stylesheet path with administrator permission if required.": "CSS 已导出。如有需要，请以管理员权限将其复制到 IDE 样式表路径。",' +
+  '  "Applies on OK to this IDE installation. Disable to remove plugin styling. A backup is kept; theme colors are preserved.": "点击确定后应用到当前 IDE。禁用可移除插件样式。保留备份和主题颜色。",' +
+  '  "Applies on OK. Disable to remove plugin styling. For a protected IDE folder, export CSS and copy it with administrator permission. A backup is kept.": "点击确定后应用。禁用可移除插件样式。如果 IDE 文件夹受保护，请导出 CSS 并以管理员' +
+  '权限复制。保留备份。",' +
+  '  "Applies on OK. For a protected IDE folder, use Apply through Windows and approve UAC, or export CSS. Disable to remove plugin styling. A backup is kept.": "点击确定后应用。如果 IDE 文件夹受保护，请使用“通过 Windows 应用”并' +
+  '批准 UAC，或导出 CSS。禁用可移除插件样式。保留备份。",' +
+  '  "Cannot update Help Insight CSS. If the IDE folder is protected, export the CSS and copy it with administrator permission.": "无法更新 Help Insight CSS。如果 IDE 文件夹受保护，请导出 CSS 并以管理员权限复制。",' +
+  '  "Cannot update Help Insight CSS. For a protected IDE folder, use Apply through Windows or export the CSS and copy it with administrator permission.": "无法更新 Help Insight CSS。如果文件夹受保护，请通过 Windows 应用，或' +
+  '导出 CSS 并以管理员权限复制。",' +
+  '  "Hint appearance:": "提示外观：",' +
+  '  "IDE default": "IDE 默认",' +
+  '  "Extended": "增强",' +
+  '  "Preview hint...": "预览提示...",' +
+  '  "Restore original templates": "恢复原始模板",' +
+  '  "Help Insight preview": "Help Insight 预览",' +
+  '  "Notes to callers": "调用方注意事项",' +
+  '  "Warning": "警告",' +
+  '  "Tip": "提示",' +
+  '  "Note": "注意",' +
+  '  "Enhanced templates can be exported for administrator installation.": "可导出增强模板，以管理员权限安装。",' +
+  '  "Export or restore templates with write access to the IDE folder.": "导出或恢复模板时需要 IDE 文件夹的写入权限。",' +
+  '  "Template changes require restarting the IDE. CSS follows the current IDE theme. Disable or restore to return to the original template.": "更改模板后需要重启 IDE。CSS 跟随当前 IDE 主题。禁用或恢复可返回原始模板。",' +
+  '  "Export templates...": "导出模板...",' +
+  '  "Export Help Insight templates": "导出 Help Insight 模板",' +
+  '  "Templates exported. Copy HelpInsight.css to ObjRepos and HelpInsight.xsl to ObjRepos and the IDE language folder. Restart the IDE.": "模板已导出。将 HelpInsight.css 复制到 ObjRepos，将 HelpInsight.xsl 复制到 ObjR' +
+  'epos 及 IDE 语言文件夹，然后重启 IDE。"' +
   '}';
  CLocale_ko =
   '{' +
@@ -1744,7 +1822,46 @@ const
   '  "AI response requires a text summary": "AI 응답에는 summary 텍스트 필드가 필요합니다",' +
   '  "AI response requires an uncertainties array": "AI 응답에는 uncertainties 배열이 필요합니다",' +
   '  "Waiting for source write": "소스 기록을 기다리는 중",' +
-  '  "Existing documentation is required": "기존 문서가 필요합니다"' +
+  '  "Existing documentation is required": "기존 문서가 필요합니다",' +
+  '  "Help Insight": "Help Insight",' +
+  '  "Customize native Help Insight": "IDE Help Insight 사용자 지정",' +
+  '  "Hint width (px):": "도움말 너비(px):",' +
+  '  "Hint font size (pt):": "도움말 글꼴 크기(pt):",' +
+  '  "Line spacing (%):": "줄 간격(%):",' +
+  '  "Parameter name column (px):": "매개변수 이름 열 너비(px):",' +
+  '  "Wrap long signatures": "긴 시그니처 줄 바꿈",' +
+  '  "Compact parameter descriptions": "매개변수 설명을 간결하게 배치",' +
+  '  "Export CSS...": "CSS 내보내기...",' +
+  '  "Export Help Insight CSS": "Help Insight CSS 내보내기",' +
+  '  "Apply through Windows...": "Windows를 통해 적용...",' +
+  '  "CSS exported. Copy it to the IDE stylesheet path with administrator permission if required.": "CSS를 내보냈습니다. 필요한 경우 관리자 권한으로 IDE 스타일시트 경로에 복사하세요.",' +
+  '  "Applies on OK to this IDE installation. Disable to remove plugin styling. A backup is kept; theme colors are preserved.": "확인을 누르면 현재 IDE에 적용됩니다. 사용을 해제하면 플러그인 스타일을 제거합니다. 백업과 테마 색상은 유지됩니다.",' +
+  '  "Applies on OK. Disable to remove plugin styling. For a protected IDE folder, export CSS and copy it with administrator permission. A backup is kept.": "확인을 누르면 적용됩니다. 사용을 해제하면 플러그인 스타일을 제거합니다. IDE ' +
+  '폴더가 보호된 경우 CSS를 내보내 관리자 권한으로 복사하세요. 백업은 유지됩니다.",' +
+  '  "Applies on OK. For a protected IDE folder, use Apply through Windows and approve UAC, or export CSS. Disable to remove plugin styling. A backup is kept.": "확인을 누르면 적용됩니다. IDE 폴더가 보호된 경우 Windows를 통해' +
+  ' 적용하고 UAC를 승인하거나 CSS를 내보내세요. 사용을 해제하면 플러그인 스타일을 제거합니다. 백업은 유지됩니다.",' +
+  '  "Cannot update Help Insight CSS. If the IDE folder is protected, export the CSS and copy it with administrator permission.": "Help Insight CSS를 업데이트할 수 없습니다. IDE 폴더가 보호된 경우 CSS를 내보내 관리자 권한으로 복사하세요."' +
+  ',' +
+  '  "Cannot update Help Insight CSS. For a protected IDE folder, use Apply through Windows or export the CSS and copy it with administrator permission.": "Help Insight CSS를 업데이트할 수 없습니다. 폴더가 보호된 경우 Wind' +
+  'ows를 통해 적용하거나 CSS를 내보내 관리자 권한으로 복사하세요.",' +
+  '  "Hint appearance:": "도움말 모양:",' +
+  '  "IDE default": "IDE 기본값",' +
+  '  "Extended": "확장",' +
+  '  "Preview hint...": "도움말 미리 보기...",' +
+  '  "Restore original templates": "원본 템플릿 복원",' +
+  '  "Help Insight preview": "Help Insight 미리 보기",' +
+  '  "Notes to callers": "호출자 참고 사항",' +
+  '  "Warning": "경고",' +
+  '  "Tip": "팁",' +
+  '  "Note": "참고",' +
+  '  "Enhanced templates can be exported for administrator installation.": "확장 템플릿을 내보내 관리자 권한으로 설치할 수 있습니다.",' +
+  '  "Export or restore templates with write access to the IDE folder.": "템플릿을 내보내거나 복원하려면 IDE 폴더에 쓰기 권한이 필요합니다.",' +
+  '  "Template changes require restarting the IDE. CSS follows the current IDE theme. Disable or restore to return to the original template.": "템플릿을 변경하면 IDE를 다시 시작해야 합니다. CSS는 현재 IDE 테마를 따릅니다. 원본 템플릿으로 ' +
+  '돌아가려면 사용을 해제하거나 복원하세요.",' +
+  '  "Export templates...": "템플릿 내보내기...",' +
+  '  "Export Help Insight templates": "Help Insight 템플릿 내보내기",' +
+  '  "Templates exported. Copy HelpInsight.css to ObjRepos and HelpInsight.xsl to ObjRepos and the IDE language folder. Restart the IDE.": "템플릿을 내보냈습니다. HelpInsight.css를 ObjRepos에, HelpInsight.xsl을 ObjRe' +
+  'pos 및 IDE 언어 폴더에 복사한 후 IDE를 다시 시작하세요."' +
   '}';
  CLocale_ja =
   '{' +
@@ -2325,5 +2442,44 @@ const
   '  "AI response requires a text summary": "AI 応答には summary テキストフィールドが必要です",' +
   '  "AI response requires an uncertainties array": "AI 応答には uncertainties 配列が必要です",' +
   '  "Waiting for source write": "ソースへの書き込みを待機中",' +
-  '  "Existing documentation is required": "既存のドキュメントが必要です"' +
+  '  "Existing documentation is required": "既存のドキュメントが必要です",' +
+  '  "Help Insight": "Help Insight",' +
+  '  "Customize native Help Insight": "IDE の Help Insight をカスタマイズ",' +
+  '  "Hint width (px):": "ヒントの幅（px）:",' +
+  '  "Hint font size (pt):": "ヒントの文字サイズ（pt）:",' +
+  '  "Line spacing (%):": "行間（%）:",' +
+  '  "Parameter name column (px):": "パラメーター名の列幅（px）:",' +
+  '  "Wrap long signatures": "長いシグネチャを折り返す",' +
+  '  "Compact parameter descriptions": "パラメーターの説明をコンパクトに表示",' +
+  '  "Export CSS...": "CSS をエクスポート...",' +
+  '  "Export Help Insight CSS": "Help Insight CSS をエクスポート",' +
+  '  "Apply through Windows...": "Windows 経由で適用...",' +
+  '  "CSS exported. Copy it to the IDE stylesheet path with administrator permission if required.": "CSS をエクスポートしました。必要に応じて管理者権限で IDE のスタイルシートのパスにコピーしてください。",' +
+  '  "Applies on OK to this IDE installation. Disable to remove plugin styling. A backup is kept; theme colors are preserved.": "OK で現在の IDE に適用します。無効にするとプラグインのスタイルを削除します。バックアップとテーマの色は保持されます。",' +
+  '  "Applies on OK. Disable to remove plugin styling. For a protected IDE folder, export CSS and copy it with administrator permission. A backup is kept.": "OK で適用します。無効にするとプラグインのスタイルを削除します。IDE フォルダーが保護' +
+  'されている場合は CSS をエクスポートし、管理者権限でコピーしてください。バックアップは保持されます。",' +
+  '  "Applies on OK. For a protected IDE folder, use Apply through Windows and approve UAC, or export CSS. Disable to remove plugin styling. A backup is kept.": "OK で適用します。IDE フォルダーが保護されている場合は Windows 経由' +
+  'で適用して UAC を承認するか、CSS をエクスポートしてください。無効にするとプラグインのスタイルを削除します。バックアップは保持されます。",' +
+  '  "Cannot update Help Insight CSS. If the IDE folder is protected, export the CSS and copy it with administrator permission.": "Help Insight CSS を更新できません。IDE フォルダーが保護されている場合は CSS をエクスポートし、管理者権限でコピーしてく' +
+  'ださい。",' +
+  '  "Cannot update Help Insight CSS. For a protected IDE folder, use Apply through Windows or export the CSS and copy it with administrator permission.": "Help Insight CSS を更新できません。フォルダーが保護されている場合は Wind' +
+  'ows 経由で適用するか、CSS をエクスポートし、管理者権限でコピーしてください。",' +
+  '  "Hint appearance:": "ヒントの外観:",' +
+  '  "IDE default": "IDE の既定",' +
+  '  "Extended": "拡張",' +
+  '  "Preview hint...": "ヒントをプレビュー...",' +
+  '  "Restore original templates": "元のテンプレートを復元",' +
+  '  "Help Insight preview": "Help Insight のプレビュー",' +
+  '  "Notes to callers": "呼び出し元への注意",' +
+  '  "Warning": "警告",' +
+  '  "Tip": "ヒント",' +
+  '  "Note": "注記",' +
+  '  "Enhanced templates can be exported for administrator installation.": "拡張テンプレートをエクスポートし、管理者権限でインストールできます。",' +
+  '  "Export or restore templates with write access to the IDE folder.": "テンプレートのエクスポートまたは復元には IDE フォルダーへの書き込み権限が必要です。",' +
+  '  "Template changes require restarting the IDE. CSS follows the current IDE theme. Disable or restore to return to the original template.": "テンプレートの変更後は IDE の再起動が必要です。CSS は現在の IDE テーマに従います。無効化または復元すると' +
+  '元のテンプレートに戻ります。",' +
+  '  "Export templates...": "テンプレートのエクスポート...",' +
+  '  "Export Help Insight templates": "Help Insight テンプレートのエクスポート",' +
+  '  "Templates exported. Copy HelpInsight.css to ObjRepos and HelpInsight.xsl to ObjRepos and the IDE language folder. Restart the IDE.": "テンプレートをエクスポートしました。HelpInsight.css を ObjRepos に、HelpInsight.xsl ' +
+  'を ObjRepos と IDE の言語フォルダーにコピーし、IDE を再起動してください。"' +
   '}';

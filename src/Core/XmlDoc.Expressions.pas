@@ -105,7 +105,7 @@ begin
 end;
 function ResolveDocumentationExpression(Parser:TDocParser;const Source:string;Position,Line:Integer;
  const Symbols:TArray<TCodeElementInfo>;out Query,Reason:string):TArray<TCodeElementInfo>;
-var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string;Args:TList<string>;Candidates,Best:TList<TCodeElementInfo>;HasCall,InString,UncertainOwners,MissingAncestors,UncertainCandidate,ImplicitSelf,UnknownScope,HasTypeArguments:Boolean;Bindings:TDictionary<string,string>;
+var First,Last,OpenAt,Depth,Angle,BestScore,CursorColumn:Integer;Owner,Member,Receiver:string;Args:TList<string>;Candidates,Best:TList<TCodeElementInfo>;HasCall,InString,UncertainOwners,MissingAncestors,UncertainCandidate,ImplicitSelf,UnknownScope,HasTypeArguments:Boolean;Bindings:TDictionary<string,string>;
  function ExpressionType(const Expression:string):string;
  var Text,Digits:string;Magnitude:UInt64;Negative:Boolean;
  begin
@@ -123,7 +123,7 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
   end;
   if TRegEx.IsMatch(Text,'^[+-]?[0-9]+(?:\.[0-9]+(?:[Ee][+-]?[0-9]+)?|[Ee][+-]?[0-9]+)$') then Exit('Double');
   if (Text[1]=#39) and (Text[Length(Text)]=#39) then Exit('string');
-  if SameText(Text,'True') or SameText(Text,'False') then Exit('Boolean');Result:=Parser.BindingType(Text,Line);
+  if SameText(Text,'True') or SameText(Text,'False') then Exit('Boolean');Result:=Parser.BindingType(Text,Line,CursorColumn);
  end;
  function TypeDeclarationName(const E:TCodeElementInfo):string;
  begin Result:=E.FullName;if Length(E.GenericParams)>0 then Result:=Result+'<'+string.Join(',',E.GenericParams)+'>';end;
@@ -213,7 +213,7 @@ var First,Last,OpenAt,Depth,Angle,BestScore:Integer;Owner,Member,Receiver:string
  end;
 begin
  Result:=nil;Reason:='';Query:='';if not Assigned(Parser) or (Source='') then Exit;
- Position:=EnsureRange(Position,0,Length(Source));First:=Position;Last:=Position+1;UncertainOwners:=False;MissingAncestors:=False;UncertainCandidate:=False;
+ Position:=EnsureRange(Position,0,Length(Source));var CursorStart:=Position;while (CursorStart>0) and not CharInSet(Source[CursorStart],[#10,#13]) do Dec(CursorStart);CursorColumn:=Position-CursorStart;First:=Position;Last:=Position+1;UncertainOwners:=False;MissingAncestors:=False;UncertainCandidate:=False;
  if not ExtractReference(Source,Position,Query,Owner,Member,Reason,Last,HasTypeArguments) then Exit;
  Candidates:=TList<TCodeElementInfo>.Create;Best:=TList<TCodeElementInfo>.Create;Args:=TList<string>.Create;Bindings:=TDictionary<string,string>.Create;
  try
@@ -231,7 +231,7 @@ begin
    if Locals[0].Kind<>dekMethod then begin Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';Exit;end;
    Result:=Locals;if Length(Locals)>1 then Reason:='Several declarations match this context; choose an overload.';Exit;
   end;
-  ImplicitSelf:=Owner='';if ImplicitSelf then Receiver:=Parser.BindingType('Self',Line);
+  ImplicitSelf:=Owner='';if ImplicitSelf then Receiver:=Parser.BindingType('Self',Line,CursorColumn);
   var OwnerNames:=Owners(Receiver);if (Owner<>'') and (Length(OwnerNames)=0) then begin Reason:='The receiver type is unknown or ambiguous; choose a declaration explicitly.';Exit;end;
   for var E in Symbols do if SameText(E.Name,Member) then begin
    if (Owner='') and (Length(OwnerNames)=0) then Candidates.Add(E) else for var OwnerName in OwnerNames do if SameText(LowerCase(E.FileName)+#0+DeclarationTypeKey(E.UnitName+'.'+E.QualifiedParent),OwnerName) then begin Candidates.Add(E);Break;end;

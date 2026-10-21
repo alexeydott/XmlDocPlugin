@@ -1,0 +1,5 @@
+package HelpInsightProbe;
+{$DESIGNONLY}
+requires rtl,vcl,vclie,designide,XmlDocPlugin;
+contains HelpInsightProbe in 'HelpInsightProbe.pas';
+end.

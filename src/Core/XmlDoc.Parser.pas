@@ -98,7 +98,7 @@ type
     property Defines:TArray<string> read FDefines write SetDefines;
     property SearchPaths:TArray<string> read FSearchPaths write SetSearchPaths;
     property SourceFiles:TArray<string> read FSourceFiles write SetSourceFiles;
-    function BindingType(const Name:string;Line:Integer):string;
+    function BindingType(const Name:string;Line:Integer;Column:Integer=MaxInt):string;
     /// <summary>Finds the nearest lexical bindings before considering implicit Self.</summary>
     function LocalDeclarations(const Name:string;Line:Integer;Column:Integer=MaxInt):TArray<TCodeElementInfo>;
     property DependencySnapshots:TArray<TSourceSnapshot> read FDependencySnapshots;
@@ -1396,28 +1396,46 @@ begin
   end;
 end;
 
-function TDocParser.LocalDeclarations(const Name:string;Line:Integer;Column:Integer):TArray<TCodeElementInfo>;
-var Scope,Declaration:TSyntaxNode;BestLine:Integer;
- procedure InlineDeclarations(Node:TSyntaxNode);
- begin
-  if not Assigned(Node) or ((Node.Line>Line) or ((Node.Line=Line) and (Node.Col>Column))) then Exit;
-  if (Node.Typ=ntMethod) and (Node<>Scope) then Exit;
-  if (Node is TCompoundSyntaxNode) and ((TCompoundSyntaxNode(Node).EndLine<Line) or ((TCompoundSyntaxNode(Node).EndLine=Line) and (TCompoundSyntaxNode(Node).EndCol<Column))) then Exit;
-  if (Node.Typ=ntVariable) and SameText(DeclarationName(Node),Name) and (Node.Line>=BestLine) then begin Declaration:=Node;BestLine:=Node.Line;end;
-  for var Child in Node.ChildNodes do InlineDeclarations(Child);
+function LexicalContains(Node:TSyntaxNode;Line,Column:Integer):Boolean;
+var Last:TSyntaxNode;
+begin
+ Result:=False;if not Assigned(Node) or (Node.Line>Line) or ((Node.Line=Line) and (Node.Col>Column)) then Exit;
+ Last:=Node;if Node.Typ=ntAnonymousMethod then Last:=Node.FindNode(ntStatements);
+ if Last is TCompoundSyntaxNode then begin
+  if TCompoundSyntaxNode(Last).EndLine<Line then Exit;
+  if (Column<>MaxInt) and (TCompoundSyntaxNode(Last).EndLine=Line) and (TCompoundSyntaxNode(Last).EndCol<Column) then Exit;
  end;
- procedure FindScope(Node:TSyntaxNode);
+ Result:=True;
+end;
+function ActiveLexicalScope(Root:TSyntaxNode;Line,Column:Integer):TSyntaxNode;
+ procedure Visit(Node:TSyntaxNode);
  begin
-  if not Assigned(Node) or ((Node.Line>Line) or ((Node.Line=Line) and (Node.Col>Column))) then Exit;
-  if (Node is TCompoundSyntaxNode) and ((TCompoundSyntaxNode(Node).EndLine<Line) or ((TCompoundSyntaxNode(Node).EndLine=Line) and (TCompoundSyntaxNode(Node).EndCol<Column))) then Exit;
-  if Node.Typ=ntMethod then Scope:=Node;
-  for var Child in Node.ChildNodes do FindScope(Child);
+  if not LexicalContains(Node,Line,Column) then Exit;
+  if Node.Typ in [ntMethod,ntAnonymousMethod] then Result:=Node;
+  for var Child in Node.ChildNodes do Visit(Child);
+ end;
+begin Result:=Root;Visit(Root);end;
+function VisibleDeclaration(Scope:TSyntaxNode;const Name:string;Line,Column:Integer):TSyntaxNode;
+var BestLine,BestColumn:Integer;
+ procedure Visit(Node:TSyntaxNode);
+ begin
+  if not LexicalContains(Node,Line,Column) then Exit;
+  // Nested callable scopes are searched separately, only when they contain the cursor.
+  if (Node<>Scope) and (Node.Typ in [ntMethod,ntAnonymousMethod,ntTypeDecl,ntType]) then Exit;
+  if (Node.Typ in [ntVariable,ntConstant]) and SameText(DeclarationName(Node),Name) and
+    ((Node.Line>BestLine) or ((Node.Line=BestLine) and (Node.Col>=BestColumn))) then begin Result:=Node;BestLine:=Node.Line;BestColumn:=Node.Col;end;
+  for var Child in Node.ChildNodes do Visit(Child);
  end;
 begin
- Result:=nil;Scope:=nil;FindScope(FRootNode);
+ Result:=FindDeclaration(Scope,Name);BestLine:=0;BestColumn:=0;Visit(Scope);
+end;
+function TDocParser.LocalDeclarations(const Name:string;Line:Integer;Column:Integer):TArray<TCodeElementInfo>;
+var Scope,Declaration:TSyntaxNode;
+begin
+ Result:=nil;Scope:=ActiveLexicalScope(FRootNode,Line,Column);
  while Assigned(Scope) do begin
-  if Scope.Typ=ntMethod then begin
-   Declaration:=FindDeclaration(Scope,Name);BestLine:=0;InlineDeclarations(Scope);
+  if Scope.Typ in [ntMethod,ntAnonymousMethod] then begin
+   Declaration:=VisibleDeclaration(Scope,Name,Line,Column);
    if Assigned(Declaration) then begin
     if (Declaration.Typ=ntMethod) and Assigned(Declaration.ParentNode) then begin
      for var Child in Declaration.ParentNode.ChildNodes do
@@ -1429,29 +1447,18 @@ begin
   Scope:=Scope.ParentNode;
  end;
 end;
-
-function TDocParser.BindingType(const Name:string;Line:Integer):string;
-var Scope,Declaration,N:TSyntaxNode;BestLine:Integer;
- function ContainsLine(Node:TSyntaxNode):Boolean;
- begin Result:=(Node.Line<=Line) and (not (Node is TCompoundSyntaxNode) or (TCompoundSyntaxNode(Node).EndLine>=Line));end;
- procedure FindScope(Node:TSyntaxNode);
- begin
-  if not Assigned(Node) or not ContainsLine(Node) then Exit;
-  if Node.Typ=ntMethod then Scope:=Node;
-  for var Child in Node.ChildNodes do FindScope(Child);
- end;
- procedure InlineBindings(Node:TSyntaxNode);
- begin
-  if (Node.Typ=ntMethod) and (Node<>Scope) then Exit;
-  if not ContainsLine(Node) then Exit;
-  if (Node.Typ=ntVariable) and SameText(DeclarationName(Node),Name) and (Node.Line>=BestLine) then begin Declaration:=Node;BestLine:=Node.Line;end;
-  for var Child in Node.ChildNodes do InlineBindings(Child);
- end;
+function TDocParser.BindingType(const Name:string;Line:Integer;Column:Integer):string;
+var Scope,Declaration,N:TSyntaxNode;
 begin
- Result:='';Scope:=FRootNode;FindScope(FRootNode);
- if SameText(Name,'Self') and Assigned(Scope) and (Scope.Typ=ntMethod) then Exit(NodeToElementInfo(Scope).QualifiedParent);
- Declaration:=FindDeclaration(Scope,Name);BestLine:=0;InlineBindings(Scope);
- while not Assigned(Declaration) and Assigned(Scope) do begin Scope:=Scope.ParentNode;Declaration:=FindDeclaration(Scope,Name);end;
+ Result:='';Scope:=ActiveLexicalScope(FRootNode,Line,Column);Declaration:=nil;
+ while Assigned(Scope) do begin
+  if SameText(Name,'Self') then begin
+   if Scope.Typ=ntMethod then begin Result:=NodeToElementInfo(Scope).QualifiedParent;if Result<>'' then Exit;end;
+  end else if (Scope=FRootNode) or (Scope.Typ in [ntMethod,ntAnonymousMethod]) then begin
+   Declaration:=VisibleDeclaration(Scope,Name,Line,Column);if Assigned(Declaration) then Break;
+  end;
+  Scope:=Scope.ParentNode;
+ end;
  if not Assigned(Declaration) then Exit;
  if Declaration.Typ=ntTypeDecl then Exit(DeclarationName(Declaration));
  N:=Declaration.FindNode(ntType);if not Assigned(N) and (Declaration.Typ in [ntName,ntVariable]) and Assigned(Declaration.ParentNode) then N:=Declaration.ParentNode.FindNode(ntType);

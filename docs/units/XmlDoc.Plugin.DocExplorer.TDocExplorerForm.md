@@ -15,6 +15,8 @@ Dockable unit documentation browser and editor with project tools.
 | `FBrowserError` | field | private |  |
 | `FBrowserReady` | field | private |  |
 | `FClosing` | field | private |  |
+| `FContextProjectFile` | field | private |  |
+| `FContextSourceFile` | field | private |  |
 | `FCurrentFileName` | field | private |  |
 | `FDiagnostic` | field | private |  |
 | `FDocParser` | field | private |  |
@@ -72,6 +74,10 @@ Dockable unit documentation browser and editor with project tools.
 ### FBrowserReady
 
 ### FClosing
+
+### FContextProjectFile
+
+### FContextSourceFile
 
 ### FCurrentFileName
 

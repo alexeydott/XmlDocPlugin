@@ -14,6 +14,7 @@ type
   [Test] procedure NumericBoundariesAndFuzz;
   [Test] procedure DistinctStringOverloads;
   [Test] procedure InlineVariableShadowsWithinBlock;
+  [Test] procedure AnonymousScopesAndConstants;
  end;
 implementation
 uses System.SysUtils,System.Generics.Collections,XmlDoc.Parser,XmlDoc.Consts,XmlDoc.Expressions,XmlDoc.ProjectIndex;
@@ -194,6 +195,37 @@ begin
    var Start:=At;while (Start>1) and (Source[Start-1]<>#10) do Dec(Start);Found:=ResolveDocumentationExpression(P,Source,Start+1,Line,P.GetAllElements,Query,Reason);
    if Scenario=1 then begin Assert.AreEqual<NativeInt>(0,Length(Found));Assert.IsTrue(Reason<>'');end
    else begin Assert.AreEqual<NativeInt>(1,Length(Found),IntToStr(Scenario)+Reason);Assert.AreEqual('TWorker',Found[0].QualifiedParent);Assert.AreEqual('',Reason);end;
+  end;
+ finally P.Free;end;
+end;
+procedure TDocQuickScopeTests.AnonymousScopesAndConstants;
+var P:TDocParser;Source,Query,Reason,Body:string;Found:TArray<TCodeElementInfo>;
+begin
+ P:=TDocParser.Create;
+ try
+  for var Round:=0 to 179 do begin
+   var Scenario:=Round mod 9;
+   Body:='Callback := procedure'+sLineBreak+'var Run:Integer;'+sLineBreak+'begin Run:=0; end;'+sLineBreak+'Run(1); // target';
+   if Scenario=1 then Body:='Callback := procedure'+sLineBreak+'var Run:Integer;'+sLineBreak+'begin'+sLineBreak+' Run(1); // target'+sLineBreak+'end;';
+   if Scenario=2 then Body:='Other := procedure(Run:Integer)'+sLineBreak+'begin'+sLineBreak+' Run(1); // target'+sLineBreak+'end;';
+   if Scenario=3 then Body:='var Run:TAction;'+sLineBreak+'Callback := procedure'+sLineBreak+'begin'+sLineBreak+' Run(1); // target'+sLineBreak+'end;';
+   if Scenario=4 then Body:='Callback := procedure'+sLineBreak+'var Run:Integer;'+sLineBreak+'begin'+sLineBreak+' Self.Run(1); // target'+sLineBreak+'end;';
+   if Scenario=5 then Body:='const Run=42;'+sLineBreak+'Run(1); // target';
+   if Scenario=6 then Body:='begin'+sLineBreak+' const Run=42;'+sLineBreak+'end;'+sLineBreak+'Run(1); // target';
+   if Scenario=7 then Body:='Run(1); // target'+sLineBreak+'const Run=42;';
+   if Scenario=8 then Body:='Other := procedure(Run:Integer) begin end;'+sLineBreak+'Run(1); // target';
+   Body:=StringOfChar(' ',Round mod 5)+'{ scope Пример '+IntToStr(Round)+' }'+sLineBreak+Body.Replace(#10,#10+StringOfChar(' ',Round mod 5));
+   if Odd(Round) then Body:=Body.Replace('Run','rUn');
+   Source:='unit Calls;'+sLineBreak+'interface'+sLineBreak+'type TAction=reference to procedure; TIntAction=reference to procedure(Run:Integer); TWorker=class procedure Run(Value:Integer);procedure Caller;end;'+sLineBreak+'implementation'+sLineBreak+'procedure TWorker.Caller;'+sLineBreak+'var Callback:TAction;Other:TIntAction;'+sLineBreak+'begin'+sLineBreak+Body+sLineBreak+'end;end.';
+   if Round mod 3=0 then Source:=Source.Replace(#13#10,#10);
+   P.ParseSource(Source,'Calls.pas');var At:=Pos('// target',Source);var Line:=1;for var I:=1 to At do if Source[I]=#10 then Inc(Line);var Start:=At;while (Start>1) and (Source[Start-1]<>#10) do Dec(Start);
+   var CallOffset:=LowerCase(Copy(Source,Start,At-Start)).IndexOf('run(');
+   Assert.IsTrue(CallOffset>=0,IntToStr(Round));
+   Found:=ResolveDocumentationExpression(P,Source,Start+CallOffset+1,Line,P.GetAllElements,Query,Reason);
+   if Scenario in [1,2] then Assert.AreEqual('Integer',P.BindingType('Run',Line,At-Start),IntToStr(Round));
+   if Scenario=3 then Assert.AreEqual('TAction',P.BindingType('Run',Line,At-Start),IntToStr(Round));
+   if Scenario in [0,4,6,7,8] then begin Assert.AreEqual<NativeInt>(1,Length(Found),IntToStr(Scenario)+': '+Reason);Assert.AreEqual('TWorker',Found[0].QualifiedParent);Assert.AreEqual('',Reason);end
+   else begin Assert.AreEqual<NativeInt>(0,Length(Found),IntToStr(Scenario));Assert.IsTrue(Reason<>'',IntToStr(Round));end;
   end;
  finally P.Free;end;
 end;

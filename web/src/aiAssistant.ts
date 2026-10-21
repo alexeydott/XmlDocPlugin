@@ -26,7 +26,7 @@ export function initAIAssistant(hooks:Hooks):void {
  let fragments:Fragment[]=[];let sectionFragments:Record<string,Fragment[]>={};let inputVersion=0,requestVersion=0;
  const busy=(value:boolean)=>{panel.setAttribute('aria-busy',String(value));$('ai-wait').hidden=!value;for(const id of ['ai-profile','ai-operation','ai-template','ai-instruction','ai-settings','ai-check','ai-describe','ai-rephrase','ai-review','ai-prepare'])($<HTMLInputElement>(id)).disabled=value;};
  let previewRequests=false;let pendingApply:string|null=null;let awaitingWrite=false,writeFailed=false,writeId='',writeDoc='';
- const lockWrite=(value:boolean)=>{awaitingWrite=value;for(const id of ['ai-queue-next','ai-queue-cancel','ai-cancel','ai-describe','ai-rephrase','ai-review','ai-prepare','ai-settings','ai-check'])$<HTMLButtonElement>(id).disabled=value;};
+ const lockWrite=(value:boolean)=>{awaitingWrite=value;for(const id of ['ai-queue-next','ai-queue-cancel','ai-cancel','ai-describe','ai-rephrase','ai-review','ai-prepare','ai-settings','ai-check'])$<HTMLButtonElement>(id).disabled=value;$<HTMLButtonElement>('ai-queue-next').disabled=value||writeFailed;$<HTMLButtonElement>('ai-apply').disabled=true;};
  const summarySelected=()=>$<HTMLInputElement>('ai-accept-summary').checked;
  const parameterEdits=()=>Array.from(panel.querySelectorAll<HTMLTextAreaElement>('#ai-parameters textarea')).filter(field=>field.parentElement?.querySelector<HTMLInputElement>('input[type=checkbox]')?.checked).map(field=>({name:field.dataset.name!,description:field.value}));
  const fieldSelected=(name:string)=>!$('ai-'+name+'-section').hidden&&$<HTMLInputElement>('ai-accept-'+name).checked;
@@ -37,7 +37,7 @@ export function initAIAssistant(hooks:Hooks):void {
  const snapshot=()=>JSON.parse(JSON.stringify(hooks.get())) as typeof base;
  const rawDraft=()=>!!hooks.get().doc.parseError||!!hooks.get().doc.xmlEdited||!!bridge.unappliedXml()||!!hooks.get().doc.unappliedXml;
  const current=()=>inputVersion===requestVersion&&!!stamp&&bridge.isCurrentStamp(stamp)&&!!base&&JSON.stringify(hooks.get())===JSON.stringify(base)&&!rawDraft()&&!bridge.readOnly;
- const send=(type:string,extra:any={})=>bridge.sendToHost({type,requestId,...stamp,...extra} as any);
+ const send=(type:string,extra:any={})=>bridge.sendToHost({type,requestId,projectFile:hooks.get().element?.projectFile,...stamp,...extra} as any);
  const invalidate=()=>{inputVersion++;fresh=false;$<HTMLButtonElement>('ai-send').disabled=true;$<HTMLButtonElement>('ai-apply').disabled=true;if(requestId)status('Documentation changed — rebuild the AI proposal');};
  const reload=()=>{if(requestId){send('aiCancel');busy(false);invalidate();requestId='';stamp=null;}send('aiLoad');};
  const options=()=>{const operation=$<HTMLSelectElement>('ai-operation').value;const select=$<HTMLSelectElement>('ai-template');const selected=select.value;select.replaceChildren();for(const t of templates.filter(t=>t.operation===operation)){const option=document.createElement('option');option.value=t.id;option.textContent=(t.id==='describe'||t.id==='rephrase'||t.id==='review')?translate(t.name):t.name;option.dataset.code='';select.append(option);}if(Array.from(select.options).some(o=>o.value===selected))select.value=selected;select.hidden=select.options.length<2;};
@@ -45,7 +45,7 @@ export function initAIAssistant(hooks:Hooks):void {
  const xml=()=>summarySelected()?fieldXml($<HTMLTextAreaElement>('ai-summary').value,fragments):base!.doc.summary;
  const proposalDoc=()=>{const doc=mergeParameters({...base!.doc,summary:xml()},parameterEdits().map(p=>({...p,description:fieldXml(p.description,sectionFragments['param:'+p.name.toLowerCase()]??[])})));for(const name of ['returns','remarks'] as const)if(fieldSelected(name))doc[name]=fieldXml($<HTMLTextAreaElement>('ai-'+name).value,sectionFragments[name]??[]);return doc;};
  const anySelected=()=>summarySelected()||fieldSelected('returns')||fieldSelected('remarks')||parameterEdits().length>0;
- const refreshDiff=()=>{try{const doc=proposalDoc();if(base?.element){const before=analyze(base.element,base.doc,[]);const after=analyze(base.element,doc,[]);if(after.some(i=>!before.some(old=>old.code===i.code&&old.message===i.message)))throw Error('AI proposal introduces documentation errors');}$('ai-after').textContent=editableXml(doc);$<HTMLButtonElement>('ai-apply').disabled=!fresh||!current()||!anySelected();}catch(error){status((error as Error).message);$<HTMLButtonElement>('ai-apply').disabled=true;}};
+ const refreshDiff=()=>{try{const doc=proposalDoc();if(base?.element){const before=analyze(base.element,base.doc,[]);const after=analyze(base.element,doc,[]);if(after.some(i=>!before.some(old=>old.code===i.code&&old.message===i.message)))throw Error('AI proposal introduces documentation errors');}$('ai-after').textContent=editableXml(doc);$<HTMLButtonElement>('ai-apply').disabled=awaitingWrite||!fresh||!current()||!anySelected();}catch(error){status((error as Error).message);$<HTMLButtonElement>('ai-apply').disabled=true;}};
  const prepare=(operation?:string,forcePreview=false)=>{
   panel.open=true;
   if(awaitingWrite)return;
@@ -60,7 +60,7 @@ export function initAIAssistant(hooks:Hooks):void {
  $('ai-describe').onclick=()=>prepare('describe');$('ai-rephrase').onclick=()=>prepare('rephrase');$('ai-review').onclick=()=>prepare('review');$('ai-prepare').onclick=()=>prepare(undefined,true);
  $('ai-send').onclick=()=>{if(!current()){invalidate();return;}busy(true);send('aiSend');$<HTMLButtonElement>('ai-send').disabled=true;};
  $('ai-cancel').onclick=()=>{send('aiCancel');busy(false);requestId='';fresh=false;stamp=null;invalidate();status('Cancelled');};
- $('ai-apply').onclick=()=>{if(!fresh||!current()){invalidate();return;}try{proposalDoc();const chosen=selection();pendingApply=JSON.stringify(chosen);writeId='';writeDoc='';lockWrite(true);writeFailed=false;status('Waiting for source write');send('aiApply',{...base!.element,...chosen});$<HTMLButtonElement>('ai-apply').disabled=true;}catch(error){status((error as Error).message);}};
+ $('ai-apply').onclick=()=>{if(awaitingWrite)return;if(!fresh||!current()){invalidate();return;}try{proposalDoc();const chosen=selection();pendingApply=JSON.stringify(chosen);writeId='';writeDoc='';lockWrite(true);writeFailed=false;status('Waiting for source write');send('aiApply',{...base!.element,...chosen});$<HTMLButtonElement>('ai-apply').disabled=true;}catch(error){status((error as Error).message);}};
  for(const name of ['returns','remarks']){$('ai-accept-'+name).onchange=refreshDiff;$('ai-'+name).oninput=refreshDiff;}
  $('ai-accept-summary').onchange=refreshDiff;$('ai-summary').oninput=refreshDiff;$('ai-operation').onchange=()=>{invalidate();options();};
  for(const id of ['ai-profile','ai-template','ai-instruction'])$(id).addEventListener(id==='ai-instruction'?'input':'change',invalidate);
@@ -71,7 +71,7 @@ export function initAIAssistant(hooks:Hooks):void {
   }
   if(!requestId||data.requestId!==requestId)return;
   if(data.state==='checked'){busy(false);status('Connection OK');return;}
-  if(data.state==='error'){busy(false);lockWrite(false);writeFailed=true;$<HTMLButtonElement>('ai-queue-next').disabled=true;fresh=false;status(data.message);return;}
+  if(data.state==='error'){writeFailed=awaitingWrite;pendingApply=null;busy(false);lockWrite(false);fresh=false;status(data.message);return;}
   if(data.state==='prepared'){
    operation=$<HTMLSelectElement>('ai-operation').value;sectionFragments=data.sectionFragments??{};
    busy(false);fragments=data.fragments??[];if(data.previewRequired===false&&!previewRequests){if(current()){busy(true);send('aiSend');status('AI request running');}else invalidate();return;}
@@ -87,7 +87,7 @@ $('ai-url').textContent=data.url;$('ai-request').textContent=data.request;$('ai-
    $('ai-before').textContent=base?editableXml(base.doc):'';$('ai-uncertainties').replaceChildren();for(const text of data.uncertainties??[]){const li=document.createElement('li');li.textContent=text;li.dataset.code='';$('ai-uncertainties').append(li);}status(fresh?'Review and edit the AI proposal before applying':'Documentation changed — rebuild the AI proposal');refreshDiff();return;
   }
   if(data.state==='approved'){
-   if(!fresh||!current()||pendingApply!==JSON.stringify(selection())){lockWrite(false);invalidate();return;}
+   if(!fresh||!current()||pendingApply!==JSON.stringify(selection())){pendingApply=null;lockWrite(false);invalidate();return;}
    pendingApply=null;const doc=mergeParameters({...hooks.get().doc,summary:summarySelected()?data.summaryXml:hooks.get().doc.summary},data.parameters??[]);for(const name of ['returns','remarks'] as const)if(fieldSelected(name)&&typeof data[name+'Xml']==='string')doc[name]=data[name+'Xml'];delete doc.rawXml;delete doc.xmlEdited;delete doc.parseError;
    const oldIssues=analyze(base!.element!,base!.doc,[]),newIssues=analyze(base!.element!,doc,[]);
    if(newIssues.some(i=>!oldIssues.some(old=>old.code===i.code&&old.message===i.message))){lockWrite(false);status('AI proposal introduces documentation errors');return;}
@@ -97,7 +97,7 @@ $('ai-url').textContent=data.url;$('ai-request').textContent=data.request;$('ai-
  let queue:ElementInfo[]=[],queuePosition=-1,queueWaiting=false,queueTimer:ReturnType<typeof setTimeout>|undefined;
  const pathKey=(path?:string)=>path?.replace(/\\/g,'/').toLowerCase();
  const sameTarget=(a:ElementInfo|null,b:ElementInfo|undefined)=>!!a&&!!b&&a.symbolId===b.symbolId&&pathKey(a.fileName)===pathKey(b.fileName)&&(!b.projectFile||pathKey(a.projectFile)===pathKey(b.projectFile))&&(!b.locationId||a.locationId===b.locationId);
- const stopQueue=()=>{clearTimeout(queueTimer);queueWaiting=false;queue=[];queuePosition=-1;$('ai-queue').hidden=true;};
+ const stopQueue=()=>{clearTimeout(queueTimer);queueWaiting=false;queue=[];queuePosition=-1;writeFailed=false;lockWrite(false);$('ai-queue').hidden=true;};
  const dispatchQueued=()=>{
   if(!queueWaiting||!sameTarget(hooks.get().element,queue[queuePosition]))return;
   clearTimeout(queueTimer);queueWaiting=false;
@@ -118,7 +118,7 @@ $('ai-url').textContent=data.url;$('ai-request').textContent=data.request;$('ai-
   queueTimer=setTimeout(()=>{if(queueWaiting){queueWaiting=false;status('The queued method could not be opened. Skip it or cancel the queue.');}},10000);
  };
  const startQueue=(targets:ElementInfo[])=>{
-  if(awaitingWrite)return;writeFailed=false;if(queue.length)stopQueue();const seen=new Set<string>();
+  if(awaitingWrite)return;writeFailed=false;lockWrite(false);if(queue.length)stopQueue();const seen=new Set<string>();
   queue=targets.filter(target=>{const key=pathKey(target.projectFile)+'\0'+pathKey(target.fileName)+'\0'+target.symbolId+'\0'+(target.locationId??'');if(target.kind!=='method'||target.readOnly||!target.fileName||!target.symbolId||seen.has(key))return false;seen.add(key);return true;});
   queuePosition=-1;if(queue.length)nextQueued();else status('Select writable methods for the AI queue');
  };

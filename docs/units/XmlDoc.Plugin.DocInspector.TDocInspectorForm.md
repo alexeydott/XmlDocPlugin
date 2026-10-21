@@ -15,6 +15,8 @@ Dockable declaration documentation editor hosted in WebView2.
 | `FBrowserError` | field | private |  |
 | `FBrowserReady` | field | private |  |
 | `FClosing` | field | private |  |
+| `FContextProjectFile` | field | private |  |
+| `FContextSourceFile` | field | private |  |
 | `FCurrentElement` | field | private |  |
 | `FCursorPollTimer` | field | private |  |
 | `FDiagnostic` | field | private |  |
@@ -78,6 +80,10 @@ Dockable declaration documentation editor hosted in WebView2.
 ### FBrowserReady
 
 ### FClosing
+
+### FContextProjectFile
+
+### FContextSourceFile
 
 ### FCurrentElement
 

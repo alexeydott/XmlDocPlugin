@@ -416,6 +416,40 @@ For quality gates, distinguish comment presence from readiness:
 
 `--coverage-min` checks comment presence; `--ready-min` checks readiness. Both accept 0–100 and return exit code 1 when their threshold is not met. A nonzero threshold enables coverage analysis even without `--coverage`. Pass `--placeholder-prefix` when CI uses a custom stub prefix; the CLI does not read your IDE preferences. The CLI recognizes the same multilingual defaults. Add other markers with repeatable `--placeholder-marker TEXT` options. It does not read the marker list saved in IDE Settings. Existing TODO markers remain unfinished with any configured prefix.
 
+## Customize native Help Insight
+
+Open **Document → Settings → Help Insight** and enable **Customize native Help Insight**.
+![Help Insight settings](assets/user-guide/help-insight-settings.jpg)
+
+Choose **IDE default** to retain the IDE template, or **Extended** for a heading band,
+readable parameter columns, tables, lists and notes to callers. Colours follow the IDE theme.
+This changes the IDE's native HTML Help Insight popup; it does not replace it with a browser window. A Code Insight provider that uses its own tooltip renderer may ignore the IDE's CSS and XSLT. RAD Studio 13's LSP tooltip uses a separate renderer; these template settings apply only when the active provider uses the native HTML Help Insight backend.
+
+![Extended native Help Insight in the dark IDE theme](assets/user-guide/help-insight-dark.jpg)
+
+*The native popup shows the declaration, wrapped descriptions, a table and a note to callers.*
+
+![Extended native Help Insight in the light IDE theme](assets/user-guide/help-insight-light.jpg)
+
+Adjust the width, font size, line spacing, signature wrapping and compact parameter layout.
+**Preview hint** shows a sample without saving preferences or modifying the IDE templates.
+Use an actual documented declaration in the source editor to check navigation and the final popup.
+
+Apply the settings and restart the IDE after changing the template mode. The IDE can cache
+its XSLT at startup. Both the shared and language-specific templates are updated because
+native Help Insight backends can use different files. Generated HTML documentation themes
+are independent of these popup settings.
+
+**Restore original templates** restores the first backed-up CSS and XSLT files and disables
+the customization. Disabling customization also removes the plugin's CSS overrides and
+restores its original XSLT. Existing unrelated CSS is preserved when applying preferences.
+
+If the IDE folder is protected, **Export templates** creates `HelpInsight.css` and
+`HelpInsight.xsl` in a separate folder. With the appropriate write permissions, copy the CSS
+to the IDE's `ObjRepos` folder and the XSLT to both `ObjRepos` and its active IDE-language
+subfolder (for example, `ObjRepos/en`), then restart the IDE. **Apply through Windows**
+is available for CSS-only changes; extended template changes require write access or export.
+
 ## Troubleshooting
 
 | Symptom | What to check |

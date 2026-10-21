@@ -23,6 +23,7 @@ Owns request preparation, worker cancellation and source-checked application for
 | `FOriginalSummary` | field | private |  |
 | `FParameterNames` | field | private |  |
 | `FPrepared` | field | private |  |
+| `FProjectFile` | field | private |  |
 | `FReady` | field | private |  |
 | `FRequestId` | field | private |  |
 | `FSectionFragments` | field | private |  |
@@ -74,6 +75,8 @@ Owns request preparation, worker cancellation and source-checked application for
 ### FParameterNames
 
 ### FPrepared
+
+### FProjectFile
 
 ### FReady
 

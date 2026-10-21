@@ -96,7 +96,7 @@ export class DelphiBridge {
       this.setStatus(this.readOnly ? this.readOnlyReason : draft ? 'Unsaved draft — source may have changed' : 'Applied');
       if(draft && draft.revision!==this.context.sourceRevision) this.context.sourceRevision=draft.revision;
       this.onElementLoadedListeners.forEach(cb => cb(message.data.element, (!this.readOnly && draft?.doc) || message.data.doc));
-      if(interrupted)window.dispatchEvent(new CustomEvent('documentationWriteResult',{detail:{applied:false,editId:flight!.id,context:flight!.context,message:'Source changed � reload before applying'}}));
+      if(interrupted)window.dispatchEvent(new CustomEvent('documentationWriteResult',{detail:{applied:false,editId:flight!.id,context:flight!.context,message:'Source changed — reload before applying'}}));
       if(rebase)window.dispatchEvent(new CustomEvent('documentationWriteResult',{detail:{applied:true,editId:flight!.id,context:flight!.context,element}}));
     }
   }

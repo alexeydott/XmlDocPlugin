@@ -4,11 +4,13 @@ interface
 uses System.SysUtils,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts;
 function AIRequestURL(const Endpoint,RequestPath:string):string;
 procedure ValidateAIProfileIdentity(const Profile:TAIProfile;const Existing:TArray<TAIProfile>);
+/// <summary>Checks prose and references in supported documentation sections, ignoring empty containers and formatting.</summary>
+function HasReviewDocumentation(const Text:string):Boolean;
 function BuildAIRequest(const Profile:TAIProfile;const Prompt:TAIPrompt;const Context:TAIContext;const Key:string):TAIHttpRequest;
 function ParseAIResponse(const Response:TAIHttpResponse):TAIProposal;
 function ExecuteAI(const Transport:IAITransport;const Request:TAIHttpRequest;const WaitRetry:TProc<Integer>=nil):TAIProposal;
 implementation
-uses System.JSON,System.Classes,System.StrUtils,System.Net.URLClient,XmlDoc.AI.Text;
+uses System.JSON,System.Classes,System.StrUtils,System.Net.URLClient,XmlDoc.AI.Text,XmlDoc.XmlFragments,Xml.XMLIntf;
 procedure ValidateAIProfileIdentity(const Profile:TAIProfile;const Existing:TArray<TAIProfile>);
 var URL:string;UnchangedConnection:Boolean;
 begin
@@ -35,6 +37,34 @@ begin
  if (Path='') or Path.Contains(':') or Path.Contains('?') or Path.Contains('#') or Path.Contains('..') or Path.Contains('\') or Path.Contains(#10) or Path.Contains(#13) then raise EAIError.Create('Invalid API request path');
  if Base.EndsWith('/'+Path) then Result:=Base else Result:=Base+'/'+Path;
 end;
+function HasReviewDocumentation(const Text:string):Boolean;
+ function FragmentHasText(const Fragment:string):Boolean;
+ var Doc:IXMLDocument;
+  function Visit(const Node:IXMLNode):Boolean;
+  begin
+   Result:=False;
+   if (Node.NodeType in [ntText,ntCData]) and (Trim(Node.Text.Replace(Char($00A0),' '))<>'') then Exit(True);
+   if SameText(Node.NodeName,'see') or SameText(Node.NodeName,'paramref') or SameText(Node.NodeName,'typeparamref') then
+    for var I:=0 to Node.AttributeNodes.Count-1 do if Trim(Node.AttributeNodes[I].Text)<>'' then Exit(True);
+   for var I:=0 to Node.ChildNodes.Count-1 do if Visit(Node.ChildNodes[I]) then Exit(True);
+  end;
+ begin
+  Result:=False;if Trim(Fragment)='' then Exit;
+  try Doc:=LoadDocXml('<doc>'+Fragment+'</doc>');Result:=Visit(Doc.DocumentElement);except Result:=False;end;
+ end;
+var Value:TJSONValue;Sections:TJSONObject;
+begin
+ Result:=False;if Trim(Text)='' then Exit;
+ Value:=TJSONObject.ParseJSONValue(Text);
+ try
+  if Value is TJSONObject then begin
+   Sections:=TJSONObject(Value);
+   for var Name in ['summary','returns','remarks'] do if (Sections.GetValue(Name) is TJSONString) and FragmentHasText(TJSONString(Sections.GetValue(Name)).Value) then Exit(True);
+   var Parameters:=Sections.GetValue('parameters');if Parameters is TJSONArray then for var Parameter in TJSONArray(Parameters) do
+    if Parameter is TJSONObject then begin var Description:=TJSONObject(Parameter).GetValue('description');if (Description is TJSONString) and FragmentHasText(TJSONString(Description).Value) then Exit(True);end;
+  end else Result:=FragmentHasText(Text);
+ finally Value.Free;end;
+end;
 function BuildAIRequest(const Profile:TAIProfile;const Prompt:TAIPrompt;const Context:TAIContext;const Key:string):TAIHttpRequest;
 var Json:TJSONObject;Messages:TJSONArray;SystemText,UserText,Model:string;
 begin
@@ -48,7 +78,7 @@ begin
  end else if Profile.Authorization<>'none' then raise EAIError.Create('Unsupported authorization mode');
  if (Trim(Context.Signature)='') or ((Prompt.Operation<>aoRephrase) and (Trim(Context.Code)='')) then raise EAIError.Create('Method implementation is required');
  if (Prompt.Operation=aoRephrase) and (Trim(Context.Documentation)='') then raise EAIError.Create('Summary is empty');
- if (Prompt.Operation=aoReview) and (Trim(Context.Documentation)='') then raise EAIError.Create('Existing documentation is required');
+ if (Prompt.Operation=aoReview) and not HasReviewDocumentation(Context.Documentation) then raise EAIError.Create('Existing documentation is required');
  if (Prompt.Operation<>aoRephrase) and (not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'implementation') or
    not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'signature')) then raise EAIError.Create('Template must include signature and implementation');
  if (Prompt.Operation in [aoRephrase,aoReview]) and not PromptUsesVariable(Prompt.SystemText+Prompt.UserText,'documentation') then raise EAIError.Create('Template must include existing documentation');

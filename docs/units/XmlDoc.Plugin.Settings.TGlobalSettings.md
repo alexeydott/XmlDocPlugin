@@ -9,6 +9,7 @@ Global preferences persisted in the current user's registry.
 | `CodeGen` | field | public |  |
 | `Editor` | field | public |  |
 | `General` | field | public |  |
+| `HelpInsight` | field | public |  |
 | `Shortcuts` | field | public |  |
 | `Stub` | field | public |  |
 
@@ -17,6 +18,8 @@ Global preferences persisted in the current user's registry.
 ### Editor
 
 ### General
+
+### HelpInsight
 
 ### Shortcuts
 

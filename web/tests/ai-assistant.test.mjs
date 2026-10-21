@@ -198,3 +198,18 @@ test('AI queue retains the current method on a source change before its write AC
  const s=setup();window.xmlDocAI.startQueue([s.element,{...s.element,name:'Other',symbolId:'other'}]);const req=s.sent.filter(m=>m.type==='aiPrepare').at(-1);s.reply(req,'prepared',{fragments:[],previewRequired:false});s.reply(req,'proposal',{fresh:true,summary:'Accepted',uncertainties:[]});s.click('ai-apply');s.reply(req,'approved',{summaryXml:'Accepted'});
  s.bridge.receive({type:'loadDoc',data:{element:{...s.element,sourceRevision:'external-change'},doc:{summary:'Changed externally'}}});assert.equal(document.querySelector('#ai-queue-next').disabled,true);assert.match(document.querySelector('#ai-status').textContent,/Source changed/);s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,0);s.close();
 });
+test('an outstanding Apply cannot be replaced by a second edited attempt',()=>{
+ const s=setup(),req=s.prepare();s.reply(req,'prepared',{fragments:[],previewRequired:false});s.reply(req,'proposal',{fresh:true,summary:'Accepted A',uncertainties:[]});s.click('ai-apply');
+ const field=document.getElementById('ai-summary');field.value='Accepted B';field.dispatchEvent(new Event('input'));assert.equal(document.getElementById('ai-apply').disabled,true);document.getElementById('ai-apply').onclick();
+ assert.equal(s.sent.filter(m=>m.type==='aiApply').length,1);s.reply(req,'approved',{summaryXml:'Accepted A'});assert.equal(s.sent.filter(m=>m.type==='docUpdated').length,0);assert.equal(field.value,'Accepted B');s.close();
+});
+for(const message of ['HTTP 429','Template must include existing documentation','Invalid JSON'])test('proposal failure permits Skip and queue restart: '+message,()=>{
+ const s=setup(),targets=[s.element,{...s.element,name:'Other',symbolId:'other',locationId:'other@interface'}];window.xmlDocAI.startQueue(targets);const req=s.sent.filter(m=>m.type==='aiPrepare').at(-1);s.reply(req,'error',{message});
+ assert.equal(document.getElementById('ai-queue-next').disabled,false);s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,1);s.click('ai-queue-cancel');window.xmlDocAI.startQueue(targets);
+ const second=s.sent.filter(m=>m.type==='aiPrepare').at(-1);s.reply(second,'prepared',{fragments:[],previewRequired:false});s.reply(second,'proposal',{fresh:true,summary:'Retry',uncertainties:[]});assert.equal(document.getElementById('ai-apply').disabled,false);assert.equal(document.getElementById('ai-queue-next').disabled,false);s.click('ai-queue-next');assert.equal(s.sent.filter(m=>m.type==='openSymbol').length,2);s.click('ai-queue-cancel');s.close();
+});
+test('source-conflict text is valid UTF-8 and localizes during an interrupted write',async()=>{
+ const bytes=readFileSync(new URL('../src/bridge.ts',import.meta.url));assert.doesNotThrow(()=>new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+ const s=setup();window.xmlDocSettings.apply({language:'ru',fontSize:13,theme:'dark'});const req=s.prepare();s.reply(req,'prepared',{fragments:[],previewRequired:false});s.reply(req,'proposal',{fresh:true,summary:'Accepted',uncertainties:[]});s.click('ai-apply');s.reply(req,'approved',{summaryXml:'Accepted'});
+ s.bridge.receive({type:'loadDoc',data:{element:{...s.element,sourceRevision:'external'},doc:{summary:'Changed'}}});await new Promise(r=>setTimeout(r,30));assert.ok(!document.getElementById('ai-status').textContent.includes('Source changed'));assert.ok(!document.getElementById('ai-status').textContent.includes('\uFFFD'));s.close();
+});

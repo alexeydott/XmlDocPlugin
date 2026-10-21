@@ -11,6 +11,7 @@ Inherits from `TEdgeBrowser`
 | `FHostTheme` | field | private |  |
 | `FHtml` | field | private |  |
 | `FLoadTimer` | field | private |  |
+| `FResourceBase` | field | private |  |
 | `FResourceName` | field | private |  |
 | `FResourceRoot` | field | private |  |
 | `FResourceStatus` | field | private |  |
@@ -22,6 +23,7 @@ Inherits from `TEdgeBrowser`
 | `RestoreSections` | method | public |  |
 | `SaveSections` | method | public |  |
 | `HostTheme` | property | public |  |
+| `ResourceBase` | property | public |  |
 | `ResourceStatus` | property | public |  |
 
 ### Create
@@ -33,6 +35,8 @@ Inherits from `TEdgeBrowser`
 ### FHtml
 
 ### FLoadTimer
+
+### FResourceBase
 
 ### FResourceName
 
@@ -55,5 +59,7 @@ Inherits from `TEdgeBrowser`
 ### SaveSections
 
 ### HostTheme
+
+### ResourceBase
 
 ### ResourceStatus

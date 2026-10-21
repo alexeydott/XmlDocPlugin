@@ -8,7 +8,7 @@ function EditorSource(const Editor:IOTASourceEditor):string;
 function SourceEditorForFile(const FileName:string):IOTASourceEditor;
 function SourceEditProtection(const FileName:string):string;
 function SourceRevision(const Source:string):string;
-procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string);
+procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string;const ProjectFile:string='');
 function ValidateEdit(Message:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string):Boolean;
 function EditResult(const SessionId,Status:string;const EditId:string=''):string;
 function UnavailableSourceScript(const FileName:string;Line:Integer):string;
@@ -95,9 +95,9 @@ begin
 end;
 function SourceRevision(const Source:string):string;
 begin Result:=THashSHA2.GetHashString(Source);end;
-procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string);
+procedure AddEditContext(Json:TJSONObject;const Element:TCodeElementInfo;const FileName,SessionId,Source:string;const ProjectFile:string);
 begin
- var Project:=DocumentationProjectForFile(FileName);
+ var Project:=DocumentationProjectForFile(FileName,ProjectFile);
  if Assigned(Project) then Json.AddPair('projectFile',Project.FileName);
  Json.AddPair('locationId',Element.SymbolId+'@'+Element.SourceSection);
  Json.AddPair('readOnly',TJSONBool.Create(SourceEditProtection(FileName)<>''));

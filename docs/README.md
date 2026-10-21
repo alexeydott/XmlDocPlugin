@@ -53,6 +53,7 @@
 | [XmlDoc.Plugin.DocInspector](units/XmlDoc.Plugin.DocInspector.md) | Dockable declaration documentation editor and source synchronization. |
 | [XmlDoc.Plugin.EditorNotifier](units/XmlDoc.Plugin.EditorNotifier.md) | Debounced IDE editor, cursor and source change notifications. |
 | [XmlDoc.Plugin.EditSession](units/XmlDoc.Plugin.EditSession.md) | Documentation write authorization, source revisions and edit acknowledgement state. |
+| [XmlDoc.Plugin.HelpInsight](units/XmlDoc.Plugin.HelpInsight.md) | Theme-aware XSLT and reversible stylesheet preferences for native IDE Help Insight. |
 | [XmlDoc.Plugin.Localization](units/XmlDoc.Plugin.Localization.md) | Localization of native plugin controls and menu text. |
 | [XmlDoc.Plugin.Main](units/XmlDoc.Plugin.Main.md) | IDE wizard registration, command wiring and plugin lifetime management. |
 | [XmlDoc.Plugin.ProjectDocumentation](units/XmlDoc.Plugin.ProjectDocumentation.md) | Project documentation catalog, background analysis and source update coordination. |

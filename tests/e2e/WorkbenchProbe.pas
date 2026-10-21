@@ -1,8 +1,8 @@
-unit WorkbenchProbe;
+﻿unit WorkbenchProbe;
 interface
 procedure Register;
 implementation
-uses XmlDoc.Plugin.Splash,XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
+uses XmlDoc.Plugin.HelpInsight,XmlDoc.Plugin.Splash,XmlDoc.ParamDict,XmlDoc.AI.Transport,System.Win.ComObj,XmlDoc.SourceText,XmlDoc.Plugin.AIAssistant,XmlDoc.Plugin.AISettings,XmlDoc.AI.Contracts,XmlDoc.AI.Prompts,XmlDoc.AI.OpenAI,XmlDoc.Documentation,XmlDoc.Logger,XmlDoc.HelpGen.ThemeEngine,System.SyncObjs,System.RegularExpressions,XmlDoc.Plugin.ProjectDocumentation,XmlDoc.ProjectContext,System.Diagnostics,System.Hash,XmlDoc.Plugin.DeclarationContext,XmlDoc.I18n,System.SysUtils,System.StrUtils,System.Classes,System.IOUtils,System.JSON,Winapi.Windows,Winapi.Messages,Winapi.ActiveX,
  Vcl.Imaging.pngimage,Vcl.ComCtrls,Vcl.Samples.Spin,Vcl.Forms,Vcl.ActnList,Vcl.Menus,Vcl.Controls,Vcl.ExtCtrls,Vcl.Edge,WebView2,ToolsAPI,XmlDoc.Plugin.DocInspector,
  XmlDoc.Plugin.Localization,XmlDoc.Plugin.SettingsDialog,XmlDoc.Plugin.CoverageDialog,XmlDoc.Plugin.Browser,XmlDoc.Plugin.DocExplorer,XmlDoc.Plugin.EditSession,XmlDoc.Parser,XmlDoc.Consts,Vcl.StdCtrls,XmlDoc.Plugin.BatchGenDialog,Vcl.Graphics,XmlDoc.ShortcutValidation,XmlDoc.Plugin.Settings,XmlDoc.Plugin.AboutDialog,XmlDoc.Plugin.Utils;
 type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedHandler)
@@ -42,6 +42,7 @@ type TAIScreenshot=class(TInterfacedObject,ICoreWebView2CapturePreviewCompletedH
  LanguageSaved:Boolean;OriginalLanguage:string;
  PrefixSettingsSaved:Boolean;OriginalPrefixSettings:TGlobalSettings;LastGenerationMessage:string;
  ProtectedBefore,SystemFile,PrimaryProjectFile,FormatBefore:string;
+ SharedFile,SharedProjectA,SharedProjectB,SharedMainXml,SharedSettings:string;
  FormatWait,Step:Integer;Initial,AfterWrite,SecondInitial,SampleFile,SecondFile,Root:string;Finished:Boolean;
  procedure CheckAISettings(Sender:TObject);procedure CheckAILocalization(Sender:TObject);
  procedure ConfirmFormat(Sender:TObject);procedure Tick(Sender:TObject); procedure ExportAll; procedure CloseExportMessage(Sender:TObject);
@@ -594,6 +595,13 @@ begin
     ReplaceSourceBuffer(SourceEditorForFile(SampleFile),AIBefore);Inspector.RefreshFromCurrentEditor;
     Browser.ExecuteScript('window.__queueConflictChecked=true;');Log('PASS AI queue source conflict rejects the write and retains the current method');
    end
+   else if Action='shared-progress' then Log('Shared context: '+Json.GetValue<string>('message',''))
+   else if Action='shared-context-arm' then begin Step:=113;Timer.Interval:=100;Timer.Enabled:=True;end
+   else if Action='shared-context-finish' then begin
+    AssertTrue(SameText(GetActiveProject.FileName,SharedProjectA),'Shared navigation changed the active project');
+    TFile.WriteAllText(SharedProjectA,SharedMainXml,TEncoding.UTF8);TFile.WriteAllText(TPath.Combine(Root,'.xmldocplugin.json'),SharedSettings,TEncoding.UTF8);
+    Browser.ExecuteScript('window.__sharedContextChecked=true;');Log('PASS shared unit navigation and AI Capture preserve selected project defines and terminology');
+   end
    else if Action='ai-close-pending' then begin
     Select(SampleFile,'Run','string');Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));
     ExplorerBrowser.ExecuteScript('(()=>{const row=Array.from(document.querySelectorAll(".tree-row")).find(r=>r.dataset.symbolId?.includes("tdocumented.run(const string)"));if(row)row.click();window.xmlDocAI.reload();})();');
@@ -1095,6 +1103,29 @@ begin
    AssertTrue(ValidationProbe.Changed,'Project membership did not change at the publication boundary');AssertTrue(ValidationProbe.PublishedGeneration=1,'Catalog published with a stale project module set');
    Log('PASS publication rejects changed project membership and retains the previous catalog');FreeAndNil(ValidationProbe);Step:=96;Timer.Enabled:=True;Exit;
   end;
+  113:begin
+    Log('Shared context: creating project fixtures');
+    var ProjectA:=GetActiveProject;SharedProjectA:=ProjectA.FileName;SharedMainXml:=TFile.ReadAllText(SharedProjectA,TEncoding.UTF8);
+    SharedFile:=TPath.Combine(Root,'SharedContext.pas');
+    TFile.WriteAllText(SharedFile,'unit SharedContext;'+sLineBreak+'interface'+sLineBreak+'type TShared=class'+sLineBreak+'/// <summary>Shared documentation.</summary>'+sLineBreak+'procedure Run(Value:Integer);'+sLineBreak+'end;'+sLineBreak+'implementation'+sLineBreak+'procedure TShared.Run(Value:Integer);'+sLineBreak+'begin end;'+sLineBreak+'end.',TEncoding.UTF8);
+    ProjectA.AddFile(SharedFile,True);Log('Shared context: source added to A');
+    TFile.WriteAllText(SharedProjectA,SharedMainXml.Replace('DEBUG;','SHARED_A;DEBUG;'),TEncoding.UTF8);
+    var SettingsPath:=TPath.Combine(Root,'.xmldocplugin.json');SharedSettings:=TFile.ReadAllText(SettingsPath,TEncoding.UTF8);var Settings:=TJSONObject.ParseJSONValue(SharedSettings) as TJSONObject;
+    try var Authoring:=Settings.GetValue<TJSONObject>('authoring');Authoring.RemovePair('terminology').Free;Authoring.AddPair('terminology',TJSONArray.Create(TJSONString.Create('SHARED_TERM_A')));TFile.WriteAllText(SettingsPath,Settings.ToJSON,TEncoding.UTF8);finally Settings.Free;end;
+    var Dir:=TPath.Combine(Root,'SharedB');ForceDirectories(Dir);SharedProjectB:=TPath.Combine(Dir,'SharedB.dproj');
+    var Xml:=TRegEx.Replace(SharedMainXml.Replace('XmlDocE2E','SharedB'),'<DCCReference[^>]*/>','');Xml:=Xml.Replace('{3A72602E-67CF-469D-A733-BC75247CC365}',TGUID.NewGuid.ToString).Replace('DEBUG;','SHARED_B;DEBUG;').Replace('</Project>','<ItemGroup><DCCReference Include="'+SharedFile+'"/></ItemGroup></Project>');
+    TFile.WriteAllText(SharedProjectB,Xml,TEncoding.UTF8);TFile.WriteAllText(TPath.Combine(Dir,'SharedB.dpr'),'program SharedB; uses SharedContext in ''..\SharedContext.pas'';begin end.',TEncoding.UTF8);
+    TFile.WriteAllText(TPath.Combine(Dir,'.xmldocplugin.json'),'{"authoring":{"terminology":["SHARED_TERM_B"]}}',TEncoding.UTF8);
+    Log('Shared context: opening B');
+    AssertTrue((BorlandIDEServices as IOTAActionServices).OpenProject(SharedProjectB,False),'Shared project B did not open');var Group:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;Group.ActiveProject:=ProjectA;Log('Shared context: B open, A active');
+    var Targets:=TJSONArray.Create;var P:=TDocParser.Create;
+    try P.ParseSource(TFile.ReadAllText(SharedFile,TEncoding.UTF8),SharedFile);for var E in P.GetAllElements do if (E.Name='Run') and (E.SourceSection='interface') then
+     for var ProjectFile in [SharedProjectB,SharedProjectA,SharedProjectB] do Targets.AddElement(TJSONObject.Create.AddPair('type','openSymbol').AddPair('projectFile',ProjectFile).AddPair('fileName',SharedFile).AddPair('symbolId',E.SymbolId).AddPair('locationId',E.SymbolId+'@interface').AddPair('line',TJSONNumber.Create(E.LineNumber)));
+     Inspector.Show;
+     Browser.ExecuteScript('window.__sharedTargets='+Targets.ToJSON+';window.__sharedContextReady=true;');Log('Shared context: targets ready');
+    finally P.Free;Targets.Free;end;
+    Step:=114;Exit;
+  end;
   110:begin
    Browser.ExecuteScript('document.getElementById("ai-describe").click();');ExplorerBrowser.ExecuteScript('document.getElementById("ai-describe").click();');Step:=111;Timer.Interval:=300;Timer.Enabled:=True;Exit;
   end;
@@ -1183,10 +1214,31 @@ begin
     var About:=TAboutDialog.Create(nil);
     try AssertTrue(About.lblVersion.Caption=TI18n.Instance.T('Version')+' '+GetEnvironmentVariable('XMLDOC_E2E_VERSION'),'About dialog version mismatch');finally About.Free;end;
     Log('PASS loaded BPL and About dialog shared version');
+    var HintCss:=HelpInsightCssPath;
+    var HintOriginal:=TFile.ReadAllBytes(HintCss);
+    var HintTemplates:TArray<string>:=[ChangeFileExt(HintCss,'.xsl'),IDEHelpInsightXsltPath];
+    var HintTemplateBytes:TArray<TBytes>;SetLength(HintTemplateBytes,Length(HintTemplates));
+    var HintTemplateBackups:TArray<TBytes>;SetLength(HintTemplateBackups,Length(HintTemplates));
+    var HintTemplateHadBackup:TArray<Boolean>;SetLength(HintTemplateHadBackup,Length(HintTemplates));
+    for var Index:=0 to High(HintTemplates) do begin
+     HintTemplateBytes[Index]:=TFile.ReadAllBytes(HintTemplates[Index]);
+     HintTemplateHadBackup[Index]:=TFile.Exists(HintTemplates[Index]+'.xmldocplugin.bak');
+     if HintTemplateHadBackup[Index] then HintTemplateBackups[Index]:=TFile.ReadAllBytes(HintTemplates[Index]+'.xmldocplugin.bak');
+    end;
+    var HintBackup:=HintCss+'.xmldocplugin.bak';
+    var HintHadBackup:=TFile.Exists(HintBackup);
+    var HintBackupBytes:TBytes;if HintHadBackup then HintBackupBytes:=TFile.ReadAllBytes(HintBackup);
     var OriginalThemeSettings:=TPluginSettings.Instance.Global;
     var OldThemeDirectory:=TThemeEngine.Instance.CustomThemesDir;
     TThemeEngine.Instance.SetCustomThemesDir(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG')),'created-themes'));
     var ThemeDialog:=TSettingsDialog.Create(nil);
+    for var HintPPI in [96,144,192] do begin
+     ThemeDialog.ScaleForPPI(HintPPI);
+     AssertTrue(ThemeDialog.btnOK.Top>=ThemeDialog.PageControl.Top+ThemeDialog.PageControl.Height,'Settings footer overlaps pages at DPI '+IntToStr(HintPPI));
+     AssertTrue(ThemeDialog.btnHintPreview.Top+ThemeDialog.btnHintPreview.Height<=ThemeDialog.tsHelpInsight.ClientHeight,'Hint preview is clipped at DPI '+IntToStr(HintPPI));
+     AssertTrue(ThemeDialog.btnRestoreHint.Left+ThemeDialog.btnRestoreHint.Width<=ThemeDialog.tsHelpInsight.ClientWidth,'Hint restore is clipped at DPI '+IntToStr(HintPPI));
+    end;
+    ThemeDialog.ScaleForPPI(96);
     try
       for var ThemeName in ['default','dark','high-contrast','minimal'] do
         AssertTrue(ThemeDialog.cmbDocumentationTheme.Items.IndexOf(ThemeName)>=0,'Settings theme option missing: '+ThemeName);
@@ -1206,7 +1258,27 @@ begin
       var ReopenedThemeDialog:=TSettingsDialog.Create(nil);
       try AssertTrue(ReopenedThemeDialog.cmbDocumentationTheme.Text='e2e-created','Reopened Settings lost the theme selection');finally ReopenedThemeDialog.Free;end;
       Log('PASS native Settings CSS creation, theme selection, save and reopen');
+      AssertTrue(SameText(HintCss,TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)),'..\ObjRepos\HelpInsight.css'))),'Help Insight belongs to another IDE');
+      ThemeDialog.chkHelpInsightEnabled.Checked:=True;ThemeDialog.cmbHintAppearance.ItemIndex:=1;ThemeDialog.HelpInsightChanged(nil);
+      AssertTrue(ThemeDialog.spnHintWidth.Enabled and ThemeDialog.spnHintFontSize.Enabled,'Help Insight settings unavailable');
+      ThemeDialog.spnHintWidth.Value:=940;ThemeDialog.spnHintFontSize.Value:=11;ThemeDialog.spnHintLineHeight.Value:=140;ThemeDialog.spnHintParameterWidth.Value:=220;
+      ThemeDialog.chkHelpInsightWrap.Checked:=True;ThemeDialog.chkHelpInsightCompact.Checked:=True;ThemeDialog.HelpInsightChanged(nil);ThemeDialog.btnOKClick(nil);
+      AssertTrue(TFile.ReadAllText(HintCss).Contains('width: 940px') and TFile.ReadAllText(HintCss).Contains('font-size: 11pt'),'Help Insight CSS not applied');
+      var HintReader:=TSettingsDialog.Create(nil);try
+       AssertTrue(HintReader.chkHelpInsightEnabled.Checked and (HintReader.cmbHintAppearance.ItemIndex=1) and (HintReader.spnHintWidth.Value=940) and (HintReader.spnHintParameterWidth.Value=220),'Help Insight settings not reloaded');
+       HintReader.chkHelpInsightEnabled.Checked:=False;HintReader.HelpInsightChanged(nil);
+       AssertTrue(not HintReader.spnHintWidth.Enabled,'Disabled Help Insight controls stayed enabled');HintReader.btnOKClick(nil);
+       AssertTrue(not TFile.ReadAllText(HintCss).Contains('/* XmlDocPlugin Help Insight: begin */'),'Help Insight disable left overrides');
+      finally HintReader.Free;end;
+      Log('PASS native Help Insight settings apply, reopen and disable in the running IDE');
     finally
+      TFile.WriteAllBytes(HintCss,HintOriginal);
+      for var Index:=0 to High(HintTemplates) do begin
+       TFile.WriteAllBytes(HintTemplates[Index],HintTemplateBytes[Index]);
+       if HintTemplateHadBackup[Index] then TFile.WriteAllBytes(HintTemplates[Index]+'.xmldocplugin.bak',HintTemplateBackups[Index])
+       else if TFile.Exists(HintTemplates[Index]+'.xmldocplugin.bak') then TFile.Delete(HintTemplates[Index]+'.xmldocplugin.bak');
+      end;
+      if HintHadBackup then TFile.WriteAllBytes(HintBackup,HintBackupBytes) else if TFile.Exists(HintBackup) then TFile.Delete(HintBackup);
       ThemeDialog.Free;TPluginSettings.Instance.Global:=OriginalThemeSettings;TPluginSettings.Instance.Save;
       TThemeEngine.Instance.SetCustomThemesDir(OldThemeDirectory);
     end;
@@ -1243,7 +1315,7 @@ begin
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
-   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1',IfThen(GetEnvironmentVariable('XMLDOC_E2E_LIVE_REVIEW')='1','LiveReviewProbe.js','RealAIAssistantProbe.js'),'AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
+   if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript('window.__sharedOnly='+LowerCase(BoolToStr(GetEnvironmentVariable('XMLDOC_E2E_SHARED_ONLY')='1',True))+';'+TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'SharedContextProbe.js'),TEncoding.UTF8));Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1',IfThen(GetEnvironmentVariable('XMLDOC_E2E_LIVE_REVIEW')='1','LiveReviewProbe.js','RealAIAssistantProbe.js'),'AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin
     var ShutdownEditor:=SourceEditorForFile(SampleFile);
     ReplaceSourceBuffer(ShutdownEditor,EditorSource(ShutdownEditor)+sLineBreak+'// E2E unsaved source at IDE shutdown');

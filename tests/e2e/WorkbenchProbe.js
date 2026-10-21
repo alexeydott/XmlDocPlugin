@@ -54,7 +54,8 @@
   send('prefix-restore');await until(()=>window.__prefixRestored&&window.xmlDocEditor.get().element.name==='Run','Prefix settings were not restored');
 
   const iconButtons=document.querySelectorAll('#workbench button[id].workbench-icon');
-  assert(iconButtons.length===27,'Documentation tool icons are missing');
+  for(const id of ['save-template','save-terms','apply-template','insert-selection','link-example','replace-all','apply-summaries','apply-operation','cancel-operation','history-back','history-forward','pin-document','compact-document','focus-source','reload-document','recover-drafts','quick-documentation','sync-document','open-xml','format-document','fold-documentation','show-problems','refresh-catalog','next-problem','save-baseline','load-baseline','queue-ai','ai-settings','ai-describe','ai-rephrase','ai-review','ai-queue-next','ai-queue-cancel'])
+   assert(document.querySelector('#'+id+'.workbench-icon'),'Documentation tool icon missing: '+id);
   for(const button of iconButtons){
    assert(button.querySelector('svg[aria-hidden="true"]'),'Tool must use an inline SVG: '+button.id);
    assert(button.title && button.getAttribute('aria-label'),'Tool needs a hint and accessible name: '+button.id);

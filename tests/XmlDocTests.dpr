@@ -2,7 +2,7 @@ program XmlDocTests;
 
 {$APPTYPE CONSOLE}
 uses
-  System.SysUtils,
+  System.SysUtils, TestDocHelpInsight,
   Winapi.ActiveX,
   DUnitX.TestFramework, DUnitX.Loggers.Console,
   TestDocModel, TestDocParser, TestDocCodeGen, TestDocStubGen, TestDocHMXP, TestDocCoverage, TestDocPublish, TestDocNavigation, TestDocUnit, TestDocASTCompatibility, TestDocDeclared, TestDocAutomaticDeclared, TestDocImprovements, TestDocThemes, TestDocReview, TestDocQuickScope, TestDocAI;

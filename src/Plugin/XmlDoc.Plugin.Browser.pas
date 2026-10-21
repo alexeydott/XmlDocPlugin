@@ -14,6 +14,7 @@ type
     FHtml: string;
     FResourceName: string;
     FResourceRoot:string;
+    FResourceBase:string;
     FResourceStatus:string;
     FAppliedSettings:string;
     FHostTheme:string;
@@ -28,6 +29,7 @@ type
     procedure ApplySettings;
     procedure MapResources(const Root:string);
     property ResourceStatus:string read FResourceStatus;
+    property ResourceBase:string read FResourceBase;
     property HostTheme:string read FHostTheme write FHostTheme;
   end;
 
@@ -36,7 +38,7 @@ procedure ConfigureWebViewLoader;
 implementation
 
 uses
-  System.IOUtils, System.JSON, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils,
+  System.IOUtils, System.JSON, System.Hash, System.Win.Registry, Winapi.Windows, Winapi.EdgeUtils,
   XmlDoc.Plugin.Settings,XmlDoc.Plugin.Localization,XmlDoc.I18n,WebView2;
 
 {$IF CompilerVersion < 36.0}
@@ -137,7 +139,7 @@ begin
 end;
 
 procedure TXmlDocBrowser.MapResources(const Root:string);
-var View:ICoreWebView2_3;Status:HRESULT;Folder:string;
+var View:ICoreWebView2_3;Status:HRESULT;Folder,Host:string;
 begin
  Folder:=ExcludeTrailingPathDelimiter(TPath.GetFullPath(Root));
  if SameText(Folder,FResourceRoot) then Exit;
@@ -145,9 +147,12 @@ begin
  // A VCL handle recreation creates a new WebView controller. Reapply the map
  // even when the project path is unchanged.
  if not Supports(DefaultInterface,ICoreWebView2_3,View) then begin FResourceStatus:='WebView2 resource mapping is unavailable';Exit;end;
- Status:=View.SetVirtualHostNameToFolderMapping('xmldoc.resources',PChar(Folder),COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
+ // A distinct host avoids changing an existing mapping, which would require
+ // navigation and discard editor drafts and AI queue state.
+ Host:='r'+Copy(THashSHA2.GetHashString(LowerCase(Folder)),1,32)+'.xmldoc.resources';
+ Status:=View.SetVirtualHostNameToFolderMapping(PChar(Host),PChar(Folder),COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
  FResourceStatus:=Folder+' HRESULT='+IntToHex(Status,8);
- if Status=S_OK then begin FResourceRoot:=Folder;FLoadTimer.Enabled:=True;end;
+ if Status=S_OK then begin FResourceRoot:=Folder;FResourceBase:='https://'+Host+'/';end;
 end;
 
 procedure TXmlDocBrowser.ApplySettings;
@@ -177,7 +182,7 @@ end;
 
 procedure TXmlDocBrowser.DestroyWnd;
 begin
- FResourceRoot:='';FAppliedSettings:='';inherited;
+ FResourceRoot:='';FResourceBase:='';FAppliedSettings:='';inherited;
 end;
 
 procedure TXmlDocBrowser.LoadTimer(Sender:TObject);

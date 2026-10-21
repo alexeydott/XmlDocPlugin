@@ -3,7 +3,7 @@
   Top = 0
   BorderStyle = bsDialog
   Caption = 'XmlDoc Plugin Settings'
-  ClientHeight = 450
+  ClientHeight = 520
   ClientWidth = 464
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@
     Left = 0
     Top = 0
     Width = 464
-    Height = 405
+    Height = 475
     ActivePage = tsGeneral
     Align = alTop
     TabOrder = 0
@@ -266,6 +266,169 @@
         TabOrder = 5
       end
     end
+    object tsHelpInsight: TTabSheet
+      Caption = 'Help Insight'
+      object chkHelpInsightEnabled: TCheckBox
+        Left = 16
+        Top = 16
+        Width = 420
+        Height = 22
+        Caption = 'Customize native Help Insight'
+        TabOrder = 0
+        OnClick = HelpInsightChanged
+      end
+      object lblHintAppearance: TLabel
+        Left = 16
+        Top = 52
+        Caption = 'Hint appearance:'
+      end
+      object cmbHintAppearance: TComboBox
+        Left = 288
+        Top = 48
+        Width = 144
+        Height = 23
+        Style = csDropDownList
+        OnChange = HelpInsightChanged
+        TabOrder = 9
+        Items.Strings = (
+          'IDE default'
+          'Extended')
+      end
+      object btnHintPreview: TButton
+        Left = 16
+        Top = 416
+        Width = 200
+        Height = 26
+        Caption = 'Preview hint...'
+        TabOrder = 10
+        OnClick = HintPreviewClick
+      end
+      object btnRestoreHint: TButton
+        Left = 232
+        Top = 416
+        Width = 200
+        Height = 26
+        Caption = 'Restore original templates'
+        TabOrder = 11
+        OnClick = RestoreHintClick
+      end
+      object lblHintWidth: TLabel
+        Left = 16
+        Top = 94
+        Caption = 'Hint width (px):'
+      end
+      object spnHintWidth: TSpinEdit
+        Left = 288
+        Top = 90
+        Width = 100
+        Height = 24
+        MinValue = 360
+        MaxValue = 1200
+        Increment = 40
+        Value = 720
+        TabOrder = 1
+      end
+      object lblHintFont: TLabel
+        Left = 16
+        Top = 126
+        Caption = 'Hint font size (pt):'
+      end
+      object spnHintFontSize: TSpinEdit
+        Left = 288
+        Top = 122
+        Width = 100
+        Height = 24
+        MinValue = 8
+        MaxValue = 18
+        Value = 9
+        TabOrder = 2
+      end
+      object lblHintLineHeight: TLabel
+        Left = 16
+        Top = 158
+        Caption = 'Line spacing (%):'
+      end
+      object spnHintLineHeight: TSpinEdit
+        Left = 288
+        Top = 154
+        Width = 100
+        Height = 24
+        MinValue = 100
+        MaxValue = 180
+        Increment = 5
+        Value = 125
+        TabOrder = 3
+      end
+      object chkHelpInsightWrap: TCheckBox
+        Left = 16
+        Top = 192
+        Width = 420
+        Height = 22
+        Caption = 'Wrap long signatures'
+        TabOrder = 4
+      end
+      object chkHelpInsightCompact: TCheckBox
+        Left = 16
+        Top = 224
+        Width = 420
+        Height = 22
+        Caption = 'Compact parameter descriptions'
+        TabOrder = 5
+        OnClick = HelpInsightChanged
+      end
+      object lblHintParameterWidth: TLabel
+        Left = 16
+        Top = 262
+        Caption = 'Parameter name column (px):'
+      end
+      object spnHintParameterWidth: TSpinEdit
+        Left = 288
+        Top = 258
+        Width = 100
+        Height = 24
+        MinValue = 80
+        MaxValue = 400
+        Increment = 10
+        Value = 160
+        TabOrder = 6
+      end
+      object lblHintNote: TLabel
+        Left = 16
+        Top = 290
+        Width = 416
+        Height = 56
+        AutoSize = False
+        WordWrap = True
+        Caption = 'Template changes require restarting the IDE. CSS follows the current IDE theme. Disable or restore to return to the original template.'
+      end
+      object btnExportHintCss: TButton
+        Left = 16
+        Top = 350
+        Width = 200
+        Height = 26
+        Caption = 'Export templates...'
+        TabOrder = 7
+        OnClick = ExportHintCssClick
+      end
+      object lblHintStatus: TLabel
+        Left = 16
+        Top = 382
+        Width = 416
+        Height = 30
+        AutoSize = False
+        WordWrap = True
+        ShowHint = True
+      end
+      object btnShellHintCss: TButton
+        Left = 232
+        Top = 350
+        Width = 200
+        Height = 26
+        Caption = 'Apply through Windows...'
+        TabOrder = 8
+        OnClick = ShellHintCssClick
+      end
+    end
     object tsAdvanced: TTabSheet
       Caption = 'Advanced'
       ImageIndex = 3
@@ -332,7 +495,7 @@
   end
   object btnOK: TButton
     Left = 296
-    Top = 415
+    Top = 484
     Width = 80
     Height = 28
     Caption = 'OK'
@@ -343,7 +506,7 @@
   end
   object btnCancel: TButton
     Left = 382
-    Top = 415
+    Top = 484
     Width = 80
     Height = 28
     Cancel = True

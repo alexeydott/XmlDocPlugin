@@ -5,6 +5,7 @@
  const prepare=async()=>{click('ai-prepare');await until(()=>!document.querySelector('#ai-send').disabled,'Request not prepared');};
  try{
   send('language-ui',{language:'en'});await until(()=>window.__xmlDocLanguageUi==='en','Screenshot language');send('ai-test-arm');await until(()=>window.__aiTestArmed&&document.querySelector('#ai-profile').options.length===1,'Mock profile missing');
+  if(window.__sharedOnly){await window.runSharedContextAcceptance();send('ai-close-pending');return;}
   assert(document.querySelector('#ai-template').hidden===(document.querySelector('#ai-template').options.length<2),'Template visibility does not match the available choices');assert(document.querySelector('#ai-operation').title!==document.querySelector('#ai-template').title,'AI selectors need distinct hints');
   document.querySelector('#ai-template').value='custom-describe';
   const before=window.xmlDocEditor.get();
@@ -92,7 +93,22 @@
   await capture('ai-proposal');
   click('ai-apply');await until(()=>window.bridge.status==='Applied'&&window.xmlDocEditor.get().doc.returns==='The sum of Value and Other.','Selected sections not acknowledged');
   send('review-calculate-checked');await until(()=>window.__reviewCalculateChecked,'Native section check missing');
+  document.getElementById('ai-template').value='custom-review-missing';send('review-queue-start');
+  await until(()=>document.getElementById('ai-status').textContent.includes('Template must include existing documentation'),'Queue template error missing');
+  assert(!document.getElementById('ai-queue-next').disabled,'Proposal failure blocked Skip');click('ai-queue-next');
+  await until(()=>window.xmlDocEditor.get().element.qualifiedParent==='TSecond','Skip after proposal failure did not navigate');click('ai-queue-cancel');
+  await select('Calculate','Integer');document.getElementById('ai-template').value='review';
+  // An approval belongs to one immutable selection, even if fields change while it is in flight.
   send('review-queue-start');await until(()=>!document.querySelector('#ai-proposal').hidden&&!document.querySelector('#ai-queue').hidden,'Queue did not prepare the first method');
+  const originalReceive=window.xmlDocAI.receive,approvals=[];window.xmlDocAI.receive=data=>{if(data.state==='approved')approvals.push(data);else originalReceive(data);};
+  const originalSend=window.bridge.sendToHost.bind(window.bridge);let applyCount=0,writeCount=0;
+  window.bridge.sendToHost=message=>{if(message.type==='aiApply')applyCount++;if(message.type==='docUpdated')writeCount++;originalSend(message);};
+  click('ai-apply');await until(()=>approvals.length===1,'Native approval missing');
+  const editedProposal=document.getElementById('ai-summary');editedProposal.value='A newer unapproved revision';editedProposal.dispatchEvent(new Event('input'));
+  assert(document.getElementById('ai-apply').disabled,'Pending Apply enabled by input');document.getElementById('ai-apply').onclick();
+  assert(applyCount===1,'Second Apply replaced the pending selection');window.xmlDocAI.receive=originalReceive;originalReceive(approvals[0]);
+  assert(writeCount===0&&editedProposal.value==='A newer unapproved revision','Old approval wrote a newer revision');window.bridge.sendToHost=originalSend;click('ai-queue-cancel');
+  send('review-queue-start');await until(()=>!document.querySelector('#ai-proposal').hidden&&!document.querySelector('#ai-queue').hidden,'Queue did not restart after pending proposal rejection');
   const inbound=window.bridge.receive.bind(window.bridge),held=[];window.bridge.receive=message=>{if(message.type==='editResult'||message.type==='loadDoc')held.push(message);else inbound(message);};
   const queueRevision=window.bridge.captureStamp().sourceRevision;click('ai-apply');click('ai-queue-next');
   await until(()=>held.some(m=>m.type==='editResult'&&m.status==='Applied')&&held.some(m=>m.type==='loadDoc'),'No native queue ACK to delay');await pause(300);
@@ -108,6 +124,6 @@
   send('queue-conflict-source');await until(()=>window.__queueConflictReady,'Native conflict source not prepared');window.bridge.sendToHost=outbound;outbound(delayedWrite);
   await until(()=>!document.getElementById('ai-cancel').disabled,'Native conflict did not finish waiting');assert(document.getElementById('ai-queue-next').disabled,'Conflict enabled Next');click('ai-queue-next');assert(window.xmlDocEditor.get().element.name==='Calculate','Conflict navigated away');
   click('ai-queue-cancel');send('queue-conflict-checked');await until(()=>window.__queueConflictChecked,'Conflict source check failed');
-  send('ai-close-pending');
+  await window.runSharedContextAcceptance();send('ai-close-pending');
  }catch(e){send('fail',{message:e.message+' status='+window.bridge.status+' summary='+window.xmlDocEditor.get().doc.summary,stack:e.stack});}
 })();

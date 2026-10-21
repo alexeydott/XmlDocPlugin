@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$OutputDir = (Join-Path $env:LOCALAPPDATA 'XmlDocPlugin\Help')
 )
 $ErrorActionPreference = 'Stop'
@@ -23,7 +23,7 @@ New-Item -ItemType Directory -Force $OutputDir | Out-Null
 [IO.File]::WriteAllText((Join-Path $OutputDir 'user-guide.md'), $source, [Text.UTF8Encoding]::new($false))
 $images = Join-Path $OutputDir 'assets\user-guide'
 New-Item -ItemType Directory -Force $images | Out-Null
-Copy-Item (Join-Path $PSScriptRoot 'docs\assets\user-guide\*.png') $images -Force
+Get-ChildItem (Join-Path $PSScriptRoot 'docs\assets\user-guide') -File | Where-Object Extension -in @('.png','.jpg','.jpeg') | Copy-Item -Destination $images -Force
 $examples = Join-Path $OutputDir 'examples'
 New-Item -ItemType Directory -Force $examples | Out-Null
 Copy-Item (Join-Path $PSScriptRoot 'docs\examples\authoring.json') $examples -Force

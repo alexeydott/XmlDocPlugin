@@ -1,4 +1,4 @@
-/// <summary>Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE.</summary>
+﻿/// <summary>Coordinates AI requests, source freshness checks and explicit proposal application inside the IDE.</summary>
 unit XmlDoc.Plugin.AIAssistant;
 interface
 uses System.Classes,System.SysUtils,System.JSON,System.Generics.Collections,Vcl.ExtCtrls,XmlDoc.Plugin.Browser,XmlDoc.Parser,XmlDoc.Consts,
@@ -20,7 +20,7 @@ type
   FTimer:TTimer;FWorker:TAIWorker;FBrowser:TXmlDocBrowser;
   FPrepared:TAIHttpRequest;FContext:TAIContext;FFragments:TArray<TAIProtectedFragment>;
   FSectionFragments:TDictionary<string,TArray<TAIProtectedFragment>>;FHasReturns,FHasRemarks:Boolean;
-  FOriginal:TJSONObject;FRequestId,FFile,FSession,FError,FOriginalSummary:string;FTarget:TCodeElementInfo;
+  FOriginal:TJSONObject;FRequestId,FFile,FSession,FError,FOriginalSummary,FProjectFile:string;FTarget:TCodeElementInfo;
   FReady,FCheckOnly:Boolean;FOperation:TAIOperation;FParameterNames:TArray<string>;FTransportFactory:TFunc<IAITransport>;
   function NewTransport:IAITransport;
   function IsBusy:Boolean;
@@ -87,12 +87,12 @@ begin
  Editor:=SourceEditorForFile(FFile);if Assigned(Editor) then Source:=EditorSource(Editor) else Source:=ReadSourceFile(FFile);
  P:=TDocParser.Create;Config:=nil;
  try
-  Project:=DocumentationProjectForFile(FFile);ConfigureCapturedDeclarationContext(P,Project,FFile,CurrentSourceSnapshots);P.ParseSource(Source,FFile);Found:=Default(TCodeElementInfo);Matches:=0;
+  Project:=DocumentationProjectForFile(FFile,FProjectFile);ConfigureCapturedDeclarationContext(P,Project,FFile,CurrentSourceSnapshots);P.ParseSource(Source,FFile);Found:=Default(TCodeElementInfo);Matches:=0;
   for Element in P.GetAllElements do if (Element.SymbolId=FTarget.SymbolId) and (Element.LineNumber=FTarget.LineNumber) and (Element.SourceSection=FTarget.SourceSection) then begin Found:=Element;Inc(Matches);end;
   if Matches<>1 then raise EAIError.Create('Selected declaration has changed');
   Terms:='';if Assigned(Project) then begin ProjectDir:=ExtractFilePath(Project.FileName);if TFile.Exists(TPath.Combine(ProjectDir,'.xmldocplugin.json')) then begin
    Config:=TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(ProjectDir,'.xmldocplugin.json'),TEncoding.UTF8)) as TJSONObject;
-   if Assigned(Config) and Assigned(Config.GetValue('authoring.terminology')) then Terms:=Config.GetValue('authoring.terminology').ToJSON;
+   if Assigned(Config) and Assigned(Config.FindValue('authoring.terminology')) then Terms:=Config.FindValue('authoring.terminology').ToJSON;
   end;end;
   Result:=CaptureMethodContext(P,Found,Summary,Terms,Instruction,FOperation<>aoRephrase);
  finally Config.Free;P.Free;end;
@@ -149,11 +149,11 @@ begin
  try
  try
   if Kind='aiCancel' then begin if Message.GetValue<string>('requestId','')=FRequestId then Stop;Exit;end;
-  if Kind='aiSettings' then begin var Project:=DocumentationProjectForFile(FileName);if Assigned(Project) then ShowAISettings(ExtractFilePath(Project.FileName)) else ShowAISettings;Browser.ExecuteScript('window.xmlDocAI?.reload();');Exit;end;
+  if Kind='aiSettings' then begin var Project:=DocumentationProjectForFile(FileName,Message.GetValue<string>('projectFile',''));if Assigned(Project) then ShowAISettings(ExtractFilePath(Project.FileName)) else ShowAISettings;Browser.ExecuteScript('window.xmlDocAI?.reload();');Exit;end;
   if Kind='aiLoad' then begin
    var Data:=TJSONObject.Create.AddPair('state','configuration');Config:=LoadAIConfiguration;Data.AddPair('previewRequests',TJSONBool.Create(Config.GetValue<Boolean>('previewRequests',False)));Profiles:=TJSONArray.Create;Data.AddPair('profiles',Profiles);
    for var Item in Config.GetValue<TJSONArray>('profiles') do begin Profile:=AIProfileFromJson(Item as TJSONObject);Profiles.AddElement(TJSONObject.Create.AddPair('id',Profile.Id).AddPair('name',Profile.Name).AddPair('language',Profile.Language).AddPair('hasKey',TJSONBool.Create(ReadAIKey(Profile)<>'')));end;
-   var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);Data.AddPair('templates',AIPrompts(ProjectDir));FBrowser:=Browser;Browser.FreeNotification(Self);Reply(Data);Exit;
+   var Project:=DocumentationProjectForFile(FileName,Message.GetValue<string>('projectFile',''));ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);Data.AddPair('templates',AIPrompts(ProjectDir));FBrowser:=Browser;Browser.FreeNotification(Self);Reply(Data);Exit;
   end;
   if Kind='aiSend' then begin
    if Message.GetValue<string>('requestId','')<>FRequestId then raise EAIError.Create('AI request is no longer current');
@@ -192,13 +192,24 @@ begin
    FWorker:=TAIWorker.Create(FPrepared,NewTransport);FWorker.Start;FTimer.Enabled:=True;Reply(TJSONObject.Create.AddPair('state','running'));Exit;
   end;
   if not ValidateEdit(Message,Target,FileName,Session,Parser.SourceText) then raise EAIError.Create('Source changed — reload before applying');
-  FFile:=FileName;FSession:=Session;FTarget:=Target;FreeAndNil(FOriginal);FOriginal:=Message.Clone as TJSONObject;
+  FFile:=FileName;FSession:=Session;FProjectFile:=Message.GetValue<string>('projectFile','');FTarget:=Target;FreeAndNil(FOriginal);FOriginal:=Message.Clone as TJSONObject;
   Summary:=Message.GetValue<string>('summary','');Instruction:=Message.GetValue<string>('instruction','');FOriginalSummary:=Summary;
   OperationName:=Message.GetValue<string>('operation','');if OperationName='describe' then Operation:=aoDescribe else if OperationName='rephrase' then Operation:=aoRephrase else if OperationName='review' then Operation:=aoReview else raise EAIError.Create('Unknown AI operation');
   FOperation:=Operation;
   FSectionFragments.Clear;FHasReturns:=False;FHasRemarks:=False;
   Context:=Capture(Summary,Instruction);Context.Documentation:=ProtectSection('summary',Summary);FSectionFragments.TryGetValue('summary',FFragments);
   var OriginalDoc:=Message.GetValue<TJSONObject>('documentation',nil);
+  if Operation=aoReview then begin
+   var ReviewDoc:=TJSONObject.Create;
+   try
+    ReviewDoc.AddPair('summary',Summary);
+    if Assigned(OriginalDoc) then begin
+     for var Name in ['returns','remarks'] do ReviewDoc.AddPair(Name,OriginalDoc.GetValue<string>(Name,''));
+     var Params:=OriginalDoc.GetValue('params');if Params is TJSONArray then ReviewDoc.AddPair('parameters',Params.Clone as TJSONArray);
+    end;
+    if not HasReviewDocumentation(ReviewDoc.ToJSON) then raise EAIError.Create('Existing documentation is required');
+   finally ReviewDoc.Free;end;
+  end;
   if (Operation<>aoRephrase) and Assigned(OriginalDoc) then begin
    var Sections:=TJSONObject.Create.AddPair('summary',Context.Documentation);
    try
@@ -212,7 +223,7 @@ begin
    finally Sections.Free;end;
   end;
   FContext:=Context;
-  FParameterNames:=nil;Prompt:=TAIPrompt.BuiltIn(Operation);TemplateId:=Message.GetValue<string>('templateId',Prompt.Id);var Project:=DocumentationProjectForFile(FileName);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);
+  FParameterNames:=nil;Prompt:=TAIPrompt.BuiltIn(Operation);TemplateId:=Message.GetValue<string>('templateId',Prompt.Id);var Project:=DocumentationProjectForFile(FileName,FProjectFile);ProjectDir:='';if Assigned(Project) then ProjectDir:=ExtractFilePath(Project.FileName);
   Templates:=AIPrompts(ProjectDir);for var Item in Templates do if (Item as TJSONObject).GetValue<string>('id')=TemplateId then Template:=Item as TJSONObject;
   if not Assigned(Template) or (Template.GetValue<string>('operation')<>OperationName) then raise EAIError.Create('Choose a matching AI template');Prompt.SystemText:=Template.GetValue<string>('system');Prompt.UserText:=Template.GetValue<string>('user');
   FPrepared:=BuildAIRequest(Profile,Prompt,Context,ReadAIKey(Profile));

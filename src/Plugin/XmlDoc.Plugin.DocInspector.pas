@@ -51,6 +51,7 @@ type
     FClosing:Boolean;
     FAI:TAIAssistant;
     FProjectDocs:TProjectDocumentation;
+    FContextProjectFile,FContextSourceFile:string;
     FEditSessionId:string;
     FPinned:Boolean;
     FCursorPollTimer: TTimer;
@@ -313,7 +314,7 @@ begin
     Exit;
   end;
   try
-    var ResourceProject:=DocumentationProjectForFile(FLastFileName);
+    var ResourceProject:=DocumentationProjectForFile(FLastFileName,FContextProjectFile);
     if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
     FBrowser.LoadEditorResource(FindClassHInstance(TDocInspectorForm), CEditorResourceName);
   except
@@ -374,7 +375,7 @@ var Parsing:Boolean;
 begin
   Parsing:=False;
   try
-    ConfigureDeclarationContext(FDocParser,nil,FLastFileName);
+    ConfigureDeclarationContext(FDocParser,DocumentationProjectForFile(FLastFileName,FContextProjectFile),FLastFileName);
     if FDocParser.FailedSnapshotIsCurrent(Source,FLastFileName) then begin ShowParseFailure;Exit(False);end;
     if not FDocParser.IsUpToDate(Source) or not SameText(FDocParser.SourceFileName,FLastFileName) or (FEditSessionId='') then begin FLastElementName:='';FEditSessionId:=TGUID.NewGuid.ToString;end;
     Parsing:=True;FDocParser.ParseSource(Source,FLastFileName);
@@ -424,6 +425,7 @@ begin
     if FProjectDocs.Handle(LMsg,FBrowser) then begin
       if (LMsgType='openSymbol') or (LMsgType='recoverDraft') then begin
        var TargetEditor:=SourceEditorForFile(LMsg.GetValue<string>('fileName',''));if Assigned(TargetEditor) then begin
+        FContextSourceFile:=TargetEditor.FileName;FContextProjectFile:=LMsg.GetValue<string>('projectFile','');
         FPinned:=False;FBrowser.ExecuteScript('window.bridge.setPinned(false)');FLastElementName:='';TargetEditor.Show;
         HandleCursorChanged(LMsg.GetValue<Integer>('line',1),EditorSource(TargetEditor),TargetEditor.FileName);
        end;
@@ -617,10 +619,10 @@ begin
       LObj.AddPair('genericParams', LGenericParams);
     end;
 
-    var ResourceProject:=DocumentationProjectForFile(FLastFileName);
+    var ResourceProject:=DocumentationProjectForFile(FLastFileName,FContextProjectFile);
     if Assigned(ResourceProject) then FBrowser.MapResources(ExtractFilePath(ResourceProject.FileName));
-    LObj.AddPair('resourceBase','https://xmldoc.resources/');
-    AddEditContext(LObj,FCurrentElement,FLastFileName,FEditSessionId,FDocParser.SourceText);
+    LObj.AddPair('resourceBase',FBrowser.ResourceBase);
+    AddEditContext(LObj,FCurrentElement,FLastFileName,FEditSessionId,FDocParser.SourceText,FContextProjectFile);
     Result := LObj.ToJSON;
   finally
     LObj.Free;
@@ -672,6 +674,7 @@ begin
   if FUpdatingSource then
     Exit;
 
+  if not SameText(FContextSourceFile,AFileName) then begin FContextSourceFile:='';FContextProjectFile:='';end;
   if FDocParser.SourceText<>ASource then FLastElementName:='';
   FLastFileName := AFileName;
   if not ParseEditorSource(ASource) then Exit;

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Rad11 = 'D:\Embarcadero RAD Studio\22.0',
     [string]$Rad12 = 'D:\Embarcadero RAD Studio\23.0',
     [string]$Rad13 = 'D:\Embarcadero RAD Studio\37.0',
@@ -8,6 +8,7 @@ param(
     [string]$OutputDir = $PSScriptRoot
 )
 $ErrorActionPreference = 'Stop'
+& (Join-Path $PSScriptRoot 'build-helpinsight.ps1') -Check
 $OutputDir = [IO.Path]::GetFullPath($OutputDir)
 $Version = & (Join-Path $PSScriptRoot 'build-version.ps1') -Version $Version -IncrementVersion:$IncrementVersion
 # Only the final EXE goes into OutputDir. All staging, DCPs and hashes stay outside Git.

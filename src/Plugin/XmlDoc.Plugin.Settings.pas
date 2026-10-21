@@ -11,7 +11,7 @@ uses
   System.Win.Registry,
   Winapi.Windows,
   Vcl.Menus,
-  XmlDoc.Logger, XmlDoc.Documentation;
+  XmlDoc.Logger, XmlDoc.Documentation, XmlDoc.Plugin.HelpInsight;
 
 type
   TIndentStyle = (isSpaces, isTabs);
@@ -75,6 +75,7 @@ type
 
   /// <summary>Global preferences persisted in the current user's registry.</summary>
   TGlobalSettings = record
+    HelpInsight: THelpInsightSettings;
     CodeGen: TCodeGenSettings;
     Editor: TEditorSettings;
     General: TGeneralSettings;
@@ -178,6 +179,7 @@ end;
 
 procedure TPluginSettings.LoadDefaults;
 begin
+  FGlobal.HelpInsight := THelpInsightSettings.Defaults;
   // Editor
   FGlobal.Editor.AutoShowOnCursor := True;
   FGlobal.Editor.DebounceMs := 300;
@@ -241,6 +243,18 @@ begin
   LReg := TRegistry.Create(KEY_READ);
   try
     LReg.RootKey := HKEY_CURRENT_USER;
+    if LReg.OpenKey(FRegistryRoot + '\HelpInsight', False) then
+    begin
+      if LReg.ValueExists('Enabled') then FGlobal.HelpInsight.Enabled := LReg.ReadBool('Enabled');
+      if LReg.ValueExists('Extended') then FGlobal.HelpInsight.Extended := LReg.ReadBool('Extended');
+      if LReg.ValueExists('Width') then FGlobal.HelpInsight.Width := LReg.ReadInteger('Width');
+      if LReg.ValueExists('FontSize') then FGlobal.HelpInsight.FontSize := LReg.ReadInteger('FontSize');
+      if LReg.ValueExists('LineHeight') then FGlobal.HelpInsight.LineHeight := LReg.ReadInteger('LineHeight');
+      if LReg.ValueExists('ParameterWidth') then FGlobal.HelpInsight.ParameterWidth := LReg.ReadInteger('ParameterWidth');
+      if LReg.ValueExists('WrapSignature') then FGlobal.HelpInsight.WrapSignature := LReg.ReadBool('WrapSignature');
+      if LReg.ValueExists('CompactParameters') then FGlobal.HelpInsight.CompactParameters := LReg.ReadBool('CompactParameters');
+      LReg.CloseKey;
+    end;
     if LReg.OpenKey(FRegistryRoot + '\Editor', False) then
     begin
 
@@ -333,6 +347,18 @@ begin
   LReg := TRegistry.Create(KEY_WRITE);
   try
     LReg.RootKey := HKEY_CURRENT_USER;
+    if LReg.OpenKey(FRegistryRoot + '\HelpInsight', True) then
+    begin
+      LReg.WriteBool('Enabled', FGlobal.HelpInsight.Enabled);
+      LReg.WriteBool('Extended', FGlobal.HelpInsight.Extended);
+      LReg.WriteInteger('Width', FGlobal.HelpInsight.Width);
+      LReg.WriteInteger('FontSize', FGlobal.HelpInsight.FontSize);
+      LReg.WriteInteger('LineHeight', FGlobal.HelpInsight.LineHeight);
+      LReg.WriteInteger('ParameterWidth', FGlobal.HelpInsight.ParameterWidth);
+      LReg.WriteBool('WrapSignature', FGlobal.HelpInsight.WrapSignature);
+      LReg.WriteBool('CompactParameters', FGlobal.HelpInsight.CompactParameters);
+      LReg.CloseKey;
+    end;
 
     if LReg.OpenKey(FRegistryRoot + '\Editor', True) then
     begin

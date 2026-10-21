@@ -11,14 +11,23 @@ Dialog for supported global preferences and command shortcuts.
 | `btnAISettings` | field | public |  |
 | `btnCancel` | field | public |  |
 | `btnCreateTheme` | field | public |  |
+| `btnExportHintCss` | field | public |  |
+| `btnHintPreview` | field | public |  |
 | `btnOK` | field | public |  |
+| `btnRestoreHint` | field | public |  |
+| `btnShellHintCss` | field | public |  |
 | `chkAutoGenerate` | field | public |  |
 | `chkCollapseEmptySections` | field | public |  |
+| `chkHelpInsightCompact` | field | public |  |
+| `chkHelpInsightEnabled` | field | public |  |
+| `chkHelpInsightWrap` | field | public |  |
 | `chkShowSignatureHeader` | field | public |  |
 | `cmbDocumentationTheme` | field | public |  |
+| `cmbHintAppearance` | field | public |  |
 | `cmbLanguage` | field | public |  |
 | `cmbLogLevel` | field | public |  |
 | `edtPlaceholderPrefix` | field | public |  |
+| `FShellHintCss` | field | private |  |
 | `FShortcutsChanged` | field | private |  |
 | `hotCoverageReport` | field | public |  |
 | `hotGenerateHelp` | field | public |  |
@@ -26,22 +35,34 @@ Dialog for supported global preferences and command shortcuts.
 | `hotNextUndocumented` | field | public |  |
 | `hotPreviousUndocumented` | field | public |  |
 | `hotToggleInspector` | field | public |  |
+| `lblHintStatus` | field | public |  |
 | `memPlaceholderMarkers` | field | public |  |
 | `PageControl` | field | public |  |
 | `spnDebounceMs` | field | public |  |
 | `spnFontSize` | field | public |  |
+| `spnHintFontSize` | field | public |  |
+| `spnHintLineHeight` | field | public |  |
+| `spnHintParameterWidth` | field | public |  |
+| `spnHintWidth` | field | public |  |
 | `spnSaveDebounceMs` | field | public |  |
 | `tsAdvanced` | field | public |  |
 | `tsCodeGen` | field | public |  |
 | `tsGeneral` | field | public |  |
+| `tsHelpInsight` | field | public |  |
 | `tsShortcuts` | field | public |  |
 | `AISettingsClick` | method | public |  |
 | `btnCreateThemeClick` | method | public |  |
 | `btnOKClick` | method | public |  |
+| `ExportHintCssClick` | method | public |  |
 | `FormCreate` | method | public |  |
+| `HelpInsightChanged` | method | public |  |
+| `HintPreviewClick` | method | public |  |
+| `HintSettingsFromControls` | method | private |  |
 | `LoadSettings` | method | private |  |
 | `LoadThemes` | method | private |  |
+| `RestoreHintClick` | method | public |  |
 | `SaveSettings` | method | private |  |
+| `ShellHintCssClick` | method | public |  |
 | `ShortcutsChanged` | property | public |  |
 
 ### btnAISettings
@@ -50,21 +71,39 @@ Dialog for supported global preferences and command shortcuts.
 
 ### btnCreateTheme
 
+### btnExportHintCss
+
+### btnHintPreview
+
 ### btnOK
+
+### btnRestoreHint
+
+### btnShellHintCss
 
 ### chkAutoGenerate
 
 ### chkCollapseEmptySections
 
+### chkHelpInsightCompact
+
+### chkHelpInsightEnabled
+
+### chkHelpInsightWrap
+
 ### chkShowSignatureHeader
 
 ### cmbDocumentationTheme
+
+### cmbHintAppearance
 
 ### cmbLanguage
 
 ### cmbLogLevel
 
 ### edtPlaceholderPrefix
+
+### FShellHintCss
 
 ### FShortcutsChanged
 
@@ -80,6 +119,8 @@ Dialog for supported global preferences and command shortcuts.
 
 ### hotToggleInspector
 
+### lblHintStatus
+
 ### memPlaceholderMarkers
 
 ### PageControl
@@ -87,6 +128,14 @@ Dialog for supported global preferences and command shortcuts.
 ### spnDebounceMs
 
 ### spnFontSize
+
+### spnHintFontSize
+
+### spnHintLineHeight
+
+### spnHintParameterWidth
+
+### spnHintWidth
 
 ### spnSaveDebounceMs
 
@@ -96,6 +145,8 @@ Dialog for supported global preferences and command shortcuts.
 
 ### tsGeneral
 
+### tsHelpInsight
+
 ### tsShortcuts
 
 ### AISettingsClick
@@ -104,12 +155,24 @@ Dialog for supported global preferences and command shortcuts.
 
 ### btnOKClick
 
+### ExportHintCssClick
+
 ### FormCreate
+
+### HelpInsightChanged
+
+### HintPreviewClick
+
+### HintSettingsFromControls
 
 ### LoadSettings
 
 ### LoadThemes
 
+### RestoreHintClick
+
 ### SaveSettings
+
+### ShellHintCssClick
 
 ### ShortcutsChanged

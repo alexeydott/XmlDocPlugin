@@ -1,5 +1,6 @@
-param([string]$Bds = 'D:\Embarcadero RAD Studio\23.0')
+﻿param([string]$Bds = 'D:\Embarcadero RAD Studio\23.0')
 $ErrorActionPreference = 'Stop'
+& (Join-Path $PSScriptRoot 'build-helpinsight.ps1') -Check
 & (Join-Path $PSScriptRoot 'build-locales.ps1') -Check
 if (!(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'vendor\DelphiAST\Source\DelphiAST.pas'))) {
     throw 'Initialize DelphiAST first: git submodule update --init --recursive'

@@ -1,9 +1,11 @@
-/// <summary>IDE wizard registration, command wiring and plugin lifetime management.</summary>
+﻿/// <summary>IDE wizard registration, command wiring and plugin lifetime management.</summary>
 unit XmlDoc.Plugin.Main;
 
 interface
 
 uses
+  XmlDoc.Plugin.HelpInsight,
+  XmlDoc.Logger,
   DeskUtil,
   System.SysUtils,
   System.Classes,
@@ -22,6 +24,7 @@ type
     FDocExplorer: TDocExplorerForm;
     FDocInspector: TDocInspectorForm;
     FEditorNotifierIndex: Integer;
+    FThemeNotifierIndex:Integer;
     FKeyBindingIndex: Integer;
     FMenuIntegration: TXmlDocMenuIntegration;
     FUndocNavigator: TUndocNavigator;
@@ -61,6 +64,7 @@ procedure Register;
 implementation
 
 uses
+  XmlDoc.I18n,
   XmlDoc.Plugin.Splash,
   XmlDoc.Plugin.EditorNotifier,
   XmlDoc.Plugin.BatchGenDialog,
@@ -75,9 +79,27 @@ uses
   XmlDoc.Consts,
   XmlDoc.Model;
 
+type THelpInsightThemeNotifier=class(TNotifierObject,INTAIDEThemingServicesNotifier)
+ public procedure ChangingTheme;procedure ChangedTheme;
+end;
+procedure THelpInsightThemeNotifier.ChangingTheme;
+begin end;
+procedure THelpInsightThemeNotifier.ChangedTheme;
+begin
+ if TPluginSettings.Instance.Global.HelpInsight.Enabled and TPluginSettings.Instance.Global.HelpInsight.Extended then
+ try ApplyHelpInsightPresentation(HelpInsightCssPath,TPluginSettings.Instance.Global.HelpInsight,IDEHelpInsightPalette,IDEHelpInsightXsltPath);
+ except on E:Exception do TLogger.Instance.Warn(E.Message,'Help Insight');end;
+end;
 procedure Register;
 begin
   RegisterPluginSplash;
+  XmlDoc.I18n.TI18n.Instance.SetLanguage(TPluginSettings.Instance.Global.General.Language);
+  if TPluginSettings.Instance.Global.HelpInsight.Enabled then
+  try
+    ApplyHelpInsightPresentation(HelpInsightCssPath, TPluginSettings.Instance.Global.HelpInsight,IDEHelpInsightPalette,IDEHelpInsightXsltPath);
+  except
+    on E: Exception do TLogger.Instance.Warn(E.Message, 'Help Insight');
+  end;
   // Let the IDE release the wizard before unloading its design-time package.
   RegisterPackageWizard(TXmlDocWizard.Create);
 end;
@@ -91,6 +113,9 @@ var
 begin
   inherited Create;
   FEditorNotifierIndex := -1;
+  FThemeNotifierIndex:=-1;
+  var Theme:IOTAIDEThemingServices;
+  if Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) then FThemeNotifierIndex:=Theme.AddNotifier(THelpInsightThemeNotifier.Create);
   FKeyBindingIndex := -1;
 
   RegisterDesktopFormClass(TDocInspectorForm, 'XmlDocDocInspector', 'XmlDocDocInspector');
@@ -134,6 +159,8 @@ var
   LEditorServices: IOTAEditorServices;
   LKeyServices: IOTAKeyboardServices;
 begin
+  var Theme:IOTAIDEThemingServices;
+  if (FThemeNotifierIndex>=0) and Supports(BorlandIDEServices,IOTAIDEThemingServices,Theme) then begin Theme.RemoveNotifier(FThemeNotifierIndex);FThemeNotifierIndex:=-1;end;
   SetDocumentationCommandCallback(nil);
   SetToggleInspectorCallback(nil);SetGenerateStubCallback(nil);SetGenerateHelpCallback(nil);
   SetCoverageReportCallback(nil);SetNextUndocumentedCallback(nil);SetPreviousUndocumentedCallback(nil);

@@ -2,16 +2,20 @@
 unit XmlDoc.Plugin.DeclarationContext;
 interface
 uses XmlDoc.Parser,XmlDoc.Consts,XmlDoc.ProjectContext,ToolsAPI;
-function DocumentationProjectForFile(const FileName:string):IOTAProject;
+function DocumentationProjectForFile(const FileName:string;const ProjectFile:string=''):IOTAProject;
 function ActiveDocumentationContext(Project:IOTAProject=nil):TProjectContext;
 procedure ConfigureDeclarationContext(Parser:TDocParser;Project:IOTAProject=nil;const SourceFileName:string='');
 procedure ConfigureCapturedDeclarationContext(Parser:TDocParser;Project:IOTAProject;const SourceFileName:string;const Snapshots:TArray<TSourceSnapshot>);
 implementation
 uses System.SysUtils,System.IOUtils,System.Generics.Collections,XmlDoc.Plugin.EditSession,XmlDoc.Plugin.Settings;
-function DocumentationProjectForFile(const FileName:string):IOTAProject;
+function DocumentationProjectForFile(const FileName:string;const ProjectFile:string):IOTAProject;
 var Group:IOTAProjectGroup;
 begin
  Result:=nil;Group:=(BorlandIDEServices as IOTAModuleServices).MainProjectGroup;
+ if ProjectFile<>'' then begin
+  if Assigned(Group) then for var I:=0 to Group.ProjectCount-1 do if SameText(Group.Projects[I].FileName,ProjectFile) then Exit(Group.Projects[I]);
+  raise Exception.Create('Project context is unavailable: '+ProjectFile);
+ end;
  if Assigned(Group) and (FileName<>'') then Result:=Group.FindProject(FileName);
  if not Assigned(Result) then Result:=GetActiveProject;
 end;

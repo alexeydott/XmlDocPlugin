@@ -1,4 +1,4 @@
-package XmlDocPlugin;
+﻿package XmlDocPlugin;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -33,6 +33,7 @@ package XmlDocPlugin;
 requires
   rtl,
   vcl,
+  vclie,
   designide,
   xmlrtl,
   vclwinx,
@@ -91,6 +92,7 @@ contains
   XmlDoc.Plugin.Splash in '..\..\Plugin\XmlDoc.Plugin.Splash.pas',
   XmlDoc.Plugin.EditorNotifier in '..\..\PlugIn\XmlDoc.Plugin.EditorNotifier.pas',
   XmlDoc.Plugin.DocInspector in '..\..\PlugIn\XmlDoc.Plugin.DocInspector.pas',
+  XmlDoc.Plugin.HelpInsight in '..\..\PlugIn\XmlDoc.Plugin.HelpInsight.pas',
   XmlDoc.Plugin.Settings in '..\..\PlugIn\XmlDoc.Plugin.Settings.pas',
   XmlDoc.Plugin.Shortcuts in '..\..\PlugIn\XmlDoc.Plugin.Shortcuts.pas',
   XmlDoc.Plugin.BatchGenDialog in '..\..\PlugIn\XmlDoc.Plugin.BatchGenDialog.pas',
