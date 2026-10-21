@@ -1423,6 +1423,7 @@
       - [ApplyHelpInsightCss](units/XmlDoc.Plugin.HelpInsight.md#applyhelpinsightcss)
       - [ApplyHelpInsightCssWithShell](units/XmlDoc.Plugin.HelpInsight.md#applyhelpinsightcsswithshell)
       - [ApplyHelpInsightPresentation](units/XmlDoc.Plugin.HelpInsight.md#applyhelpinsightpresentation)
+      - [BuildCompatibleHelpInsightXslt](units/XmlDoc.Plugin.HelpInsight.md#buildcompatiblehelpinsightxslt)
       - [BuildEnhancedHelpInsightCss](units/XmlDoc.Plugin.HelpInsight.md#buildenhancedhelpinsightcss)
       - [BuildEnhancedHelpInsightXslt](units/XmlDoc.Plugin.HelpInsight.md#buildenhancedhelpinsightxslt)
       - [BuildHelpInsightCss](units/XmlDoc.Plugin.HelpInsight.md#buildhelpinsightcss)

@@ -3,7 +3,9 @@
  [ValidateSet('Classic','Current')][string]$Backend='Current',
  [Parameter(Mandatory)][string]$BuildRoot,[Parameter(Mandatory)][string]$EvidenceDir,
  [string]$LongFixture="$PSScriptRoot\..\fixtures\HelpInsight\LongHintParagraphs.dpr",
- [string]$ParameterFixture="$PSScriptRoot\..\fixtures\HelpInsight\HelpInsightCssProbe.dpr")
+ [string]$ParameterFixture="$PSScriptRoot\..\fixtures\HelpInsight\HelpInsightCssProbe.dpr",
+ [switch]$CaptureXml,[string]$InitialSymbol='',
+ [ValidateSet('Extended','IDEdefault')][string]$Appearance='Extended')
 $ErrorActionPreference='Stop'
 if(Get-Process bds -ErrorAction SilentlyContinue){throw 'Close RAD Studio before testing shared native Help Insight templates.'}
 $rad=if($Version -eq '11'){'D:\Embarcadero RAD Studio\22.0'}elseif($Version -eq '12'){'D:\Embarcadero RAD Studio\23.0'}else{'D:\Embarcadero RAD Studio\37.0'}
@@ -14,6 +16,8 @@ if(Test-Path $EvidenceDir){throw 'Use a new evidence directory'}
 New-Item -ItemType Directory $EvidenceDir|Out-Null
 $EvidenceDir=[IO.Path]::GetFullPath($EvidenceDir)
 Copy-Item -LiteralPath $LongFixture -Destination "$EvidenceDir\LongHintParagraphs.dpr"
+if($InitialSymbol){[IO.File]::WriteAllText("$EvidenceDir\initial-symbol.txt",$InitialSymbol)}
+[IO.File]::WriteAllText("$EvidenceDir\appearance.txt",$Appearance)
 $long=[IO.File]::ReadAllText("$EvidenceDir\LongHintParagraphs.dpr",[Text.Encoding]::UTF8)
 $long=$long.Replace('</remarks>','<para>Additional paragraph with <b>bold</b> text and a <see cref="TMapDocumentation"/> reference.<br/>Second line.</para><list type="bullet"><item><description>First item</description></item><item><description>Second item</description></item></list><list type="table"><listheader><term>Option</term><description>Meaning</description></listheader><item><term>Clipping</term><description>Restricts output to the viewport.</description></item></list><note type="caller">Provide a valid rendering context.</note></remarks>')
 [IO.File]::WriteAllText("$EvidenceDir\LongHintParagraphs.dpr",$long,[Text.UTF8Encoding]::new($true))
@@ -42,8 +46,13 @@ if($Backend -eq 'Classic'){
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 & cmd.exe /d /c "`"$rad\bin\rsvars.bat`" && dcc32 -B --codepage:65001 -NSSystem;System.Win;Winapi;Vcl `"-U$repo\src\Plugin;$repo\src\Core`" `"-E$EvidenceDir`" `"-N0$EvidenceDir`" `"$repo\tests\HelpInsightRender.dpr`"" *> "$EvidenceDir\renderer-build.log"
 if($LASTEXITCODE){throw 'Renderer helper compilation failed'}
-& "$EvidenceDir\HelpInsightRender.exe" apply $Theme "$rad\ObjRepos\HelpInsight.css" "$rad\ObjRepos\en\HelpInsight.xsl"
+& "$EvidenceDir\HelpInsightRender.exe" apply $Theme "$rad\ObjRepos\HelpInsight.css" "$rad\ObjRepos\en\HelpInsight.xsl" $Appearance
 if($LASTEXITCODE){throw 'Template staging failed'}
+if($CaptureXml){
+ $identity='<?xml version="1.0"?><xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:output method="html"/><xsl:template match="/"><html><body style="background:white;color:black;font:12px Consolas;width:1000px"><xsl:for-each select="//*"><div><b><xsl:value-of select="name()"/></b><xsl:for-each select="@*"><xsl:text> @</xsl:text><xsl:value-of select="name()"/>=<xsl:value-of select="."/></xsl:for-each><xsl:for-each select="text()"><xsl:value-of select="."/></xsl:for-each></div></xsl:for-each></body></html></xsl:template></xsl:stylesheet>'
+ [IO.File]::WriteAllText("$EvidenceDir\capture.xsl",$identity)
+ foreach($capturePath in "$rad\ObjRepos\HelpInsight.xsl","$rad\ObjRepos\en\HelpInsight.xsl"){[IO.File]::WriteAllText($capturePath,$identity)}
+}
 $saved=$env:XMLDOC_HINT_ROOT
 try{
  $env:XMLDOC_HINT_ROOT=$EvidenceDir

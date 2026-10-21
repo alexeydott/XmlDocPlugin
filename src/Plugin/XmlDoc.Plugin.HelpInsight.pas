@@ -25,7 +25,9 @@ type
 
 /// <summary>Builds viewer-compatible styles with bounded layout dimensions.</summary>
 function BuildEnhancedHelpInsightCss(const Settings:THelpInsightSettings; const Palette:THelpInsightPalette):string;
-/// <summary>Builds the bundled XSLT 1.0 template with section headings in the active plugin UI language.</summary>
+/// <summary>Adds a title fallback for native hover payloads that omit DisplayName, retaining the IDE template layout.</summary>
+function BuildCompatibleHelpInsightXslt(const Original:string):string;
+/// <summary>Builds the extended template with localized headings and a source-name fallback for incomplete hover payloads.</summary>
 /// <remarks>Supports English, Russian, Chinese, Korean and Japanese. Declaration identifiers, documentation text and link targets are preserved. Reapply presentation and restart the IDE after changing language because the native viewer can cache XSLT.</remarks>
 function BuildEnhancedHelpInsightXslt(const Settings: THelpInsightSettings;
   const Palette: THelpInsightPalette): string;
@@ -57,7 +59,7 @@ procedure ApplyHelpInsightCssWithShell(const FileName: string;
 
 implementation
 
-uses System.SysUtils, System.IOUtils, System.Math, System.Variants, System.Win.ComObj, XmlDoc.I18n, Winapi.Windows,
+uses System.SysUtils, System.IOUtils, System.RegularExpressions, System.Math, System.Variants, System.Win.ComObj, XmlDoc.I18n, Winapi.Windows,
   Winapi.ActiveX, Winapi.ShlObj, Winapi.ShellAPI;
 
 {$I XmlDoc.HelpInsight.Template.inc}
@@ -90,9 +92,22 @@ begin
  Result:=Css;
 end;
 
+function BuildCompatibleHelpInsightXslt(const Original:string):string;
+const Marker='XmlDocPlugin Help Insight caption fallback';
+ Caption='<xsl:choose><xsl:when test="normalize-space(member/@DisplayName)"><xsl:value-of select="member/@DisplayName"/></xsl:when>'+
+  '<xsl:when test="normalize-space(member/@name)"><xsl:choose><xsl:when test="contains(member/@name,'':'')">'+
+  '<xsl:value-of select="substring-after(member/@name,'':'')"/></xsl:when><xsl:otherwise><xsl:value-of select="member/@name"/></xsl:otherwise></xsl:choose></xsl:when>'+
+  '<xsl:when test="normalize-space(member/identifier)"><xsl:value-of select="member/identifier"/></xsl:when>'+
+  '<xsl:when test="normalize-space(member/source/@declaredInShort)"><xsl:value-of select="member/source/@declaredInShort"/></xsl:when>'+
+  '<xsl:otherwise><xsl:value-of select="member/source/@declaredIn"/></xsl:otherwise></xsl:choose>';
+begin
+ Result:=Original;if Original.Contains(Marker) then Exit;
+ Result:=TRegEx.Replace(Original,'<xsl:value-of\s+select=(?:"member/@DisplayName"|''member/@DisplayName'')\s*/>','<!-- '+Marker+' -->'+Caption);
+end;
+
 function BuildEnhancedHelpInsightXslt(const Settings:THelpInsightSettings;const Palette:THelpInsightPalette):string;
 begin
- Result:=CEnhancedHelpInsightXslt.Replace('@@CSS@@','');
+ Result:=BuildCompatibleHelpInsightXslt(CEnhancedHelpInsightXslt.Replace('@@CSS@@',''));
  for var Caption in ['Type Parameters','Parameters','Returns','Value','Exceptions','Remarks','Examples','See Also','Notes to callers','Warning','Tip','Note'] do begin
   var Text:=TI18n.Instance.T(Caption).Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;');
   Result:=Result.Replace('@@'+Caption+'@@',Text);
@@ -111,7 +126,7 @@ begin
  if not Settings.Extended then begin
   var Native:=NativeXslFile;if Native='' then Native:=ChangeFileExt(CssPath,'.xsl');
   if TFile.Exists(Native+'.xmldocplugin.bak') and TFile.ReadAllText(Native).Contains('XmlDocPlugin native Help Insight') then Native:=Native+'.xmldocplugin.bak';
-  Xsl:=TFile.ReadAllText(Native);
+  Xsl:=TFile.ReadAllText(Native);if Settings.Enabled then Xsl:=BuildCompatibleHelpInsightXslt(Xsl);
  end;
  if not Template.loadXML(Xsl) then raise EArgumentException.Create(string(Template.parseError.reason));
  Result:=Document.transformNode(Template);
@@ -147,7 +162,17 @@ begin
    TFile.Copy(Xsl,Backup);
   end;
   Next:=TEncoding.UTF8.GetBytes(Updated);
- end else if TFile.Exists(Xsl) and TFile.Exists(Backup) and TFile.ReadAllText(Xsl).Contains('XmlDocPlugin native Help Insight') then begin
+ end else if Settings.Enabled and TFile.Exists(Xsl) then begin
+  Before:=TFile.ReadAllBytes(Xsl);Updated:=TFile.ReadAllText(Xsl);
+  if Updated.Contains('XmlDocPlugin native Help Insight') and TFile.Exists(Backup) then Updated:=TFile.ReadAllText(Backup);
+  var Compatible:=BuildCompatibleHelpInsightXslt(Updated);
+  if Compatible<>TFile.ReadAllText(Xsl) then begin
+   if not TFile.Exists(Backup) then TFile.Copy(Xsl,Backup);
+   if (Compatible=Updated) and TFile.Exists(Backup) and TFile.ReadAllText(Xsl).Contains('XmlDocPlugin native Help Insight') then Next:=TFile.ReadAllBytes(Backup)
+   else Next:=TEncoding.UTF8.GetBytes(Compatible);
+  end;
+ end else if TFile.Exists(Xsl) and TFile.Exists(Backup) and
+  (TFile.ReadAllText(Xsl).Contains('XmlDocPlugin native Help Insight') or TFile.ReadAllText(Xsl).Contains('XmlDocPlugin Help Insight caption fallback')) then begin
   Before:=TFile.ReadAllBytes(Xsl);Next:=TFile.ReadAllBytes(Backup);
  end;
  try
@@ -201,7 +226,7 @@ begin
  Xsl:=XslFile;if Xsl='' then Xsl:=ChangeFileExt(CssFile,'.xsl');
  if SameText(TPath.GetFullPath(ChangeFileExt(DestinationCss,'.xsl')),TPath.GetFullPath(Xsl)) then raise EArgumentException.Create('Export the templates to a separate folder');
  if Settings.Enabled and Settings.Extended then Xsl:=BuildEnhancedHelpInsightXslt(Settings,Palette)
- else begin if TFile.Exists(Xsl+'.xmldocplugin.bak') and TFile.ReadAllText(Xsl).Contains('XmlDocPlugin native Help Insight') then Xsl:=Xsl+'.xmldocplugin.bak';Xsl:=TFile.ReadAllText(Xsl);end;
+ else begin if TFile.Exists(Xsl+'.xmldocplugin.bak') and TFile.ReadAllText(Xsl).Contains('XmlDocPlugin native Help Insight') then Xsl:=Xsl+'.xmldocplugin.bak';Xsl:=TFile.ReadAllText(Xsl);if Settings.Enabled then Xsl:=BuildCompatibleHelpInsightXslt(Xsl);end;
  Css:=UpdateHelpInsightCss(TFile.ReadAllText(CssFile),Settings);
  if Settings.Enabled and Settings.Extended then Css:=Css.Replace('/* XmlDocPlugin Help Insight: end */',BuildEnhancedHelpInsightCss(Settings,Palette)+sLineBreak+'/* XmlDocPlugin Help Insight: end */');
  DestinationXsl:=ChangeFileExt(DestinationCss,'.xsl');CssExisted:=TFile.Exists(DestinationCss);XslExisted:=TFile.Exists(DestinationXsl);

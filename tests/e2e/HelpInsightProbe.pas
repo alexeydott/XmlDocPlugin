@@ -26,6 +26,7 @@ begin
  if not (BorlandIDEServices as IOTAActionServices).OpenFile(FileName) then raise Exception.Create('Fixture did not open');
  Editor:=SourceEditorForFile(FileName);Source:=EditorSource(Editor);
  var At:=Source.LastIndexOf(SymbolName);if At<0 then raise Exception.Create('Call is absent: '+SymbolName);
+ var UnitAt:=Source.IndexOf(SymbolName+' in ');if UnitAt>=0 then At:=UnitAt;
  Line:=1;Col:=1;for var I:=1 to At do if Source[I]=#10 then begin Inc(Line);Col:=1;end else Inc(Col);
  Inc(Col,SymbolName.LastIndexOf('.')+4);Pos.Line:=Line;Pos.Col:=Col;Editor.EditViews[0].SetCursorPos(Pos);Editor.EditViews[0].MoveViewToCursor;Editor.Show;
  Services:=BorlandIDEServices as IOTAModuleServices;Module:=Services.FindModule(FileName);
@@ -63,12 +64,17 @@ begin
   if not Started then begin
    Log('IDE registry '+(BorlandIDEServices as IOTAServices).GetBaseRegistryKey);Css:=HelpInsightCssPath;Xsl:=IDEHelpInsightXsltPath;CssBefore:=TFile.ReadAllBytes(TPath.Combine(Root,'original.css'));XslBefore:=TFile.ReadAllBytes(TPath.Combine(Root,'original.xsl'));RootXslBefore:=TFile.ReadAllBytes(TPath.Combine(Root,'original-root.xsl'));SettingsBefore:=TPluginSettings.Instance.Global;Started:=True;
    var S:=SettingsBefore;S.HelpInsight.Enabled:=True;S.HelpInsight.Extended:=True;S.HelpInsight.Width:=720;S.HelpInsight.FontSize:=10;
+   var Appearance:=TPath.Combine(Root,'appearance.txt');if TFile.Exists(Appearance) then S.HelpInsight.Extended:=not SameText(TFile.ReadAllText(Appearance).Trim,'IDEdefault');
    TPluginSettings.Instance.Global:=S;
    ApplyHelpInsightPresentation(Css,S.HelpInsight,IDEHelpInsightPalette,Xsl);Log('Template path '+Css);if (BorlandIDEServices as IOTAIDEThemingServices).IDEThemingEnabled then Log('Theme '+(BorlandIDEServices as IOTAIDEThemingServices).ActiveTheme) else Log('Theme disabled (native light)');Log('Applied extended hint background='+IDEHelpInsightPalette.Background);
+   var Capture:=TPath.Combine(Root,'capture.xsl');
+   if TFile.Exists(Capture) then begin TFile.Copy(Capture,Xsl,True);TFile.Copy(Capture,ChangeFileExt(Css,'.xsl'),True);end;
    FileName:=TPath.Combine(Root,'LongHintParagraphs.dpr');
    (BorlandIDEServices as IOTAActionServices).OpenProject(FileName,True);Step:=1;
   end else if Step=1 then begin
-   ShowHint('TMapDocumentation.PrepareAndRenderMapWithClippingAndPixelDensity');Step:=2;Log('READY');
+   var InitialSymbol:='TMapDocumentation.PrepareAndRenderMapWithClippingAndPixelDensity';
+   if TFile.Exists(TPath.Combine(Root,'initial-symbol.txt')) then InitialSymbol:=TFile.ReadAllText(TPath.Combine(Root,'initial-symbol.txt')).Trim;
+   ShowHint(InitialSymbol);Step:=2;Log('READY');
   end else begin
    var Command:=TPath.Combine(Root,'command.json');
    if TFile.Exists(Command) then begin

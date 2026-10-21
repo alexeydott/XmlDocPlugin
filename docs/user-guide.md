@@ -427,7 +427,7 @@ For quality gates, distinguish comment presence from readiness:
 Open **Tools в†’ Options в†’ Third Party в†’ XmlDocPlugin в†’ Help Insight**, or **Document в†’ Settings в†’ Help Insight**, and enable **Customize native Help Insight**.
 ![Help Insight settings](assets/user-guide/help-insight-settings.jpg)
 
-Choose **IDE default** to retain the IDE template, or **Extended** for a heading band,
+Choose **IDE default** to retain the IDE layout, or **Extended** for a heading band,
 readable parameter columns, tables, lists and notes to callers. Colours follow the IDE theme.
 This changes the IDE's native HTML Help Insight popup; it does not replace it with a browser window. A Code Insight provider that uses its own tooltip renderer may ignore the IDE's CSS and XSLT. RAD Studio 13's LSP tooltip uses a separate renderer; these template settings apply only when the active provider uses the native HTML Help Insight backend.
 
@@ -440,6 +440,8 @@ This changes the IDE's native HTML Help Insight popup; it does not replace it wi
 Select the interface language on **General**: English (`en`), Russian (`ru`), Chinese (`zh`), Korean (`ko`) or Japanese (`ja`). `auto` uses the Windows user language. Save preferences and reopen Settings to see its translated captions, appearance choices and tooltips. Extended hints use this language for section headings such as Parameters, Returns, Remarks and Notes to callers. Your documentation, symbol names, parameter names and link destinations are not translated; the preview deliberately contains English sample documentation.
 
 Saving preferences writes the Help Insight headings in the selected language. Restart the IDE after a language change so its cached XSLT uses the new headings. The IDE's own interface language determines the localized template folder; it does not override the plugin language used for headings.
+
+Delphi can send different data for a hover hint and an explicit Help Insight request. If a hover omits the display name, both modes use the available symbol identifier or source filename for the heading. This preserves source navigation; it does not invent missing unit documentation.
 
 Adjust the width, font size, line spacing, signature wrapping and compact parameter layout.
 **Preview hint** shows a sample without saving preferences or modifying the IDE templates.

@@ -27,13 +27,17 @@ Updates root and IDE-language templates with the current plugin language, preser
 
 The IDE language selects the destination folder; the plugin language selects section headings. Independent tooltip renderers do not necessarily use these templates.
 
+### BuildCompatibleHelpInsightXslt
+
+Adds a title fallback for native hover payloads that omit DisplayName, retaining the IDE template layout.
+
 ### BuildEnhancedHelpInsightCss
 
 Builds viewer-compatible styles with bounded layout dimensions.
 
 ### BuildEnhancedHelpInsightXslt
 
-Builds the bundled XSLT 1.0 template with section headings in the active plugin UI language.
+Builds the extended template with localized headings and a source-name fallback for incomplete hover payloads.
 
 ## Remarks
 

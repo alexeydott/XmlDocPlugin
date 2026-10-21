@@ -5,6 +5,7 @@ type
   [TestFixture] THelpInsightTests = class
   public
     [Test] procedure EmptyHintDataDoesNotCreatePopup;
+    [Test] procedure HoverCaptionFallbackInBothModes;
     [Test] procedure ExtendedTransformAndSafeMarkup;
     [Test] procedure PresentationSwitchAndRollback;
     [Test] procedure ExtendedSettingsAndExport;
@@ -17,14 +18,44 @@ type
     [Test] procedure ShellCopyKeepsFirstBackupAndAppliesChanges;
   end;
 implementation
-uses XmlDoc.I18n,System.Classes,System.SysUtils, System.IOUtils, System.Win.Registry, Winapi.Windows,
+uses DUnitX.Assert, XmlDoc.I18n,System.Classes,System.SysUtils, System.IOUtils, System.Win.Registry, Winapi.Windows,
   XmlDoc.Plugin.HelpInsight, XmlDoc.Plugin.Settings;
+
+procedure THelpInsightTests.HoverCaptionFallbackInBothModes;
+const Native='<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><html><head><title><xsl:value-of select="member/@DisplayName"/></title></head>'+
+  '<body><h1><xsl:value-of select="member/@DisplayName"/></h1><xsl:value-of select="member/summary"/></body></html></xsl:template></xsl:stylesheet>';
+var Root,Css,Xsl,Html:string;S:THelpInsightSettings;
+begin
+ Root:=TPath.Combine(TPath.GetTempPath,TPath.GetRandomFileName);ForceDirectories(Root);
+ Css:=TPath.Combine(Root,'HelpInsight.css');Xsl:=ChangeFileExt(Css,'.xsl');
+ try
+  TFile.WriteAllText(Css,'body {color:black;}');TFile.WriteAllText(Xsl,Native);
+  S:=THelpInsightSettings.Defaults;S.Enabled:=True;
+  Assert.AreEqual(BuildCompatibleHelpInsightXslt(Native),BuildCompatibleHelpInsightXslt(BuildCompatibleHelpInsightXslt(Native)),'Repeated patching is stable');
+  for var Extended in [False,True] do begin
+   S.Extended:=Extended;
+   for var Palette in [THelpInsightPalette.Light,THelpInsightPalette.Dark] do begin
+    Html:=RenderHelpInsightPreview('<member DisplayName=""><identifier/><source declaredIn="D:\Source\osm2mappl2.config.pas" declaredInShort="osm2mappl2.config.pas" declaredOn="1" declaredAt="1"/></member>',S,Palette,Css,Xsl);
+    Assert.IsTrue(Html.Contains('osm2mappl2.config.pas'),'Hover payload must display its source filename');
+    if Extended then Assert.IsTrue(Html.Contains('helpinsight:/filelink:D:\Source\osm2mappl2.config.pas?1,1'),'Source navigation survives fallback');
+    Html:=RenderHelpInsightPreview('<member name="N:Winapi.Windows" DisplayName=""><summary/></member>',S,Palette,Css,Xsl);
+    Assert.IsTrue(Html.Contains('Winapi.Windows'));
+    Html:=RenderHelpInsightPreview('<member DisplayName="Correct name"><source declaredInShort="wrong.pas"/></member>',S,Palette,Css,Xsl);
+    Assert.IsTrue(Html.Contains('Correct name'));
+   end;
+   ApplyHelpInsightPresentation(Css,S,THelpInsightPalette.Dark,Xsl);
+   Assert.IsTrue(TFile.ReadAllText(Xsl).Contains('XmlDocPlugin Help Insight caption fallback'));
+  end;
+  S.Enabled:=False;ApplyHelpInsightPresentation(Css,S,THelpInsightPalette.Dark,Xsl);
+  Assert.AreEqual(Native,TFile.ReadAllText(Xsl),'Disabling restores the exact original template');
+ finally TDirectory.Delete(Root,True);end;
+end;
 
 procedure THelpInsightTests.EmptyHintDataDoesNotCreatePopup;
 begin
  var S:=THelpInsightSettings.Defaults;S.Enabled:=True;S.Extended:=True;
  for var Palette in [THelpInsightPalette.Light,THelpInsightPalette.Dark] do begin
-  for var Xml in ['<member/>','<member DisplayName=" "><summary><para/> </summary><source declaredIn="Unit.pas"/></member>','<doc/>'] do
+  for var Xml in ['<member/>','<member DisplayName=" "><summary><para/> </summary></member>','<doc/>'] do
    Assert.AreEqual('',RenderHelpInsightPreview(Xml,S,Palette),'Empty IDE data must not produce a styled blank popup');
   var Html:=RenderHelpInsightPreview('<member DisplayName="HintBareUnit Namespace"/>',S,Palette);
   Assert.IsTrue(Html.Contains('HintBareUnit Namespace'),'Undocumented units still display their identity');
@@ -78,7 +109,7 @@ begin
   try
     TFile.WriteAllText(FileName, Original);
     S := THelpInsightSettings.Defaults; S.Enabled := True;
-    Assert.WillRaise(procedure begin ApplyHelpInsightCss(FileName, S); end, Exception);
+    DUnitX.Assert.Assert.WillRaise(procedure begin ApplyHelpInsightCss(FileName, S); end, Exception);
     Assert.AreEqual(Original, TFile.ReadAllText(FileName));
     Assert.IsFalse(TFile.Exists(FileName + '.xmldocplugin.bak'));
   finally TDirectory.Delete(Root, True); end;
@@ -137,13 +168,13 @@ begin
     TFile.WriteAllText(Source, 'body { color: WindowText; }');
     if not SetFileAttributes(PChar(Source), FILE_ATTRIBUTE_READONLY) then RaiseLastOSError;
     Settings := THelpInsightSettings.Defaults; Settings.Enabled := True; Settings.Width := 900;
-    Assert.WillRaise(procedure begin ApplyHelpInsightCss(Source, Settings); end, EOSError);
+    DUnitX.Assert.Assert.WillRaise(procedure begin ApplyHelpInsightCss(Source, Settings); end, EOSError);
     Assert.AreEqual('body { color: WindowText; }', TFile.ReadAllText(Source));
     ExportHelpInsightCss(Source, Destination, Settings);
     Assert.IsTrue(TFile.ReadAllText(Destination).Contains('width: 900px'));
     Assert.IsTrue(TFile.ReadAllText(Destination).Contains('color: WindowText'));
     Assert.AreEqual('body { color: WindowText; }', TFile.ReadAllText(Source));
-    Assert.WillRaise(procedure begin ExportHelpInsightCss(Source, Source, Settings); end, EArgumentException);
+    DUnitX.Assert.Assert.WillRaise(procedure begin ExportHelpInsightCss(Source, Source, Settings); end, EArgumentException);
   finally
     for var FileName in TDirectory.GetFiles(Root) do SetFileAttributes(PChar(FileName), FILE_ATTRIBUTE_NORMAL);
     TDirectory.Delete(Root, True);
@@ -195,7 +226,9 @@ begin
  try
   for var Language in ['en','ru','zh','ko','ja'] do begin
    TI18n.Instance.SetLanguage(Language);
-   var Sample:='<member DisplayName="Run"><typeparam name="T">type payload</typeparam><param name="Value">payload</param><returns>result</returns><value>value payload</value><exception cref="EArgumentException">error payload</exception><remarks>remarks payload<note type="caller">caller payload</note><note type="warning">warning payload</note><note type="tip">tip payload</note><note>note payload</note></remarks><example>example payload</example><seealso cref="TObject"/></member>';
+   var Sample:='<member DisplayName="Run"><typeparam name="T">type payload</typeparam><param name="Value">payload</param><returns>result</returns><value>value payload</value>'+
+    '<exception cref="EArgumentException">error payload</exception><remarks>remarks payload<note type="caller">caller payload</note><note type="warning">warning payload</note>'+
+    '<note type="tip">tip payload</note><note>note payload</note></remarks><example>example payload</example><seealso cref="TObject"/></member>';
    for var Dark in [False,True] do begin
     var LocalPalette:=THelpInsightPalette.Light;if Dark then LocalPalette:=THelpInsightPalette.Dark;
     Html:=RenderHelpInsightPreview(Sample,S,LocalPalette);
@@ -212,7 +245,7 @@ begin
  finally TI18n.Instance.SetLanguage(OldLanguage);end;
  S.Width:=0;S.ParameterWidth:=-1;
  Assert.IsTrue(BuildEnhancedHelpInsightCss(S,THelpInsightPalette.Light).Contains('width:80px'));
- Assert.WillRaise(procedure begin RenderHelpInsightPreview('<!DOCTYPE member [<!ENTITY x SYSTEM "file:///C:/Windows/win.ini">]><member><summary>&x;</summary></member>',S,THelpInsightPalette.Light);end,EArgumentException);
+ DUnitX.Assert.Assert.WillRaise(procedure begin RenderHelpInsightPreview('<!DOCTYPE member [<!ENTITY x SYSTEM "file:///C:/Windows/win.ini">]><member><summary>&x;</summary></member>',S,THelpInsightPalette.Light);end,EArgumentException);
 end;
 
 procedure THelpInsightTests.PresentationSwitchAndRollback;
@@ -229,7 +262,7 @@ begin
   S.Extended:=False;ApplyHelpInsightPresentation(Css,S,THelpInsightPalette.Light);
   Assert.AreEqual(TEncoding.Unicode.GetString(Original),TEncoding.Unicode.GetString(TFile.ReadAllBytes(Xsl)));
   S.Extended:=True;var Locked:=TFileStream.Create(Css,fmOpenRead or fmShareExclusive);
-  try Assert.WillRaise(procedure begin ApplyHelpInsightPresentation(Css,S,THelpInsightPalette.Dark);end,EInOutError);
+  try DUnitX.Assert.Assert.WillRaise(procedure begin ApplyHelpInsightPresentation(Css,S,THelpInsightPalette.Dark);end,EInOutError);
   finally Locked.Free;end;
   Assert.AreEqual(TEncoding.Unicode.GetString(Original),TEncoding.Unicode.GetString(TFile.ReadAllBytes(Xsl)));
   ApplyHelpInsightPresentation(Css,S,THelpInsightPalette.Dark);RestoreHelpInsightTemplates(Css);
@@ -257,10 +290,10 @@ begin
   Settings:=TPluginSettings.Create(RegistryRoot);try Assert.IsTrue(Settings.Global.HelpInsight.Extended);finally Settings.Free;end;
   Css:=TPath.Combine(Root,'HelpInsight.css');TFile.WriteAllText(Css,'body{}');TFile.WriteAllText(ChangeFileExt(Css,'.xsl'),'original');ForceDirectories(TPath.Combine(Root,'export'));
   ForceDirectories(TPath.Combine(Root,'en'));var Localized:=TPath.Combine(Root,'en\HelpInsight.xsl');TFile.WriteAllText(Localized,'localized source');
-  Assert.WillRaise(procedure begin ExportHelpInsightTemplates(Css,TPath.Combine(Root,'en\HelpInsight.css'),S.HelpInsight,THelpInsightPalette.Dark,Localized);end,EArgumentException);
+  DUnitX.Assert.Assert.WillRaise(procedure begin ExportHelpInsightTemplates(Css,TPath.Combine(Root,'en\HelpInsight.css'),S.HelpInsight,THelpInsightPalette.Dark,Localized);end,EArgumentException);
   Assert.AreEqual('localized source',TFile.ReadAllText(Localized));
   S.HelpInsight.Enabled:=True;ExportHelpInsightTemplates(Css,TPath.Combine(Root,'export\HelpInsight.css'),S.HelpInsight,THelpInsightPalette.Dark);
-  Assert.WillRaise(procedure begin ExportHelpInsightTemplates(Css,TPath.Combine(Root,'export\renamed.css'),S.HelpInsight,THelpInsightPalette.Dark);end,EArgumentException);
+  DUnitX.Assert.Assert.WillRaise(procedure begin ExportHelpInsightTemplates(Css,TPath.Combine(Root,'export\renamed.css'),S.HelpInsight,THelpInsightPalette.Dark);end,EArgumentException);
   Assert.AreEqual('original',TFile.ReadAllText(ChangeFileExt(Css,'.xsl')));Assert.IsTrue(TFile.ReadAllText(TPath.Combine(Root,'export\HelpInsight.xsl')).Contains('XmlDocPlugin native Help Insight'));
  finally
   TDirectory.Delete(Root,True);R:=TRegistry.Create;try R.RootKey:=HKEY_CURRENT_USER;R.DeleteKey(RegistryRoot+'\HelpInsight');R.DeleteKey(RegistryRoot);finally R.Free;end;
