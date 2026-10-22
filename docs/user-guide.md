@@ -8,6 +8,7 @@ XmlDocPlugin edits Delphi `///` XML documentation in the IDE and generates API r
 - [Settings](#settings)
 - [How editing works](#how-editing-works)
 - [Write and review a comment](#write-and-review-a-comment)
+- [Import existing comments and PasDoc](#import-existing-comments)
 - [Documentation tools](#documentation-tools)
 - [Use the AI assistant](#use-the-ai-assistant)
 - [Recover drafts](#recover-drafts)
@@ -105,6 +106,16 @@ XML fragments omit an enclosing `<doc>` element. Escape literal markup in XML (`
 
 ## Import existing comments
 
+### Read and convert PasDoc
+
+1. Open the Pascal source in its project and select a declaration in Inspector or Explorer. A preceding ordinary comment or PasDoc description is shown in the editor without changing the source.
+2. If descriptions live in a separate text file, place it beside the Pascal file with the same base name: `Sample.pas` and `Sample.txt`. Use a qualified section heading such as `# Sample.TConverter.Convert` for each member.
+3. Check **Summary**, **Parameters**, **Return Value** and **Preview**. Parameter descriptions are matched to the declaration's names, not their order in the text file. Unknown names are silently ignored.
+4. To convert the comment to XML without rewriting the prose, choose **Generate Doc Stub**. To change the description, edit its fields and wait for **Applied** before navigating away. Writing remains disabled for read-only and system sources.
+5. Inspect the resulting `///` XML comment in the source editor. Use the IDE's **Undo** to restore the preceding comment, or save the accepted source normally.
+
+After conversion, the XML comment is the editable source of documentation. Later changes to the PasDoc text file do not overwrite an existing XML comment, and applying XML does not rewrite the text file or included files.
+
 When a declaration has a comment without `<summary>`, stub generation reuses its description instead of replacing it with a placeholder. Existing XML summaries remain unchanged. Opening Inspector or Explorer reads the imported documentation; source changes require an explicit edit or Generate Doc Stub.
 
 PasDoc `@abstract` contains the short description and becomes `<summary>`. Parameter names in `@param` are matched without case sensitivity and written using the spelling in the declaration; unknown parameter names are ignored. `@return` and `@returns` supply the return description. Formatting, inline code, links, lists and tables are converted to XML markup.
@@ -114,6 +125,12 @@ A `.pas` file accompanied by a `.txt` file of the same name is treated as a PasD
 `@include(file.txt)` expands another description, including its PasDoc tags. Paths are relative to the original Pascal file, including nested includes. `@includeCode(example.pas)` inserts literal code; multiple filenames are allowed. Included files participate in cache validation. Missing files, cycles and malformed tags produce errors with file details; correcting or creating the file lets the next parse recover.
 
 The importer also handles metadata, name macros, member/value descriptions, lists, tables, anchors, an internal table of contents and `@exclude`. HTML is converted to supported XML markup with active content and attributes removed. LaTeX is kept as literal code because the plugin's export formats do not include a LaTeX typesetter. Numbered lists retain explicit numbering. Complex imported markup is preserved as a protected XML block in Design and remains editable in XML mode. See [PasDoc import mappings](pasdoc-import.md) for all supported tags and [PasDoc's reference](https://pasdoc.github.io/SupportedTags) for the input syntax.
+
+### Refresh descriptions and examples
+
+Save changes to the `.txt` file or an included file, then use **Reload source** to read the legacy description again. If an include is missing or contains a cycle, correct the file or path and reload. Include changes invalidate the cached description; they do not grant permission to overwrite a source file changed since the current editor card was loaded.
+
+Both `@longCode(...)` and the older `@longCode(# ... #)` notation are supported. The paired markers are removed from the example, and a closing `#)` inside a text sidecar stays part of the code block. For a complete neutral source/text pair and include examples, see [Importing PasDoc documentation](pasdoc-import.md#source-and-text-file-example).
 
 ## Documentation tools
 
@@ -443,11 +460,11 @@ Choose **IDE default** to retain the IDE layout, or **Extended** for a heading b
 readable parameter columns, tables, lists and notes to callers. Colours follow the IDE theme.
 This changes the IDE's native HTML Help Insight popup; it does not replace it with a browser window. A Code Insight provider that uses its own tooltip renderer may ignore the IDE's CSS and XSLT. RAD Studio 13's LSP tooltip uses a separate renderer; these template settings apply only when the active provider uses the native HTML Help Insight backend.
 
-![Extended native Help Insight in the dark IDE theme](assets/user-guide/help-insight-dark.jpg)
+![Extended native Help Insight in the dark IDE theme](assets/user-guide/help-insight-dark.png)
 
 *The native popup shows the declaration, wrapped descriptions, a table and a note to callers.*
 
-![Extended native Help Insight in the light IDE theme](assets/user-guide/help-insight-light.jpg)
+![Extended native Help Insight in the light IDE theme](assets/user-guide/help-insight-light.png)
 
 Select the interface language on **General**: English (`en`), Russian (`ru`), Chinese (`zh`), Korean (`ko`) or Japanese (`ja`). `auto` uses the Windows user language. Save preferences and reopen Settings to see its translated captions, appearance choices and tooltips. Extended hints use this language for section headings such as Parameters, Returns, Remarks and Notes to callers. Your documentation, symbol names, parameter names and link destinations are not translated; the preview deliberately contains English sample documentation.
 

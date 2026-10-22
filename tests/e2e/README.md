@@ -35,3 +35,14 @@ closing each IDE. Original Pascal and text files are never written.
 
 The older `-RealAI` mode has a different purpose: it tests reviewed application
 and Undo on a large source method. Do not use that mode for review-only checks.
+
+Documentation screenshots use neutral English fixtures from
+`tests/fixtures/DocumentationShowcase`. Set `XMLDOC_E2E_SHOWCASE=1` and
+`XMLDOC_E2E_SCREENSHOTS` to an output directory, then run the installed RAD 12
+`-AIOnly` scenario. This renders Inspector, Explorer and an AI proposal at a
+larger viewport and browser zoom, using a deterministic local transport without
+network requests. Clear these environment variables before running other scenarios.
+For native Help Insight illustrations, use `Test-HelpInsight.ps1 -Illustration`
+with `DocumentationHints.dpr` and `-InitialSymbol TTextFormatter.NormalizeText`
+in each theme. Save the actual popup screenshot and close the probe through its
+`close` command so shared templates and settings are restored.

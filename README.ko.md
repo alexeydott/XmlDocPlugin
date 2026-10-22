@@ -144,10 +144,16 @@ pwsh ./tests/Test-Improvements.ps1 -SkipIDE
 
 IDE의 HTML 문서 힌트에서 긴 시그니처 줄 바꿈, 매개변수 열, 표, 목록과 호출자 참고 사항을 지원합니다. 색상은 IDE의 밝은 테마와 어두운 테마를 따릅니다. **Tools → Options → Third Party → XmlDocPlugin → Help Insight** 또는 **Document → Settings**에서 기본/확장 모드, 미리 보기, 템플릿 내보내기와 원본 복원을 설정할 수 있습니다.
 
-![어두운 IDE 테마의 확장 Help Insight](docs/assets/user-guide/help-insight-dark.jpg)
-![밝은 IDE 테마의 확장 Help Insight](docs/assets/user-guide/help-insight-light.jpg)
+![어두운 IDE 테마의 확장 Help Insight](docs/assets/user-guide/help-insight-dark.png)
+![밝은 IDE 테마의 확장 Help Insight](docs/assets/user-guide/help-insight-light.png)
 
 설정, 도구 설명과 섹션 제목은 영어, 러시아어, 중국어, 한국어와 일본어를 지원합니다. 코드 식별자와 작성한 문서는 번역하지 않습니다. 템플릿 모드나 제목 언어를 변경한 뒤 IDE를 다시 시작하세요. 별도 렌더러를 사용하는 RAD 13 LSP 힌트에는 CSS/XSLT 설정이 적용되지 않을 수 있습니다. [사용자 가이드](docs/user-guide.md#customize-native-help-insight)를 참고하세요.
+
+### PasDoc 가져오기
+
+Inspector와 Explorer에서 기존 PasDoc 주석과 이름이 같은 `.txt` 파일의 설명을 읽을 수 있습니다. `@abstract`는 Summary로, `@param`은 선언의 매개변수 이름에 맞춰 가져오며 알 수 없는 매개변수는 무시합니다. 포함 파일, 코드 예제, 링크, 목록과 표도 XML 문서 모델로 변환합니다.
+
+주석을 여는 것만으로 소스가 바뀌지는 않습니다. 가져온 설명을 편집하거나 **Generate Doc Stub**을 실행하면 IDE를 통해 XML 주석을 기록하고 Undo로 되돌릴 수 있습니다. [사용 절차](docs/user-guide.md#import-existing-comments)와 [PasDoc 예제 및 태그 매핑](docs/pasdoc-import.md)을 참고하세요.
 
 ## 기술 및 라이선스
 

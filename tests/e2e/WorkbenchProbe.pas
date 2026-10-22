@@ -137,6 +137,11 @@ begin
    for var Token in Seen do Summary:=Summary+Token;
   end;
   var Content:=TJSONObject.Create.AddPair('summary',Summary).AddPair('uncertainties',TJSONArray.Create(TJSONString.Create('Ownership is not specified.'))).AddPair('parameters',TJSONArray.Create(TJSONObject.Create.AddPair('name','Value').AddPair('description','Input text to process.')));
+  if GetEnvironmentVariable('XMLDOC_E2E_SHOWCASE')='1' then begin
+   Content.RemovePair('summary').Free;Content.AddPair('summary','Returns the supplied text with leading and trailing spaces removed.');
+   Content.RemovePair('uncertainties').Free;Content.AddPair('uncertainties',TJSONArray.Create);
+   Content.AddPair('returns','The trimmed text, with its original letter case.').AddPair('remarks','Whitespace inside the text is preserved.');
+  end;
   if Request.Body.Contains('TDocumented.Calculate') then begin
    Content.RemovePair('summary').Free;Content.AddPair('summary','Proposed calculation summary.');
    Content.RemovePair('parameters').Free;Content.AddPair('parameters',TJSONArray.Create(TJSONObject.Create.AddPair('name','Value').AddPair('description','Reviewed first operand.'),TJSONObject.Create.AddPair('name','Other').AddPair('description','Proposed second operand.')));
@@ -355,7 +360,18 @@ begin
   end;
   Action:=Json.GetValue<string>('action','');
   try
-   if Action='pasdoc-open' then begin
+   if Action='showcase-open' then begin
+    PrefixSettingsSaved:=True;OriginalPrefixSettings:=TPluginSettings.Instance.Global;
+    var Settings:=OriginalPrefixSettings;Settings.General.Language:='en';TPluginSettings.Instance.Global:=Settings;TI18n.Instance.SetLanguage('en');
+    SampleFile:=TPath.Combine(Root,'Documentation.Sample.pas');TFile.Copy(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'..\fixtures\DocumentationShowcase\Documentation.Sample.pas'),SampleFile,True);
+    Inspector.SetBounds(10,10,2100,1500);Explorer.SetBounds(10,10,2400,1500);Browser.ZoomFactor:=1.75;ExplorerBrowser.ZoomFactor:=1.75;
+    GetActiveProject.AddFile(SampleFile,True);Browser.ApplySettings;ExplorerBrowser.ApplySettings;Select(SampleFile,'Run','string');Explorer.HandleFileChanged(SampleFile,EditorSource(SourceEditorForFile(SampleFile)));
+    ExplorerBrowser.ExecuteScript('setTimeout(()=>Array.from(document.querySelectorAll(".tree-label")).find(e=>e.textContent.includes(".Run("))?.click(),300);');
+    var Config:=TJSONObject.Create.AddPair('version',TJSONNumber.Create(1)).AddPair('previewRequests',TJSONBool.Create(False));var Profiles:=TJSONArray.Create;Config.AddPair('profiles',Profiles);
+    var Profile:=TAIProfile.Defaults;Profile.Id:='documentation-example';Profile.Name:='Example profile';Profile.Model:='example-model';Profile.Authorization:='none';Profile.Endpoint:='https://api.example.com/v1';Profiles.AddElement(AIProfileJson(Profile));try SaveAIConfiguration(Config);finally Config.Free;end;
+    AssistantFor(Inspector).TransportFactory:=function:IAITransport begin Result:=TAIProbeTransport.Create;end;Browser.ExecuteScript('window.xmlDocAI.reload();');
+   end
+   else if Action='pasdoc-open' then begin
     if RealSource='' then begin
      RealSource:=TPath.Combine(Root,'PasDoc.Sample.pas');RealDirectory:=ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_LOG'));
      TFile.Copy(TPath.Combine(GetEnvironmentVariable('XMLDOC_E2E_PASDOC'),'PasDoc.Sample.pas'),RealSource,True);
@@ -379,7 +395,9 @@ begin
     // Prepare the fixture on disk so its construction cannot join the Undo
     // transaction under test. Latin-1 roundtrips every original byte unchanged;
     // only ASCII include directives are inserted, preserving the source encoding.
-    var Module:=(BorlandIDEServices as IOTAModuleServices).FindModule(RealSource);Editor:=nil;AssertTrue(Module.CloseModule(True),'Cannot close fixture for include preparation');Module:=nil;var ByteEncoding:=TEncoding.GetEncoding(28591);try var Raw:=ByteEncoding.GetString(TFile.ReadAllBytes(RealSource));AssertTrue(Raw.Contains('    function ConvertValue('),'Include insertion signature missing');Raw:=Raw.Replace('    function ConvertValue(','    // @include(pasdoc-note.txt)'+#13#10+'    // @includeCode(pasdoc-code.pas)'+#13#10+'    function ConvertValue(');TFile.WriteAllBytes(RealSource,ByteEncoding.GetBytes(Raw));finally ByteEncoding.Free;end;AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(RealSource),'Cannot reopen include fixture');Editor:=SourceEditorForFile(RealSource);AIBefore:=EditorSource(Editor);Inc(RealLine,2);var Position:TOTAEditPos;Position.Line:=RealLine;Position.Col:=5;Editor.EditViews[0].SetCursorPos(Position);Inspector.HandleCursorChanged(RealLine,AIBefore,RealSource);Log('PasDoc include fixture loaded');
+    var Module:=(BorlandIDEServices as IOTAModuleServices).FindModule(RealSource);Editor:=nil;AssertTrue(Module.CloseModule(True),'Cannot close fixture for include preparation');Module:=nil;
+    var ByteEncoding:=TEncoding.GetEncoding(28591);try var Raw:=ByteEncoding.GetString(TFile.ReadAllBytes(RealSource));AssertTrue(Raw.Contains('    function ConvertValue('),'Include insertion signature missing');Raw:=Raw.Replace('    function ConvertValue(','    // @include(pasdoc-note.txt)'+#13#10+'    // @includeCode(pasdoc-code.pas)'+#13#10+'    function ConvertValue(');TFile.WriteAllBytes(RealSource,ByteEncoding.GetBytes(Raw));finally ByteEncoding.Free;end;
+    AssertTrue((BorlandIDEServices as IOTAActionServices).OpenFile(RealSource),'Cannot reopen include fixture');Editor:=SourceEditorForFile(RealSource);AIBefore:=EditorSource(Editor);Inc(RealLine,2);var Position:TOTAEditPos;Position.Line:=RealLine;Position.Col:=5;Editor.EditViews[0].SetCursorPos(Position);Inspector.HandleCursorChanged(RealLine,AIBefore,RealSource);Log('PasDoc include fixture loaded');
    end
    else if Action='pasdoc-refresh' then begin
     Editor:=SourceEditorForFile(RealSource);AIBefore:=EditorSource(Editor);Inspector.HandleCursorChanged(RealLine,AIBefore,RealSource);
@@ -1456,6 +1474,7 @@ begin
     (BorlandIDEServices as IOTAActionServices).OpenFile(SecondFile);SecondInitial:=EditorSource(SourceEditorForFile(SecondFile));
     Select(SampleFile,'Run','string');Initial:=EditorSource(SourceEditorForFile(SampleFile));Log('Resource map: '+Browser.ResourceStatus);AssertTrue(Initial.Contains('Пример'),'Unicode was lost while reading the editor buffer');Inc(Step);end;
   3:begin
+   if GetEnvironmentVariable('XMLDOC_E2E_SHOWCASE')='1' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'ShowcaseProbe.js'),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_PASDOC')<>'' then begin Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'PasDocProbe.js'),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_AI_ONLY')='1' then begin Browser.ExecuteScript('window.__sharedOnly='+LowerCase(BoolToStr(GetEnvironmentVariable('XMLDOC_E2E_SHARED_ONLY')='1',True))+';'+TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),'SharedContextProbe.js'),TEncoding.UTF8));Browser.ExecuteScript(TFile.ReadAllText(TPath.Combine(ExtractFilePath(GetEnvironmentVariable('XMLDOC_E2E_JS')),IfThen(GetEnvironmentVariable('XMLDOC_E2E_REAL_AI')='1',IfThen(GetEnvironmentVariable('XMLDOC_E2E_LIVE_REVIEW')='1','LiveReviewProbe.js','RealAIAssistantProbe.js'),'AIAssistantProbe.js')),TEncoding.UTF8));Inc(Step);Exit;end;
    if GetEnvironmentVariable('XMLDOC_E2E_SHUTDOWN_OPEN_PANELS')='1' then begin

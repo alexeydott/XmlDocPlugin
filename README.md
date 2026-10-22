@@ -133,10 +133,16 @@ Accept summary, individual parameters, returns and remarks separately; review do
 
 Style the IDE's native HTML documentation hints with wrapped signatures, compact parameter columns, tables, lists and notes. Colours follow the IDE's light or dark theme. Open **Tools → Options → Third Party → XmlDocPlugin → Help Insight** (or **Document → Settings**) to choose **IDE default** or **Extended**, preview the result, export templates or restore the originals.
 
-![Extended Help Insight in the dark IDE theme](docs/assets/user-guide/help-insight-dark.jpg)
-![Extended Help Insight in the light IDE theme](docs/assets/user-guide/help-insight-light.jpg)
+![Extended Help Insight in the dark IDE theme](docs/assets/user-guide/help-insight-dark.png)
+![Extended Help Insight in the light IDE theme](docs/assets/user-guide/help-insight-light.png)
 
 Settings, tooltips and generated section headings support English, Russian, Chinese, Korean and Japanese. Source identifiers and your documentation are preserved. Restart the IDE after changing template mode or the heading language. These settings target the native HTML viewer; providers with their own tooltip renderer, including RAD 13 LSP, may ignore CSS/XSLT customization. See the [Help Insight guide](docs/user-guide.md#customize-native-help-insight).
+
+### PasDoc import
+
+Open existing PasDoc comments in Inspector or Explorer, including descriptions stored in a same-name `.txt` file. `@abstract` supplies Summary; `@param` descriptions are matched to the method signature, and unknown parameters are ignored. Includes, code examples, links, lists and tables are imported into the XML documentation model.
+
+Reading a comment leaves the source unchanged. Edit the imported documentation or run **Generate Doc Stub** to write XML through the IDE, with Undo support. See the [step-by-step guide](docs/user-guide.md#import-existing-comments) and [PasDoc examples and tag mappings](docs/pasdoc-import.md).
 
 ## Features
 

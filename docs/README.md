@@ -1,5 +1,10 @@
 # XmlDocPlugin API Reference
 
+## Guides
+
+- [User guide](user-guide.md): editing, applying and undoing documentation in the IDE.
+- [PasDoc import](pasdoc-import.md): existing comments, same-name text files, parameter mapping, includes and tag mappings.
+
 ## Units
 
 | Unit | Description |

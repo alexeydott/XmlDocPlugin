@@ -5,7 +5,7 @@ implementation
 uses System.SysUtils,System.Classes,System.IOUtils,System.JSON,System.Win.Registry,
  Winapi.Windows,Winapi.Messages,Vcl.Forms,Vcl.Controls,Vcl.ExtCtrls,Vcl.ActnList,Vcl.Menus,ToolsAPI,
  XmlDoc.Plugin.HelpInsight,XmlDoc.Plugin.Settings,XmlDoc.Plugin.SettingsDialog,
- XmlDoc.Plugin.EditSession;
+ XmlDoc.Plugin.EditSession,XmlDoc.I18n;
 type THintProbe=class(TComponent)
  private Timer:TTimer;Root,FileName,Css,Xsl:string;CssBefore,XslBefore,RootXslBefore:TBytes;
   SettingsBefore:TGlobalSettings;Started,PendingHint:Boolean;Step:Integer;
@@ -64,6 +64,10 @@ begin
   if not Started then begin
    Log('IDE registry '+(BorlandIDEServices as IOTAServices).GetBaseRegistryKey);Css:=HelpInsightCssPath;Xsl:=IDEHelpInsightXsltPath;CssBefore:=TFile.ReadAllBytes(TPath.Combine(Root,'original.css'));XslBefore:=TFile.ReadAllBytes(TPath.Combine(Root,'original.xsl'));RootXslBefore:=TFile.ReadAllBytes(TPath.Combine(Root,'original-root.xsl'));SettingsBefore:=TPluginSettings.Instance.Global;Started:=True;
    var S:=SettingsBefore;S.HelpInsight.Enabled:=True;S.HelpInsight.Extended:=True;S.HelpInsight.Width:=720;S.HelpInsight.FontSize:=10;
+   var Presentation:=TPath.Combine(Root,'presentation.json');if TFile.Exists(Presentation) then begin
+    var J:=TJSONObject.ParseJSONValue(TFile.ReadAllText(Presentation,TEncoding.UTF8)) as TJSONObject;
+    try S.HelpInsight.Width:=J.GetValue<Integer>('width',720);S.HelpInsight.FontSize:=J.GetValue<Integer>('fontSize',10);S.General.Language:='en';TI18n.Instance.SetLanguage('en');finally J.Free;end;
+   end;
    var Appearance:=TPath.Combine(Root,'appearance.txt');if TFile.Exists(Appearance) then S.HelpInsight.Extended:=not SameText(TFile.ReadAllText(Appearance).Trim,'IDEdefault');
    TPluginSettings.Instance.Global:=S;
    ApplyHelpInsightPresentation(Css,S.HelpInsight,IDEHelpInsightPalette,Xsl);Log('Template path '+Css);if (BorlandIDEServices as IOTAIDEThemingServices).IDEThemingEnabled then Log('Theme '+(BorlandIDEServices as IOTAIDEThemingServices).ActiveTheme) else Log('Theme disabled (native light)');Log('Applied extended hint background='+IDEHelpInsightPalette.Background);

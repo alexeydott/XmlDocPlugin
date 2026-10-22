@@ -4,6 +4,73 @@ XmlDocPlugin reads ordinary comments and PasDoc comments before declarations. Re
 
 A same-name `.pas`/`.txt` pair is recognized automatically. Text sections use fully qualified names, for example `# Sample.TWorker.Run`. Parameter names match the actual signature without case sensitivity. Local descriptions take precedence over the sidecar; unknown parameters are ignored.
 
+## Source and text file example
+
+In `Sample.pas`, place the description immediately before the declaration:
+
+```pascal
+unit Sample;
+interface
+type
+  // # @abstract Converts values using a scale factor.
+  TConverter = class
+  public
+    // # @abstract Returns the scaled input value.
+    function Convert(Value: Double; Factor: Integer = 1): Double;
+  end;
+implementation
+function TConverter.Convert(Value: Double; Factor: Integer): Double;
+begin
+  Result := Value * Factor;
+end;
+end.
+```
+
+Put additional descriptions in `Sample.txt`, beside the source:
+
+```text
+# Sample.TConverter.Convert
+  @param Value The input value.
+  @param Factor The scale factor.
+  @param RemovedParameter Ignored because it is not in the signature.
+  @returns The input multiplied by the scale factor.
+```
+
+Opening **Convert** shows the existing short description, the two valid parameter descriptions and the return description. Matching is case-insensitive, but XML output keeps the parameter spelling from the declaration. A section applies to its qualified unit/class/member name; it is not matched by the method name alone.
+
+Review the imported fields in Inspector or Explorer. Choose **Generate Doc Stub**, or edit the fields and wait for **Applied**, to convert the source comment to `///` XML. Use the IDE's **Undo** to restore the preceding source comment. Opening, previewing or exporting the documentation does not perform this conversion.
+
+Once a declaration has an XML comment, the plugin reads that comment directly. It does not merge later sidecar edits over authored XML or write changes back to the text file.
+
+## Include descriptions and code
+
+The member section can also contain:
+
+```text
+  @include(descriptions/convert.txt)
+  @includeCode(examples/convert.pas)
+```
+
+For example, `descriptions/convert.txt` can contain `@note(The scale factor is applied once.)`; `examples/convert.pas` can contain `Result := Converter.Convert(2, 3);`. The first directive expands description tags, while the second inserts literal code without interpreting its `@` characters as tags.
+
+Resolve both paths from the folder containing `Sample.pas`. A nested include inside `descriptions/convert.txt` still uses that source folder as its base. Save an edited include, then choose **Reload source** while viewing the legacy comment. Reading dependencies participates in cache validation; applying documentation changes only the Pascal comment.
+
+## Multiline code and older markers
+
+Both forms import as a code block:
+
+```text
+@longCode(Result := Converter.Convert(2, 3);)
+
+@longCode(#
+  Result := Converter.Convert(2, 3);
+#)
+```
+
+The historical paired markers are removed from the code. A closing `#)` is not a new sidecar section. As in [PasDoc's longCode syntax](https://pasdoc.github.io/LongcodeTag), tags inside the code remain literal.
+
+## Tag mappings
+
 | PasDoc tags | Imported representation |
 | --- | --- |
 | `@abstract` | Summary; surrounding prose becomes Remarks |

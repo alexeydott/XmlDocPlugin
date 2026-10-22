@@ -4,7 +4,7 @@
  [Parameter(Mandatory)][string]$BuildRoot,[Parameter(Mandatory)][string]$EvidenceDir,[string]$DcpRoot='',
  [string]$LongFixture="$PSScriptRoot\..\fixtures\HelpInsight\LongHintParagraphs.dpr",
  [string]$ParameterFixture="$PSScriptRoot\..\fixtures\HelpInsight\HelpInsightCssProbe.dpr",
- [switch]$CaptureXml,[string]$InitialSymbol='',
+ [switch]$Illustration,[switch]$CaptureXml,[string]$InitialSymbol='',
  [ValidateSet('Extended','IDEdefault')][string]$Appearance='Extended')
 $ErrorActionPreference='Stop'
 if(Get-Process bds -ErrorAction SilentlyContinue){throw 'Close RAD Studio before testing shared native Help Insight templates.'}
@@ -16,11 +16,12 @@ if($DcpRoot){$dcp=Join-Path $DcpRoot $target}
 if(Test-Path $EvidenceDir){throw 'Use a new evidence directory'}
 New-Item -ItemType Directory $EvidenceDir|Out-Null
 $EvidenceDir=[IO.Path]::GetFullPath($EvidenceDir)
+if($Illustration){[IO.File]::WriteAllText("$EvidenceDir\presentation.json",'{"width":1200,"fontSize":15}')}
 Copy-Item -LiteralPath $LongFixture -Destination "$EvidenceDir\LongHintParagraphs.dpr"
 if($InitialSymbol){[IO.File]::WriteAllText("$EvidenceDir\initial-symbol.txt",$InitialSymbol)}
 [IO.File]::WriteAllText("$EvidenceDir\appearance.txt",$Appearance)
 $long=[IO.File]::ReadAllText("$EvidenceDir\LongHintParagraphs.dpr",[Text.Encoding]::UTF8)
-$long=$long.Replace('</remarks>','<para>Additional paragraph with <b>bold</b> text and a <see cref="TMapDocumentation"/> reference.<br/>Second line.</para><list type="bullet"><item><description>First item</description></item><item><description>Second item</description></item></list><list type="table"><listheader><term>Option</term><description>Meaning</description></listheader><item><term>Clipping</term><description>Restricts output to the viewport.</description></item></list><note type="caller">Provide a valid rendering context.</note></remarks>')
+if(!$Illustration){$long=$long.Replace('</remarks>','<para>Additional paragraph with <b>bold</b> text and a <see cref="TMapDocumentation"/> reference.<br/>Second line.</para><list type="bullet"><item><description>First item</description></item><item><description>Second item</description></item></list><list type="table"><listheader><term>Option</term><description>Meaning</description></listheader><item><term>Clipping</term><description>Restricts output to the viewport.</description></item></list><note type="caller">Provide a valid rendering context.</note></remarks>')}
 [IO.File]::WriteAllText("$EvidenceDir\LongHintParagraphs.dpr",$long,[Text.UTF8Encoding]::new($true))
 Copy-Item -LiteralPath $ParameterFixture -Destination "$EvidenceDir\HelpInsightCssProbe.dpr"
 Copy-Item "$rad\ObjRepos\HelpInsight.css" "$EvidenceDir\original.css"

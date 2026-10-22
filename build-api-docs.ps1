@@ -34,6 +34,11 @@ Copy-Item -LiteralPath (Join-Path $generated 'units') -Destination $destination 
 foreach ($file in @('index.html','README.md','SUMMARY.md','_sidebar.md','assets\style.css','assets\search-index.json')) {
     Copy-Item -LiteralPath (Join-Path $generated $file) -Destination (Join-Path $destination $file) -Force
 }
+# Preserve entry points to authored guides when regenerating the API index.
+$readmePath = Join-Path $destination 'README.md'
+$readme = [IO.File]::ReadAllText($readmePath)
+$guides = "## Guides`r`n`r`n- [User guide](user-guide.md): editing, applying and undoing documentation in the IDE.`r`n- [PasDoc import](pasdoc-import.md): existing comments, same-name text files, parameter mapping, includes and tag mappings.`r`n`r`n## Units"
+[IO.File]::WriteAllText($readmePath, $readme.Replace('## Units', $guides), [Text.UTF8Encoding]::new($false))
 # Older generator versions wrote this index at the root; current pages use assets/search-index.json.
 $oldIndex = Join-Path $destination 'search-index.json'
 if (Test-Path -LiteralPath $oldIndex) { Remove-Item -LiteralPath $oldIndex }
