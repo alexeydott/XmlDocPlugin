@@ -544,7 +544,13 @@ begin
 
   {$IF CompilerVersion >= 36.0}
   if Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) then begin
-    EditorMenu:=EditorServices.GetEditorLocalMenu;if Assigned(EditorMenu) then begin EditorMenu.RegisterActionList(FContextActions,EditorMenuCategory);FEditorMenuRegistered:=True;end;
+    EditorMenu:=EditorServices.GetEditorLocalMenu;
+    if Assigned(EditorMenu) then begin
+      // Keep the submenu beside the end of the native menu, even when IDE
+      // preferences change the order in which menu groups are displayed.
+      EditorMenu.RegisterActionList(FContextActions,EditorMenuCategory,cEdMenuCatLast);
+      FEditorMenuRegistered:=True;
+    end;
   end;
 
   {$ENDIF}
