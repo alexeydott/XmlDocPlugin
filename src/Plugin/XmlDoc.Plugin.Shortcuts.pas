@@ -115,6 +115,10 @@ implementation
 uses
   XmlDoc.Plugin.Localization,XmlDoc.Plugin.AboutDialog,Winapi.Windows,Winapi.ShellAPI,System.IOUtils;
 
+const
+  DocumentationMenuCaption = 'Documentation';
+  EditorMenuCategory = 'XmlDocPlugin';
+
 var
   GDocumentationCommand:TProc<string>;
   GToggleInspectorCallback: TFunc<Boolean>;
@@ -379,6 +383,7 @@ var
   Caption,Command:string;
   I: Integer;
 begin
+  if FMenuItems.Count<>0 then Exit;
   if not Supports(BorlandIDEServices, INTAServices, LNTAServices) then
     Exit;
 
@@ -511,6 +516,12 @@ begin
   FMenuItems.Add(LItem);
 
   FContextActions:=TActionList.Create(nil);
+  // OTA builds the popup in action order and uses dotted categories for children.
+  ContextAction:=TAction.Create(FContextActions);
+  ContextAction.Caption:=DocumentationMenuCaption;
+  ContextAction.Category:=EditorMenuCategory;
+  ContextAction.DisableIfNoHandler:=False;
+  ContextAction.ActionList:=FContextActions;
   for Command in ['sync-document','show-problems','open-xml','quick-documentation','pin-document','compact-document','insert-selection','format-document','fold-documentation','ai-describe','ai-rephrase'] do begin
     Caption:=Command;
     if Command='sync-document' then Caption:='Synchronize Documentation'
@@ -527,13 +538,13 @@ begin
     Action:=TAction.Create(Self);Action.Name:='XmlDocAction'+StringReplace(Command,'-','',[rfReplaceAll]);
     Action.Caption:=Caption;Action.Category:='Documentation';Action.HelpKeyword:=Command;Action.Hint:=Caption;
     Action.ActionList:=LNTAServices.ActionList;Action.OnExecute:=OnCommand;FCommandActions.Add(Action);
-    ContextAction:=TAction.Create(FContextActions);ContextAction.Caption:=Caption;ContextAction.Category:='Documentation';ContextAction.HelpKeyword:=Command;ContextAction.Hint:=Caption;ContextAction.OnExecute:=OnCommand;ContextAction.ActionList:=FContextActions;
+    ContextAction:=TAction.Create(FContextActions);ContextAction.Caption:=Caption;ContextAction.Category:=EditorMenuCategory+'.'+Command;ContextAction.HelpKeyword:=Command;ContextAction.Hint:=Caption;ContextAction.OnExecute:=OnCommand;ContextAction.ActionList:=FContextActions;
     LItem:=TMenuItem.Create(Self);LItem.Action:=Action;LXmlDocMenu.Add(LItem);FMenuItems.Add(LItem);
   end;
 
   {$IF CompilerVersion >= 36.0}
   if Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) then begin
-    EditorMenu:=EditorServices.GetEditorLocalMenu;if Assigned(EditorMenu) then begin EditorMenu.RegisterActionList(FContextActions,'XmlDocPlugin');FEditorMenuRegistered:=True;end;
+    EditorMenu:=EditorServices.GetEditorLocalMenu;if Assigned(EditorMenu) then begin EditorMenu.RegisterActionList(FContextActions,EditorMenuCategory);FEditorMenuRegistered:=True;end;
   end;
 
   {$ENDIF}
@@ -582,7 +593,7 @@ begin
   FProjectMenuIndex:=-1;
   {$IF CompilerVersion >= 36.0}
   if FEditorMenuRegistered and Supports(BorlandIDEServices,IOTAEditorServices,EditorServices) then begin
-   EditorMenu:=EditorServices.GetEditorLocalMenu;if Assigned(EditorMenu) then EditorMenu.UnregisterActionList('XmlDocPlugin');
+   EditorMenu:=EditorServices.GetEditorLocalMenu;if Assigned(EditorMenu) then EditorMenu.UnregisterActionList(EditorMenuCategory);
   end;
   {$ENDIF}
   FEditorMenuRegistered:=False;

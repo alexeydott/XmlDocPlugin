@@ -134,6 +134,8 @@ Both `@longCode(...)` and the older `@longCode(# ... #)` notation are supported.
 
 ## Documentation tools
 
+In RAD Studio 12 and 13, right-click in the source editor and open **Documentation** to find the plugin's editor commands.
+
 Expand **Documentation tools** above the editor. Most actions use SVG icons. Hover an icon or focus it with the keyboard to read its tooltip; this guide uses those action names.
 
 | Action | Use |
