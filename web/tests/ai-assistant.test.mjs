@@ -5,6 +5,19 @@ function setup(){
  const click=id=>document.getElementById(id).click();const prepare=()=>{click('ai-describe');return sent.filter(m=>m.type==='aiPrepare').at(-1);};const reply=(request,state,extra={})=>window.xmlDocAI.receive({state,requestId:request.requestId,...extra});
  return {dom,sent,bridge,element,click,prepare,reply,close:()=>{bridge.cancelPending();dom.window.close();}};
 }
+test('AI method controls are unavailable on classes and interfaces and return on methods',()=>{
+ const s=setup();
+ const controls=document.getElementById('ai-method-controls');
+ const unavailable=document.getElementById('ai-unavailable');
+ for(const kind of ['class','interface','method']){
+  s.bridge.receive({type:'loadDoc',data:{element:{...s.element,kind,symbolId:kind},doc:{summary:'Original'}}});
+  assert.equal(controls.hidden,kind!=='method');
+  assert.equal(unavailable.hidden,kind==='method');
+  s.click('ai-describe');
+  assert.equal(s.sent.filter(m=>m.type==='aiPrepare').length,kind==='method'?1:0);
+ }
+ s.close();
+});
 test('AI suggestions never write before reviewed Apply, allow manual editing and preserve other sections',()=>{
  const s=setup(),req=s.prepare();assert.ok(req);assert.equal(req.summary,'Original');s.reply(req,'prepared',{url:'http://localhost/v1/chat/completions',request:'{"model":"fake"}',fragments:[]});s.click('ai-send');assert.equal(s.sent.at(-1).type,'aiSend');
  s.reply(req,'proposal',{fresh:true,summary:'Proposed',uncertainties:['Ownership is unknown.']});assert.equal(s.sent.filter(m=>m.type==='docUpdated').length,0);assert.match(document.querySelector('#ai-uncertainties').textContent,/Ownership/);

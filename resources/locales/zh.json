@@ -475,6 +475,7 @@
   "Apply reviewed summary": "应用已审核摘要",
   "Documentation changed — rebuild the AI proposal": "文档已更改 — 请重新生成 AI 建议",
   "Resolve the XML draft before using AI": "使用 AI 前请先处理 XML 草稿",
+  "AI documentation is available only for methods. Select a method to continue.": "AI 文档助手仅支持方法。请选择一个方法以继续。",
   "Select a method": "请选择方法",
   "Preparing AI request": "正在准备 AI 请求",
   "Checking connection": "正在测试连接",

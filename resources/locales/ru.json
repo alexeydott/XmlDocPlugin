@@ -475,6 +475,7 @@
   "Apply reviewed summary": "Применить проверенное описание",
   "Documentation changed — rebuild the AI proposal": "Документация изменена — заново создайте предложение AI",
   "Resolve the XML draft before using AI": "Сначала примените или отмените XML-черновик",
+  "AI documentation is available only for methods. Select a method to continue.": "ИИ-помощник работает только с методами. Выберите метод, чтобы продолжить.",
   "Select a method": "Выберите метод",
   "Preparing AI request": "Подготовка запроса AI",
   "Checking connection": "Проверка подключения",

@@ -482,6 +482,7 @@ const
   '  "Apply reviewed summary": "Применить проверенное описание",' +
   '  "Documentation changed — rebuild the AI proposal": "Документация изменена — заново создайте предложение AI",' +
   '  "Resolve the XML draft before using AI": "Сначала примените или отмените XML-черновик",' +
+  '  "AI documentation is available only for methods. Select a method to continue.": "ИИ-помощник работает только с методами. Выберите метод, чтобы продолжить.",' +
   '  "Select a method": "Выберите метод",' +
   '  "Preparing AI request": "Подготовка запроса AI",' +
   '  "Checking connection": "Проверка подключения",' +
@@ -1104,6 +1105,7 @@ const
   '  "Apply reviewed summary": "应用已审核摘要",' +
   '  "Documentation changed — rebuild the AI proposal": "文档已更改 — 请重新生成 AI 建议",' +
   '  "Resolve the XML draft before using AI": "使用 AI 前请先处理 XML 草稿",' +
+  '  "AI documentation is available only for methods. Select a method to continue.": "AI 文档助手仅支持方法。请选择一个方法以继续。",' +
   '  "Select a method": "请选择方法",' +
   '  "Preparing AI request": "正在准备 AI 请求",' +
   '  "Checking connection": "正在测试连接",' +
@@ -1723,6 +1725,7 @@ const
   '  "Apply reviewed summary": "검토한 요약 적용",' +
   '  "Documentation changed — rebuild the AI proposal": "문서가 변경되었습니다 — AI 제안을 다시 생성하세요",' +
   '  "Resolve the XML draft before using AI": "AI를 사용하기 전에 XML 초안을 처리하세요",' +
+  '  "AI documentation is available only for methods. Select a method to continue.": "AI 문서 도우미는 메서드만 지원합니다. 계속하려면 메서드를 선택하세요.",' +
   '  "Select a method": "메서드를 선택하세요",' +
   '  "Preparing AI request": "AI 요청 준비 중",' +
   '  "Checking connection": "연결 확인 중",' +
@@ -2343,6 +2346,7 @@ const
   '  "Apply reviewed summary": "確認済み概要を適用",' +
   '  "Documentation changed — rebuild the AI proposal": "ドキュメントが変更されました — AI の提案を作り直してください",' +
   '  "Resolve the XML draft before using AI": "AI を使用する前に XML の下書きを確定または破棄してください",' +
+  '  "AI documentation is available only for methods. Select a method to continue.": "AI ドキュメントアシスタントはメソッドのみ対応しています。続行するにはメソッドを選択してください。",' +
   '  "Select a method": "メソッドを選択してください",' +
   '  "Preparing AI request": "AI リクエストを準備中",' +
   '  "Checking connection": "接続を確認中",' +

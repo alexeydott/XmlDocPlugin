@@ -159,6 +159,8 @@ The expandable sections below these actions are **Project workspace**, **Inherit
 
 ## Use the AI assistant
 
+The AI assistant works with methods. When a class, interface, or other declaration is selected, the assistant shows a message instead of the method controls. Select a method to see the available operations.
+
 Open a method in Inspector or Explorer and expand **AI assistant**. **Describe method from code** proposes a summary, undocumented parameter descriptions and, where supported by the implementation, return documentation and remarks. **Rephrase summary** improves existing prose and also works on declarations without a method body. **Review documentation against code** compares the current comment with the current implementation, proposes minimal corrections and explains the relevant implementation details. It does not reconstruct a previous implementation. A proposal never writes source until you choose **Apply selected documentation**.
 
 ### Configure a connection

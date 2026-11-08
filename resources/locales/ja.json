@@ -475,6 +475,7 @@
   "Apply reviewed summary": "確認済み概要を適用",
   "Documentation changed — rebuild the AI proposal": "ドキュメントが変更されました — AI の提案を作り直してください",
   "Resolve the XML draft before using AI": "AI を使用する前に XML の下書きを確定または破棄してください",
+  "AI documentation is available only for methods. Select a method to continue.": "AI ドキュメントアシスタントはメソッドのみ対応しています。続行するにはメソッドを選択してください。",
   "Select a method": "メソッドを選択してください",
   "Preparing AI request": "AI リクエストを準備中",
   "Checking connection": "接続を確認中",

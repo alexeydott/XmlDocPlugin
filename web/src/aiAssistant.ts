@@ -9,15 +9,17 @@ type Stamp=ReturnType<typeof bridge.captureStamp>;
 const proseXml=(text:string)=>{const escaped=escapeXml(text.replace(/\r\n?/g,'\n'));return escaped.includes('\n')?escaped.split('\n\n').filter(Boolean).map(p=>'<para>'+p.replace(/\n/g,'<br/>')+'</para>').join(''):escaped;};
 export function initAIAssistant(hooks:Hooks):void {
  const panel=document.createElement('details');panel.id='ai-assistant';
- panel.innerHTML=`<summary>AI assistant</summary><div class="workbench-actions">
+ panel.innerHTML=`<summary>AI assistant</summary>
+ <p id="ai-unavailable" role="status">AI documentation is available only for methods. Select a method to continue.</p>
+ <div id="ai-queue" hidden><output id="ai-queue-status" aria-live="polite"></output><button id="ai-queue-next">Skip and open next method</button><button id="ai-queue-cancel">Cancel AI queue</button></div>
+ <div id="ai-method-controls" hidden><div class="workbench-actions">
  <select id="ai-profile" aria-label="AI profile" title="AI profile"></select><select id="ai-operation" aria-label="AI operation" title="AI operation"><option value="describe">Describe method from code</option><option value="rephrase">Rephrase summary</option><option value="review">Review documentation against code</option></select><select id="ai-template" aria-label="Prompt template" title="Prompt template"></select>
  <button id="ai-settings">AI profiles and prompts</button><button id="ai-check">Test connection</button></div>
  <textarea id="ai-instruction" placeholder="Additional instructions (optional)" aria-label="Additional instructions"></textarea>
- <div id="ai-queue" hidden><output id="ai-queue-status" aria-live="polite"></output><button id="ai-queue-next">Skip and open next method</button><button id="ai-queue-cancel">Cancel AI queue</button></div>
  <div class="workbench-actions"><button id="ai-describe">Describe method from code</button><button id="ai-rephrase">Rephrase summary</button><button id="ai-review">Review documentation against code</button><button id="ai-prepare">Preview AI request</button><button id="ai-send" disabled>Send reviewed request</button><button id="ai-cancel">Cancel</button><output id="ai-status" aria-live="polite"></output></div>
  <div id="ai-wait" hidden role="status" aria-live="polite"><progress aria-label="AI request running"></progress><span>Waiting for AI response</span></div>
  <details id="ai-request-preview" hidden><summary>Request preview</summary><output id="ai-url" data-code></output><pre id="ai-request"></pre></details>
- <section id="ai-proposal" hidden><label><input id="ai-accept-summary" type="checkbox" checked>Accept summary<textarea id="ai-summary" aria-label="Suggested summary"></textarea></label><label id="ai-returns-section" hidden><input id="ai-accept-returns" type="checkbox">Accept return description<textarea id="ai-returns" aria-label="Suggested return description"></textarea></label><label id="ai-remarks-section" hidden><input id="ai-accept-remarks" type="checkbox">Accept remarks<textarea id="ai-remarks" aria-label="Suggested remarks"></textarea></label><div id="ai-parameters"></div><p>Keep protected XML tokens unchanged.</p><ul id="ai-changes" aria-label="Reasons for documentation changes"></ul><ul id="ai-uncertainties"></ul><div class="xml-diff"><pre id="ai-before"></pre><pre id="ai-after"></pre></div><button id="ai-apply" disabled>Apply selected documentation</button></section>`;
+ <section id="ai-proposal" hidden><label><input id="ai-accept-summary" type="checkbox" checked>Accept summary<textarea id="ai-summary" aria-label="Suggested summary"></textarea></label><label id="ai-returns-section" hidden><input id="ai-accept-returns" type="checkbox">Accept return description<textarea id="ai-returns" aria-label="Suggested return description"></textarea></label><label id="ai-remarks-section" hidden><input id="ai-accept-remarks" type="checkbox">Accept remarks<textarea id="ai-remarks" aria-label="Suggested remarks"></textarea></label><div id="ai-parameters"></div><p>Keep protected XML tokens unchanged.</p><ul id="ai-changes" aria-label="Reasons for documentation changes"></ul><ul id="ai-uncertainties"></ul><div class="xml-diff"><pre id="ai-before"></pre><pre id="ai-after"></pre></div><button id="ai-apply" disabled>Apply selected documentation</button></section></div>`;
  document.querySelector('#workbench')?.after(panel);
  const $=<T extends HTMLElement=HTMLElement>(id:string)=>panel.querySelector('#'+id) as T;
  for(const [id,icon] of [['ai-settings','ai-settings'],['ai-check','refresh-catalog'],['ai-describe','ai-describe'],['ai-rephrase','ai-rephrase'],['ai-review','ai-review'],['ai-prepare','preview-change'],['ai-send','next-problem'],['ai-cancel','cancel-operation'],['ai-apply','apply-operation']])setWorkbenchIcon($(id),icon);
@@ -34,6 +36,11 @@ export function initAIAssistant(hooks:Hooks):void {
  let operation='describe';
  const mergeParameters=(doc:DocModel,parameters:{name:string;description:string}[])=>{const result={...doc,params:(doc.params??[]).map(p=>({...p}))};for(const p of parameters){const existing=result.params.find(item=>item.name.toLowerCase()===p.name.toLowerCase());if(existing){if(operation==='review'||!meaningful(existing.description))existing.description=p.description;}else result.params.push({...p});}return result;};
  const status=(text:string)=>{$('ai-status').textContent=text;};
+ const updateAvailability=()=>{
+  const supported=hooks.get().element?.kind==='method';
+  $('ai-method-controls').hidden=!supported;
+  $('ai-unavailable').hidden=supported;
+ };
  const snapshot=()=>JSON.parse(JSON.stringify(hooks.get())) as typeof base;
  const rawDraft=()=>!!hooks.get().doc.parseError||!!hooks.get().doc.xmlEdited||!!bridge.unappliedXml()||!!hooks.get().doc.unappliedXml;
  const current=()=>inputVersion===requestVersion&&!!stamp&&bridge.isCurrentStamp(stamp)&&!!base&&JSON.stringify(hooks.get())===JSON.stringify(base)&&!rawDraft()&&!bridge.readOnly;
@@ -50,7 +57,7 @@ export function initAIAssistant(hooks:Hooks):void {
   panel.open=true;
   if(awaitingWrite)return;
   if(bridge.readOnly||rawDraft()){status('Resolve the XML draft before using AI');return;}
-  const c=hooks.get();if(c.element?.kind!=='method'){status('Select a method');return;}
+  const c=hooks.get();if(c.element?.kind!=='method'){updateAvailability();return;}
   if(operation){$<HTMLSelectElement>('ai-operation').value=operation;options();}
   if(requestId)send('aiCancel');requestId=globalThis.crypto?.randomUUID?.()??('ai-'+Date.now()+Math.random());stamp=bridge.captureStamp();base=snapshot();pendingApply=null;requestVersion=inputVersion;fresh=false;
   $('ai-proposal').hidden=true;$<HTMLButtonElement>('ai-apply').disabled=true;$<HTMLButtonElement>('ai-send').disabled=true;
@@ -128,10 +135,11 @@ $('ai-url').textContent=data.url;$('ai-request').textContent=data.request;$('ai-
  (window as any).xmlDocAI={receive,reload,startQueue};
  window.addEventListener('documentationWriteStarted',((event:CustomEvent)=>{if(awaitingWrite&&pendingApply===null&&writeDoc===JSON.stringify(event.detail.doc))writeId=event.detail.editId;}) as EventListener);
  window.addEventListener('documentationWriteResult',((event:CustomEvent)=>{if(!awaitingWrite||!writeId||event.detail.editId!==writeId)return;const result=event.detail;if(!stamp||result.context.sessionId!==stamp.sessionId||result.context.symbolId!==stamp.symbolId||result.context.fileName!==stamp.fileName)return;lockWrite(false);writeFailed=!result.applied;$<HTMLButtonElement>('ai-queue-next').disabled=writeFailed;status(result.applied?'AI proposal applied':result.message);}) as EventListener);
- window.addEventListener('documentationChanged',invalidate);window.addEventListener('documentationLoaded',()=>{if(stamp&&!current())invalidate();});
+ window.addEventListener('documentationChanged',invalidate);window.addEventListener('documentationLoaded',()=>{updateAvailability();if(stamp&&!current())invalidate();});
  window.addEventListener('documentationLoaded',()=>{if(queueWaiting)queueMicrotask(dispatchQueued);});
  window.addEventListener('sourceReadOnlyChanged',()=>{if(bridge.readOnly)invalidate();});
  window.addEventListener('uiLanguageChanged',options);
  window.addEventListener('pagehide',()=>{stopQueue();if(requestId)send('aiCancel');});
+ updateAvailability();
  reload();
 }
