@@ -25,8 +25,14 @@ export function initToolbar(): void {
 }
 
 export function setActiveEditor(editor: Editor | null): void {
+  if (activeEditor !== editor) hidePopover();
   activeEditor = editor;
+  updateToolbarState(currentElement);
   refreshActiveStates();
+}
+
+export function releaseToolbarEditor(editor: Editor): void {
+  if (activeEditor === editor) setActiveEditor(null);
 }
 
 export function updateToolbarState(element: ElementInfo | null): void {
@@ -38,7 +44,7 @@ export function updateToolbarState(element: ElementInfo | null): void {
 
   const hasParams = (element?.params?.length ?? 0) > 0;
   const hasGenericParams = (element?.genericParams?.length ?? 0) > 0;
-  const isLoaded = element !== null;
+  const isLoaded = element !== null && !!activeEditor && !activeEditor.isDestroyed && !bridge.readOnly;
 
   if (btnParam) btnParam.disabled = !isLoaded || !hasParams;
   if (btnTParam) btnTParam.style.display = hasGenericParams ? '' : 'none';
@@ -110,6 +116,11 @@ function createButtonGroup(buttons: ToolbarButton[]): HTMLDivElement {
     btn.textContent = label;
     btn.title = title;
     btn.disabled = true;
+    // Moving DOM focus to a toolbar button can collapse the native selection.
+    // Keep keyboard activation intact; only suppress the mouse focus change.
+    btn.addEventListener('mousedown', event => {
+      if (event.button === 0) event.preventDefault();
+    });
     btn.addEventListener('click', () => handleAction(action, btn));
     group.appendChild(btn);
   });
@@ -120,12 +131,12 @@ function createButtonGroup(buttons: ToolbarButton[]): HTMLDivElement {
 // ── Active State ──
 
 function refreshActiveStates(): void {
-  if (!toolbarEl || !activeEditor) return;
+  if (!toolbarEl) return;
 
   const states: Record<string, boolean> = {
-    bold: activeEditor.isActive('bold'),
-    italic: activeEditor.isActive('italic'),
-    code: activeEditor.isActive('codeInline'),
+    bold: activeEditor?.isActive('bold') ?? false,
+    italic: activeEditor?.isActive('italic') ?? false,
+    code: activeEditor?.isActive('codeInline') ?? false,
   };
 
   toolbarEl.querySelectorAll<HTMLButtonElement>('.toolbar-btn').forEach(btn => {
@@ -139,7 +150,7 @@ function refreshActiveStates(): void {
 // ── Actions ──
 
 function handleAction(action: string, btn: HTMLElement): void {
-  if (!activeEditor || bridge.readOnly) return;
+  if (!activeEditor || activeEditor.isDestroyed || bridge.readOnly) return;
 
   switch (action) {
     case 'bold':
@@ -273,6 +284,7 @@ function applyMark(
   attrs: Record<string, string>,
   fallbackText: string
 ): void {
+  if (editor.isDestroyed || bridge.readOnly) return;
   const { from, to } = editor.state.selection;
   const hasSelection = from !== to;
 

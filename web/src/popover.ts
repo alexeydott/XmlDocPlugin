@@ -47,12 +47,13 @@ export function showPopover(
     }
   };
 
-  setTimeout(() => {
+  const listenerTimer = setTimeout(() => {
     document.addEventListener('click', onClickOutside);
     document.addEventListener('keydown', onKeyDown);
   }, 0);
 
   cleanupFn = () => {
+    clearTimeout(listenerTimer);
     document.removeEventListener('click', onClickOutside);
     document.removeEventListener('keydown', onKeyDown);
     onClose?.();

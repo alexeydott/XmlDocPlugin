@@ -76,6 +76,22 @@ test('list items serialize distinct paragraphs without joining words',()=>{
  assert.match(serializeNode(doc),/<para>First<\/para><para>Second<\/para>/);
 });
 
+test('paragraph splits and explicit line breaks survive XML reload without extra breaks',()=>{
+ const {textToHtml}=load('xmlCodec.ts');
+ const {inlineToPreviewHtml}=load('preview.ts');
+ const doc=schema.node('doc',null,[
+  schema.node('paragraph',null,[schema.text('First')]),
+  schema.node('paragraph',null,[schema.text('Second'),schema.node('hardBreak'),schema.text('Third')])
+ ]);
+ const xml=serializeNode(doc);
+ assert.equal(xml,'<para>First</para><para>Second<br/>Third</para>');
+ const indented=xml.replace('</para><para>','</para>\n  <para>');
+ const expected='<p>First</p><p>Second<br>Third</p>';
+ assert.equal(textToHtml(indented),expected);
+ assert.equal(inlineToPreviewHtml(indented),expected);
+ assert.equal(textToHtml('First\nSecond'),'<p>First<br>Second</p>');
+});
+
 test('nested XML attributes survive prose edits and table cells keep paragraphs',()=>{
  const {modelXml}=load('docTools.ts');const {textToHtml}=load('xmlCodec.ts');
  const xml=modelXml({summary:'<b>After</b>',sourceXml:'<summary><b custom="keep">Before</b></summary>'});assert.match(xml,/custom="keep"/);

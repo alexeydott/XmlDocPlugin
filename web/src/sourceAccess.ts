@@ -4,7 +4,7 @@ export function applySourceAccess(readOnly: boolean, reason: string): void {
  const banner=document.getElementById('source-access-status');
  if(banner){banner.hidden=!readOnly;banner.textContent=reason;}
  for(const control of document.querySelectorAll<HTMLInputElement|HTMLTextAreaElement>('#doc-design input,#doc-design textarea,#xml-source,#member-summaries textarea'))control.readOnly=readOnly || control.dataset.sourceLocked==='true';
- for(const button of document.querySelectorAll<HTMLButtonElement>('#doc-design button,#doc-toolbar button,#apply-xml'))button.disabled=readOnly;
+ for(const button of document.querySelectorAll<HTMLButtonElement>('#doc-design button,#apply-xml'))button.disabled=readOnly;
  for(const button of document.querySelectorAll<HTMLButtonElement>('#workbench button')){
   const viewAction=navigation.has(button.id) || button.dataset.workbenchIcon==='open-source' || button.dataset.workbenchIcon==='open-xml';
   button.disabled=readOnly && !viewAction;

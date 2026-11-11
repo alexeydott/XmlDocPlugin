@@ -2,6 +2,14 @@ import { Node as TipTapNode } from '@tiptap/core';
 export function escapeXml(text: string): string {
  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+const blockTags = new Set(['para','list','code','table','ul','ol','pre']);
+export function isBlockSeparator(node: globalThis.Node): boolean {
+ if(node.nodeType!==3 || !/^[\t \n\r]*[\n\r][\t \n\r]*$/.test(node.textContent??''))return false;
+ const isBoundary=(neighbor:globalThis.Node|null)=>neighbor===null ||
+  (neighbor.nodeType===1 && blockTags.has((neighbor as Element).tagName));
+ return isBoundary(node.previousSibling) && isBoundary(node.nextSibling) &&
+  !!(node.previousSibling || node.nextSibling);
+}
 export const OpaqueXml = TipTapNode.create({
  name: 'opaqueXml', group: 'inline', inline: true, atom: true,
  addAttributes() { return { xml: { default: '' } }; },
@@ -37,7 +45,7 @@ export function serializeNode(node: any): string {
    return text;
  }
  switch(node.type.name) {
-   case 'doc': { const parts:string[]=[];node.forEach((c:any)=>parts.push(serializeNode(c)));return parts.join('\n'); }
+   case 'doc': return paragraphs();
    case 'paragraph': return content();
    case 'docTable':return `<list type="table">${content()}</list>`;
    case 'docTableRow':{let cells='';node.forEach((cell:any,index:number)=>{const tag=index===0?'term':'description';cells+=`<${tag}>${serializeNode(cell)}</${tag}>`;});const tag=node.attrs.header?'listheader':'item';return `<${tag}>${cells}</${tag}>`;}
@@ -60,6 +68,7 @@ export function textToHtml(text:string):string {
  const asBlocks=(html:string)=>/<(?:p|pre|table|ul|ol)\b/.test(html)?html:`<p>${html}</p>`;
  const opaque=(n:globalThis.Node)=>`<span data-xml="${escapeXml(new XMLSerializer().serializeToString(n))}">XML</span>`;
  const convert=(node:globalThis.Node):string=>{
+   if(isBlockSeparator(node))return '';
    if(node.nodeType===3 || node.nodeType===4) return escapeXml(node.textContent ?? '').replace(/\r?\n/g,'<br>');
    if(node.nodeType!==1) return opaque(node);
    const e=node as Element;

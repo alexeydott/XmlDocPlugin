@@ -173,6 +173,7 @@ const
   '  "Preview replacement": "Предпросмотр замены",' +
   '  "Review documentation changes": "Проверить изменения документации",' +
   '  "Apply changes": "Применить изменения",' +
+  '  "XML": "XML",' +
   '  "Documentation XML": "XML документации",' +
   '  "Validate and apply XML": "Проверить и применить XML",' +
   '  "XML is valid": "XML корректен",' +
@@ -799,6 +800,7 @@ const
   '  "Preview replacement": "预览替换",' +
   '  "Review documentation changes": "审阅文档更改",' +
   '  "Apply changes": "应用更改",' +
+  '  "XML": "XML",' +
   '  "Documentation XML": "文档 XML",' +
   '  "Validate and apply XML": "验证并应用 XML",' +
   '  "XML is valid": "XML 有效",' +
@@ -1417,6 +1419,7 @@ const
   '  "Preview replacement": "바꾸기 미리 보기",' +
   '  "Review documentation changes": "문서 변경 내용 검토",' +
   '  "Apply changes": "변경 내용 적용",' +
+  '  "XML": "XML",' +
   '  "Documentation XML": "문서 XML",' +
   '  "Validate and apply XML": "XML 검증 및 적용",' +
   '  "XML is valid": "유효한 XML",' +
@@ -2039,6 +2042,7 @@ const
   '  "Preview replacement": "置換をプレビュー",' +
   '  "Review documentation changes": "ドキュメントの変更を確認",' +
   '  "Apply changes": "変更を適用",' +
+  '  "XML": "XML",' +
   '  "Documentation XML": "ドキュメント XML",' +
   '  "Validate and apply XML": "XML を検証して適用",' +
   '  "XML is valid": "XML は有効です",' +

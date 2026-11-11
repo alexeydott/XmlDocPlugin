@@ -143,12 +143,12 @@ Expand **Documentation tools** above the editor. Most actions use SVG icons. Hov
 | Back / Forward | Revisit documentation selections; also Alt+Left / Alt+Right inside the editor. |
 | Pin | Keep the current documentation card while moving the source caret. Unpin to follow source again. |
 | Compact | Reduce editor spacing. |
-| Source | Navigate to the selected declaration. |
+| Open source | Navigate to the selected declaration. |
 | Reload source | Discard the pending editor view and request current source. Review recoverable drafts separately if needed. |
 | Recover drafts | List saved drafts for the active project. |
 | Quick documentation | Resolve the symbol at the source caret or offer matching declarations. |
 | Synchronize signature | Review missing, obsolete or renamed parameter/result sections. |
-| XML | Open the raw documentation fragment; Ctrl+Alt+X inside the editor also opens it. Escape returns to Design. |
+| XML | Open the raw documentation fragment; Ctrl+Alt+X inside the editor also opens it. Select the Design tab, click XML again in the toolbar, or press Escape to return to Design without applying the XML draft. |
 | Format | Preview XML formatting before applying it. |
 | Fold source comments | Request folding of documentation comments in the source editor. |
 | Problems | Show checks for the selected declaration and actions for resolving them. |

@@ -10,8 +10,8 @@ export function initWorkbench(hooks:Hooks):void {
  const box=document.createElement('details');box.id='workbench';box.open=true;
  box.innerHTML=`<summary>Documentation tools <output id="edit-status" aria-live="polite">Applied</output></summary>
  <div class="workbench-actions"><button id="history-back" title="Back (Alt+Left)">Back</button><button id="history-forward" title="Forward (Alt+Right)">Forward</button>
- <button id="pin-document" aria-pressed="false">Pin</button><button id="compact-document" aria-pressed="false">Compact</button><button id="focus-source">Source</button><button id="reload-document">Reload source</button><button id="recover-drafts">Recover drafts</button>
- <button id="quick-documentation">Quick documentation</button><button id="sync-document">Synchronize signature</button><button id="open-xml">XML</button><button id="format-document">Format</button><button id="fold-documentation">Fold source comments</button><button id="show-problems">Problems</button></div>
+ <button id="pin-document" aria-pressed="false">Pin</button><button id="compact-document" aria-pressed="false">Compact</button><button id="open-xml" aria-pressed="false">XML</button><button id="reload-document">Reload source</button><button id="recover-drafts">Recover drafts</button>
+ <button id="quick-documentation">Quick documentation</button><button id="sync-document">Synchronize signature</button><button id="focus-source">Open source</button><button id="format-document">Format</button><button id="fold-documentation">Fold source comments</button><button id="show-problems">Problems</button></div>
  <details><summary>Project workspace</summary><div class="workbench-actions"><select id="catalog-scope" aria-label="Documentation scope"><option value="module">Module</option><option value="project" selected>Project</option><option value="group">Project group</option></select><button id="refresh-catalog">Refresh</button>
  <output id="analysis-state" aria-live="polite"></output><button id="cancel-analysis" hidden title="Cancel analysis">Cancel analysis</button><input id="reference-label" placeholder="Reference display text (optional)" aria-label="Reference display text"><input id="catalog-query" placeholder="Find symbol or documentation" aria-label="Find symbol or documentation"><select id="catalog-filter" aria-label="Documentation filter"><option value="all">All symbols</option><option value="public">Public API</option><option value="missing">No documentation</option><option value="todo">TODO drafts</option><option value="incomplete">Incomplete signature</option><option value="links">Reference problems</option><option value="review">New problems</option></select>
  <select id="catalog-kind" aria-label="Symbol kind"><option value="">All kinds</option>${['unit','class','record','interface','method','property','field','type','constant'].map(k=>`<option value="${k}">${k.charAt(0).toUpperCase()+k.slice(1)}</option>`).join('')}</select>
@@ -36,9 +36,11 @@ export function initWorkbench(hooks:Hooks):void {
   bridge.sendToHost({type:'openSymbol',locationId:element.locationId,projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber??1});
  };
  const visibleXml=()=> (bridge.unappliedXml()??current().doc.unappliedXml)?.xml??editableXml(current().doc);
+ const xmlTab=$<HTMLButtonElement>('doc-tabs').querySelector<HTMLButtonElement>('[data-tab="xml"]')!;
+ xmlTab.addEventListener('click',()=>{xml.value=visibleXml();});
  const viewXml=(focus=true)=>{
-  $('doc-design').classList.add('hidden');$('doc-preview').classList.add('hidden');raw.classList.remove('hidden');
-  xml.value=visibleXml();if(focus)xml.focus();
+  if(raw.classList.contains('hidden'))xmlTab.click();
+  if(focus)xml.focus();
  };
  let recovery:any=null;
  const showRecovery=()=>{
@@ -80,7 +82,7 @@ export function initWorkbench(hooks:Hooks):void {
  };
  $('cancel-analysis').onclick=()=>bridge.sendToHost({type:'cancelAnalysis'} as any);
  $('quick-documentation').onclick=()=>bridge.sendToHost({type:'requestQuickDoc'} as any);
- $('sync-document').onclick=sync;$('show-problems').onclick=showProblems;$('open-xml').onclick=()=>viewXml();
+ $('sync-document').onclick=sync;$('show-problems').onclick=showProblems;$('open-xml').onclick=()=>{if(raw.classList.contains('hidden'))viewXml();else $('doc-tabs').querySelector<HTMLButtonElement>('[data-tab=design]')?.click();};
  $('apply-operation').onclick=()=>{applyPreview?.();applyPreview=null;preview=null;$('operation-preview').hidden=true;};
  $('cancel-operation').onclick=()=>{applyPreview=null;preview=null;$('operation-preview').hidden=true;};
  $('fold-documentation').onclick=()=>bridge.sendToHost({type:'foldDocumentation'} as any);
@@ -90,7 +92,6 @@ export function initWorkbench(hooks:Hooks):void {
   $('xml-error').textContent=error?.textContent??'';
   if(!error){bridge.approveXml();hooks.apply({...current().doc,unappliedXml:undefined,rawXml:xml.value,xmlEdited:true,parseError:undefined});}
  };
- document.querySelectorAll('#doc-tabs .tab').forEach(tab=>tab.addEventListener('click',()=>raw.classList.add('hidden')));
  $('pin-document').onclick=()=>{const pinned=!bridge.pinned;bridge.setPinned(pinned);$('pin-document').setAttribute('aria-pressed',String(pinned));bridge.sendToHost({type:'pin',pinned});};
  $('compact-document').onclick=()=>{document.body.classList.toggle('compact');$('compact-document').setAttribute('aria-pressed',String(document.body.classList.contains('compact')));};
  $('focus-source').onclick=()=>{const e=current().element;if(e)open(e);};
@@ -101,7 +102,7 @@ export function initWorkbench(hooks:Hooks):void {
  document.addEventListener('keydown',event=>{
   if(event.altKey && ['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();move(event.key==='ArrowLeft'?-1:1);}
   if(event.ctrlKey && event.altKey && event.key.toLowerCase()==='x'){event.preventDefault();viewXml();}
-  if(event.key==='Escape' && !raw.classList.contains('hidden')){$('doc-design').classList.remove('hidden');raw.classList.add('hidden');}
+  if(event.key==='Escape' && !raw.classList.contains('hidden')){$('doc-tabs').querySelector<HTMLButtonElement>('[data-tab=design]')?.click();}
  });
  const filtered=()=>{
   const q=$<HTMLInputElement>('catalog-query').value.toLowerCase(),filter=$<HTMLSelectElement>('catalog-filter').value,kind=$<HTMLSelectElement>('catalog-kind').value;
@@ -290,10 +291,17 @@ export function initWorkbench(hooks:Hooks):void {
    for(const e of data.matches){const row=document.createElement('div');const title=document.createElement('button');title.textContent=e.signature??e.name;const caption=document.createElement('span');caption.dataset.code='';caption.textContent=title.textContent;row.append(caption);title.title='Open source: '+title.textContent;title.textContent='Open source';setWorkbenchIcon(title,'open-source');title.onclick=()=>open(e);const prose=document.createElement('pre');prose.textContent=e.doc.summary+'\n'+(e.doc.params??[]).map(p=>p.name+': '+p.description).join('\n')+'\n'+(e.doc.returns??'');row.append(title,prose);panel.append(row);}
    if(!data.matches.length)panel.append(document.createTextNode('The symbol at the cursor could not be resolved. Use the project symbol picker.'));
   },receiveSelection(code:string){const doc=current().doc;review({...doc,examples:[...(doc.examples??[]),{title:'Selected source',description:'',code}]});}};
+ let xmlCard='';
  window.addEventListener('documentationLoaded',(event)=>{
   const {element,doc}=(event as CustomEvent).detail;
   if(element){const last=history[index];if(!navigating && (last?.symbolId!==element.symbolId || last?.fileName!==element.fileName || last?.locationId!==element.locationId)){history=history.slice(0,index+1);history.push({locationId:element.locationId,projectFile:element.projectFile,fileName:element.fileName,symbolId:element.symbolId,line:element.lineNumber});index=history.length-1;}navigating=false;}
-  xml.value=visibleXml();$('xml-error').textContent=doc.parseError??'';if(doc.parseError || doc.xmlEdited)viewXml(false);showProblems();inheritance();showWording();spell();showRecovery();
+  const card=JSON.stringify([element?.projectFile,element?.fileName,element?.locationId??element?.symbolId]);
+  const newCard=xmlCard!==card;xmlCard=card;
+  const value=visibleXml();
+  if(xml.value!==value)xml.value=value;
+  $('xml-error').textContent=doc.parseError??'';
+  if(newCard && (doc.parseError || doc.xmlEdited))viewXml(false);
+  showProblems();inheritance();showWording();spell();showRecovery();
   bridge.sendToHost({type:'loadAuthoring'} as any);
   const revision=element?.fileName+'|'+element?.sourceRevision;if(revision!==catalogRevision){catalogRevision=revision;refresh();}
  });

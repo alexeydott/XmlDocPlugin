@@ -13,7 +13,7 @@ import { ParamRef } from './nodes/paramRef';
 import { TypeParamRef } from './nodes/typeParamRef';
 import { bridge } from './bridge';
 import type { DocModel, ElementInfo, ParamDoc, TypeParamDoc } from './types';
-import { initToolbar, setActiveEditor, updateToolbarState } from './toolbar';
+import { initToolbar, releaseToolbarEditor, setActiveEditor, updateToolbarState } from './toolbar';
 import { renderPreview } from './preview';
 import { initWorkbench } from './workbench';
 
@@ -208,8 +208,16 @@ function renderSignature(el: ElementInfo): void {
 // ────────────────────────────────────────────
 // Render Sections
 // ────────────────────────────────────────────
+function disposeRowEditors(row: HTMLElement): void {
+ for(const [field,editor] of fieldEditors)if(row.contains(field)){
+  releaseToolbarEditor(editor);
+  editor.destroy();
+  fieldEditors.delete(field);
+ }
+}
 function refreshRows(body:HTMLElement,render:()=>void):void {
  const oldRows=Array.from(body.children) as HTMLElement[];
+ const focused=body.contains(document.activeElement)?document.activeElement as HTMLElement:null;
  render();
  for(const row of Array.from(body.children) as HTMLElement[]){
   const name=row.querySelector('.td-name')?.textContent;
@@ -217,10 +225,11 @@ function refreshRows(body:HTMLElement,render:()=>void):void {
   if(!old)continue;
   const oldName=old.querySelector<HTMLElement>('.td-name'),newName=row.querySelector<HTMLElement>('.td-name');
   if(oldName && newName)oldName.title=newName.title;
-  for(const [field,editor] of fieldEditors)if(row.contains(field)){editor.destroy();fieldEditors.delete(field);}
+  disposeRowEditors(row);
   row.replaceWith(old);oldRows.splice(oldRows.indexOf(old),1);
  }
- for(const row of oldRows)for(const [field,editor] of fieldEditors)if(row.contains(field)){editor.destroy();fieldEditors.delete(field);}
+ for(const row of oldRows)disposeRowEditors(row);
+ if(focused?.isConnected)focused.focus({preventScroll:true});
 }
 function renderParams(params: ParamDoc[], elementParams: ElementInfo['params']): void {
   const tbody = $('#params-body')!;
@@ -300,6 +309,7 @@ function addExampleRow(container: HTMLElement, description = '', code = '', titl
   row.querySelector('.example-title')!.addEventListener('input',()=>notifyChanged());
   row.querySelector('.example-code')!.addEventListener('input', notifyChanged);
   row.querySelector('.btn-remove')!.addEventListener('click', () => {
+    disposeRowEditors(row);
     row.remove();
     notifyChanged();
   });
@@ -348,6 +358,7 @@ function addExceptionRow(container: HTMLElement, typeRef = '', description = '')
   `;
   attachField(row,'.exception-desc');
   row.querySelector('.btn-remove')!.addEventListener('click', () => {
+    disposeRowEditors(row);
     row.remove();
     notifyChanged();
   });
@@ -372,6 +383,7 @@ function addSeeAlsoRow(container: HTMLElement, cref = '', description = ''): voi
   `;
   attachField(row,'.seealso-description');
   row.querySelector('.btn-remove')!.addEventListener('click', () => {
+    disposeRowEditors(row);
     row.remove();
     notifyChanged();
   });
@@ -449,14 +461,12 @@ function setupTabs(): void {
       document.querySelectorAll('#doc-tabs .tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
 
-      if (target === 'design') {
-        $('#doc-design')!.classList.remove('hidden');
-        $('#doc-preview')!.classList.add('hidden');
-      } else {
-        $('#doc-design')!.classList.add('hidden');
-        $('#doc-preview')!.classList.remove('hidden');
-        renderPreview($('#doc-preview')!, collectDoc(), currentElement);
+      setActiveEditor(null);
+      $('#open-xml')?.setAttribute('aria-pressed',String(target==='xml'));
+      for (const mode of ['design','xml','preview']) {
+        $('#doc-'+mode)?.classList.toggle('hidden',mode!==target);
       }
+      if (target === 'preview') renderPreview($('#doc-preview')!, collectDoc(), currentElement);
     });
   });
 }
@@ -518,6 +528,7 @@ export function loadDocument(element: ElementInfo, doc: DocModel): void {
   loading=true;
   // Context is owned by the bridge for incoming documents. Local preview operations retain it.
 
+  setActiveEditor(null);
   fieldEditors.forEach(editor=>editor.destroy());fieldEditors.clear();
   (window as any).xmlDocResourceBase=element.resourceBase;
   currentElement = element;
@@ -588,6 +599,13 @@ export function init(): void {
   setupCollapsible();
   setupAddButtons();
   setupTabs();
+  $('#doc-design')?.addEventListener('focusin',event=>{
+    if(event.target instanceof Element && !event.target.closest('.tiptap'))setActiveEditor(null);
+  });
+  window.addEventListener('documentationLoaded',()=>{
+    const preview=$('#doc-preview');
+    if(preview && !preview.classList.contains('hidden'))renderPreview(preview,collectDoc(),currentElement);
+  });
   (window as any).xmlDocEditor={
     get:()=>({element:currentElement,doc:currentDoc}),
     apply:(doc:DocModel)=>{if(currentElement && !bridge.readOnly){loadDocument(currentElement,doc);bridge.notifyDocChanged(doc);}},
@@ -598,7 +616,7 @@ export function init(): void {
   }});
 
   const access=document.createElement('div');access.id='source-access-status';access.setAttribute('role','status');access.hidden=true;document.getElementById('doc-toolbar')?.before(access);
-  const refreshAccess=()=>{editors().forEach(e=>{if(e.isEditable===bridge.readOnly)e.setEditable(!bridge.readOnly);});applySourceAccess(bridge.readOnly,bridge.readOnlyReason);};
+  const refreshAccess=()=>{editors().forEach(e=>{if(e.isEditable===bridge.readOnly)e.setEditable(!bridge.readOnly);});applySourceAccess(bridge.readOnly,bridge.readOnlyReason);updateToolbarState(currentElement);};
   window.addEventListener('sourceReadOnlyChanged',refreshAccess);
   const accessObserver=new MutationObserver(refreshAccess);
   for(const id of ['doc-design','workbench','doc-xml']){const root=document.getElementById(id);if(root)accessObserver.observe(root,{childList:true,subtree:true});}

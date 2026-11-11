@@ -1,3 +1,4 @@
+import { isBlockSeparator } from './xmlCodec';
 import type { DocModel, ElementInfo } from './types';
 
 function esc(text: string): string {
@@ -13,6 +14,7 @@ export function inlineToPreviewHtml(text:string):string {
  const doc=new DOMParser().parseFromString('<doc>'+text+'</doc>','application/xml');
  if(doc.querySelector('parsererror'))return esc(text);
  const render=(node:Node):string=>{
+  if(isBlockSeparator(node))return '';
   if(node.nodeType===3 || node.nodeType===4)return esc(node.textContent??'');
   if(node.nodeType!==1)return '';
   const e=node as Element;const content=()=>Array.from(e.childNodes).map(render).join('');
